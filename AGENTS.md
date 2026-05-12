@@ -20,7 +20,13 @@
 - 提交说明可以沿用类似 `feat: 第1课,项目内容`（新增第一课项目内容）的格式，让后续能从提交历史看出项目是一步一步写起来的。
 
 ## 项目结构
-根目录是 `Maven`（构建工具）多模块工程，父级 `pom.xml` 聚合以下模块：
+根目录按前后端分开组织：
+
+- `backend`：后端 `Maven`（构建工具）多模块工程，父级 `pom.xml` 聚合后端模块。
+- `frontend`：前端工程，承接用户端导购页、运营端页面和后续复杂交互。
+- `doc/design`：设计文档。
+
+`backend` 下包含以下模块：
 
 - `agent-group-api`：接口契约和对外模型。
 - `agent-group-app`：应用编排、流程组织和运行入口。
@@ -29,13 +35,13 @@
 - `agent-group-trigger`：网页接口、任务、消息等入口适配。
 - `agent-group-types`：通用枚举、常量、数据对象和值对象。
 
-设计文档位于 `doc/design`，前端演示页面位于 `src/main/resources/static`。新增测试放在对应模块的 `src/test/java` 下。
+新增后端测试放在 `backend` 下对应模块的 `src/test/java` 目录。
 
 ## 构建与测试
-- `mvn clean compile`：编译全部模块。
-- `mvn test`：运行全部测试。
-- `mvn clean package`：打包全部模块。
-- `mvn -pl agent-group-domain -am test`：只测试指定模块及其依赖。
+- `cd backend && mvn clean compile`：编译全部后端模块。
+- `cd backend && mvn test`：运行全部后端测试。
+- `cd backend && mvn clean package`：打包全部后端模块。
+- `cd backend && mvn -pl agent-group-domain -am test`：只测试指定模块及其依赖。
 
 父级配置目标版本为 `Java 21`（二十一版本 Java），本地构建时请使用对应 `JDK`（Java 开发工具包）。
 
