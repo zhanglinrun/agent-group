@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电商 AI 导购运营端</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body data-page="admin">
+  <div class="admin-shell">
+    <aside class="admin-sidebar" aria-label="运营导航">
+      <a class="brand-line vertical" href="./admin.html" aria-label="电商 AI 导购运营端">
+        <span class="brand-mark">AG</span>
+        <span>
+          <strong>运营工作台</strong>
+          <small>知识库 · 评测 · 交易</small>
+        </span>
+      </a>
+
+      <nav class="admin-nav">
+        <a class="active" href="#dashboard">总览</a>
+        <a href="#knowledge">知识库</a>
+        <a href="#evaluation">质量评测</a>
+        <a href="#trade">交易监控</a>
+      </nav>
+
+      <a class="return-link" href="./index.html">进入用户端</a>
+    </aside>
+
+    <main class="admin-main">
+      <header id="dashboard" class="admin-header">
+        <div>
+          <p class="eyebrow">运营端</p>
+          <h1>导购质量和知识治理工作台</h1>
+        </div>
+        <div class="admin-actions">
+          <button id="mockKnowledgeBtn" class="soft-button" type="button">模拟上传文档</button>
+          <button id="runEvalBtn" class="primary-button" type="button">执行评测</button>
+        </div>
+      </header>
+
+      <section class="metric-strip" aria-label="核心指标">
+        <div class="metric-box">
+          <span>检索命中率</span>
+          <strong id="metricRecall">80%</strong>
+          <small>目标不低于 80%</small>
+        </div>
+        <div class="metric-box">
+          <span>回答准确率</span>
+          <strong id="metricAccuracy">75%</strong>
+          <small>目标不低于 75%</small>
+        </div>
+        <div class="metric-box">
+          <span>推荐合理率</span>
+          <strong id="metricRecommend">80%</strong>
+          <small>目标不低于 80%</small>
+        </div>
+        <div class="metric-box">
+          <span>多轮一致性</span>
+          <strong id="metricContext">80%</strong>
+          <small>目标不低于 80%</small>
+        </div>
+      </section>
+
+      <section class="admin-layout">
+        <section id="knowledge" class="admin-panel wide-panel">
+          <div class="block-title">
+            <div>
+              <strong>知识库治理</strong>
+              <span>正式知识与用户临时资料分开管理</span>
+            </div>
+            <span class="state-badge">3 份已生效</span>
+          </div>
+          <div id="knowledgeRows" class="data-list"></div>
+        </section>
+
+        <section class="admin-panel">
+          <div class="block-title">
+            <div>
+              <strong>提示词版本</strong>
+              <span>用于评测对比</span>
+            </div>
+          </div>
+          <div class="version-stack">
+            <div>
+              <strong>guide-v1.0</strong>
+              <span>导购主提示词，已启用</span>
+            </div>
+            <div>
+              <strong>self-check-v1.0</strong>
+              <span>卡片一致性检查，已启用</span>
+            </div>
+            <div>
+              <strong>eval-v1.0</strong>
+              <span>批量评测口径，已启用</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="evaluation" class="admin-panel wide-panel">
+          <div class="block-title">
+            <div>
+              <strong>评测用例</strong>
+              <span>按知识版本、提示词版本和模型配置追踪</span>
+            </div>
+          </div>
+          <div id="evalRows" class="data-list"></div>
+        </section>
+
+        <section id="trade" class="admin-panel">
+          <div class="block-title">
+            <div>
+              <strong>交易状态</strong>
+              <span>支付、拼团和退款监控</span>
+            </div>
+          </div>
+          <div id="orderRows" class="data-list"></div>
+          <ol id="orderTimeline" class="timeline wide"></ol>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
