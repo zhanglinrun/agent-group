@@ -1,11 +1,13 @@
 package com.linrun.trigger.service;
 
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
+import com.linrun.domain.trade.model.TradeOrderStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,11 +17,14 @@ public class GroupBuySettlementService {
 
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final TradeOrderRepository tradeOrderRepository;
+    private final TradeStatusFlowService tradeStatusFlowService;
 
     public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                     TradeOrderRepository tradeOrderRepository) {
+                                     TradeOrderRepository tradeOrderRepository,
+                                     TradeStatusFlowService tradeStatusFlowService) {
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.tradeOrderRepository = tradeOrderRepository;
+        this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
     public void settlePaySuccess(TradeOrder tradeOrder) {
@@ -28,12 +33,39 @@ public class GroupBuySettlementService {
         }
 
         GroupBuySettlementResult settlementResult = groupBuyOrderLockRepository.settlePaidOrder(tradeOrder.getOrderId());
+        if (settlementResult.isRepeated()) {
+            return;
+        }
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_GROUP,
+                settlementResult.getOrderLock().getLockId(),
+                TradeStatusFlowService.EVENT_GROUP_LOCK_PAID,
+                GroupBuyLockStatus.LOCKED,
+                settlementResult.getOrderLock().getLockStatus(),
+                "group lock paid");
         if (!GroupBuyTeamStatus.SUCCESS.equals(settlementResult.getTeam().getTeamStatus())) {
             return;
         }
 
         List<String> orderIds = groupBuyOrderLockRepository.queryPaidOrderIdsByTeamId(settlementResult.getTeam().getTeamId());
         tradeOrderRepository.updateGroupSettledByOrderIds(orderIds);
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_GROUP,
+                settlementResult.getTeam().getTeamId(),
+                TradeStatusFlowService.EVENT_GROUP_SETTLED,
+                GroupBuyTeamStatus.PROCESSING,
+                settlementResult.getTeam().getTeamStatus(),
+                "group settled");
+        orderIds.forEach(orderId -> tradeStatusFlowService.record(
+                orderId,
+                TradeStatusFlowService.BIZ_ORDER,
+                orderId,
+                TradeStatusFlowService.EVENT_GROUP_SETTLED,
+                TradeOrderStatus.PAY_SUCCESS,
+                TradeOrderStatus.GROUP_SETTLED,
+                "order group settled"));
         if (orderIds.contains(tradeOrder.getOrderId())) {
             tradeOrder.markGroupSettled();
         }

@@ -165,6 +165,22 @@ create table if not exists refund_order (
   key idx_user_status (user_id, refund_status)
 ) engine=InnoDB default charset=utf8mb4 comment='退款单表';
 
+create table if not exists trade_status_flow (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  flow_id varchar(40) not null comment '流水编号',
+  order_id varchar(40) not null comment '订单编号',
+  biz_type varchar(32) not null comment '业务类型',
+  biz_id varchar(64) not null comment '业务编号',
+  event_type varchar(32) not null comment '事件类型',
+  from_status varchar(32) default null comment '变更前状态',
+  to_status varchar(32) not null comment '变更后状态',
+  remark varchar(256) not null default '' comment '说明',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_flow_id (flow_id),
+  key idx_order_time (order_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='交易状态流水表';
+
 insert into guide_goods (
   goods_id, goods_name, image_url, origin_price, spec_summary, after_sale_policy,
   recommend_reason, not_suitable_for, enabled, sort_order

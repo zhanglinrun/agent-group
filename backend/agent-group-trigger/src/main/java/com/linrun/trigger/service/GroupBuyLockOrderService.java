@@ -38,17 +38,20 @@ public class GroupBuyLockOrderService {
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
+    private final TradeStatusFlowService tradeStatusFlowService;
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService) {
+                                    TradeOrderService tradeOrderService,
+                                    TradeStatusFlowService tradeStatusFlowService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
+        this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -87,6 +90,7 @@ public class GroupBuyLockOrderService {
             GroupBuyTeam team = GroupBuyTeam.create(teamId, activity, now);
             GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockNewTeam(team, orderLock);
             tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+            recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
             return toResponse(lockResult, tradePayOrder);
         }
 
@@ -95,7 +99,37 @@ public class GroupBuyLockOrderService {
         team.assertCanJoin(activity.getActivityId(), activity.getGoodsId(), now);
         GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockExistingTeam(orderLock);
         tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+        recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
         return toResponse(lockResult, tradePayOrder);
+    }
+
+    private void recordLockFlow(GroupBuyOrderLock orderLock, TradePayOrder tradePayOrder) {
+        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrder payOrder = tradePayOrder.getPayOrder();
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_GROUP,
+                orderLock.getLockId(),
+                TradeStatusFlowService.EVENT_GROUP_LOCKED,
+                null,
+                orderLock.getLockStatus(),
+                "group slot locked");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_ORDER,
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.EVENT_CREATE_GROUP_ORDER,
+                null,
+                tradeOrder.getOrderStatus(),
+                "group order created");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_PAY,
+                payOrder.getPayOrderId(),
+                TradeStatusFlowService.EVENT_CREATE_PAY_ORDER,
+                null,
+                payOrder.getPayStatus(),
+                "pay order created");
     }
 
     private void validate(LockGroupBuyOrderRequest request) {

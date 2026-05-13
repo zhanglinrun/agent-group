@@ -4,7 +4,9 @@ import com.linrun.api.trade.request.MockPayCallbackRequest;
 import com.linrun.api.trade.response.MockPayCallbackResponse;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
+import com.linrun.domain.trade.model.PayStatus;
 import com.linrun.domain.trade.model.TradeOrder;
+import com.linrun.domain.trade.model.TradeOrderStatus;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -19,13 +21,16 @@ public class MockPayCallbackService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final GroupBuySettlementService groupBuySettlementService;
+    private final TradeStatusFlowService tradeStatusFlowService;
 
     public MockPayCallbackService(TradeOrderRepository tradeOrderRepository,
                                   TradeOrderService tradeOrderService,
-                                  GroupBuySettlementService groupBuySettlementService) {
+                                  GroupBuySettlementService groupBuySettlementService,
+                                  TradeStatusFlowService tradeStatusFlowService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuySettlementService = groupBuySettlementService;
+        this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -45,12 +50,37 @@ public class MockPayCallbackService {
         PayOrder payOrder = tradeOrderRepository.queryPayOrderByOrderId(request.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
+        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
+        PayStatus fromPayStatus = payOrder.getPayStatus();
         LocalDateTime payTime = request.getPayTime() == null ? LocalDateTime.now() : request.getPayTime();
         tradeOrderService.markPaySuccess(tradeOrder, payOrder, request.getOutTradeNo(), payTime);
         tradeOrderRepository.updatePaySuccess(tradeOrder, payOrder);
+        recordPaySuccessFlow(tradeOrder, payOrder, fromOrderStatus, fromPayStatus);
         groupBuySettlementService.settlePaySuccess(tradeOrder);
 
         return toResponse(tradeOrder, payOrder);
+    }
+
+    private void recordPaySuccessFlow(TradeOrder tradeOrder,
+                                      PayOrder payOrder,
+                                      TradeOrderStatus fromOrderStatus,
+                                      PayStatus fromPayStatus) {
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_ORDER,
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.EVENT_PAY_SUCCESS,
+                fromOrderStatus,
+                tradeOrder.getOrderStatus(),
+                "order paid");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_PAY,
+                payOrder.getPayOrderId(),
+                TradeStatusFlowService.EVENT_PAY_SUCCESS,
+                fromPayStatus,
+                payOrder.getPayStatus(),
+                "pay success");
     }
 
     private MockPayCallbackResponse toResponse(TradeOrder tradeOrder, PayOrder payOrder) {

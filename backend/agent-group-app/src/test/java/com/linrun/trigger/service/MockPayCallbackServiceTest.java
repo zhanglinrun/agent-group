@@ -8,9 +8,11 @@ import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
+import com.linrun.domain.trade.adapter.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.PayStatus;
 import com.linrun.domain.trade.model.RefundOrder;
+import com.linrun.domain.trade.model.TradeStatusFlow;
 import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.domain.trade.model.TradeOrderStatus;
@@ -34,7 +36,8 @@ class MockPayCallbackServiceTest {
     @Test
     void shouldMarkOrderAndPayOrderSuccess() {
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(waitPayOrder(), waitPay());
-        MockPayCallbackService service = service(repository);
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        MockPayCallbackService service = service(repository, flowRepository);
         MockPayCallbackRequest request = request("O10001", "T10001", PAY_TIME);
 
         MockPayCallbackResponse response = service.paySuccess(request);
@@ -48,6 +51,9 @@ class MockPayCallbackServiceTest {
         assertEquals(TradeOrderStatus.PAY_SUCCESS, repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatus.SUCCESS, repository.payOrder.getPayStatus());
         assertEquals(1, repository.updateCount);
+        assertEquals(2, flowRepository.flows.size());
+        assertEquals(TradeStatusFlowService.EVENT_PAY_SUCCESS, flowRepository.flows.get(0).getEventType());
+        assertEquals(TradeStatusFlowService.EVENT_PAY_SUCCESS, flowRepository.flows.get(1).getEventType());
     }
 
     @Test
@@ -57,7 +63,8 @@ class MockPayCallbackServiceTest {
         tradeOrder.markPaySuccess(PAY_TIME);
         payOrder.markSuccess("T10001", PAY_TIME);
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(tradeOrder, payOrder);
-        MockPayCallbackService service = service(repository);
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        MockPayCallbackService service = service(repository, flowRepository);
 
         MockPayCallbackResponse response = service.paySuccess(request("O10001", "T10002", PAY_TIME.plusMinutes(1)));
 
@@ -66,6 +73,7 @@ class MockPayCallbackServiceTest {
         assertEquals("T10001", response.getOutTradeNo());
         assertEquals(PAY_TIME, response.getPayTime());
         assertEquals(1, repository.updateCount);
+        assertEquals(0, flowRepository.flows.size());
     }
 
     @Test
@@ -99,10 +107,17 @@ class MockPayCallbackServiceTest {
     }
 
     private MockPayCallbackService service(FakeTradeOrderRepository repository) {
+        return service(repository, new FakeTradeStatusFlowRepository());
+    }
+
+    private MockPayCallbackService service(FakeTradeOrderRepository repository,
+                                           FakeTradeStatusFlowRepository flowRepository) {
+        TradeStatusFlowService tradeStatusFlowService = new TradeStatusFlowService(flowRepository);
         return new MockPayCallbackService(
                 repository,
                 new TradeOrderService(),
-                new GroupBuySettlementService(new EmptyGroupBuyOrderLockRepository(), repository));
+                new GroupBuySettlementService(new EmptyGroupBuyOrderLockRepository(), repository, tradeStatusFlowService),
+                tradeStatusFlowService);
     }
 
     private TradeOrder waitPayOrder() {
@@ -234,6 +249,23 @@ class MockPayCallbackServiceTest {
         @Override
         public GroupBuySettlementResult releasePaidOrder(String orderId) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
+
+        private final List<TradeStatusFlow> flows = new java.util.ArrayList<>();
+
+        @Override
+        public void save(TradeStatusFlow flow) {
+            flows.add(flow);
+        }
+
+        @Override
+        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+            return flows.stream()
+                    .filter(flow -> orderId.equals(flow.getOrderId()))
+                    .toList();
         }
     }
 }

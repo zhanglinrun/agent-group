@@ -23,13 +23,16 @@ public class DirectBuyOrderService {
     private final GuideDataRepository guideDataRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
+    private final TradeStatusFlowService tradeStatusFlowService;
 
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
                                  TradeOrderRepository tradeOrderRepository,
-                                 TradeOrderService tradeOrderService) {
+                                 TradeOrderService tradeOrderService,
+                                 TradeStatusFlowService tradeStatusFlowService) {
         this.guideDataRepository = guideDataRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
+        this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
     public CreateDirectOrderResponse createDirectOrder(CreateDirectOrderRequest request) {
@@ -57,8 +60,30 @@ public class DirectBuyOrderService {
         TradeOrder tradeOrder = tradeOrderService.createOrder(command);
         TradePayOrder tradePayOrder = tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
         tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+        recordCreateFlow(tradePayOrder);
 
         return toResponse(tradePayOrder);
+    }
+
+    private void recordCreateFlow(TradePayOrder tradePayOrder) {
+        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrder payOrder = tradePayOrder.getPayOrder();
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_ORDER,
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.EVENT_CREATE_DIRECT_ORDER,
+                null,
+                tradeOrder.getOrderStatus(),
+                "direct order created");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_PAY,
+                payOrder.getPayOrderId(),
+                TradeStatusFlowService.EVENT_CREATE_PAY_ORDER,
+                null,
+                payOrder.getPayStatus(),
+                "pay order created");
     }
 
     private String resolvePayChannel(CreateDirectOrderRequest request) {

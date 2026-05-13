@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.ITradeStatusFlowDao">
+
+    <resultMap id="TradeStatusFlowMap" type="com.linrun.domain.trade.model.TradeStatusFlow">
+        <id column="flow_id" property="flowId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="biz_type" property="bizType"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="event_type" property="eventType"/>
+        <result column="from_status" property="fromStatus"/>
+        <result column="to_status" property="toStatus"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.linrun.domain.trade.model.TradeStatusFlow">
+        insert into trade_status_flow (
+          flow_id,
+          order_id,
+          biz_type,
+          biz_id,
+          event_type,
+          from_status,
+          to_status,
+          remark,
+          create_time
+        ) values (
+          #{flowId},
+          #{orderId},
+          #{bizType},
+          #{bizId},
+          #{eventType},
+          #{fromStatus},
+          #{toStatus},
+          #{remark},
+          #{createTime}
+        )
+    </insert>
+
+    <select id="queryByOrderId" resultMap="TradeStatusFlowMap">
+        select flow_id,
+               order_id,
+               biz_type,
+               biz_id,
+               event_type,
+               from_status,
+               to_status,
+               remark,
+               create_time
+        from trade_status_flow
+        where order_id = #{orderId}
+        order by create_time asc, id asc
+    </select>
+</mapper>

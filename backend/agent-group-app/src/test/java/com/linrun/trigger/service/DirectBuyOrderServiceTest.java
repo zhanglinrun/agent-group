@@ -6,9 +6,11 @@ import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
+import com.linrun.domain.trade.adapter.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.PayStatus;
 import com.linrun.domain.trade.model.RefundOrder;
+import com.linrun.domain.trade.model.TradeStatusFlow;
 import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.domain.trade.model.TradeOrderStatus;
@@ -30,10 +32,12 @@ class DirectBuyOrderServiceTest {
     @Test
     void shouldCreateDirectOrderAndPersist() {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         DirectBuyOrderService service = new DirectBuyOrderService(
                 new FakeGuideDataRepository(),
                 tradeOrderRepository,
-                new TradeOrderService());
+                new TradeOrderService(),
+                new TradeStatusFlowService(flowRepository));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -55,6 +59,9 @@ class DirectBuyOrderServiceTest {
 
         assertEquals(response.getOrderId(), tradeOrderRepository.savedTradeOrder.getOrderId());
         assertEquals(response.getPayOrderId(), tradeOrderRepository.savedPayOrder.getPayOrderId());
+        assertEquals(2, flowRepository.flows.size());
+        assertEquals(TradeStatusFlowService.EVENT_CREATE_DIRECT_ORDER, flowRepository.flows.get(0).getEventType());
+        assertEquals(TradeStatusFlowService.EVENT_CREATE_PAY_ORDER, flowRepository.flows.get(1).getEventType());
     }
 
     @Test
@@ -63,7 +70,8 @@ class DirectBuyOrderServiceTest {
         DirectBuyOrderService service = new DirectBuyOrderService(
                 new FakeGuideDataRepository(),
                 tradeOrderRepository,
-                new TradeOrderService());
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -79,7 +87,8 @@ class DirectBuyOrderServiceTest {
         DirectBuyOrderService service = new DirectBuyOrderService(
                 new EmptyGuideDataRepository(),
                 new FakeTradeOrderRepository(),
-                new TradeOrderService());
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10099");
@@ -95,7 +104,8 @@ class DirectBuyOrderServiceTest {
         DirectBuyOrderService service = new DirectBuyOrderService(
                 new FakeGuideDataRepository(),
                 new FakeTradeOrderRepository(),
-                new TradeOrderService());
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setGoodsId("G10001");
 
@@ -201,6 +211,23 @@ class DirectBuyOrderServiceTest {
         @Override
         public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
             return Optional.ofNullable(savedPayOrder);
+        }
+    }
+
+    private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
+
+        private final List<TradeStatusFlow> flows = new java.util.ArrayList<>();
+
+        @Override
+        public void save(TradeStatusFlow flow) {
+            flows.add(flow);
+        }
+
+        @Override
+        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+            return flows.stream()
+                    .filter(flow -> orderId.equals(flow.getOrderId()))
+                    .toList();
         }
     }
 }

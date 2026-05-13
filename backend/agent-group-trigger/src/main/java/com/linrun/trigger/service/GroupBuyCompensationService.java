@@ -4,12 +4,15 @@ import com.linrun.api.groupbuy.request.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.groupbuy.request.RefundGroupBuyOrderRequest;
 import com.linrun.api.groupbuy.response.GroupBuyCompensationResponse;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
+import com.linrun.domain.trade.model.PayStatus;
 import com.linrun.domain.trade.model.RefundOrder;
 import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
+import com.linrun.domain.trade.model.TradeOrderStatus;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -29,13 +32,16 @@ public class GroupBuyCompensationService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
+    private final TradeStatusFlowService tradeStatusFlowService;
 
     public GroupBuyCompensationService(TradeOrderRepository tradeOrderRepository,
                                        TradeOrderService tradeOrderService,
-                                       GroupBuyOrderLockRepository groupBuyOrderLockRepository) {
+                                       GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                       TradeStatusFlowService tradeStatusFlowService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
+        this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -47,10 +53,13 @@ public class GroupBuyCompensationService {
         PayOrder payOrder = queryPayOrder(request.getOrderId());
         validateGroupBuyOrder(tradeOrder);
 
+        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
+        PayStatus fromPayStatus = payOrder.getPayStatus();
         LocalDateTime closeTime = request.getCloseTime() == null ? LocalDateTime.now() : request.getCloseTime();
         tradeOrderService.closeUnpaidOrder(tradeOrder, payOrder, closeTime);
         tradeOrderRepository.updateCloseUnpaid(tradeOrder, payOrder);
         GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releaseLockedOrder(tradeOrder.getOrderId());
+        recordCloseFlow(tradeOrder, payOrder, releaseResult, fromOrderStatus, fromPayStatus);
         return toResponse(tradeOrder, payOrder, null, releaseResult, closeTime);
     }
 
@@ -69,6 +78,8 @@ public class GroupBuyCompensationService {
             return toResponse(tradeOrder, payOrder, existed, releaseResult, existed.getRefundTime());
         }
 
+        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
+        PayStatus fromPayStatus = payOrder.getPayStatus();
         LocalDateTime refundTime = request.getRefundTime() == null ? LocalDateTime.now() : request.getRefundTime();
         RefundOrder refundOrder = RefundOrder.success(
                 nextNo("R"),
@@ -80,7 +91,83 @@ public class GroupBuyCompensationService {
         tradeOrderRepository.saveRefundOrder(refundOrder);
         tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
         GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releasePaidOrder(tradeOrder.getOrderId());
+        recordRefundFlow(tradeOrder, payOrder, refundOrder, releaseResult, fromOrderStatus, fromPayStatus);
         return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundTime);
+    }
+
+    private void recordCloseFlow(TradeOrder tradeOrder,
+                                 PayOrder payOrder,
+                                 GroupBuySettlementResult releaseResult,
+                                 TradeOrderStatus fromOrderStatus,
+                                 PayStatus fromPayStatus) {
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_ORDER,
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.EVENT_CLOSE_UNPAID,
+                fromOrderStatus,
+                tradeOrder.getOrderStatus(),
+                "order closed");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_PAY,
+                payOrder.getPayOrderId(),
+                TradeStatusFlowService.EVENT_CLOSE_UNPAID,
+                fromPayStatus,
+                payOrder.getPayStatus(),
+                "pay order closed");
+        if (!releaseResult.isRepeated()) {
+            tradeStatusFlowService.record(
+                    tradeOrder.getOrderId(),
+                    TradeStatusFlowService.BIZ_GROUP,
+                    releaseResult.getOrderLock().getLockId(),
+                    TradeStatusFlowService.EVENT_RELEASE_LOCK,
+                    GroupBuyLockStatus.LOCKED,
+                    releaseResult.getOrderLock().getLockStatus(),
+                    "group lock released");
+        }
+    }
+
+    private void recordRefundFlow(TradeOrder tradeOrder,
+                                  PayOrder payOrder,
+                                  RefundOrder refundOrder,
+                                  GroupBuySettlementResult releaseResult,
+                                  TradeOrderStatus fromOrderStatus,
+                                  PayStatus fromPayStatus) {
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_ORDER,
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.EVENT_REFUNDED,
+                fromOrderStatus,
+                tradeOrder.getOrderStatus(),
+                "order refunded");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_PAY,
+                payOrder.getPayOrderId(),
+                TradeStatusFlowService.EVENT_REFUNDED,
+                fromPayStatus,
+                payOrder.getPayStatus(),
+                "pay order refunded");
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_REFUND,
+                refundOrder.getRefundId(),
+                TradeStatusFlowService.EVENT_REFUND_SUCCESS,
+                null,
+                refundOrder.getRefundStatus(),
+                "refund success");
+        if (!releaseResult.isRepeated()) {
+            tradeStatusFlowService.record(
+                    tradeOrder.getOrderId(),
+                    TradeStatusFlowService.BIZ_GROUP,
+                    releaseResult.getOrderLock().getLockId(),
+                    TradeStatusFlowService.EVENT_RELEASE_PAID_LOCK,
+                    GroupBuyLockStatus.PAID,
+                    releaseResult.getOrderLock().getLockStatus(),
+                    "paid group lock released");
+        }
     }
 
     private void validateGroupBuyOrder(TradeOrder tradeOrder) {
