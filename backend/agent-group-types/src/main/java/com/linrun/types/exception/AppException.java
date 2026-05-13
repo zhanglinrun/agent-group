@@ -2,11 +2,6 @@ package com.linrun.types.exception;
 
 import lombok.Getter;
 
-/**
- * @author linrun.com
- * @description
- * @create 2026-05-13 上午9:11
- */
 @Getter
 public class AppException extends RuntimeException {
 
