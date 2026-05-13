@@ -2,6 +2,37 @@ spring:
   mvc:
     async:
       request-timeout: 60000
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${AGENT_GROUP_MYSQL_URL:jdbc:mysql://127.0.0.1:13306/agent_group?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${AGENT_GROUP_MYSQL_USERNAME:root}
+    password: ${AGENT_GROUP_MYSQL_PASSWORD:agent_group_dev}
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      pool-name: AgentGroup_HikariCP
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 60000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+  data:
+    redis:
+      host: ${AGENT_GROUP_REDIS_HOST:127.0.0.1}
+      port: ${AGENT_GROUP_REDIS_PORT:16379}
+      database: ${AGENT_GROUP_REDIS_DATABASE:0}
+      password: ${AGENT_GROUP_REDIS_PASSWORD:}
+      timeout: 5s
+  rabbitmq:
+    host: ${AGENT_GROUP_RABBITMQ_HOST:127.0.0.1}
+    port: ${AGENT_GROUP_RABBITMQ_PORT:5672}
+    username: ${AGENT_GROUP_RABBITMQ_USERNAME:agent_group}
+    password: ${AGENT_GROUP_RABBITMQ_PASSWORD:agent_group_dev}
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
 
 logging:
   level:
@@ -13,3 +44,23 @@ agent:
     stream:
       timeout-millis: 60000
       mock-delay-millis: 350
+    vector:
+      host: ${AGENT_GROUP_PGVECTOR_HOST:127.0.0.1}
+      port: ${AGENT_GROUP_PGVECTOR_PORT:15432}
+      database: ${AGENT_GROUP_PGVECTOR_DATABASE:agent_group_vector}
+      username: ${AGENT_GROUP_PGVECTOR_USERNAME:agent_group}
+      password: ${AGENT_GROUP_PGVECTOR_PASSWORD:agent_group_dev}
+      dimension: 1024
+    minio:
+      endpoint: ${AGENT_GROUP_MINIO_ENDPOINT:http://127.0.0.1:9000}
+      access-key: ${AGENT_GROUP_MINIO_ACCESS_KEY:agent_group}
+      secret-key: ${AGENT_GROUP_MINIO_SECRET_KEY:agent_group_dev}
+      bucket-name: ${AGENT_GROUP_MINIO_BUCKET:agent-group}
+    llm:
+      base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/}
+      api-key: ${AGENT_GROUP_LLM_API_KEY:}
+      chat-model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen-plus}
+      embedding-model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v4}
+
+mybatis:
+  mapper-locations: classpath:/mybatis/mapper/*.xml

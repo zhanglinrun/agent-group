@@ -1,0 +1,165 @@
+services:
+  mysql:
+    image: mysql:8.0.32
+    container_name: agent-group-mysql
+    restart: always
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: ${AGENT_GROUP_MYSQL_ROOT_PASSWORD:-agent_group_dev}
+      MYSQL_DATABASE: agent_group
+    ports:
+      - "13306:3306"
+    volumes:
+      - agent-group-mysql-data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/mysql.cnf:ro
+      - ./mysql/sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+    networks:
+      - agent-group-network
+
+  redis:
+    image: redis:7.2
+    container_name: agent-group-redis
+    restart: always
+    ports:
+      - "16379:6379"
+    volumes:
+      - agent-group-redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-group-network
+
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: agent-group-pgvector
+    restart: always
+    environment:
+      TZ: Asia/Shanghai
+      POSTGRES_USER: ${AGENT_GROUP_PGVECTOR_USERNAME:-agent_group}
+      POSTGRES_PASSWORD: ${AGENT_GROUP_PGVECTOR_PASSWORD:-agent_group_dev}
+      POSTGRES_DB: agent_group_vector
+    ports:
+      - "15432:5432"
+    volumes:
+      - agent-group-pgvector-data:/var/lib/postgresql/data
+      - ./pgvector/sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agent-group-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: agent-group-minio
+    restart: always
+    environment:
+      TZ: Asia/Shanghai
+      MINIO_ROOT_USER: ${AGENT_GROUP_MINIO_ACCESS_KEY:-agent_group}
+      MINIO_ROOT_PASSWORD: ${AGENT_GROUP_MINIO_SECRET_KEY:-agent_group_dev}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - agent-group-minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agent-group-network
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: agent-group-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${AGENT_GROUP_MINIO_ACCESS_KEY:-agent_group}
+      MINIO_ROOT_PASSWORD: ${AGENT_GROUP_MINIO_SECRET_KEY:-agent_group_dev}
+      MINIO_BUCKET: ${AGENT_GROUP_MINIO_BUCKET:-agent-group}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing local/$${MINIO_BUCKET};
+      "
+    networks:
+      - agent-group-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: agent-group-rabbitmq
+    restart: always
+    environment:
+      TZ: Asia/Shanghai
+      RABBITMQ_DEFAULT_USER: ${AGENT_GROUP_RABBITMQ_USERNAME:-agent_group}
+      RABBITMQ_DEFAULT_PASS: ${AGENT_GROUP_RABBITMQ_PASSWORD:-agent_group_dev}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agent-group-network
+
+  phpmyadmin:
+    image: phpmyadmin:5.2.1
+    container_name: agent-group-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "8899:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - agent-group-network
+
+  redis-admin:
+    image: spryker/redis-commander:0.8.0
+    container_name: agent-group-redis-admin
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      HTTP_USER: ${AGENT_GROUP_REDIS_ADMIN_USER:-admin}
+      HTTP_PASSWORD: ${AGENT_GROUP_REDIS_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agent-group-network
+
+networks:
+  agent-group-network:
+    driver: bridge
+
+volumes:
+  agent-group-mysql-data:
+  agent-group-redis-data:
+  agent-group-pgvector-data:
+  agent-group-minio-data:

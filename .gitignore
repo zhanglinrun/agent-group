@@ -31,11 +31,14 @@ build/
 ### VS Code ###
 .vscode/
 
+doc/design/
+
 ### Frontend ###
 frontend/node_modules/
 frontend/dist/
 
 ### Mac OS ###
 .DS_Store
-
-doc/design
+doc/design/*
+!doc/design/11_导购接口契约.md
+!doc/design/12_基础设施容器方案.md

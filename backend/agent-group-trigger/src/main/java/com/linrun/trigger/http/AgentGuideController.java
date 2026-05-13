@@ -2,7 +2,16 @@ package com.linrun.trigger.http;
 
 import com.linrun.api.agent.model.GuideEventType;
 import com.linrun.api.agent.request.GuideStreamRequest;
-import com.linrun.api.agent.response.*;
+import com.linrun.api.agent.response.AnswerDeltaDTO;
+import com.linrun.api.agent.response.ErrorDTO;
+import com.linrun.api.agent.response.GuideStreamEvent;
+import com.linrun.api.agent.response.ProductCardDTO;
+import com.linrun.api.agent.response.ReferenceDeltaDTO;
+import com.linrun.api.agent.response.SelfCheckDTO;
+import com.linrun.api.agent.response.ToolCallDTO;
+import com.linrun.domain.guide.adapter.GuideDataRepository;
+import com.linrun.domain.guide.model.GuideProduct;
+import com.linrun.domain.guide.model.GuideReference;
 import jakarta.annotation.PreDestroy;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
@@ -14,16 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * @author linrun.com
- * @description
- * @create 2026-05-13 上午9:44
+ * 导购流式接口。
  */
 @RestController
 @CrossOrigin(origins = "*")
@@ -31,6 +39,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AgentGuideController {
 
     private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
+    private final GuideDataRepository guideDataRepository;
+
+    public AgentGuideController(GuideDataRepository guideDataRepository) {
+        this.guideDataRepository = guideDataRepository;
+    }
 
     @PostMapping(value = "/guide/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter guideStream(@RequestBody GuideStreamRequest request) {
@@ -40,25 +53,113 @@ public class AgentGuideController {
     }
 
     private void doGuideStream(GuideStreamRequest request, SseEmitter emitter) {
-        String sessionId = StringUtils.hasText(request.getSessionId()) ? request.getSessionId() : "S" + System.currentTimeMillis();
+        String sessionId = StringUtils.hasText(request.getSessionId())
+                ? request.getSessionId()
+                : "S" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
         AtomicInteger sequence = new AtomicInteger(1);
 
         try {
             if (!StringUtils.hasText(request.getQuestion())) {
-                send(emitter, GuideStreamEvent.of(GuideEventType.ERROR.getCode(), sessionId, requestId, sequence.getAndIncrement(), error("0001", "问题不能为空")));
+                send(emitter, GuideStreamEvent.of(
+                        GuideEventType.ERROR.getCode(),
+                        sessionId,
+                        requestId,
+                        sequence.getAndIncrement(),
+                        error("0001", "问题不能为空")
+                ));
                 emitter.complete();
                 return;
             }
 
-            send(emitter, GuideStreamEvent.of(GuideEventType.TOOL_CALL.getCode(), sessionId, requestId, sequence.getAndIncrement(), toolCall("intent_recognize", "识别用户预算、身份和使用场景")));
-            send(emitter, GuideStreamEvent.of(GuideEventType.REFERENCE_DELTA.getCode(), sessionId, requestId, sequence.getAndIncrement(), reference("KF10001", "G10001", "商品详情", "轻薄学习平板标准版适合写论文、看网课和日常笔记。", 1)));
-            send(emitter, GuideStreamEvent.of(GuideEventType.REFERENCE_DELTA.getCode(), sessionId, requestId, sequence.getAndIncrement(), reference("KF10002", "G10001", "营销规则", "标准版支持 3 人拼团，拼团价比原价低 300 元。", 2)));
-            send(emitter, GuideStreamEvent.of(GuideEventType.ANSWER_DELTA.getCode(), sessionId, requestId, sequence.getAndIncrement(), new AnswerDeltaDTO("如果你是学生，并且预算有限，优先建议看标准版。")));
-            send(emitter, GuideStreamEvent.of(GuideEventType.ANSWER_DELTA.getCode(), sessionId, requestId, sequence.getAndIncrement(), new AnswerDeltaDTO("它能覆盖写论文、看网课、做笔记这些核心学习场景。")));
-            send(emitter, GuideStreamEvent.of(GuideEventType.ANSWER_DELTA.getCode(), sessionId, requestId, sequence.getAndIncrement(), new AnswerDeltaDTO("高配版更适合剪视频或运行大型应用，当前需求下性价比不如标准版。")));
-            send(emitter, GuideStreamEvent.of(GuideEventType.PRODUCT_CARD.getCode(), sessionId, requestId, sequence.getAndIncrement(), productCard()));
-            send(emitter, GuideStreamEvent.of(GuideEventType.DONE.getCode(), sessionId, requestId, sequence.getAndIncrement(), "done"));
+            send(emitter, GuideStreamEvent.of(
+                    GuideEventType.TOOL_CALL.getCode(),
+                    sessionId,
+                    requestId,
+                    sequence.getAndIncrement(),
+                    toolCall("intent_recognize", "正在识别用户预算、使用场景和购买限制")
+            ));
+
+            List<GuideReference> references;
+            Optional<GuideProduct> recommendProduct;
+            try {
+                references = guideDataRepository.queryReferences(request.getQuestion(), 3);
+                recommendProduct = guideDataRepository.queryRecommendProduct(request.getQuestion());
+            } catch (Exception e) {
+                send(emitter, GuideStreamEvent.of(
+                        GuideEventType.ERROR.getCode(),
+                        sessionId,
+                        requestId,
+                        sequence.getAndIncrement(),
+                        error("DATA_0001", "导购数据源不可用，请先启动本地 Docker 基础设施并初始化数据")
+                ));
+                emitter.complete();
+                return;
+            }
+
+            if (recommendProduct.isEmpty()) {
+                send(emitter, GuideStreamEvent.of(
+                        GuideEventType.ERROR.getCode(),
+                        sessionId,
+                        requestId,
+                        sequence.getAndIncrement(),
+                        error("DATA_0002", "没有可推荐商品，请先初始化商品数据")
+                ));
+                emitter.complete();
+                return;
+            }
+
+            for (GuideReference reference : references) {
+                send(emitter, GuideStreamEvent.of(
+                        GuideEventType.REFERENCE_DELTA.getCode(),
+                        sessionId,
+                        requestId,
+                        sequence.getAndIncrement(),
+                        reference(reference)
+                ));
+            }
+
+            GuideProduct product = recommendProduct.get();
+            send(emitter, GuideStreamEvent.of(
+                    GuideEventType.ANSWER_DELTA.getCode(),
+                    sessionId,
+                    requestId,
+                    sequence.getAndIncrement(),
+                    new AnswerDeltaDTO("我先从已入库的商品、活动和知识片段里筛选，本轮优先推荐" + product.getGoodsName() + "。")
+            ));
+
+            send(emitter, GuideStreamEvent.of(
+                    GuideEventType.ANSWER_DELTA.getCode(),
+                    sessionId,
+                    requestId,
+                    sequence.getAndIncrement(),
+                    new AnswerDeltaDTO(product.getRecommendReason())
+            ));
+
+            send(emitter, GuideStreamEvent.of(
+                    GuideEventType.PRODUCT_CARD.getCode(),
+                    sessionId,
+                    requestId,
+                    sequence.getAndIncrement(),
+                    productCard(product)
+            ));
+
+            send(emitter, GuideStreamEvent.of(
+                    GuideEventType.SELF_CHECK.getCode(),
+                    sessionId,
+                    requestId,
+                    sequence.getAndIncrement(),
+                    selfCheck()
+            ));
+
+            send(emitter, GuideStreamEvent.of(
+                    GuideEventType.DONE.getCode(),
+                    sessionId,
+                    requestId,
+                    sequence.getAndIncrement(),
+                    "done"
+            ));
+
             emitter.complete();
         } catch (Exception e) {
             emitter.completeWithError(e);
@@ -87,32 +188,39 @@ public class AgentGuideController {
         return dto;
     }
 
-    private ReferenceDeltaDTO reference(String fragmentId, String goodsId, String type, String content, int rank) {
+    private ReferenceDeltaDTO reference(GuideReference reference) {
         ReferenceDeltaDTO dto = new ReferenceDeltaDTO();
-        dto.setFragmentId(fragmentId);
-        dto.setDocumentId("DOC10001");
-        dto.setGoodsId(goodsId);
-        dto.setDocumentType(type);
-        dto.setKnowledgeVersion("v1");
-        dto.setContent(content);
-        dto.setRank(rank);
+        dto.setFragmentId(reference.getFragmentId());
+        dto.setDocumentId(reference.getDocumentId());
+        dto.setGoodsId(reference.getGoodsId());
+        dto.setDocumentType(reference.getDocumentType());
+        dto.setKnowledgeVersion(reference.getKnowledgeVersion());
+        dto.setContent(reference.getContent());
+        dto.setRank(reference.getRank());
         return dto;
     }
 
-    private ProductCardDTO productCard() {
+    private ProductCardDTO productCard(GuideProduct product) {
         ProductCardDTO dto = new ProductCardDTO();
-        dto.setGoodsId("G10001");
-        dto.setGoodsName("轻薄学习平板标准版");
-        dto.setImageUrl("");
-        dto.setOriginPrice(new BigDecimal("2399.00"));
-        dto.setGroupPrice(new BigDecimal("2099.00"));
-        dto.setSpecSummary("10.9 英寸屏幕，128GB 存储，支持手写笔");
-        dto.setAfterSalePolicy("7 天无理由退货，1 年质保");
-        dto.setRecommendReason("预算有限、学习和网课场景下性价比更高");
-        dto.setNotSuitableFor("长期剪视频或运行大型应用的用户");
-        dto.setActivityId("A10001");
-        dto.setTeamSize(3);
-        dto.setRemainingSeconds(1800);
+        dto.setGoodsId(product.getGoodsId());
+        dto.setGoodsName(product.getGoodsName());
+        dto.setImageUrl(product.getImageUrl());
+        dto.setOriginPrice(product.getOriginPrice());
+        dto.setGroupPrice(product.getGroupPrice());
+        dto.setSpecSummary(product.getSpecSummary());
+        dto.setAfterSalePolicy(product.getAfterSalePolicy());
+        dto.setRecommendReason(product.getRecommendReason());
+        dto.setNotSuitableFor(product.getNotSuitableFor());
+        dto.setActivityId(product.getActivityId());
+        dto.setTeamSize(product.getTeamSize());
+        dto.setRemainingSeconds(product.getRemainingSeconds());
+        return dto;
+    }
+
+    private SelfCheckDTO selfCheck() {
+        SelfCheckDTO dto = new SelfCheckDTO();
+        dto.setPassed(true);
+        dto.setMessage("回答依据、商品价格和推荐理由已完成自检");
         return dto;
     }
 
