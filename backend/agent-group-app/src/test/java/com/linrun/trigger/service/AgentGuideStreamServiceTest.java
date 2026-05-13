@@ -116,6 +116,11 @@ class AgentGuideStreamServiceTest {
             return Optional.of(product);
         }
 
+        @Override
+        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+            return queryRecommendProduct(goodsId);
+        }
+
         private GuideReference reference(String fragmentId, int rank) {
             GuideReference reference = new GuideReference();
             reference.setFragmentId(fragmentId);
@@ -138,6 +143,11 @@ class AgentGuideStreamServiceTest {
 
         @Override
         public Optional<GuideProduct> queryRecommendProduct(String question) {
+            throw new IllegalStateException("database unavailable");
+        }
+
+        @Override
+        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             throw new IllegalStateException("database unavailable");
         }
     }

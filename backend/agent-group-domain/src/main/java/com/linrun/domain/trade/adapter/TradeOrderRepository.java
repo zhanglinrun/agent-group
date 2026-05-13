@@ -1,0 +1,15 @@
+package com.linrun.domain.trade.adapter;
+
+import com.linrun.domain.trade.model.PayOrder;
+import com.linrun.domain.trade.model.TradeOrder;
+
+import java.util.Optional;
+
+public interface TradeOrderRepository {
+
+    void save(TradeOrder tradeOrder, PayOrder payOrder);
+
+    Optional<TradeOrder> queryTradeOrderByOrderId(String orderId);
+
+    Optional<PayOrder> queryPayOrderByOrderId(String orderId);
+}

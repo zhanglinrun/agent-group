@@ -11,4 +11,6 @@ public interface GuideDataRepository {
     List<GuideReference> queryReferences(String question, int limit);
 
     Optional<GuideProduct> queryRecommendProduct(String question);
+
+    Optional<GuideProduct> queryProductByGoodsId(String goodsId);
 }

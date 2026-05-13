@@ -27,6 +27,16 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     @Override
     public Optional<GuideProduct> queryRecommendProduct(String question) {
         GuideProduct product = guideDataDao.queryRecommendProduct(question);
+        return normalizeProduct(product);
+    }
+
+    @Override
+    public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+        GuideProduct product = guideDataDao.queryProductByGoodsId(goodsId);
+        return normalizeProduct(product);
+    }
+
+    private Optional<GuideProduct> normalizeProduct(GuideProduct product) {
         if (product == null) {
             return Optional.empty();
         }

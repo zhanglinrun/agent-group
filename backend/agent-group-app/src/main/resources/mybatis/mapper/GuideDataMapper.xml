@@ -66,4 +66,29 @@
         order by g.sort_order asc, g.id asc
         limit 1
     </select>
+
+    <select id="queryProductByGoodsId" resultMap="GuideProductMap">
+        select g.goods_id,
+               g.goods_name,
+               g.image_url,
+               g.origin_price,
+               a.group_price,
+               g.spec_summary,
+               g.after_sale_policy,
+               g.recommend_reason,
+               g.not_suitable_for,
+               a.activity_id,
+               a.team_size,
+               timestampdiff(second, now(), a.end_time) as remaining_seconds
+        from guide_goods g
+        left join group_activity a
+          on a.goods_id = g.goods_id
+         and a.enabled = 1
+         and a.start_time &lt;= now()
+         and a.end_time &gt; now()
+        where g.enabled = 1
+          and g.goods_id = #{goodsId}
+        order by a.start_time desc, a.id desc
+        limit 1
+    </select>
 </mapper>

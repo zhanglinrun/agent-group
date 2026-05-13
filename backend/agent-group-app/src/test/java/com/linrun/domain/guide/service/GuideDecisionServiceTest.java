@@ -121,6 +121,11 @@ class GuideDecisionServiceTest {
             return Optional.of(product);
         }
 
+        @Override
+        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+            return queryRecommendProduct(goodsId);
+        }
+
         private GuideReference reference(String fragmentId, int rank) {
             GuideReference reference = new GuideReference();
             reference.setFragmentId(fragmentId);
@@ -143,6 +148,11 @@ class GuideDecisionServiceTest {
 
         @Override
         public Optional<GuideProduct> queryRecommendProduct(String question) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             return Optional.empty();
         }
     }
@@ -189,6 +199,11 @@ class GuideDecisionServiceTest {
             product.setOriginPrice(new BigDecimal("1999.00"));
             product.setRecommendReason("资料待补全，暂时只能作为候选商品");
             return Optional.of(product);
+        }
+
+        @Override
+        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+            return queryRecommendProduct(goodsId);
         }
 
         private GuideReference reference(String fragmentId, int rank) {

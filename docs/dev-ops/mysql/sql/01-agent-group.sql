@@ -68,6 +68,45 @@ create table if not exists knowledge_fragment (
   key idx_goods_rank (goods_id, rank_no)
 ) engine=InnoDB default charset=utf8mb4 comment='知识片段表';
 
+create table if not exists trade_order (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  order_id varchar(40) not null comment '订单编号',
+  user_id varchar(64) not null comment '用户编号',
+  goods_id varchar(32) not null comment '商品编号',
+  goods_name varchar(128) not null comment '商品名称',
+  activity_id varchar(32) default null comment '活动编号',
+  buy_type varchar(32) not null comment '购买类型',
+  origin_amount decimal(10, 2) not null comment '订单原价',
+  pay_amount decimal(10, 2) not null comment '支付金额',
+  order_status varchar(32) not null comment '订单状态',
+  pay_time datetime default null comment '支付时间',
+  close_time datetime default null comment '关闭时间',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_order_id (order_id),
+  key idx_user_status (user_id, order_status),
+  key idx_goods_id (goods_id)
+) engine=InnoDB default charset=utf8mb4 comment='交易订单表';
+
+create table if not exists pay_order (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  pay_order_id varchar(40) not null comment '支付单编号',
+  order_id varchar(40) not null comment '订单编号',
+  pay_channel varchar(32) not null comment '支付渠道',
+  pay_amount decimal(10, 2) not null comment '支付金额',
+  pay_status varchar(32) not null comment '支付状态',
+  pay_url varchar(512) not null default '' comment '支付链接',
+  out_trade_no varchar(64) default null comment '外部交易单号',
+  pay_time datetime default null comment '支付时间',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_pay_order_id (pay_order_id),
+  unique key uk_order_id (order_id),
+  key idx_pay_status (pay_status)
+) engine=InnoDB default charset=utf8mb4 comment='支付单表';
+
 insert into guide_goods (
   goods_id, goods_name, image_url, origin_price, spec_summary, after_sale_policy,
   recommend_reason, not_suitable_for, enabled, sort_order
