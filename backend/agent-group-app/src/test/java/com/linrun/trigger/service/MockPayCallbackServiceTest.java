@@ -2,6 +2,11 @@ package com.linrun.trigger.service;
 
 import com.linrun.api.trade.request.MockPayCallbackRequest;
 import com.linrun.api.trade.response.MockPayCallbackResponse;
+import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
+import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
+import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
+import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.PayStatus;
@@ -14,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,7 +33,7 @@ class MockPayCallbackServiceTest {
     @Test
     void shouldMarkOrderAndPayOrderSuccess() {
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(waitPayOrder(), waitPay());
-        MockPayCallbackService service = new MockPayCallbackService(repository, new TradeOrderService());
+        MockPayCallbackService service = service(repository);
         MockPayCallbackRequest request = request("O10001", "T10001", PAY_TIME);
 
         MockPayCallbackResponse response = service.paySuccess(request);
@@ -50,7 +56,7 @@ class MockPayCallbackServiceTest {
         tradeOrder.markPaySuccess(PAY_TIME);
         payOrder.markSuccess("T10001", PAY_TIME);
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(tradeOrder, payOrder);
-        MockPayCallbackService service = new MockPayCallbackService(repository, new TradeOrderService());
+        MockPayCallbackService service = service(repository);
 
         MockPayCallbackResponse response = service.paySuccess(request("O10001", "T10002", PAY_TIME.plusMinutes(1)));
 
@@ -63,9 +69,7 @@ class MockPayCallbackServiceTest {
 
     @Test
     void shouldThrowWhenOrderMissing() {
-        MockPayCallbackService service = new MockPayCallbackService(
-                new FakeTradeOrderRepository(null, null),
-                new TradeOrderService());
+        MockPayCallbackService service = service(new FakeTradeOrderRepository(null, null));
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.paySuccess(request("O404", "T10001", PAY_TIME)));
@@ -76,9 +80,7 @@ class MockPayCallbackServiceTest {
 
     @Test
     void shouldThrowWhenOutTradeNoIsBlank() {
-        MockPayCallbackService service = new MockPayCallbackService(
-                new FakeTradeOrderRepository(waitPayOrder(), waitPay()),
-                new TradeOrderService());
+        MockPayCallbackService service = service(new FakeTradeOrderRepository(waitPayOrder(), waitPay()));
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.paySuccess(request("O10001", " ", PAY_TIME)));
@@ -93,6 +95,13 @@ class MockPayCallbackServiceTest {
         request.setOutTradeNo(outTradeNo);
         request.setPayTime(payTime);
         return request;
+    }
+
+    private MockPayCallbackService service(FakeTradeOrderRepository repository) {
+        return new MockPayCallbackService(
+                repository,
+                new TradeOrderService(),
+                new GroupBuySettlementService(new EmptyGroupBuyOrderLockRepository(), repository));
     }
 
     private TradeOrder waitPayOrder() {
@@ -139,6 +148,13 @@ class MockPayCallbackServiceTest {
         }
 
         @Override
+        public void updateGroupSettledByOrderIds(List<String> orderIds) {
+            if (tradeOrder != null && orderIds.contains(tradeOrder.getOrderId())) {
+                tradeOrder.markGroupSettled();
+            }
+        }
+
+        @Override
         public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(tradeOrder);
         }
@@ -146,6 +162,44 @@ class MockPayCallbackServiceTest {
         @Override
         public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
             return Optional.ofNullable(payOrder);
+        }
+    }
+
+    private static class EmptyGroupBuyOrderLockRepository implements GroupBuyOrderLockRepository {
+
+        @Override
+        public Optional<GroupBuyOrderLock> queryLockByIdempotentKey(String idempotentKey) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<GroupBuyTeam> queryTeamByTeamId(String teamId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public GroupBuyLockResult lockNewTeam(GroupBuyTeam team, GroupBuyOrderLock orderLock) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public GroupBuyLockResult lockExistingTeam(GroupBuyOrderLock orderLock) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<GroupBuyOrderLock> queryLockByOrderId(String orderId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public GroupBuySettlementResult settlePaidOrder(String orderId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> queryPaidOrderIdsByTeamId(String teamId) {
+            return List.of();
         }
     }
 }

@@ -5,6 +5,8 @@ import com.linrun.domain.trade.model.TradeOrder;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface ITradeOrderDao {
 
@@ -15,6 +17,8 @@ public interface ITradeOrderDao {
     int updateTradeOrderPaySuccess(TradeOrder tradeOrder);
 
     int updatePayOrderSuccess(PayOrder payOrder);
+
+    int updateGroupSettledByOrderIds(@Param("orderIds") List<String> orderIds);
 
     TradeOrder queryTradeOrderByOrderId(@Param("orderId") String orderId);
 

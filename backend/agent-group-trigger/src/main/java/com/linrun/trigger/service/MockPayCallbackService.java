@@ -8,6 +8,7 @@ import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -17,12 +18,17 @@ public class MockPayCallbackService {
 
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
+    private final GroupBuySettlementService groupBuySettlementService;
 
-    public MockPayCallbackService(TradeOrderRepository tradeOrderRepository, TradeOrderService tradeOrderService) {
+    public MockPayCallbackService(TradeOrderRepository tradeOrderRepository,
+                                  TradeOrderService tradeOrderService,
+                                  GroupBuySettlementService groupBuySettlementService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
+        this.groupBuySettlementService = groupBuySettlementService;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public MockPayCallbackResponse paySuccess(MockPayCallbackRequest request) {
         if (request == null) {
             throw new AppException("0001", "支付回调参数不能为空");
@@ -42,6 +48,7 @@ public class MockPayCallbackService {
         LocalDateTime payTime = request.getPayTime() == null ? LocalDateTime.now() : request.getPayTime();
         tradeOrderService.markPaySuccess(tradeOrder, payOrder, request.getOutTradeNo(), payTime);
         tradeOrderRepository.updatePaySuccess(tradeOrder, payOrder);
+        groupBuySettlementService.settlePaySuccess(tradeOrder);
 
         return toResponse(tradeOrder, payOrder);
     }

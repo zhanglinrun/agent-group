@@ -3,6 +3,7 @@ package com.linrun.domain.trade.adapter;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.TradeOrder;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface TradeOrderRepository {
@@ -10,6 +11,8 @@ public interface TradeOrderRepository {
     void save(TradeOrder tradeOrder, PayOrder payOrder);
 
     void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder);
+
+    void updateGroupSettledByOrderIds(List<String> orderIds);
 
     Optional<TradeOrder> queryTradeOrderByOrderId(String orderId);
 

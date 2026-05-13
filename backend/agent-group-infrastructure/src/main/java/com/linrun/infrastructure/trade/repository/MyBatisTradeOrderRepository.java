@@ -7,6 +7,7 @@ import com.linrun.infrastructure.dao.ITradeOrderDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -30,6 +31,14 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
         tradeOrderDao.updateTradeOrderPaySuccess(tradeOrder);
         tradeOrderDao.updatePayOrderSuccess(payOrder);
+    }
+
+    @Override
+    public void updateGroupSettledByOrderIds(List<String> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return;
+        }
+        tradeOrderDao.updateGroupSettledByOrderIds(orderIds);
     }
 
     @Override

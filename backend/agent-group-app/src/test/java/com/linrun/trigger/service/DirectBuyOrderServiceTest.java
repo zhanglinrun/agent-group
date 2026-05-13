@@ -165,6 +165,13 @@ class DirectBuyOrderServiceTest {
         }
 
         @Override
+        public void updateGroupSettledByOrderIds(List<String> orderIds) {
+            if (savedTradeOrder != null && orderIds.contains(savedTradeOrder.getOrderId())) {
+                savedTradeOrder.markGroupSettled();
+            }
+        }
+
+        @Override
         public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(savedTradeOrder);
         }

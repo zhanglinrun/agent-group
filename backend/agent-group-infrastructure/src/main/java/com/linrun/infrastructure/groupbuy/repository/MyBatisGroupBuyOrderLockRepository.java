@@ -2,13 +2,16 @@ package com.linrun.infrastructure.groupbuy.repository;
 
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
+import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
+import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.infrastructure.dao.IGroupBuyOrderLockDao;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -31,6 +34,11 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     }
 
     @Override
+    public Optional<GroupBuyOrderLock> queryLockByOrderId(String orderId) {
+        return Optional.ofNullable(groupBuyOrderLockDao.queryLockByOrderId(orderId));
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public GroupBuyLockResult lockNewTeam(GroupBuyTeam team, GroupBuyOrderLock orderLock) {
         groupBuyOrderLockDao.insertTeam(team);
@@ -48,5 +56,29 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
         groupBuyOrderLockDao.insertOrderLock(orderLock);
         GroupBuyTeam team = groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId());
         return new GroupBuyLockResult(orderLock, team, false);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public GroupBuySettlementResult settlePaidOrder(String orderId) {
+        GroupBuyOrderLock orderLock = Optional.ofNullable(groupBuyOrderLockDao.queryLockByOrderId(orderId))
+                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
+
+        int updated = groupBuyOrderLockDao.updateOrderLockPaid(orderId);
+        if (updated == 1) {
+            groupBuyOrderLockDao.updateTeamCompleteCount(orderLock.getTeamId());
+            orderLock.setLockStatus(GroupBuyLockStatus.PAID);
+        } else {
+            orderLock = groupBuyOrderLockDao.queryLockByOrderId(orderId);
+        }
+
+        GroupBuyTeam team = Optional.ofNullable(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId()))
+                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
+        return new GroupBuySettlementResult(orderLock, team, updated != 1);
+    }
+
+    @Override
+    public List<String> queryPaidOrderIdsByTeamId(String teamId) {
+        return groupBuyOrderLockDao.queryPaidOrderIdsByTeamId(teamId);
     }
 }
