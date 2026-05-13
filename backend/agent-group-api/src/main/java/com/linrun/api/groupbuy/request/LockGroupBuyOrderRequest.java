@@ -12,4 +12,5 @@ public class LockGroupBuyOrderRequest implements Serializable {
     private String activityId;
     private String teamId;
     private String idempotentKey;
+    private String payChannel;
 }

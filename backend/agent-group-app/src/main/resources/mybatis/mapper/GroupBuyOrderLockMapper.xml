@@ -24,6 +24,7 @@
         <result column="idempotent_key" property="idempotentKey"/>
         <result column="user_id" property="userId"/>
         <result column="team_id" property="teamId"/>
+        <result column="order_id" property="orderId"/>
         <result column="activity_id" property="activityId"/>
         <result column="goods_id" property="goodsId"/>
         <result column="lock_amount" property="lockAmount"/>
@@ -72,6 +73,7 @@
           idempotent_key,
           user_id,
           team_id,
+          order_id,
           activity_id,
           goods_id,
           lock_amount,
@@ -82,6 +84,7 @@
           #{idempotentKey},
           #{userId},
           #{teamId},
+          #{orderId},
           #{activityId},
           #{goodsId},
           #{lockAmount},
@@ -96,6 +99,7 @@
                idempotent_key,
                user_id,
                team_id,
+               order_id,
                activity_id,
                goods_id,
                lock_amount,

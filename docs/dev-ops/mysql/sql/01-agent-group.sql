@@ -62,6 +62,7 @@ create table if not exists group_buy_order_lock (
   idempotent_key varchar(128) not null comment '幂等键',
   user_id varchar(64) not null comment '用户编号',
   team_id varchar(40) not null comment '拼团队伍编号',
+  order_id varchar(40) not null comment '交易订单编号',
   activity_id varchar(32) not null comment '活动编号',
   goods_id varchar(32) not null comment '商品编号',
   lock_amount decimal(10, 2) not null comment '锁单金额',
@@ -72,6 +73,7 @@ create table if not exists group_buy_order_lock (
   primary key (id),
   unique key uk_lock_id (lock_id),
   unique key uk_idempotent_key (idempotent_key),
+  unique key uk_order_id (order_id),
   key idx_team_status (team_id, lock_status),
   key idx_user_activity (user_id, activity_id)
 ) engine=InnoDB default charset=utf8mb4 comment='拼团锁单表';

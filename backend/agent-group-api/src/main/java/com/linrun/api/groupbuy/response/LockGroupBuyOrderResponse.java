@@ -22,4 +22,9 @@ public class LockGroupBuyOrderResponse implements Serializable {
     private BigDecimal lockAmount;
     private LocalDateTime lockTime;
     private boolean repeated;
+    private String orderId;
+    private String payOrderId;
+    private String orderStatus;
+    private String payStatus;
+    private String payUrl;
 }

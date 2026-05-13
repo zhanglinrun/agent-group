@@ -10,6 +10,7 @@ public class GroupBuyOrderLock {
     private String idempotentKey;
     private String userId;
     private String teamId;
+    private String orderId;
     private String activityId;
     private String goodsId;
     private BigDecimal lockAmount;
@@ -73,6 +74,14 @@ public class GroupBuyOrderLock {
 
     public void setTeamId(String teamId) {
         this.teamId = teamId;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 
     public String getActivityId() {

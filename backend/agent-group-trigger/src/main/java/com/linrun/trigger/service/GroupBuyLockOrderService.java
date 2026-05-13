@@ -10,8 +10,17 @@ import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
+import com.linrun.domain.guide.model.GuideProduct;
+import com.linrun.domain.trade.adapter.TradeOrderRepository;
+import com.linrun.domain.trade.model.CreateTradeOrderCommand;
+import com.linrun.domain.trade.model.PayOrder;
+import com.linrun.domain.trade.model.TradeBuyType;
+import com.linrun.domain.trade.model.TradeOrder;
+import com.linrun.domain.trade.model.TradePayOrder;
+import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -22,19 +31,27 @@ import java.util.UUID;
 public class GroupBuyLockOrderService {
 
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final String DEFAULT_PAY_CHANNEL = "MOCK_PAY";
 
     private final GuideDataRepository guideDataRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
+    private final TradeOrderRepository tradeOrderRepository;
+    private final TradeOrderService tradeOrderService;
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository) {
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
+        this.tradeOrderRepository = tradeOrderRepository;
+        this.tradeOrderService = tradeOrderService;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public LockGroupBuyOrderResponse lock(LockGroupBuyOrderRequest request) {
         validate(request);
 
@@ -43,10 +60,11 @@ public class GroupBuyLockOrderService {
         if (repeatedLock != null) {
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
                     .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
-            return toResponse(new GroupBuyLockResult(repeatedLock, team, true));
+            TradePayOrder tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
+            return toResponse(new GroupBuyLockResult(repeatedLock, team, true), tradePayOrder);
         }
 
-        guideDataRepository.queryProductByGoodsId(request.getGoodsId())
+        GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "商品不存在或已下架"));
         GroupBuyActivity activity = groupBuyActivityRepository.queryByActivityId(request.getActivityId())
                 .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存在"));
@@ -62,16 +80,22 @@ public class GroupBuyLockOrderService {
                 teamId,
                 activity,
                 now);
+        TradePayOrder tradePayOrder = createTradePayOrder(request, product, activity);
+        orderLock.setOrderId(tradePayOrder.getTradeOrder().getOrderId());
 
         if (!StringUtils.hasText(request.getTeamId())) {
             GroupBuyTeam team = GroupBuyTeam.create(teamId, activity, now);
-            return toResponse(groupBuyOrderLockRepository.lockNewTeam(team, orderLock));
+            GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockNewTeam(team, orderLock);
+            tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+            return toResponse(lockResult, tradePayOrder);
         }
 
         GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(teamId)
                 .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
         team.assertCanJoin(activity.getActivityId(), activity.getGoodsId(), now);
-        return toResponse(groupBuyOrderLockRepository.lockExistingTeam(orderLock));
+        GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockExistingTeam(orderLock);
+        tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+        return toResponse(lockResult, tradePayOrder);
     }
 
     private void validate(LockGroupBuyOrderRequest request) {
@@ -101,9 +125,44 @@ public class GroupBuyLockOrderService {
         }
     }
 
-    private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result) {
+    private TradePayOrder createTradePayOrder(LockGroupBuyOrderRequest request, GuideProduct product, GroupBuyActivity activity) {
+        CreateTradeOrderCommand command = new CreateTradeOrderCommand();
+        command.setUserId(request.getUserId());
+        command.setGoodsId(product.getGoodsId());
+        command.setGoodsName(product.getGoodsName());
+        command.setActivityId(activity.getActivityId());
+        command.setBuyType(TradeBuyType.GROUP_BUY);
+        command.setOriginAmount(product.getOriginPrice());
+        command.setPayAmount(activity.getGroupPrice());
+
+        TradeOrder tradeOrder = tradeOrderService.createOrder(command);
+        return tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
+    }
+
+    private TradePayOrder queryTradePayOrder(String orderId) {
+        if (!StringUtils.hasText(orderId)) {
+            throw new AppException("GROUP_0010", "拼团锁单未关联交易订单");
+        }
+        TradeOrder tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
+        PayOrder payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
+                .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
+
+        TradePayOrder tradePayOrder = new TradePayOrder();
+        tradePayOrder.setTradeOrder(tradeOrder);
+        tradePayOrder.setPayOrder(payOrder);
+        return tradePayOrder;
+    }
+
+    private String resolvePayChannel(LockGroupBuyOrderRequest request) {
+        return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
+    }
+
+    private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result, TradePayOrder tradePayOrder) {
         GroupBuyOrderLock orderLock = result.getOrderLock();
         GroupBuyTeam team = result.getTeam();
+        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrder payOrder = tradePayOrder.getPayOrder();
 
         LockGroupBuyOrderResponse response = new LockGroupBuyOrderResponse();
         response.setLockId(orderLock.getLockId());
@@ -119,6 +178,11 @@ public class GroupBuyLockOrderService {
         response.setLockAmount(orderLock.getLockAmount());
         response.setLockTime(orderLock.getLockTime());
         response.setRepeated(result.isRepeated());
+        response.setOrderId(tradeOrder.getOrderId());
+        response.setPayOrderId(payOrder.getPayOrderId());
+        response.setOrderStatus(tradeOrder.getOrderStatus().name());
+        response.setPayStatus(payOrder.getPayStatus().name());
+        response.setPayUrl(payOrder.getPayUrl());
         return response;
     }
 
