@@ -52,9 +52,12 @@ const defaultEvalCases = [
   { name: "标准版和高配版对比", recall: "Top 3", answer: "待复核", recommend: "通过" }
 ];
 
+const GUIDE_STREAM_URL = "http://localhost:8080/api/v1/agent/guide/stream";
+
 const state = {
   timers: [],
   streaming: false,
+  abortController: null,
   answerTarget: null,
   products: [],
   docs: loadStore("agentGroupDocs", defaultDocs),
@@ -153,11 +156,12 @@ function handleFiles(files, type) {
 }
 
 function runGuide(message) {
+  cancelCurrentRequest();
   stopTimers();
   state.streaming = true;
   state.answerTarget = null;
   state.products = [];
-  setText("#connectionStatus", "流式生成中");
+  setText("#connectionStatus", "连接后端中");
   setText("#sessionHint", "正在理解你的需求");
   setText("#decisionCopy", "系统正在识别预算、场景和限制，并检索商品知识库。");
   setText("#productCount", "0 个");
@@ -172,6 +176,60 @@ function runGuide(message) {
   addMessage("user", "你", message);
   state.answerTarget = addMessage("assistant", "AI 导购", "");
 
+  requestGuideStream(message).catch((error) => {
+    if (!state.streaming || error.name === "AbortError") {
+      return;
+    }
+    addMessage("system", "系统", "后端服务暂不可用，已切换为本地演示流。");
+    runLocalGuideDemo();
+  });
+}
+
+async function requestGuideStream(message) {
+  state.abortController = new AbortController();
+  const response = await fetch(GUIDE_STREAM_URL, {
+    method: "POST",
+    headers: {
+      "Accept": "text/event-stream",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      sessionId: getSessionId(),
+      userId: "U10001",
+      question: message,
+      imageUrl: ""
+    }),
+    signal: state.abortController.signal
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`导购接口请求失败：${response.status}`);
+  }
+
+  setText("#connectionStatus", "后端流式生成中");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (state.streaming) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() || "";
+    blocks.forEach(handleSseBlock);
+  }
+
+  if (state.streaming) {
+    finishStream("后端已完成");
+  }
+}
+
+function runLocalGuideDemo() {
+  setText("#connectionStatus", "本地演示生成中");
   schedule(180, () => addToolEvent("识别意图：商品推荐、预算敏感、学习场景"));
   schedule(420, () => renderReferences(sampleReferences.slice(0, 1)));
   schedule(760, () => appendAnswer("我会先按预算、学习场景和长期使用成本筛选。"));
@@ -184,7 +242,100 @@ function runGuide(message) {
   schedule(2740, () => appendAnswer("高配版性能更强，但价格更高，更适合创作类场景。"));
   schedule(3100, () => appendAnswer("我的建议是优先选标准版。如果你想省钱，可以用三人成团价购买；如果不想等成团，也可以按原价直接购买。"));
   schedule(3400, () => addToolEvent("结果自检：回答依据充分，商品卡片价格与推荐理由一致"));
-  schedule(3700, finishStream);
+  schedule(3700, () => finishStream("本地演示"));
+}
+
+function handleSseBlock(block) {
+  const lines = block.split(/\r?\n/);
+  const data = lines
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trim())
+    .join("");
+
+  if (!data) {
+    return;
+  }
+
+  try {
+    handleGuideEvent(JSON.parse(data));
+  } catch (error) {
+    addMessage("system", "系统", "后端返回内容解析失败，已忽略该片段。");
+  }
+}
+
+function handleGuideEvent(event) {
+  if (!state.streaming || !event) {
+    return;
+  }
+
+  if (event.event === "tool_call") {
+    addToolEvent(event.data?.message || "后端正在执行导购步骤");
+    return;
+  }
+
+  if (event.event === "reference_delta") {
+    renderReference({
+      title: `${event.data?.documentType || "知识片段"} ${event.data?.fragmentId || ""}`.trim(),
+      text: event.data?.content || ""
+    });
+    return;
+  }
+
+  if (event.event === "answer_delta") {
+    appendAnswer(event.data?.content || "");
+    return;
+  }
+
+  if (event.event === "product_card") {
+    renderProduct(mapProductCard(event.data));
+    return;
+  }
+
+  if (event.event === "order_delta") {
+    handleOrderDelta(event.data);
+    return;
+  }
+
+  if (event.event === "self_check") {
+    addToolEvent(event.data?.message || "结果自检完成");
+    return;
+  }
+
+  if (event.event === "error") {
+    addMessage("system", "错误", event.data?.message || "导购接口返回错误");
+    finishStream("后端已结束", {
+      hint: "导购生成失败",
+      copy: "可以修改问题后再次发送。"
+    });
+    return;
+  }
+
+  if (event.event === "done") {
+    finishStream("后端已完成");
+  }
+}
+
+function mapProductCard(data) {
+  return {
+    id: data?.goodsId || `G${Date.now()}`,
+    name: data?.goodsName || "推荐商品",
+    originPrice: formatPrice(data?.originPrice),
+    groupPrice: formatPrice(data?.groupPrice),
+    spec: data?.specSummary || "暂无规格说明",
+    afterSale: data?.afterSalePolicy || "",
+    reason: data?.recommendReason || "符合本轮导购需求。",
+    notSuitable: data?.notSuitableFor || "暂无",
+    teamSize: data?.teamSize || 1,
+    leftTime: formatRemainingTime(data?.remainingSeconds)
+  };
+}
+
+function handleOrderDelta(data) {
+  if (!data) {
+    return;
+  }
+  setText("#tradeState", data.status || "订单更新");
+  pushTradeStep(data.message || data.status || "订单状态已更新", "done");
 }
 
 function schedule(delay, task) {
@@ -197,10 +348,18 @@ function stopTimers() {
   state.timers = [];
 }
 
+function cancelCurrentRequest() {
+  if (state.abortController) {
+    state.abortController.abort();
+    state.abortController = null;
+  }
+}
+
 function stopCurrentStream() {
   if (!state.streaming) {
     return;
   }
+  cancelCurrentRequest();
   stopTimers();
   state.streaming = false;
   setDisabled("#sendBtn", false);
@@ -211,14 +370,15 @@ function stopCurrentStream() {
   addMessage("system", "系统", "本轮生成已停止，已记录中断状态。");
 }
 
-function finishStream() {
+function finishStream(statusText = "本地演示", result = {}) {
+  cancelCurrentRequest();
   stopTimers();
   state.streaming = false;
   setDisabled("#sendBtn", false);
   setDisabled("#stopBtn", true);
-  setText("#sessionHint", "建议优先选择标准版");
-  setText("#connectionStatus", "本地演示");
-  setText("#decisionCopy", "标准版满足学习、写论文和看网课需求。直接购买按原价支付，拼团购买按优惠价支付。");
+  setText("#sessionHint", result.hint || "建议优先选择标准版");
+  setText("#connectionStatus", statusText);
+  setText("#decisionCopy", result.copy || "标准版满足学习、写论文和看网课需求。直接购买按原价支付，拼团购买按优惠价支付。");
 }
 
 function addMessage(role, label, text) {
@@ -276,12 +436,21 @@ function renderReferences(references) {
     return;
   }
   root.innerHTML = "";
-  references.forEach((item) => {
-    const row = document.createElement("div");
-    row.className = "reference-item";
-    row.innerHTML = `<strong>${escapeHtml(item.title)}</strong><br>${escapeHtml(item.text)}`;
-    root.appendChild(row);
-  });
+  references.forEach(renderReference);
+}
+
+function renderReference(item) {
+  const root = $("#referenceList");
+  if (!root) {
+    return;
+  }
+  if (root.querySelector(".empty-state")) {
+    root.innerHTML = "";
+  }
+  const row = document.createElement("div");
+  row.className = "reference-item";
+  row.innerHTML = `<strong>${escapeHtml(item.title)}</strong><br>${escapeHtml(item.text)}`;
+  root.appendChild(row);
 }
 
 function renderProduct(product) {
@@ -517,6 +686,33 @@ function saveStore(key, value) {
   } catch {
     // 本地演示失败不影响页面主流程。
   }
+}
+
+function getSessionId() {
+  const key = "agentGroupSessionId";
+  let sessionId = loadStore(key, "");
+  if (!sessionId) {
+    sessionId = `S${Date.now()}`;
+    saveStore(key, sessionId);
+  }
+  return sessionId;
+}
+
+function formatPrice(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return "0";
+  }
+  return Number.isInteger(numberValue) ? String(numberValue) : numberValue.toFixed(2);
+}
+
+function formatRemainingTime(seconds) {
+  const numberValue = Number(seconds);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) {
+    return "暂无";
+  }
+  const minutes = Math.ceil(numberValue / 60);
+  return `${minutes} 分钟`;
 }
 
 function escapeHtml(value) {

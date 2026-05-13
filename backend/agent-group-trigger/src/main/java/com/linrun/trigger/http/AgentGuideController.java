@@ -6,6 +6,7 @@ import com.linrun.api.agent.response.*;
 import jakarta.annotation.PreDestroy;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @create 2026-05-13 上午9:44
  */
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/v1/agent")
 public class AgentGuideController {
 
