@@ -85,6 +85,21 @@
         )
     </insert>
 
+    <update id="updateTradeOrderPaySuccess" parameterType="com.linrun.domain.trade.model.TradeOrder">
+        update trade_order
+        set order_status = #{orderStatus},
+            pay_time = #{payTime}
+        where order_id = #{orderId}
+    </update>
+
+    <update id="updatePayOrderSuccess" parameterType="com.linrun.domain.trade.model.PayOrder">
+        update pay_order
+        set pay_status = #{payStatus},
+            out_trade_no = #{outTradeNo},
+            pay_time = #{payTime}
+        where order_id = #{orderId}
+    </update>
+
     <select id="queryTradeOrderByOrderId" resultMap="TradeOrderMap">
         select order_id,
                user_id,

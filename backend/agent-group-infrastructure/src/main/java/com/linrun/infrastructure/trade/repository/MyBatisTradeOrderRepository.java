@@ -26,6 +26,13 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
+        tradeOrderDao.updateTradeOrderPaySuccess(tradeOrder);
+        tradeOrderDao.updatePayOrderSuccess(payOrder);
+    }
+
+    @Override
     public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
         return Optional.ofNullable(tradeOrderDao.queryTradeOrderByOrderId(orderId));
     }

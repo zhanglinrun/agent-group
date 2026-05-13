@@ -9,6 +9,8 @@ public interface TradeOrderRepository {
 
     void save(TradeOrder tradeOrder, PayOrder payOrder);
 
+    void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder);
+
     Optional<TradeOrder> queryTradeOrderByOrderId(String orderId);
 
     Optional<PayOrder> queryPayOrderByOrderId(String orderId);

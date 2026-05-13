@@ -12,6 +12,10 @@ public interface ITradeOrderDao {
 
     void insertPayOrder(PayOrder payOrder);
 
+    int updateTradeOrderPaySuccess(TradeOrder tradeOrder);
+
+    int updatePayOrderSuccess(PayOrder payOrder);
+
     TradeOrder queryTradeOrderByOrderId(@Param("orderId") String orderId);
 
     PayOrder queryPayOrderByOrderId(@Param("orderId") String orderId);

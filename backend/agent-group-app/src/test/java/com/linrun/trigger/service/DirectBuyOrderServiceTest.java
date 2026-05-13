@@ -159,6 +159,12 @@ class DirectBuyOrderServiceTest {
         }
 
         @Override
+        public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
+            this.savedTradeOrder = tradeOrder;
+            this.savedPayOrder = payOrder;
+        }
+
+        @Override
         public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(savedTradeOrder);
         }
