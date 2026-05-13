@@ -6,10 +6,14 @@ import com.linrun.domain.guide.model.GuideIntentType;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.guide.model.RecommendationReason;
+import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,7 +26,7 @@ class GuideDecisionServiceTest {
 
     @Test
     void shouldRecognizeBudgetStudentAndRecommendProduct() {
-        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository());
+        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
 
         GuideDecisionResult result = service.decide("我是学生，预算有限，想买适合写论文和看网课的平板，哪款更合适？");
 
@@ -34,6 +38,10 @@ class GuideDecisionServiceTest {
         assertEquals("学生", result.getUserRequirement().getUserIdentity());
         assertTrue(result.getUserRequirement().isBudgetSensitive());
         assertEquals("G10001", result.getProduct().getGoodsId());
+        assertEquals("A10001", result.getProduct().getActivityId());
+        assertEquals(new BigDecimal("2099.00"), result.getProduct().getGroupPrice());
+        assertEquals(3, result.getProduct().getTeamSize());
+        assertTrue(result.getProduct().getRemainingSeconds() > 0);
         assertEquals(2, result.getReferences().size());
         assertEquals(1, result.getRecommendationResult().getCandidates().size());
         assertTrue(result.getRecommendationResult().isPassedSelfCheck());
@@ -46,7 +54,7 @@ class GuideDecisionServiceTest {
 
     @Test
     void shouldRecognizeAfterSaleIntent() {
-        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository());
+        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
 
         GuideDecisionResult result = service.decide("拼团失败会退款吗，售后怎么处理？");
 
@@ -56,13 +64,13 @@ class GuideDecisionServiceTest {
         assertTrue(result.getRecommendationResult().getReasons().stream()
                 .map(RecommendationReason::getReasonType)
                 .toList()
-                .containsAll(List.of("AFTER_SALE_MATCH", "GROUP_BUY_MATCH")));
+                .containsAll(List.of("AFTER_SALE_MATCH", "GROUP_BUY_MATCH", "GROUP_TRIAL_ACTIVE")));
         assertTrue(result.getAnswerSegments().stream().anyMatch(item -> item.contains("售后")));
     }
 
     @Test
     void shouldReturnFailedSelfCheckWhenProductInfoIsIncomplete() {
-        GuideDecisionService service = new GuideDecisionService(new IncompleteGuideDataRepository());
+        GuideDecisionService service = new GuideDecisionService(new IncompleteGuideDataRepository(), groupBuyService());
 
         GuideDecisionResult result = service.decide("推荐一款学习平板");
 
@@ -75,7 +83,7 @@ class GuideDecisionServiceTest {
 
     @Test
     void shouldThrowWhenQuestionIsBlank() {
-        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository());
+        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
 
         AppException exception = assertThrows(AppException.class, () -> service.decide(" "));
 
@@ -85,7 +93,7 @@ class GuideDecisionServiceTest {
 
     @Test
     void shouldThrowWhenProductIsMissing() {
-        GuideDecisionService service = new GuideDecisionService(new EmptyGuideDataRepository());
+        GuideDecisionService service = new GuideDecisionService(new EmptyGuideDataRepository(), groupBuyService());
 
         AppException exception = assertThrows(AppException.class, () -> service.decide("推荐一款平板"));
 
@@ -106,14 +114,10 @@ class GuideDecisionServiceTest {
             product.setGoodsName("轻薄学习平板标准版");
             product.setImageUrl("");
             product.setOriginPrice(new BigDecimal("2399.00"));
-            product.setGroupPrice(new BigDecimal("2099.00"));
             product.setSpecSummary("10.9 英寸屏幕，128GB 存储，支持手写笔");
             product.setAfterSalePolicy("7 天无理由退货，1 年质保");
             product.setRecommendReason("预算有限、学习和网课场景下性价比更高");
             product.setNotSuitableFor("长期剪视频或运行大型应用的用户");
-            product.setActivityId("A10001");
-            product.setTeamSize(3);
-            product.setRemainingSeconds(1800);
             return Optional.of(product);
         }
 
@@ -139,6 +143,32 @@ class GuideDecisionServiceTest {
 
         @Override
         public Optional<GuideProduct> queryRecommendProduct(String question) {
+            return Optional.empty();
+        }
+    }
+
+    private GroupBuyActivityService groupBuyService() {
+        return new GroupBuyActivityService(new ActiveGroupBuyActivityRepository());
+    }
+
+    private static class ActiveGroupBuyActivityRepository implements GroupBuyActivityRepository {
+
+        @Override
+        public Optional<GroupBuyActivity> queryByGoodsId(String goodsId) {
+            GroupBuyActivity activity = new GroupBuyActivity();
+            activity.setId(1L);
+            activity.setActivityId("A10001");
+            activity.setGoodsId(goodsId);
+            activity.setGroupPrice(new BigDecimal("2099.00"));
+            activity.setTeamSize(3);
+            activity.setStartTime(LocalDateTime.now().minusMinutes(10));
+            activity.setEndTime(LocalDateTime.now().plusMinutes(30));
+            activity.setEnabled(true);
+            return Optional.of(activity);
+        }
+
+        @Override
+        public Optional<GroupBuyActivity> queryByActivityId(String activityId) {
             return Optional.empty();
         }
     }

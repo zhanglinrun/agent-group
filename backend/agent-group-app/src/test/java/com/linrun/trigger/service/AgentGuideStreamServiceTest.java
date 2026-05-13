@@ -10,9 +10,13 @@ import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.guide.service.GuideDecisionService;
+import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +28,8 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldBuildGuideEventsWithProductAndReferences() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(new FakeGuideDataRepository()));
+        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(
+                new FakeGuideDataRepository(), groupBuyService()));
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion("我是学生，预算有限，想买适合看网课的平板");
 
@@ -55,7 +60,8 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldReturnErrorWhenQuestionIsBlank() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(new FakeGuideDataRepository()));
+        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(
+                new FakeGuideDataRepository(), groupBuyService()));
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion(" ");
 
@@ -70,7 +76,8 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldReturnErrorWhenRepositoryFails() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(new FailingGuideDataRepository()));
+        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(
+                new FailingGuideDataRepository(), groupBuyService()));
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion("推荐一款学习平板");
 
@@ -132,6 +139,32 @@ class AgentGuideStreamServiceTest {
         @Override
         public Optional<GuideProduct> queryRecommendProduct(String question) {
             throw new IllegalStateException("database unavailable");
+        }
+    }
+
+    private GroupBuyActivityService groupBuyService() {
+        return new GroupBuyActivityService(new ActiveGroupBuyActivityRepository());
+    }
+
+    private static class ActiveGroupBuyActivityRepository implements GroupBuyActivityRepository {
+
+        @Override
+        public Optional<GroupBuyActivity> queryByGoodsId(String goodsId) {
+            GroupBuyActivity activity = new GroupBuyActivity();
+            activity.setId(1L);
+            activity.setActivityId("A10001");
+            activity.setGoodsId(goodsId);
+            activity.setGroupPrice(new BigDecimal("2099.00"));
+            activity.setTeamSize(3);
+            activity.setStartTime(LocalDateTime.now().minusMinutes(10));
+            activity.setEndTime(LocalDateTime.now().plusMinutes(30));
+            activity.setEnabled(true);
+            return Optional.of(activity);
+        }
+
+        @Override
+        public Optional<GroupBuyActivity> queryByActivityId(String activityId) {
+            return Optional.empty();
         }
     }
 }

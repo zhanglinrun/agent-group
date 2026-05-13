@@ -8,6 +8,9 @@ import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.guide.model.RecommendationResult;
 import com.linrun.domain.guide.model.UserRequirement;
+import com.linrun.domain.groupbuy.model.GroupBuyActivityStatus;
+import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
+import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -19,9 +22,11 @@ import java.util.List;
 public class GuideDecisionService {
 
     private final GuideDataRepository guideDataRepository;
+    private final GroupBuyActivityService groupBuyActivityService;
 
-    public GuideDecisionService(GuideDataRepository guideDataRepository) {
+    public GuideDecisionService(GuideDataRepository guideDataRepository, GroupBuyActivityService groupBuyActivityService) {
         this.guideDataRepository = guideDataRepository;
+        this.groupBuyActivityService = groupBuyActivityService;
     }
 
     public GuideDecisionResult decide(String question) {
@@ -34,7 +39,9 @@ public class GuideDecisionService {
         List<GuideReference> references = guideDataRepository.queryReferences(question, 3);
         GuideProduct product = guideDataRepository.queryRecommendProduct(question)
                 .orElseThrow(() -> new AppException("DATA_0002", "没有可推荐商品，请先初始化商品数据"));
-        RecommendationResult recommendationResult = buildRecommendation(requirement, product);
+        GroupBuyTrialResult groupBuyTrialResult = groupBuyActivityService.trial(product.getGoodsId());
+        enrichProductWithGroupBuy(product, groupBuyTrialResult);
+        RecommendationResult recommendationResult = buildRecommendation(requirement, product, groupBuyTrialResult);
 
         GuideDecisionResult result = new GuideDecisionResult();
         result.setIntent(intent);
@@ -95,7 +102,27 @@ public class GuideDecisionService {
         return GuideIntentType.PRODUCT_RECOMMEND;
     }
 
-    private RecommendationResult buildRecommendation(UserRequirement requirement, GuideProduct product) {
+    private void enrichProductWithGroupBuy(GuideProduct product, GroupBuyTrialResult trialResult) {
+        if (GroupBuyActivityStatus.ACTIVE.equals(trialResult.getStatus())) {
+            product.setActivityId(trialResult.getActivityId());
+            product.setGroupPrice(trialResult.getGroupPrice());
+            product.setTeamSize(trialResult.getTeamSize());
+            product.setRemainingSeconds(trialResult.getRemainingSeconds());
+            return;
+        }
+        if (product.getGroupPrice() == null) {
+            product.setGroupPrice(product.getOriginPrice());
+        }
+        if (product.getTeamSize() == null) {
+            product.setTeamSize(1);
+        }
+        if (product.getRemainingSeconds() == null) {
+            product.setRemainingSeconds(0);
+        }
+    }
+
+    private RecommendationResult buildRecommendation(UserRequirement requirement, GuideProduct product,
+                                                     GroupBuyTrialResult groupBuyTrialResult) {
         RecommendationResult result = new RecommendationResult();
         result.setPrimaryProduct(product);
         result.addCandidate(product);
@@ -109,6 +136,14 @@ public class GuideDecisionService {
         }
         if (requirement.isGroupBuyConcerned()) {
             result.addReason("GROUP_BUY_MATCH", "你关注拼团时，需要确认成团人数、剩余时间和未成团后的退款处理。", 80);
+            if (GroupBuyActivityStatus.ACTIVE.equals(groupBuyTrialResult.getStatus())) {
+                result.addReason("GROUP_TRIAL_ACTIVE",
+                        "当前拼团活动可用，成团人数为" + groupBuyTrialResult.getTeamSize()
+                                + "人，剩余" + groupBuyTrialResult.getRemainingSeconds() + "秒。",
+                        88);
+            } else {
+                result.addReason("GROUP_TRIAL_UNAVAILABLE", groupBuyTrialResult.getMessage(), 70);
+            }
         }
 
         boolean passed = product != null
