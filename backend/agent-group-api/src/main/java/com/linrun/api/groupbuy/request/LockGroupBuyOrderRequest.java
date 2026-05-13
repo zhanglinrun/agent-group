@@ -1,0 +1,15 @@
+package com.linrun.api.groupbuy.request;
+
+import lombok.Data;
+
+import java.io.Serializable;
+
+@Data
+public class LockGroupBuyOrderRequest implements Serializable {
+
+    private String userId;
+    private String goodsId;
+    private String activityId;
+    private String teamId;
+    private String idempotentKey;
+}
