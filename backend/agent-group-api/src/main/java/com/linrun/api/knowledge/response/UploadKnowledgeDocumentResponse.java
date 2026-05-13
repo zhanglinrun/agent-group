@@ -1,0 +1,23 @@
+package com.linrun.api.knowledge.response;
+
+import lombok.Data;
+
+import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+public class UploadKnowledgeDocumentResponse implements Serializable {
+
+    private String documentId;
+    private String documentName;
+    private String documentType;
+    private String knowledgeVersion;
+    private String sourceType;
+    private String sourceName;
+    private String documentStatus;
+    private Integer fragmentCount;
+    private LocalDateTime createTime;
+    private List<KnowledgeFragmentDTO> fragments = new ArrayList<>();
+}
