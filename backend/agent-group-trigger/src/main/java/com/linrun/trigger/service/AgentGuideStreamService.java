@@ -12,8 +12,11 @@ import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.guide.model.GuideDecisionResult;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.model.GuideUserInput;
 import com.linrun.domain.guide.model.RecommendationResult;
+import com.linrun.domain.guide.service.GuideConversationService;
 import com.linrun.domain.guide.service.GuideDecisionService;
+import com.linrun.domain.guide.service.GuideImageInputService;
 import com.linrun.domain.guide.service.GuideRagAnswerService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -28,20 +31,35 @@ public class AgentGuideStreamService {
 
     private final GuideDecisionService guideDecisionService;
     private final GuideRagAnswerService guideRagAnswerService;
+    private final GuideConversationService guideConversationService;
+    private final GuideImageInputService guideImageInputService;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
-                                   GuideRagAnswerService guideRagAnswerService) {
+                                   GuideRagAnswerService guideRagAnswerService,
+                                   GuideConversationService guideConversationService,
+                                   GuideImageInputService guideImageInputService) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
+        this.guideConversationService = guideConversationService;
+        this.guideImageInputService = guideImageInputService;
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         AtomicInteger sequence = new AtomicInteger(1);
+        String imageSummary = guideImageInputService.parseImage(request.getImageUrl());
 
-        if (!StringUtils.hasText(request.getQuestion())) {
+        if (!StringUtils.hasText(request.getQuestion()) && !StringUtils.hasText(imageSummary)) {
             add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error("0001", "问题不能为空"));
             return events;
+        }
+
+        GuideUserInput userInput = userInput(request, sessionId, imageSummary);
+        String effectiveQuestion = guideConversationService.buildQuestionWithContext(userInput);
+
+        if (StringUtils.hasText(imageSummary)) {
+            add(events, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
+                    toolCall("image_parse", "已解析图片输入：" + imageSummary));
         }
 
         add(events, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
@@ -49,7 +67,7 @@ public class AgentGuideStreamService {
 
         GuideDecisionResult decisionResult;
         try {
-            decisionResult = guideDecisionService.decide(request.getQuestion());
+            decisionResult = guideDecisionService.decide(effectiveQuestion);
         } catch (AppException e) {
             add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
             return events;
@@ -63,15 +81,28 @@ public class AgentGuideStreamService {
             add(events, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference));
         }
 
-        for (String answerSegment : guideRagAnswerService.answer(request.getQuestion(), decisionResult)) {
+        List<String> answerSegments = guideRagAnswerService.answer(effectiveQuestion, decisionResult);
+        for (String answerSegment : answerSegments) {
             add(events, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment));
         }
 
         add(events, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD, productCard(decisionResult.getProduct()));
         add(events, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
                 selfCheck(decisionResult.getRecommendationResult()));
+        guideConversationService.rememberUserInput(userInput);
+        guideConversationService.rememberAssistantAnswer(sessionId, answerSegments);
         add(events, sessionId, requestId, sequence, GuideEventType.DONE, "done");
         return events;
+    }
+
+    private GuideUserInput userInput(GuideStreamRequest request, String sessionId, String imageSummary) {
+        GuideUserInput userInput = new GuideUserInput();
+        userInput.setSessionId(sessionId);
+        userInput.setUserId(request.getUserId());
+        userInput.setQuestion(request.getQuestion());
+        userInput.setImageUrl(request.getImageUrl());
+        userInput.setImageSummary(imageSummary);
+        return userInput;
     }
 
     private <T> void add(List<GuideStreamEvent<?>> events, String sessionId, String requestId, AtomicInteger sequence,

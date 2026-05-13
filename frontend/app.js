@@ -59,6 +59,7 @@ const state = {
   streaming: false,
   abortController: null,
   answerTarget: null,
+  pendingImageUrl: "",
   products: [],
   docs: loadStore("agentGroupDocs", defaultDocs),
   orders: loadStore("agentGroupOrders", []),
@@ -151,11 +152,15 @@ function handleFiles(files, type) {
         status: "待运营审核"
       });
       saveStore("agentGroupDocs", state.docs);
+    } else if (type === "图片") {
+      state.pendingImageUrl = `local-image://${file.name}`;
     }
   });
 }
 
 function runGuide(message) {
+  const imageUrl = state.pendingImageUrl;
+  state.pendingImageUrl = "";
   cancelCurrentRequest();
   stopTimers();
   state.streaming = true;
@@ -172,11 +177,12 @@ function runGuide(message) {
   clearNode("#productDeck");
   clearNode("#referenceList");
   clearNode("#tradeTimeline");
+  clearNode("#attachmentList");
 
   addMessage("user", "你", message);
   state.answerTarget = addMessage("assistant", "AI 导购", "");
 
-  requestGuideStream(message).catch((error) => {
+  requestGuideStream(message, imageUrl).catch((error) => {
     if (!state.streaming || error.name === "AbortError") {
       return;
     }
@@ -185,7 +191,7 @@ function runGuide(message) {
   });
 }
 
-async function requestGuideStream(message) {
+async function requestGuideStream(message, imageUrl) {
   state.abortController = new AbortController();
   const response = await fetch(GUIDE_STREAM_URL, {
     method: "POST",
@@ -197,7 +203,7 @@ async function requestGuideStream(message) {
       sessionId: getSessionId(),
       userId: "U10001",
       question: message,
-      imageUrl: ""
+      imageUrl: imageUrl || ""
     }),
     signal: state.abortController.signal
   });

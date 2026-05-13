@@ -6,15 +6,19 @@ import com.linrun.api.agent.response.ErrorDTO;
 import com.linrun.api.agent.response.GuideStreamEvent;
 import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
+import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.service.GuideConversationService;
 import com.linrun.domain.guide.service.GuideDecisionService;
+import com.linrun.domain.guide.service.GuideImageInputService;
 import com.linrun.domain.guide.service.GuideRagAnswerService;
 import com.linrun.domain.guide.service.GuideRagPromptBuilder;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
+import com.linrun.infrastructure.guide.conversation.LocalGuideConversationRepository;
 import com.linrun.domain.prompt.service.PromptTemplateService;
 import com.linrun.infrastructure.prompt.LocalPromptTemplateRepository;
 import org.junit.jupiter.api.Test;
@@ -92,6 +96,45 @@ class AgentGuideStreamServiceTest {
         assertTrue(error.getMessage().contains("导购数据源不可用"));
     }
 
+    @Test
+    void shouldUseConversationContextAndImageInputForFollowUp() {
+        TrackingGuideDataRepository repository = new TrackingGuideDataRepository();
+        AgentGuideStreamService service = streamService(repository);
+        GuideStreamRequest firstRequest = new GuideStreamRequest();
+        firstRequest.setQuestion("我是学生，预算有限，想买适合看网课的平板");
+        service.buildEvents(firstRequest, "S20001", "R20001");
+
+        GuideStreamRequest followUpRequest = new GuideStreamRequest();
+        followUpRequest.setQuestion("那拼团失败能退款吗");
+        followUpRequest.setImageUrl("local-image://student-pad-price.png");
+
+        List<GuideStreamEvent<?>> events = service.buildEvents(followUpRequest, "S20001", "R20002");
+
+        ToolCallDTO imageToolCall = assertInstanceOf(ToolCallDTO.class, events.get(0).getData());
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(0).getEvent());
+        assertEquals("image_parse", imageToolCall.getToolName());
+        assertTrue(repository.getLastQuestion().contains("最近对话"));
+        assertTrue(repository.getLastQuestion().contains("我是学生，预算有限"));
+        assertTrue(repository.getLastQuestion().contains("本轮图片线索"));
+        assertTrue(repository.getLastQuestion().contains("图片疑似平板商品或商品截图"));
+        assertEquals(GuideEventType.DONE.getCode(), events.get(events.size() - 1).getEvent());
+    }
+
+    @Test
+    void shouldAcceptImageOnlyQuestion() {
+        TrackingGuideDataRepository repository = new TrackingGuideDataRepository();
+        AgentGuideStreamService service = streamService(repository);
+        GuideStreamRequest request = new GuideStreamRequest();
+        request.setImageUrl("local-image://pad-group-price.png");
+
+        List<GuideStreamEvent<?>> events = service.buildEvents(request, "S30001", "R30001");
+
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(0).getEvent());
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(1).getEvent());
+        assertTrue(repository.getLastQuestion().contains("请根据图片帮我判断商品是否适合购买"));
+        assertTrue(repository.getLastQuestion().contains("图片疑似平板商品或商品截图"));
+    }
+
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
@@ -153,12 +196,35 @@ class AgentGuideStreamServiceTest {
         }
     }
 
+    private static class TrackingGuideDataRepository extends FakeGuideDataRepository {
+
+        private String lastQuestion;
+
+        @Override
+        public List<GuideReference> queryReferences(String question, int limit) {
+            this.lastQuestion = question;
+            return super.queryReferences(question, limit);
+        }
+
+        @Override
+        public Optional<GuideProduct> queryRecommendProduct(String question) {
+            this.lastQuestion = question;
+            return super.queryRecommendProduct(question);
+        }
+
+        public String getLastQuestion() {
+            return lastQuestion;
+        }
+    }
+
     private AgentGuideStreamService streamService(GuideDataRepository guideDataRepository) {
         return new AgentGuideStreamService(
                 new GuideDecisionService(guideDataRepository, groupBuyService()),
                 new GuideRagAnswerService(
                         new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
-                        prompt -> prompt.getFallbackAnswer()));
+                        prompt -> prompt.getFallbackAnswer()),
+                new GuideConversationService(new LocalGuideConversationRepository()),
+                new GuideImageInputService());
     }
 
     private GroupBuyActivityService groupBuyService() {
