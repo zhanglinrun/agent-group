@@ -21,6 +21,12 @@ docker compose -f docker-compose-environment.yml up -d
 
 管理页面会默认一起启动，方便查看 MySQL 和 Redis 数据。
 
+如果容器数据卷已经存在，`docker-entrypoint-initdb.d`（数据库初始化目录）下的脚本不会自动重复执行。需要刷新演示数据时，可以手动导入：
+
+```bash
+docker exec -i agent-group-mysql mysql -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/02-demo-data.sql
+```
+
 ## 默认端口
 
 | 服务 | 端口 |
@@ -37,4 +43,4 @@ docker compose -f docker-compose-environment.yml up -d
 
 ## 当前接入状态
 
-当前导购流式接口已经通过 MyBatis 从 MySQL 读取商品卡片和知识片段。`Redis`、`pgvector`、`MinIO` 和 `RabbitMQ` 先完成容器与配置预留，后续分别接入会话缓存、向量检索、文档上传和交易事件。
+当前导购流式接口已经通过 MyBatis 从 MySQL 读取商品卡片和知识片段。演示数据脚本已经补充商品、知识片段、拼团活动、样例订单和状态流水。`Redis`、`pgvector`、`MinIO` 和 `RabbitMQ` 先完成容器与配置预留，后续分别接入会话缓存、向量检索、文档上传和交易事件。
