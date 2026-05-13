@@ -2,7 +2,7 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.linrun.infrastructure.guide.mapper.GuideDataMapper">
+<mapper namespace="com.linrun.infrastructure.dao.IGuideDataDao">
 
     <resultMap id="GuideReferenceMap" type="com.linrun.domain.guide.model.GuideReference">
         <id column="fragment_id" property="fragmentId"/>

@@ -1,4 +1,4 @@
-package com.linrun.infrastructure.guide.mapper;
+package com.linrun.infrastructure.dao;
 
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 @Mapper
-public interface GuideDataMapper {
+public interface IGuideDataDao {
 
     List<GuideReference> queryReferences(@Param("question") String question, @Param("limit") int limit);
 

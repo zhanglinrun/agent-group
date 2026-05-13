@@ -3,7 +3,7 @@ package com.linrun.infrastructure.guide.repository;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
-import com.linrun.infrastructure.guide.mapper.GuideDataMapper;
+import com.linrun.infrastructure.dao.IGuideDataDao;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
@@ -13,20 +13,20 @@ import java.util.Optional;
 @Repository
 public class MyBatisGuideDataRepository implements GuideDataRepository {
 
-    private final GuideDataMapper guideDataMapper;
+    private final IGuideDataDao guideDataDao;
 
-    public MyBatisGuideDataRepository(GuideDataMapper guideDataMapper) {
-        this.guideDataMapper = guideDataMapper;
+    public MyBatisGuideDataRepository(IGuideDataDao guideDataDao) {
+        this.guideDataDao = guideDataDao;
     }
 
     @Override
     public List<GuideReference> queryReferences(String question, int limit) {
-        return guideDataMapper.queryReferences(question, limit);
+        return guideDataDao.queryReferences(question, limit);
     }
 
     @Override
     public Optional<GuideProduct> queryRecommendProduct(String question) {
-        GuideProduct product = guideDataMapper.queryRecommendProduct(question);
+        GuideProduct product = guideDataDao.queryRecommendProduct(question);
         if (product == null) {
             return Optional.empty();
         }

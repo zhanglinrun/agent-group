@@ -8,6 +8,7 @@ import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.service.GuideDecisionService;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -22,7 +23,7 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldBuildGuideEventsWithProductAndReferences() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new FakeGuideDataRepository());
+        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(new FakeGuideDataRepository()));
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion("我是学生，预算有限，想买适合看网课的平板");
 
@@ -34,13 +35,14 @@ class AgentGuideStreamServiceTest {
                 GuideEventType.REFERENCE_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
+                GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.PRODUCT_CARD.getCode(),
                 GuideEventType.SELF_CHECK.getCode(),
                 GuideEventType.DONE.getCode()
         ), events.stream().map(GuideStreamEvent::getEvent).toList());
-        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8), events.stream().map(GuideStreamEvent::getSequence).toList());
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9), events.stream().map(GuideStreamEvent::getSequence).toList());
 
-        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(5).getData());
+        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(6).getData());
         assertEquals("G10001", productCard.getGoodsId());
         assertEquals("轻薄学习平板标准版", productCard.getGoodsName());
         assertEquals(new BigDecimal("2099.00"), productCard.getGroupPrice());
@@ -48,7 +50,7 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldReturnErrorWhenQuestionIsBlank() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new FakeGuideDataRepository());
+        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(new FakeGuideDataRepository()));
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion(" ");
 
@@ -63,7 +65,7 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldReturnErrorWhenRepositoryFails() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new FailingGuideDataRepository());
+        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(new FailingGuideDataRepository()));
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion("推荐一款学习平板");
 
