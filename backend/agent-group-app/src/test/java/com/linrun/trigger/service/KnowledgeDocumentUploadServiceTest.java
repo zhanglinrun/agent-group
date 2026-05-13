@@ -2,13 +2,16 @@ package com.linrun.trigger.service;
 
 import com.linrun.api.knowledge.request.UploadKnowledgeDocumentRequest;
 import com.linrun.api.knowledge.response.UploadKnowledgeDocumentResponse;
+import com.linrun.domain.knowledge.adapter.KnowledgeEmbeddingClient;
 import com.linrun.domain.knowledge.adapter.KnowledgeDocumentRepository;
+import com.linrun.domain.knowledge.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.knowledge.model.KnowledgeFragmentStatus;
 import com.linrun.domain.knowledge.service.KnowledgeDocumentParser;
 import com.linrun.domain.knowledge.service.KnowledgeDocumentService;
+import com.linrun.domain.knowledge.service.KnowledgeVectorService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +29,8 @@ class KnowledgeDocumentUploadServiceTest {
     @Test
     void shouldUploadTextAndPersistFragments() {
         FakeKnowledgeDocumentRepository repository = new FakeKnowledgeDocumentRepository();
-        KnowledgeDocumentUploadService service = service(repository);
+        FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository();
+        KnowledgeDocumentUploadService service = service(repository, vectorRepository);
 
         UploadKnowledgeDocumentResponse response = service.uploadText(request());
 
@@ -43,6 +47,7 @@ class KnowledgeDocumentUploadServiceTest {
         assertEquals(KnowledgeFragmentStatus.ENABLED.name(), response.getFragments().get(0).getFragmentStatus());
         assertEquals(response.getDocumentId(), repository.document.getDocumentId());
         assertEquals(2, repository.fragments.size());
+        assertEquals(2, vectorRepository.savedFragments.size());
     }
 
     @Test
@@ -74,10 +79,16 @@ class KnowledgeDocumentUploadServiceTest {
     }
 
     private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository) {
+        return service(repository, new FakeKnowledgeVectorRepository());
+    }
+
+    private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository,
+                                                   FakeKnowledgeVectorRepository vectorRepository) {
         return new KnowledgeDocumentUploadService(
                 new KnowledgeDocumentService(),
                 new KnowledgeDocumentParser(),
-                repository);
+                repository,
+                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository));
     }
 
     private UploadKnowledgeDocumentRequest request() {
@@ -114,6 +125,31 @@ class KnowledgeDocumentUploadServiceTest {
         public List<KnowledgeFragment> queryFragmentsByDocumentId(String documentId) {
             return fragments.stream()
                     .filter(item -> item.getDocumentId().equals(documentId))
+                    .toList();
+        }
+    }
+
+    private static class FakeKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient {
+
+        @Override
+        public List<Double> embed(String content) {
+            return List.of(1.0d, 0.0d, 0.0d);
+        }
+    }
+
+    private static class FakeKnowledgeVectorRepository implements KnowledgeVectorRepository {
+
+        private final List<KnowledgeFragment> savedFragments = new ArrayList<>();
+
+        @Override
+        public void saveEmbedding(KnowledgeFragment fragment, List<Double> embedding) {
+            savedFragments.add(fragment);
+        }
+
+        @Override
+        public List<KnowledgeFragment> searchSimilar(List<Double> queryEmbedding, int limit) {
+            return savedFragments.stream()
+                    .limit(limit)
                     .toList();
         }
     }

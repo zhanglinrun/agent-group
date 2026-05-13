@@ -11,6 +11,7 @@ import com.linrun.domain.knowledge.model.KnowledgeDocumentBuildResult;
 import com.linrun.domain.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.knowledge.service.KnowledgeDocumentParser;
 import com.linrun.domain.knowledge.service.KnowledgeDocumentService;
+import com.linrun.domain.knowledge.service.KnowledgeVectorService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,13 +28,16 @@ public class KnowledgeDocumentUploadService {
     private final KnowledgeDocumentService knowledgeDocumentService;
     private final KnowledgeDocumentParser knowledgeDocumentParser;
     private final KnowledgeDocumentRepository knowledgeDocumentRepository;
+    private final KnowledgeVectorService knowledgeVectorService;
 
     public KnowledgeDocumentUploadService(KnowledgeDocumentService knowledgeDocumentService,
                                           KnowledgeDocumentParser knowledgeDocumentParser,
-                                          KnowledgeDocumentRepository knowledgeDocumentRepository) {
+                                          KnowledgeDocumentRepository knowledgeDocumentRepository,
+                                          KnowledgeVectorService knowledgeVectorService) {
         this.knowledgeDocumentService = knowledgeDocumentService;
         this.knowledgeDocumentParser = knowledgeDocumentParser;
         this.knowledgeDocumentRepository = knowledgeDocumentRepository;
+        this.knowledgeVectorService = knowledgeVectorService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -50,6 +54,7 @@ public class KnowledgeDocumentUploadService {
                 documentCommand,
                 fragmentCommands);
         knowledgeDocumentRepository.save(buildResult.getDocument(), buildResult.getFragments());
+        buildResult.getFragments().forEach(knowledgeVectorService::saveFragmentEmbedding);
         return toResponse(buildResult);
     }
 
