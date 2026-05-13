@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IKnowledgeDocumentDao">
+
+    <resultMap id="KnowledgeDocumentMap" type="com.linrun.domain.knowledge.model.KnowledgeDocument">
+        <id column="document_id" property="documentId"/>
+        <result column="document_name" property="documentName"/>
+        <result column="document_type" property="documentType"/>
+        <result column="knowledge_version" property="knowledgeVersion"/>
+        <result column="source_type" property="sourceType"/>
+        <result column="source_name" property="sourceName"/>
+        <result column="document_status" property="documentStatus"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="KnowledgeFragmentMap" type="com.linrun.domain.knowledge.model.KnowledgeFragment">
+        <id column="fragment_id" property="fragmentId"/>
+        <result column="document_id" property="documentId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="document_type" property="documentType"/>
+        <result column="knowledge_version" property="knowledgeVersion"/>
+        <result column="content" property="content"/>
+        <result column="rank_no" property="rankNo"/>
+        <result column="fragment_status" property="fragmentStatus"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insertDocument" parameterType="com.linrun.domain.knowledge.model.KnowledgeDocument">
+        insert into knowledge_document (
+          document_id,
+          document_name,
+          document_type,
+          knowledge_version,
+          source_type,
+          source_name,
+          document_status,
+          enabled,
+          create_time,
+          update_time
+        ) values (
+          #{documentId},
+          #{documentName},
+          #{documentType},
+          #{knowledgeVersion},
+          #{sourceType},
+          #{sourceName},
+          #{documentStatus},
+          #{enabled},
+          #{createTime},
+          #{updateTime}
+        )
+    </insert>
+
+    <insert id="insertFragments">
+        insert into knowledge_fragment (
+          fragment_id,
+          document_id,
+          goods_id,
+          document_type,
+          knowledge_version,
+          content,
+          rank_no,
+          fragment_status,
+          enabled,
+          create_time,
+          update_time
+        ) values
+        <foreach collection="fragments" item="fragment" separator=",">
+        (
+          #{fragment.fragmentId},
+          #{fragment.documentId},
+          #{fragment.goodsId},
+          #{fragment.documentType},
+          #{fragment.knowledgeVersion},
+          #{fragment.content},
+          #{fragment.rankNo},
+          #{fragment.fragmentStatus},
+          #{fragment.enabled},
+          #{fragment.createTime},
+          #{fragment.updateTime}
+        )
+        </foreach>
+    </insert>
+
+    <select id="queryDocumentByDocumentId" resultMap="KnowledgeDocumentMap">
+        select document_id,
+               document_name,
+               document_type,
+               knowledge_version,
+               source_type,
+               source_name,
+               document_status,
+               enabled,
+               create_time,
+               update_time
+        from knowledge_document
+        where document_id = #{documentId}
+        limit 1
+    </select>
+
+    <select id="queryFragmentsByDocumentId" resultMap="KnowledgeFragmentMap">
+        select fragment_id,
+               document_id,
+               goods_id,
+               document_type,
+               knowledge_version,
+               content,
+               rank_no,
+               fragment_status,
+               enabled,
+               create_time,
+               update_time
+        from knowledge_fragment
+        where document_id = #{documentId}
+        order by rank_no asc, id asc
+    </select>
+</mapper>

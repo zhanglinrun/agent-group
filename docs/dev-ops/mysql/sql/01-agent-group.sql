@@ -84,6 +84,9 @@ create table if not exists knowledge_document (
   document_name varchar(128) not null comment '文档名称',
   document_type varchar(32) not null comment '文档类型',
   knowledge_version varchar(32) not null comment '知识版本',
+  source_type varchar(32) not null default 'INIT_DATA' comment '来源类型',
+  source_name varchar(128) not null default '初始化数据' comment '来源名称',
+  document_status varchar(32) not null default 'ENABLED' comment '文档状态',
   enabled tinyint not null default 1 comment '是否启用',
   create_time datetime not null default current_timestamp comment '创建时间',
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
@@ -100,6 +103,7 @@ create table if not exists knowledge_fragment (
   knowledge_version varchar(32) not null comment '知识版本',
   content varchar(1024) not null comment '片段内容',
   rank_no int not null default 100 comment '命中排序',
+  fragment_status varchar(32) not null default 'ENABLED' comment '片段状态',
   enabled tinyint not null default 1 comment '是否启用',
   create_time datetime not null default current_timestamp comment '创建时间',
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
@@ -212,23 +216,26 @@ on duplicate key update
   enabled = values(enabled);
 
 insert into knowledge_document (
-  document_id, document_name, document_type, knowledge_version, enabled
+  document_id, document_name, document_type, knowledge_version, source_type, source_name, document_status, enabled
 ) values
-('DOC10001', '学习平板商品详情说明', '商品详情', 'v1', 1),
-('DOC10002', '学习平板拼团活动规则', '营销规则', 'v1', 1),
-('DOC10003', '学习平板售后政策', '售后政策', 'v1', 1)
+('DOC10001', '学习平板商品详情说明', '商品详情', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10002', '学习平板拼团活动规则', '营销规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10003', '学习平板售后政策', '售后政策', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
 on duplicate key update
   document_name = values(document_name),
   document_type = values(document_type),
   knowledge_version = values(knowledge_version),
+  source_type = values(source_type),
+  source_name = values(source_name),
+  document_status = values(document_status),
   enabled = values(enabled);
 
 insert into knowledge_fragment (
-  fragment_id, document_id, goods_id, document_type, knowledge_version, content, rank_no, enabled
+  fragment_id, document_id, goods_id, document_type, knowledge_version, content, rank_no, fragment_status, enabled
 ) values
-('KF10001', 'DOC10001', 'G10001', '商品详情', 'v1', '轻薄学习平板标准版适合写论文、看网课和日常笔记。', 1, 1),
-('KF10002', 'DOC10002', 'G10001', '营销规则', 'v1', '标准版支持 3 人拼团，拼团价比原价低 300 元。', 2, 1),
-('KF10003', 'DOC10003', 'G10001', '售后政策', 'v1', '拼团商品成团后支持 7 天无理由退货，未成团时系统自动退款。', 3, 1)
+('KF10001', 'DOC10001', 'G10001', '商品详情', 'v1', '轻薄学习平板标准版适合写论文、看网课和日常笔记。', 1, 'ENABLED', 1),
+('KF10002', 'DOC10002', 'G10001', '营销规则', 'v1', '标准版支持 3 人拼团，拼团价比原价低 300 元。', 2, 'ENABLED', 1),
+('KF10003', 'DOC10003', 'G10001', '售后政策', 'v1', '拼团商品成团后支持 7 天无理由退货，未成团时系统自动退款。', 3, 'ENABLED', 1)
 on duplicate key update
   document_id = values(document_id),
   goods_id = values(goods_id),
@@ -236,4 +243,5 @@ on duplicate key update
   knowledge_version = values(knowledge_version),
   content = values(content),
   rank_no = values(rank_no),
+  fragment_status = values(fragment_status),
   enabled = values(enabled);
