@@ -10,6 +10,8 @@ import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.guide.service.GuideDecisionService;
+import com.linrun.domain.guide.service.GuideRagAnswerService;
+import com.linrun.domain.guide.service.GuideRagPromptBuilder;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
@@ -28,8 +30,7 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldBuildGuideEventsWithProductAndReferences() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(
-                new FakeGuideDataRepository(), groupBuyService()));
+        AgentGuideStreamService service = streamService(new FakeGuideDataRepository());
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion("我是学生，预算有限，想买适合看网课的平板");
 
@@ -60,8 +61,7 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldReturnErrorWhenQuestionIsBlank() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(
-                new FakeGuideDataRepository(), groupBuyService()));
+        AgentGuideStreamService service = streamService(new FakeGuideDataRepository());
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion(" ");
 
@@ -76,8 +76,7 @@ class AgentGuideStreamServiceTest {
 
     @Test
     void shouldReturnErrorWhenRepositoryFails() {
-        AgentGuideStreamService service = new AgentGuideStreamService(new GuideDecisionService(
-                new FailingGuideDataRepository(), groupBuyService()));
+        AgentGuideStreamService service = streamService(new FailingGuideDataRepository());
         GuideStreamRequest request = new GuideStreamRequest();
         request.setQuestion("推荐一款学习平板");
 
@@ -150,6 +149,12 @@ class AgentGuideStreamServiceTest {
         public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             throw new IllegalStateException("database unavailable");
         }
+    }
+
+    private AgentGuideStreamService streamService(GuideDataRepository guideDataRepository) {
+        return new AgentGuideStreamService(
+                new GuideDecisionService(guideDataRepository, groupBuyService()),
+                new GuideRagAnswerService(new GuideRagPromptBuilder(), prompt -> prompt.getFallbackAnswer()));
     }
 
     private GroupBuyActivityService groupBuyService() {

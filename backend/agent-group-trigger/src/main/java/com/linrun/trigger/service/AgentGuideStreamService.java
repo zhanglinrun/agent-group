@@ -14,6 +14,7 @@ import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.guide.model.RecommendationResult;
 import com.linrun.domain.guide.service.GuideDecisionService;
+import com.linrun.domain.guide.service.GuideRagAnswerService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -26,9 +27,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AgentGuideStreamService {
 
     private final GuideDecisionService guideDecisionService;
+    private final GuideRagAnswerService guideRagAnswerService;
 
-    public AgentGuideStreamService(GuideDecisionService guideDecisionService) {
+    public AgentGuideStreamService(GuideDecisionService guideDecisionService,
+                                   GuideRagAnswerService guideRagAnswerService) {
         this.guideDecisionService = guideDecisionService;
+        this.guideRagAnswerService = guideRagAnswerService;
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
@@ -59,7 +63,7 @@ public class AgentGuideStreamService {
             add(events, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference));
         }
 
-        for (String answerSegment : decisionResult.getAnswerSegments()) {
+        for (String answerSegment : guideRagAnswerService.answer(request.getQuestion(), decisionResult)) {
             add(events, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment));
         }
 
