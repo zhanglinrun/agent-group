@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IGroupBuyActivityDao">
+
+    <resultMap id="GroupBuyActivityMap" type="com.linrun.domain.groupbuy.model.GroupBuyActivity">
+        <id column="id" property="id"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="group_price" property="groupPrice"/>
+        <result column="team_size" property="teamSize"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="enabled" property="enabled"/>
+    </resultMap>
+
+    <select id="queryByGoodsId" resultMap="GroupBuyActivityMap">
+        select id,
+               activity_id,
+               goods_id,
+               group_price,
+               team_size,
+               start_time,
+               end_time,
+               enabled
+        from group_activity
+        where goods_id = #{goodsId}
+        order by case
+                   when enabled = 1 and start_time &lt;= now() and end_time &gt; now() then 0
+                   when enabled = 1 and start_time &gt; now() then 1
+                   when enabled = 1 then 2
+                   else 3
+                 end,
+                 start_time desc,
+                 id desc
+        limit 1
+    </select>
+
+    <select id="queryByActivityId" resultMap="GroupBuyActivityMap">
+        select id,
+               activity_id,
+               goods_id,
+               group_price,
+               team_size,
+               start_time,
+               end_time,
+               enabled
+        from group_activity
+        where activity_id = #{activityId}
+        limit 1
+    </select>
+</mapper>
