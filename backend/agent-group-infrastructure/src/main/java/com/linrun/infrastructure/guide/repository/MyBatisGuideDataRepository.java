@@ -3,6 +3,7 @@ package com.linrun.infrastructure.guide.repository;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.knowledge.service.KnowledgeKeywordService;
 import com.linrun.infrastructure.dao.IGuideDataDao;
 import org.springframework.stereotype.Repository;
 
@@ -14,14 +15,16 @@ import java.util.Optional;
 public class MyBatisGuideDataRepository implements GuideDataRepository {
 
     private final IGuideDataDao guideDataDao;
+    private final KnowledgeKeywordService knowledgeKeywordService;
 
-    public MyBatisGuideDataRepository(IGuideDataDao guideDataDao) {
+    public MyBatisGuideDataRepository(IGuideDataDao guideDataDao, KnowledgeKeywordService knowledgeKeywordService) {
         this.guideDataDao = guideDataDao;
+        this.knowledgeKeywordService = knowledgeKeywordService;
     }
 
     @Override
     public List<GuideReference> queryReferences(String question, int limit) {
-        return guideDataDao.queryReferences(question, limit);
+        return guideDataDao.queryReferences(knowledgeKeywordService.extractKeywords(question), limit);
     }
 
     @Override

@@ -44,7 +44,26 @@
           and f.fragment_status = 'ENABLED'
           and d.enabled = 1
           and d.document_status = 'ENABLED'
+          <if test="keywords != null and keywords.size > 0">
+          and (
+              <foreach collection="keywords" item="keyword" separator=" or ">
+              f.content like concat('%', #{keyword}, '%')
+              or f.document_type like concat('%', #{keyword}, '%')
+              </foreach>
+          )
+          </if>
+        <if test="keywords != null and keywords.size > 0">
+        order by (
+            <foreach collection="keywords" item="keyword" separator=" + ">
+            case when f.content like concat('%', #{keyword}, '%') then 10 else 0 end
+            + case when f.document_type like concat('%', #{keyword}, '%') then 5 else 0 end
+            </foreach>
+        ) desc,
+        f.rank_no asc
+        </if>
+        <if test="keywords == null or keywords.size == 0">
         order by f.rank_no asc
+        </if>
         limit #{limit}
     </select>
 

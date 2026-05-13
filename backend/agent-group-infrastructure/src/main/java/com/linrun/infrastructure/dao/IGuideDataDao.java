@@ -10,7 +10,7 @@ import java.util.List;
 @Mapper
 public interface IGuideDataDao {
 
-    List<GuideReference> queryReferences(@Param("question") String question, @Param("limit") int limit);
+    List<GuideReference> queryReferences(@Param("keywords") List<String> keywords, @Param("limit") int limit);
 
     GuideProduct queryRecommendProduct(@Param("question") String question);
 
