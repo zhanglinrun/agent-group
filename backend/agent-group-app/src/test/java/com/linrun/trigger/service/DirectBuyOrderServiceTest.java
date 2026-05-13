@@ -8,6 +8,7 @@ import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.PayStatus;
+import com.linrun.domain.trade.model.RefundOrder;
 import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.domain.trade.model.TradeOrderStatus;
@@ -169,6 +170,27 @@ class DirectBuyOrderServiceTest {
             if (savedTradeOrder != null && orderIds.contains(savedTradeOrder.getOrderId())) {
                 savedTradeOrder.markGroupSettled();
             }
+        }
+
+        @Override
+        public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+            this.savedTradeOrder = tradeOrder;
+            this.savedPayOrder = payOrder;
+        }
+
+        @Override
+        public void saveRefundOrder(RefundOrder refundOrder) {
+        }
+
+        @Override
+        public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+            this.savedTradeOrder = tradeOrder;
+            this.savedPayOrder = payOrder;
+        }
+
+        @Override
+        public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+            return Optional.empty();
         }
 
         @Override

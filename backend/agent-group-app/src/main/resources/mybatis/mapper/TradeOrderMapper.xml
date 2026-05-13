@@ -31,6 +31,18 @@
         <result column="pay_time" property="payTime"/>
     </resultMap>
 
+    <resultMap id="RefundOrderMap" type="com.linrun.domain.trade.model.RefundOrder">
+        <id column="refund_id" property="refundId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="pay_order_id" property="payOrderId"/>
+        <result column="user_id" property="userId"/>
+        <result column="refund_amount" property="refundAmount"/>
+        <result column="refund_status" property="refundStatus"/>
+        <result column="refund_reason" property="refundReason"/>
+        <result column="create_time" property="createTime"/>
+        <result column="refund_time" property="refundTime"/>
+    </resultMap>
+
     <insert id="insertTradeOrder" parameterType="com.linrun.domain.trade.model.TradeOrder">
         insert into trade_order (
           order_id,
@@ -110,6 +122,55 @@
           </foreach>
     </update>
 
+    <update id="updateTradeOrderClosed" parameterType="com.linrun.domain.trade.model.TradeOrder">
+        update trade_order
+        set order_status = #{orderStatus},
+            close_time = #{closeTime}
+        where order_id = #{orderId}
+    </update>
+
+    <update id="updatePayOrderClosed" parameterType="com.linrun.domain.trade.model.PayOrder">
+        update pay_order
+        set pay_status = #{payStatus}
+        where order_id = #{orderId}
+    </update>
+
+    <insert id="insertRefundOrder" parameterType="com.linrun.domain.trade.model.RefundOrder">
+        insert into refund_order (
+          refund_id,
+          order_id,
+          pay_order_id,
+          user_id,
+          refund_amount,
+          refund_status,
+          refund_reason,
+          create_time,
+          refund_time
+        ) values (
+          #{refundId},
+          #{orderId},
+          #{payOrderId},
+          #{userId},
+          #{refundAmount},
+          #{refundStatus},
+          #{refundReason},
+          #{createTime},
+          #{refundTime}
+        )
+    </insert>
+
+    <update id="updateTradeOrderRefunded" parameterType="com.linrun.domain.trade.model.TradeOrder">
+        update trade_order
+        set order_status = #{orderStatus}
+        where order_id = #{orderId}
+    </update>
+
+    <update id="updatePayOrderRefunded" parameterType="com.linrun.domain.trade.model.PayOrder">
+        update pay_order
+        set pay_status = #{payStatus}
+        where order_id = #{orderId}
+    </update>
+
     <select id="queryTradeOrderByOrderId" resultMap="TradeOrderMap">
         select order_id,
                user_id,
@@ -139,6 +200,21 @@
                create_time,
                pay_time
         from pay_order
+        where order_id = #{orderId}
+        limit 1
+    </select>
+
+    <select id="queryRefundOrderByOrderId" resultMap="RefundOrderMap">
+        select refund_id,
+               order_id,
+               pay_order_id,
+               user_id,
+               refund_amount,
+               refund_status,
+               refund_reason,
+               create_time,
+               refund_time
+        from refund_order
         where order_id = #{orderId}
         limit 1
     </select>

@@ -81,4 +81,38 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     public List<String> queryPaidOrderIdsByTeamId(String teamId) {
         return groupBuyOrderLockDao.queryPaidOrderIdsByTeamId(teamId);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public GroupBuySettlementResult releaseLockedOrder(String orderId) {
+        GroupBuyOrderLock orderLock = Optional.ofNullable(groupBuyOrderLockDao.queryLockByOrderId(orderId))
+                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
+        int updated = groupBuyOrderLockDao.releaseLockedOrder(orderId);
+        if (updated == 1) {
+            groupBuyOrderLockDao.reduceTeamLockCount(orderLock.getTeamId());
+            orderLock.setLockStatus(GroupBuyLockStatus.RELEASED);
+        } else {
+            orderLock = groupBuyOrderLockDao.queryLockByOrderId(orderId);
+        }
+        GroupBuyTeam team = Optional.ofNullable(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId()))
+                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
+        return new GroupBuySettlementResult(orderLock, team, updated != 1);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public GroupBuySettlementResult releasePaidOrder(String orderId) {
+        GroupBuyOrderLock orderLock = Optional.ofNullable(groupBuyOrderLockDao.queryLockByOrderId(orderId))
+                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
+        int updated = groupBuyOrderLockDao.releasePaidOrder(orderId);
+        if (updated == 1) {
+            groupBuyOrderLockDao.reduceTeamPaidCount(orderLock.getTeamId());
+            orderLock.setLockStatus(GroupBuyLockStatus.RELEASED);
+        } else {
+            orderLock = groupBuyOrderLockDao.queryLockByOrderId(orderId);
+        }
+        GroupBuyTeam team = Optional.ofNullable(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId()))
+                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
+        return new GroupBuySettlementResult(orderLock, team, updated != 1);
+    }
 }

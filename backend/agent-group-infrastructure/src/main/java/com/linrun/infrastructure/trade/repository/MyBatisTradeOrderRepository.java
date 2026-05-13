@@ -2,6 +2,7 @@ package com.linrun.infrastructure.trade.repository;
 
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
+import com.linrun.domain.trade.model.RefundOrder;
 import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.infrastructure.dao.ITradeOrderDao;
 import org.springframework.stereotype.Repository;
@@ -39,6 +40,30 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
             return;
         }
         tradeOrderDao.updateGroupSettledByOrderIds(orderIds);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+        tradeOrderDao.updateTradeOrderClosed(tradeOrder);
+        tradeOrderDao.updatePayOrderClosed(payOrder);
+    }
+
+    @Override
+    public void saveRefundOrder(RefundOrder refundOrder) {
+        tradeOrderDao.insertRefundOrder(refundOrder);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+        tradeOrderDao.updateTradeOrderRefunded(tradeOrder);
+        tradeOrderDao.updatePayOrderRefunded(payOrder);
+    }
+
+    @Override
+    public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+        return Optional.ofNullable(tradeOrderDao.queryRefundOrderByOrderId(orderId));
     }
 
     @Override

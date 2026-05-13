@@ -147,6 +147,24 @@ create table if not exists pay_order (
   key idx_pay_status (pay_status)
 ) engine=InnoDB default charset=utf8mb4 comment='支付单表';
 
+create table if not exists refund_order (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  refund_id varchar(40) not null comment '退款单编号',
+  order_id varchar(40) not null comment '订单编号',
+  pay_order_id varchar(40) not null comment '支付单编号',
+  user_id varchar(64) not null comment '用户编号',
+  refund_amount decimal(10, 2) not null comment '退款金额',
+  refund_status varchar(32) not null comment '退款状态',
+  refund_reason varchar(256) not null default '' comment '退款原因',
+  refund_time datetime not null comment '退款时间',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_refund_id (refund_id),
+  unique key uk_order_id (order_id),
+  key idx_user_status (user_id, refund_status)
+) engine=InnoDB default charset=utf8mb4 comment='退款单表';
+
 insert into guide_goods (
   goods_id, goods_name, image_url, origin_price, spec_summary, after_sale_policy,
   recommend_reason, not_suitable_for, enabled, sort_order

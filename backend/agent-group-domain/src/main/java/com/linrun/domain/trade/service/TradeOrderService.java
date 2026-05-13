@@ -76,6 +76,14 @@ public class TradeOrderService {
         payOrder.close();
     }
 
+    public void refundPaidOrder(TradeOrder order, PayOrder payOrder) {
+        if (!order.getOrderId().equals(payOrder.getOrderId())) {
+            throw new AppException("TRADE_0012", "订单和支付单不匹配");
+        }
+        order.refund();
+        payOrder.refund();
+    }
+
     private void validateCreateCommand(CreateTradeOrderCommand command) {
         if (command == null) {
             throw new AppException("0001", "订单参数不能为空");

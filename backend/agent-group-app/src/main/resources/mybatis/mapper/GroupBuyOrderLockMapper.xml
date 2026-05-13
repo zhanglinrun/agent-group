@@ -169,4 +169,31 @@
         where team_id = #{teamId}
           and lock_status = 'PAID'
     </select>
+
+    <update id="releaseLockedOrder">
+        update group_buy_order_lock
+        set lock_status = 'RELEASED'
+        where order_id = #{orderId}
+          and lock_status = 'LOCKED'
+    </update>
+
+    <update id="releasePaidOrder">
+        update group_buy_order_lock
+        set lock_status = 'RELEASED'
+        where order_id = #{orderId}
+          and lock_status = 'PAID'
+    </update>
+
+    <update id="reduceTeamLockCount">
+        update group_buy_team
+        set lock_count = greatest(lock_count - 1, 0)
+        where team_id = #{teamId}
+    </update>
+
+    <update id="reduceTeamPaidCount">
+        update group_buy_team
+        set lock_count = greatest(lock_count - 1, 0),
+            complete_count = greatest(complete_count - 1, 0)
+        where team_id = #{teamId}
+    </update>
 </mapper>

@@ -52,6 +52,16 @@ public class PayOrder {
         this.payStatus = PayStatus.CLOSED;
     }
 
+    public void refund() {
+        if (PayStatus.REFUNDED.equals(payStatus)) {
+            return;
+        }
+        if (!PayStatus.SUCCESS.equals(payStatus)) {
+            throw new AppException("TRADE_0016", "当前支付单状态不能退款");
+        }
+        this.payStatus = PayStatus.REFUNDED;
+    }
+
     public String getPayOrderId() {
         return payOrderId;
     }

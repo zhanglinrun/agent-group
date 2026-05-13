@@ -78,6 +78,16 @@ public class TradeOrder {
         this.orderStatus = TradeOrderStatus.CLOSED;
     }
 
+    public void refund() {
+        if (TradeOrderStatus.REFUNDED.equals(orderStatus)) {
+            return;
+        }
+        if (!TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)) {
+            throw new AppException("TRADE_0015", "当前订单状态不能退款");
+        }
+        this.orderStatus = TradeOrderStatus.REFUNDED;
+    }
+
     public String getOrderId() {
         return orderId;
     }

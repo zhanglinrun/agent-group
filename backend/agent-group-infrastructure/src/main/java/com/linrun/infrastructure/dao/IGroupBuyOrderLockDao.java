@@ -27,4 +27,12 @@ public interface IGroupBuyOrderLockDao {
     int updateTeamCompleteCount(@Param("teamId") String teamId);
 
     List<String> queryPaidOrderIdsByTeamId(@Param("teamId") String teamId);
+
+    int releaseLockedOrder(@Param("orderId") String orderId);
+
+    int releasePaidOrder(@Param("orderId") String orderId);
+
+    int reduceTeamLockCount(@Param("teamId") String teamId);
+
+    int reduceTeamPaidCount(@Param("teamId") String teamId);
 }

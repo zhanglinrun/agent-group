@@ -23,4 +23,8 @@ public interface GroupBuyOrderLockRepository {
     GroupBuySettlementResult settlePaidOrder(String orderId);
 
     List<String> queryPaidOrderIdsByTeamId(String teamId);
+
+    GroupBuySettlementResult releaseLockedOrder(String orderId);
+
+    GroupBuySettlementResult releasePaidOrder(String orderId);
 }

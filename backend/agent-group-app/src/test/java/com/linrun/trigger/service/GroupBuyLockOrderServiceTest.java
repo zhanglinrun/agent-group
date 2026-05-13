@@ -1,6 +1,9 @@
 package com.linrun.trigger.service;
 
 import com.linrun.api.groupbuy.request.LockGroupBuyOrderRequest;
+import com.linrun.api.groupbuy.request.CloseUnpaidGroupBuyOrderRequest;
+import com.linrun.api.groupbuy.request.RefundGroupBuyOrderRequest;
+import com.linrun.api.groupbuy.response.GroupBuyCompensationResponse;
 import com.linrun.api.groupbuy.response.LockGroupBuyOrderResponse;
 import com.linrun.api.trade.request.MockPayCallbackRequest;
 import com.linrun.api.trade.response.MockPayCallbackResponse;
@@ -19,6 +22,7 @@ import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.PayStatus;
+import com.linrun.domain.trade.model.RefundOrder;
 import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.domain.trade.model.TradeOrderStatus;
@@ -172,6 +176,55 @@ class GroupBuyLockOrderServiceTest {
     }
 
     @Test
+    void shouldCloseUnpaidOrderAndReleaseLockSlot() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository);
+        GroupBuyCompensationService compensationService = compensationService(lockRepository, tradeOrderRepository);
+        LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_30001"));
+        CloseUnpaidGroupBuyOrderRequest closeRequest = new CloseUnpaidGroupBuyOrderRequest();
+        closeRequest.setOrderId(lockResponse.getOrderId());
+
+        GroupBuyCompensationResponse response = compensationService.closeUnpaid(closeRequest);
+
+        assertEquals(lockResponse.getOrderId(), response.getOrderId());
+        assertEquals(TradeOrderStatus.CLOSED.name(), response.getOrderStatus());
+        assertEquals(PayStatus.CLOSED.name(), response.getPayStatus());
+        assertEquals(GroupBuyLockStatus.RELEASED.name(), response.getLockStatus());
+        assertEquals(0, response.getLockedCount());
+        assertEquals(0, response.getCompleteCount());
+        assertEquals(TradeOrderStatus.CLOSED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatus.CLOSED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+    }
+
+    @Test
+    void shouldRefundPaidUnsettledOrderAndCreateRefundRecord() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository);
+        MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository);
+        GroupBuyCompensationService compensationService = compensationService(lockRepository, tradeOrderRepository);
+        LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_30002"));
+        callbackService.paySuccess(callback(lockResponse.getOrderId(), "T30002"));
+        RefundGroupBuyOrderRequest refundRequest = new RefundGroupBuyOrderRequest();
+        refundRequest.setOrderId(lockResponse.getOrderId());
+        refundRequest.setRefundReason("拼团超时未成团");
+
+        GroupBuyCompensationResponse response = compensationService.refundUnsettled(refundRequest);
+
+        assertTrue(response.getRefundId().startsWith("R"));
+        assertEquals(TradeOrderStatus.REFUNDED.name(), response.getOrderStatus());
+        assertEquals(PayStatus.REFUNDED.name(), response.getPayStatus());
+        assertEquals(GroupBuyLockStatus.RELEASED.name(), response.getLockStatus());
+        assertEquals(new BigDecimal("2099.00"), response.getRefundAmount());
+        assertEquals(0, response.getLockedCount());
+        assertEquals(0, response.getCompleteCount());
+        assertEquals(TradeOrderStatus.REFUNDED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatus.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+        assertEquals("拼团超时未成团", tradeOrderRepository.refundOrders.get(lockResponse.getOrderId()).getRefundReason());
+    }
+
+    @Test
     void shouldRejectEndedActivity() {
         GroupBuyLockOrderService service = new GroupBuyLockOrderService(
                 new FakeGuideDataRepository(),
@@ -220,6 +273,14 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new GroupBuySettlementService(lockRepository, tradeOrderRepository));
+    }
+
+    private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                            FakeTradeOrderRepository tradeOrderRepository) {
+        return new GroupBuyCompensationService(
+                tradeOrderRepository,
+                new TradeOrderService(),
+                lockRepository);
     }
 
     private static GroupBuyActivity activity(String activityId, String goodsId, LocalDateTime endTime) {
@@ -344,6 +405,33 @@ class GroupBuyLockOrderServiceTest {
                     .map(GroupBuyOrderLock::getOrderId)
                     .toList();
         }
+
+        @Override
+        public GroupBuySettlementResult releaseLockedOrder(String orderId) {
+            GroupBuyOrderLock orderLock = queryLockByOrderId(orderId)
+                    .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
+            boolean repeated = GroupBuyLockStatus.RELEASED.equals(orderLock.getLockStatus());
+            if (!repeated && GroupBuyLockStatus.LOCKED.equals(orderLock.getLockStatus())) {
+                orderLock.setLockStatus(GroupBuyLockStatus.RELEASED);
+                GroupBuyTeam team = teams.get(orderLock.getTeamId());
+                team.setLockCount(Math.max(team.getLockCount() - 1, 0));
+            }
+            return new GroupBuySettlementResult(orderLock, teams.get(orderLock.getTeamId()), repeated);
+        }
+
+        @Override
+        public GroupBuySettlementResult releasePaidOrder(String orderId) {
+            GroupBuyOrderLock orderLock = queryLockByOrderId(orderId)
+                    .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
+            boolean repeated = GroupBuyLockStatus.RELEASED.equals(orderLock.getLockStatus());
+            if (!repeated && GroupBuyLockStatus.PAID.equals(orderLock.getLockStatus())) {
+                orderLock.setLockStatus(GroupBuyLockStatus.RELEASED);
+                GroupBuyTeam team = teams.get(orderLock.getTeamId());
+                team.setLockCount(Math.max(team.getLockCount() - 1, 0));
+                team.setCompleteCount(Math.max(team.getCompleteCount() - 1, 0));
+            }
+            return new GroupBuySettlementResult(orderLock, teams.get(orderLock.getTeamId()), repeated);
+        }
     }
 
     private static class FakeTradeOrderRepository implements TradeOrderRepository {
@@ -352,6 +440,7 @@ class GroupBuyLockOrderServiceTest {
         private PayOrder savedPayOrder;
         private final Map<String, TradeOrder> tradeOrders = new HashMap<>();
         private final Map<String, PayOrder> payOrders = new HashMap<>();
+        private final Map<String, RefundOrder> refundOrders = new HashMap<>();
 
         @Override
         public void save(TradeOrder tradeOrder, PayOrder payOrder) {
@@ -375,6 +464,32 @@ class GroupBuyLockOrderServiceTest {
                     .map(tradeOrders::get)
                     .filter(tradeOrder -> tradeOrder != null && TradeOrderStatus.PAY_SUCCESS.equals(tradeOrder.getOrderStatus()))
                     .forEach(TradeOrder::markGroupSettled);
+        }
+
+        @Override
+        public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+            this.savedTradeOrder = tradeOrder;
+            this.savedPayOrder = payOrder;
+            this.tradeOrders.put(tradeOrder.getOrderId(), tradeOrder);
+            this.payOrders.put(payOrder.getOrderId(), payOrder);
+        }
+
+        @Override
+        public void saveRefundOrder(RefundOrder refundOrder) {
+            this.refundOrders.put(refundOrder.getOrderId(), refundOrder);
+        }
+
+        @Override
+        public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+            this.savedTradeOrder = tradeOrder;
+            this.savedPayOrder = payOrder;
+            this.tradeOrders.put(tradeOrder.getOrderId(), tradeOrder);
+            this.payOrders.put(payOrder.getOrderId(), payOrder);
+        }
+
+        @Override
+        public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+            return Optional.ofNullable(refundOrders.get(orderId));
         }
 
         @Override
