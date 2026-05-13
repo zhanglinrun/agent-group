@@ -1,0 +1,15 @@
+spring:
+  mvc:
+    async:
+      request-timeout: 60000
+
+logging:
+  level:
+    root: info
+    com.linrun: debug
+
+agent:
+  group:
+    stream:
+      timeout-millis: 60000
+      mock-delay-millis: 350
