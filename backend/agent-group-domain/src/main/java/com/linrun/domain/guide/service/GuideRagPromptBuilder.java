@@ -5,6 +5,8 @@ import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideRagPrompt;
 import com.linrun.domain.guide.model.GuideReference;
 import com.linrun.domain.guide.model.RecommendationReason;
+import com.linrun.domain.prompt.model.PromptTemplateType;
+import com.linrun.domain.prompt.service.PromptTemplateService;
 import org.springframework.stereotype.Service;
 
 import java.util.stream.Collectors;
@@ -12,14 +14,15 @@ import java.util.stream.Collectors;
 @Service
 public class GuideRagPromptBuilder {
 
-    private static final String SYSTEM_PROMPT = """
-            你是电商 AI 导购助手。回答必须只基于商品资料、拼团试算和知识片段；信息不足时要明确说明待补充，不要编造。
-            输出要适合流式展示，先给结论，再给依据，最后给购买或售后提醒。
-            """;
+    private final PromptTemplateService promptTemplateService;
+
+    public GuideRagPromptBuilder(PromptTemplateService promptTemplateService) {
+        this.promptTemplateService = promptTemplateService;
+    }
 
     public GuideRagPrompt build(String question, GuideDecisionResult decisionResult) {
         GuideRagPrompt prompt = new GuideRagPrompt();
-        prompt.setSystemPrompt(SYSTEM_PROMPT);
+        prompt.setSystemPrompt(promptTemplateService.requireEnabled(PromptTemplateType.GUIDE).getContent());
         prompt.setUserPrompt(buildUserPrompt(question, decisionResult));
         prompt.setFallbackAnswer(buildFallbackAnswer(decisionResult));
         return prompt;
@@ -39,14 +42,22 @@ public class GuideRagPromptBuilder {
                 推荐理由：
                 %s
 
+                推荐理由模板：
+                %s
+
                 知识片段：
+                %s
+
+                自检模板：
                 %s
                 """.formatted(
                 question,
                 decisionResult.getIntent().getIntentType(),
                 productContext(decisionResult.getProduct()),
                 reasonContext(decisionResult),
-                referenceContext(decisionResult));
+                promptTemplateService.requireEnabled(PromptTemplateType.RECOMMEND_REASON).getContent(),
+                referenceContext(decisionResult),
+                promptTemplateService.requireEnabled(PromptTemplateType.SELF_CHECK).getContent());
     }
 
     private String productContext(GuideProduct product) {

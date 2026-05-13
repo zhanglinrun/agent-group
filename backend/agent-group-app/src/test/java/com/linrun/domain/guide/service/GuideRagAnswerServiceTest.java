@@ -12,7 +12,9 @@ class GuideRagAnswerServiceTest {
     @Test
     void shouldUseLlmAnswerWhenReturned() {
         GuideLlmClient llmClient = prompt -> "第一段\n第二段";
-        GuideRagAnswerService service = new GuideRagAnswerService(new GuideRagPromptBuilder(), llmClient);
+        GuideRagAnswerService service = new GuideRagAnswerService(
+                new GuideRagPromptBuilder(GuideRagPromptBuilderTest.promptTemplateService()),
+                llmClient);
 
         List<String> segments = service.answer("拼团失败会退款吗", GuideRagPromptBuilderTest.decisionResult());
 
@@ -22,7 +24,9 @@ class GuideRagAnswerServiceTest {
     @Test
     void shouldFallbackWhenLlmAnswerIsBlank() {
         GuideLlmClient llmClient = prompt -> " ";
-        GuideRagAnswerService service = new GuideRagAnswerService(new GuideRagPromptBuilder(), llmClient);
+        GuideRagAnswerService service = new GuideRagAnswerService(
+                new GuideRagPromptBuilder(GuideRagPromptBuilderTest.promptTemplateService()),
+                llmClient);
 
         List<String> segments = service.answer("拼团失败会退款吗", GuideRagPromptBuilderTest.decisionResult());
 

@@ -15,6 +15,8 @@ import com.linrun.domain.guide.service.GuideRagPromptBuilder;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
+import com.linrun.domain.prompt.service.PromptTemplateService;
+import com.linrun.infrastructure.prompt.LocalPromptTemplateRepository;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -154,7 +156,9 @@ class AgentGuideStreamServiceTest {
     private AgentGuideStreamService streamService(GuideDataRepository guideDataRepository) {
         return new AgentGuideStreamService(
                 new GuideDecisionService(guideDataRepository, groupBuyService()),
-                new GuideRagAnswerService(new GuideRagPromptBuilder(), prompt -> prompt.getFallbackAnswer()));
+                new GuideRagAnswerService(
+                        new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
+                        prompt -> prompt.getFallbackAnswer()));
     }
 
     private GroupBuyActivityService groupBuyService() {
