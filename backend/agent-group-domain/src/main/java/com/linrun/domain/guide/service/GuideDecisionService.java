@@ -6,6 +6,8 @@ import com.linrun.domain.guide.model.GuideIntent;
 import com.linrun.domain.guide.model.GuideIntentType;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.model.RecommendationResult;
+import com.linrun.domain.guide.model.UserRequirement;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -28,15 +30,19 @@ public class GuideDecisionService {
         }
 
         GuideIntent intent = recognizeIntent(question);
+        UserRequirement requirement = UserRequirement.fromIntent(intent);
         List<GuideReference> references = guideDataRepository.queryReferences(question, 3);
         GuideProduct product = guideDataRepository.queryRecommendProduct(question)
                 .orElseThrow(() -> new AppException("DATA_0002", "没有可推荐商品，请先初始化商品数据"));
+        RecommendationResult recommendationResult = buildRecommendation(requirement, product);
 
         GuideDecisionResult result = new GuideDecisionResult();
         result.setIntent(intent);
+        result.setUserRequirement(requirement);
+        result.setRecommendationResult(recommendationResult);
         result.setReferences(references);
-        result.setProduct(product);
-        result.setAnswerSegments(buildAnswerSegments(intent, product));
+        result.setProduct(recommendationResult.getPrimaryProduct());
+        result.setAnswerSegments(buildAnswerSegments(recommendationResult));
         return result;
     }
 
@@ -89,19 +95,42 @@ public class GuideDecisionService {
         return GuideIntentType.PRODUCT_RECOMMEND;
     }
 
-    private List<String> buildAnswerSegments(GuideIntent intent, GuideProduct product) {
+    private RecommendationResult buildRecommendation(UserRequirement requirement, GuideProduct product) {
+        RecommendationResult result = new RecommendationResult();
+        result.setPrimaryProduct(product);
+        result.addCandidate(product);
+
+        result.addReason("SCENARIO_MATCH", "这款商品和" + String.join("、", requirement.getUsageScenarios()) + "场景匹配。", 90);
+        if (requirement.isBudgetSensitive()) {
+            result.addReason("BUDGET_MATCH", "你提到了预算或价格因素，所以优先比较拼团价、直接购买价和长期使用成本。", 95);
+        }
+        if (requirement.isAfterSaleConcerned()) {
+            result.addReason("AFTER_SALE_MATCH", "你关注售后时，需要同时看退货规则、质保周期和未成团退款规则。", 85);
+        }
+        if (requirement.isGroupBuyConcerned()) {
+            result.addReason("GROUP_BUY_MATCH", "你关注拼团时，需要确认成团人数、剩余时间和未成团后的退款处理。", 80);
+        }
+
+        boolean passed = product != null
+                && StringUtils.hasText(product.getGoodsId())
+                && StringUtils.hasText(product.getGoodsName())
+                && product.getOriginPrice() != null
+                && product.getGroupPrice() != null
+                && StringUtils.hasText(product.getSpecSummary())
+                && StringUtils.hasText(product.getRecommendReason());
+        result.setPassedSelfCheck(passed);
+        result.setSelfCheckMessage(passed
+                ? "推荐商品、价格、规格和推荐理由完整"
+                : "推荐商品信息不完整，需要运营侧补全商品资料");
+        return result;
+    }
+
+    private List<String> buildAnswerSegments(RecommendationResult recommendationResult) {
         List<String> segments = new ArrayList<>();
+        GuideProduct product = recommendationResult.getPrimaryProduct();
         segments.add("我先从已入库的商品、活动和知识片段里筛选，本轮优先推荐" + product.getGoodsName() + "。");
         segments.add(product.getRecommendReason());
-        if (intent.isBudgetSensitive()) {
-            segments.add("你提到了预算或价格因素，所以我会优先考虑拼团价、直接购买价和长期使用成本。");
-        }
-        if (intent.isAfterSaleConcerned()) {
-            segments.add("你关注售后时，需要同时看退货规则、质保周期和未成团退款规则。");
-        }
-        if (intent.isGroupBuyConcerned()) {
-            segments.add("你关注拼团时，需要确认成团人数、剩余时间和未成团后的退款处理。");
-        }
+        recommendationResult.getReasons().forEach(reason -> segments.add(reason.getContent()));
         return segments;
     }
 

@@ -5,6 +5,7 @@ import com.linrun.domain.guide.model.GuideDecisionResult;
 import com.linrun.domain.guide.model.GuideIntentType;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.model.RecommendationReason;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,8 +31,16 @@ class GuideDecisionServiceTest {
         assertTrue(result.getIntent().isBudgetSensitive());
         assertTrue(result.getIntent().isCompareConcerned());
         assertEquals(List.of("文档写作", "网课学习"), result.getIntent().getUsageScenarios());
+        assertEquals("学生", result.getUserRequirement().getUserIdentity());
+        assertTrue(result.getUserRequirement().isBudgetSensitive());
         assertEquals("G10001", result.getProduct().getGoodsId());
         assertEquals(2, result.getReferences().size());
+        assertEquals(1, result.getRecommendationResult().getCandidates().size());
+        assertTrue(result.getRecommendationResult().isPassedSelfCheck());
+        assertTrue(result.getRecommendationResult().getReasons().stream()
+                .map(RecommendationReason::getReasonType)
+                .toList()
+                .containsAll(List.of("SCENARIO_MATCH", "BUDGET_MATCH")));
         assertTrue(result.getAnswerSegments().stream().anyMatch(item -> item.contains("预算")));
     }
 
@@ -42,7 +52,25 @@ class GuideDecisionServiceTest {
 
         assertEquals(GuideIntentType.AFTER_SALE, result.getIntent().getIntentType());
         assertTrue(result.getIntent().isAfterSaleConcerned());
+        assertTrue(result.getIntent().isGroupBuyConcerned());
+        assertTrue(result.getRecommendationResult().getReasons().stream()
+                .map(RecommendationReason::getReasonType)
+                .toList()
+                .containsAll(List.of("AFTER_SALE_MATCH", "GROUP_BUY_MATCH")));
         assertTrue(result.getAnswerSegments().stream().anyMatch(item -> item.contains("售后")));
+    }
+
+    @Test
+    void shouldReturnFailedSelfCheckWhenProductInfoIsIncomplete() {
+        GuideDecisionService service = new GuideDecisionService(new IncompleteGuideDataRepository());
+
+        GuideDecisionResult result = service.decide("推荐一款学习平板");
+
+        assertEquals("G10003", result.getProduct().getGoodsId());
+        assertEquals(1, result.getRecommendationResult().getCandidates().size());
+        assertFalse(result.getRecommendationResult().isPassedSelfCheck());
+        assertTrue(result.getAnswerSegments().stream().anyMatch(item -> item.contains("资料待补全")));
+        assertEquals("推荐商品信息不完整，需要运营侧补全商品资料", result.getRecommendationResult().getSelfCheckMessage());
     }
 
     @Test
@@ -112,6 +140,37 @@ class GuideDecisionServiceTest {
         @Override
         public Optional<GuideProduct> queryRecommendProduct(String question) {
             return Optional.empty();
+        }
+    }
+
+    private static class IncompleteGuideDataRepository implements GuideDataRepository {
+
+        @Override
+        public List<GuideReference> queryReferences(String question, int limit) {
+            return List.of(reference("KF10003", 1));
+        }
+
+        @Override
+        public Optional<GuideProduct> queryRecommendProduct(String question) {
+            GuideProduct product = new GuideProduct();
+            product.setGoodsId("G10003");
+            product.setGoodsName("资料待补全平板");
+            product.setImageUrl("");
+            product.setOriginPrice(new BigDecimal("1999.00"));
+            product.setRecommendReason("资料待补全，暂时只能作为候选商品");
+            return Optional.of(product);
+        }
+
+        private GuideReference reference(String fragmentId, int rank) {
+            GuideReference reference = new GuideReference();
+            reference.setFragmentId(fragmentId);
+            reference.setDocumentId("DOC10003");
+            reference.setGoodsId("G10003");
+            reference.setDocumentType("商品详情");
+            reference.setKnowledgeVersion("v1");
+            reference.setContent("资料待补全平板只有基础价格信息。");
+            reference.setRank(rank);
+            return reference;
         }
     }
 }

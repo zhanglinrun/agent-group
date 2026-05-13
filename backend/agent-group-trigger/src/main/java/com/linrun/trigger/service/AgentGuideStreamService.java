@@ -12,6 +12,7 @@ import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.guide.model.GuideDecisionResult;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.model.RecommendationResult;
 import com.linrun.domain.guide.service.GuideDecisionService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,8 @@ public class AgentGuideStreamService {
         }
 
         add(events, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD, productCard(decisionResult.getProduct()));
-        add(events, sessionId, requestId, sequence, GuideEventType.SELF_CHECK, selfCheck());
+        add(events, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
+                selfCheck(decisionResult.getRecommendationResult()));
         add(events, sessionId, requestId, sequence, GuideEventType.DONE, "done");
         return events;
     }
@@ -111,10 +113,10 @@ public class AgentGuideStreamService {
         return dto;
     }
 
-    private SelfCheckDTO selfCheck() {
+    private SelfCheckDTO selfCheck(RecommendationResult recommendationResult) {
         SelfCheckDTO dto = new SelfCheckDTO();
-        dto.setPassed(true);
-        dto.setMessage("回答依据、商品价格和推荐理由已完成自检");
+        dto.setPassed(recommendationResult.isPassedSelfCheck());
+        dto.setMessage(recommendationResult.getSelfCheckMessage());
         return dto;
     }
 
