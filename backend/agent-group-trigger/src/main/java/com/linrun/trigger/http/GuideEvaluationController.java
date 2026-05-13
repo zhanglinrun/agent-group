@@ -1,0 +1,27 @@
+package com.linrun.trigger.http;
+
+import com.linrun.api.evaluate.response.GuideEvaluationReportResponse;
+import com.linrun.trigger.config.RequestTraceContext;
+import com.linrun.trigger.service.GuideEvaluationTriggerService;
+import com.linrun.types.response.Response;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@CrossOrigin(origins = "*")
+@RequestMapping("/api/v1/evaluate/guide")
+public class GuideEvaluationController {
+
+    private final GuideEvaluationTriggerService guideEvaluationTriggerService;
+
+    public GuideEvaluationController(GuideEvaluationTriggerService guideEvaluationTriggerService) {
+        this.guideEvaluationTriggerService = guideEvaluationTriggerService;
+    }
+
+    @PostMapping("/run")
+    public Response<GuideEvaluationReportResponse> runGuideEvaluation() {
+        return Response.success(guideEvaluationTriggerService.runGuideEvaluation(), RequestTraceContext.getRequestId());
+    }
+}

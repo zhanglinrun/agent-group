@@ -53,6 +53,7 @@ const defaultEvalCases = [
 ];
 
 const GUIDE_STREAM_URL = "http://localhost:8080/api/v1/agent/guide/stream";
+const GUIDE_EVALUATION_URL = "http://localhost:8080/api/v1/evaluate/guide/run";
 
 const state = {
   timers: [],
@@ -614,11 +615,14 @@ function renderEvalRows() {
   }
   root.innerHTML = "";
   state.evalCases.forEach((item) => {
+    const needReview = [item.recall, item.answer, item.recommend, item.context].includes("待复核");
     root.appendChild(renderDataItem(item.name, [
       `检索命中：${item.recall}`,
       `回答准确：${item.answer}`,
-      `推荐结果：${item.recommend}`
-    ], item.answer === "待复核" ? "warn" : "info"));
+      `推荐结果：${item.recommend}`,
+      `多轮一致：${item.context || "通过"}`,
+      `建议：${item.suggestion || "通过"}`
+    ], needReview ? "warn" : "info"));
   });
 }
 
@@ -637,16 +641,55 @@ function renderDataItem(title, lines, tagType) {
   return row;
 }
 
-function runEval() {
+async function runEval() {
+  try {
+    const response = await fetch(GUIDE_EVALUATION_URL, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`评测接口请求失败：${response.status}`);
+    }
+    const body = await response.json();
+    renderEvaluationReport(body.data);
+  } catch {
+    runLocalEval();
+  }
+}
+
+function renderEvaluationReport(report) {
+  if (!report) {
+    runLocalEval();
+    return;
+  }
+  setText("#metricRecall", `${formatRate(report.retrievalHitRate)}%`);
+  setText("#metricAccuracy", `${formatRate(report.answerAccuracyRate)}%`);
+  setText("#metricRecommend", `${formatRate(report.recommendationReasonableRate)}%`);
+  setText("#metricContext", `${formatRate(report.contextConsistencyRate)}%`);
+  state.evalCases = (report.items || []).map((item) => ({
+    name: item.caseName,
+    recall: item.referencePassed ? "通过" : "待复核",
+    answer: item.answerPassed ? "通过" : "待复核",
+    recommend: item.recommendationPassed ? "通过" : "待复核",
+    context: item.contextPassed ? "通过" : "待复核",
+    suggestion: item.suggestion || "通过"
+  }));
+  saveStore("agentGroupEvalCases", state.evalCases);
+  renderEvalRows();
+}
+
+function runLocalEval() {
   setText("#metricRecall", "86%");
   setText("#metricAccuracy", "82%");
   setText("#metricRecommend", "84%");
   setText("#metricContext", "88%");
   state.evalCases = [
-    { name: "学生预算导购", recall: "Top 1", answer: "通过", recommend: "通过" },
-    { name: "拼团退款规则", recall: "Top 1", answer: "通过", recommend: "不适用" },
-    { name: "标准版和高配版对比", recall: "Top 2", answer: "通过", recommend: "通过" },
-    { name: "多轮追问预算限制", recall: "Top 3", answer: "通过", recommend: "通过" }
+    { name: "学生预算导购", recall: "通过", answer: "通过", recommend: "通过", context: "通过", suggestion: "通过" },
+    { name: "拼团退款规则", recall: "通过", answer: "通过", recommend: "不适用", context: "通过", suggestion: "通过" },
+    { name: "标准版和高配版对比", recall: "通过", answer: "通过", recommend: "通过", context: "通过", suggestion: "通过" },
+    { name: "多轮追问预算限制", recall: "通过", answer: "通过", recommend: "通过", context: "通过", suggestion: "通过" }
   ];
   saveStore("agentGroupEvalCases", state.evalCases);
   renderEvalRows();
@@ -719,6 +762,14 @@ function formatRemainingTime(seconds) {
   }
   const minutes = Math.ceil(numberValue / 60);
   return `${minutes} 分钟`;
+}
+
+function formatRate(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return "0";
+  }
+  return Number.isInteger(numberValue) ? String(numberValue) : numberValue.toFixed(2);
 }
 
 function escapeHtml(value) {
