@@ -8,6 +8,7 @@ const sampleProducts = [
     afterSale: "7 天无理由退货，1 年质保",
     reason: "学习、写论文、看网课场景下够用，拼团价低，长期使用成本更稳。",
     notSuitable: "长期剪视频或运行大型应用的用户",
+    activityId: "A10001",
     teamSize: 3,
     leftTime: "29 分钟"
   },
@@ -20,6 +21,7 @@ const sampleProducts = [
     afterSale: "7 天无理由退货，1 年质保",
     reason: "性能更强，适合剪视频、绘图和多任务，但对学生轻办公预算压力更大。",
     notSuitable: "只做笔记和看网课且预算有限的用户",
+    activityId: "A10002",
     teamSize: 5,
     leftTime: "18 分钟"
   }
@@ -54,6 +56,12 @@ const defaultEvalCases = [
 
 const GUIDE_STREAM_URL = "http://localhost:8080/api/v1/agent/guide/stream";
 const GUIDE_EVALUATION_URL = "http://localhost:8080/api/v1/evaluate/guide/run";
+const KNOWLEDGE_UPLOAD_FILE_URL = "http://localhost:8080/api/v1/knowledge/document/upload-file";
+const DIRECT_ORDER_URL = "http://localhost:8080/api/v1/trade/order/direct";
+const GROUP_LOCK_URL = "http://localhost:8080/api/v1/group/trade/lock";
+const PAYMENT_CREATE_URL = "http://localhost:8080/api/v1/payment/create";
+const PAYMENT_WEBHOOK_URL = "http://localhost:8080/api/v1/payment/webhook";
+const STATUS_FLOW_URL = "http://localhost:8080/api/v1/trade/order/status-flow";
 
 const state = {
   timers: [],
@@ -153,10 +161,42 @@ function handleFiles(files, type) {
         status: "待运营审核"
       });
       saveStore("agentGroupDocs", state.docs);
+      uploadKnowledgeFile(file, chip);
     } else if (type === "图片") {
       state.pendingImageUrl = `local-image://${file.name}`;
     }
   });
+}
+
+async function uploadKnowledgeFile(file, chip) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("goodsId", "G10001");
+  form.append("documentName", file.name);
+  form.append("documentType", "商品资料");
+  form.append("knowledgeVersion", "v1");
+  try {
+    const result = await postForm(KNOWLEDGE_UPLOAD_FILE_URL, form);
+    updateDocStatus(file.name, "已入库并向量化");
+    if (chip) {
+      chip.textContent = `文档：${file.name} 已入库`;
+    }
+    addMessage("system", "文档", `已上传到对象存储：${result.objectKey || file.name}`);
+  } catch (error) {
+    updateDocStatus(file.name, "上传失败");
+    if (chip) {
+      chip.textContent = `文档：${file.name} 上传失败`;
+    }
+    addMessage("system", "文档", error.message || "文档上传失败");
+  }
+}
+
+function updateDocStatus(name, status) {
+  const doc = state.docs.find((item) => item.name === name);
+  if (doc) {
+    doc.status = status;
+    saveStore("agentGroupDocs", state.docs);
+  }
 }
 
 function runGuide(message) {
@@ -332,6 +372,7 @@ function mapProductCard(data) {
     afterSale: data?.afterSalePolicy || "",
     reason: data?.recommendReason || "符合本轮导购需求。",
     notSuitable: data?.notSuitableFor || "暂无",
+    activityId: data?.activityId || "",
     teamSize: data?.teamSize || 1,
     leftTime: formatRemainingTime(data?.remainingSeconds)
   };
@@ -504,60 +545,151 @@ function renderProduct(product) {
   root.appendChild(card);
 }
 
-function startPurchase(product, mode) {
+async function startPurchase(product, mode) {
   const isGroup = mode === "group";
-  const orderNo = `O${Date.now()}`;
   const order = {
-    orderNo,
+    orderNo: "创建中",
     type: isGroup ? "拼团购买" : "直接购买",
     goods: product.name,
     amount: isGroup ? product.groupPrice : product.originPrice,
-    status: isGroup ? "锁单中" : "待支付"
+    status: isGroup ? "锁单中" : "下单中"
   };
   state.orders.unshift(order);
   saveStore("agentGroupOrders", state.orders);
   setHtml("#tradeTimeline", "");
   setText("#tradeState", order.status);
 
-  if (!isGroup) {
-    pushTradeStep("创建直接购买订单，按原价支付", "done");
-    setTimeout(() => {
-      order.status = "已支付";
-      saveStore("agentGroupOrders", state.orders);
-      setText("#tradeState", "已支付");
-      pushTradeStep("模拟支付回调验签通过", "done");
-    }, 600);
-    setTimeout(() => {
-      order.status = "已完成";
-      saveStore("agentGroupOrders", state.orders);
-      setText("#tradeState", "已完成");
-      pushTradeStep("直接购买订单完成，不进入拼团结算", "done");
-    }, 1200);
-    return;
+  try {
+    const createResult = isGroup
+      ? await createGroupOrder(product)
+      : await createDirectOrder(product);
+    order.orderNo = createResult.orderId;
+    order.status = createResult.orderStatus || "待支付";
+    order.amount = formatPrice(createResult.payAmount || order.amount);
+    saveStore("agentGroupOrders", state.orders);
+    setText("#tradeState", order.status);
+    pushTradeStep(isGroup ? "后端拼团锁单成功，支付单已创建" : "后端直接购买订单已创建", "done");
+
+    await createGatewayPayment(createResult.orderId);
+    pushTradeStep("支付网关单已创建", "done");
+
+    const payResult = await verifyMockPayment(createResult.orderId, createResult.payOrderId);
+    order.status = payResult.orderStatus || "已支付";
+    saveStore("agentGroupOrders", state.orders);
+    setText("#tradeState", order.status);
+    pushTradeStep("支付回调已通过后端验签并推进订单状态", "done");
+
+    await renderBackendStatusFlow(createResult.orderId);
+  } catch (error) {
+    order.status = "失败";
+    saveStore("agentGroupOrders", state.orders);
+    setText("#tradeState", "失败");
+    pushTradeStep(error.message || "购买链路调用失败", "warn");
   }
+}
 
-  pushTradeStep("开始拼团锁单", "done");
+async function createDirectOrder(product) {
+  return postJson(DIRECT_ORDER_URL, {
+    userId: "U10001",
+    goodsId: product.id,
+    payChannel: "MOCK_PAY"
+  });
+}
 
-  setTimeout(() => {
-    order.status = "待支付";
-    saveStore("agentGroupOrders", state.orders);
-    setText("#tradeState", "待支付");
-    pushTradeStep("锁单成功，支付单已创建", "done");
-  }, 500);
+async function createGroupOrder(product) {
+  return postJson(GROUP_LOCK_URL, {
+    userId: "U10001",
+    goodsId: product.id,
+    activityId: product.activityId || "A10001",
+    idempotentKey: `WEB-${Date.now()}-${product.id}`,
+    payChannel: "MOCK_PAY"
+  });
+}
 
-  setTimeout(() => {
-    order.status = "已支付";
-    saveStore("agentGroupOrders", state.orders);
-    setText("#tradeState", "已支付");
-    pushTradeStep("模拟支付回调验签通过", "done");
-  }, 1100);
+async function createGatewayPayment(orderId) {
+  return postJson(PAYMENT_CREATE_URL, {
+    orderId,
+    payChannel: "MOCK_PAY"
+  });
+}
 
-  setTimeout(() => {
-    order.status = "已成团";
-    saveStore("agentGroupOrders", state.orders);
-    setText("#tradeState", "已成团");
-    pushTradeStep("拼团结算完成，订单进入已成团", "done");
-  }, 1700);
+async function verifyMockPayment(orderId, payOrderId) {
+  return postJson(PAYMENT_WEBHOOK_URL, {
+    payChannel: "MOCK_PAY",
+    orderId,
+    payOrderId,
+    gatewayTradeNo: `MOCK${payOrderId}`,
+    payTime: nowLocalDateTime()
+  });
+}
+
+async function renderBackendStatusFlow(orderId) {
+  const response = await fetch(`${STATUS_FLOW_URL}?orderId=${encodeURIComponent(orderId)}`, {
+    headers: {
+      "Accept": "application/json"
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`交易流水查询失败：${response.status}`);
+  }
+  const body = await response.json();
+  const flows = unwrapResponse(body);
+  setHtml("#tradeTimeline", "");
+  (flows || []).forEach((flow) => {
+    pushTradeStep(`${flow.eventType}：${flow.toStatus}`, "done");
+  });
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleJsonResponse(response);
+}
+
+async function postForm(url, form) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json"
+    },
+    body: form
+  });
+  return handleJsonResponse(response);
+}
+
+async function handleJsonResponse(response) {
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  if (!response.ok) {
+    throw new Error(body?.info || `接口请求失败：${response.status}`);
+  }
+  return unwrapResponse(body);
+}
+
+function unwrapResponse(body) {
+  if (!body) {
+    return null;
+  }
+  if (body.code && body.code !== "0000") {
+    throw new Error(body.info || "接口返回失败");
+  }
+  return body.data ?? body;
+}
+
+function nowLocalDateTime() {
+  const date = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 function pushTradeStep(text, className) {

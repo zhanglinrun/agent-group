@@ -4,17 +4,21 @@ import com.linrun.api.knowledge.request.UploadKnowledgeDocumentRequest;
 import com.linrun.api.knowledge.response.UploadKnowledgeDocumentResponse;
 import com.linrun.domain.knowledge.adapter.KnowledgeEmbeddingClient;
 import com.linrun.domain.knowledge.adapter.KnowledgeDocumentRepository;
+import com.linrun.domain.knowledge.adapter.KnowledgeObjectStorageClient;
 import com.linrun.domain.knowledge.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.knowledge.model.KnowledgeFragmentStatus;
+import com.linrun.domain.knowledge.model.StoredKnowledgeObject;
 import com.linrun.domain.knowledge.service.KnowledgeDocumentParser;
 import com.linrun.domain.knowledge.service.KnowledgeDocumentService;
 import com.linrun.domain.knowledge.service.KnowledgeVectorService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -78,17 +82,49 @@ class KnowledgeDocumentUploadServiceTest {
         assertEquals("content cannot be blank", exception.getMessage());
     }
 
+    @Test
+    void shouldUploadFileToObjectStorageAndVectorizeFragments() {
+        FakeKnowledgeDocumentRepository repository = new FakeKnowledgeDocumentRepository();
+        FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository();
+        FakeKnowledgeObjectStorageClient storageClient = new FakeKnowledgeObjectStorageClient();
+        KnowledgeDocumentUploadService service = service(repository, vectorRepository, storageClient);
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "tablet-rule.md",
+                "text/markdown",
+                "标准版适合看网课。\n\n未成团自动退款。".getBytes(StandardCharsets.UTF_8));
+
+        UploadKnowledgeDocumentResponse response = service.uploadFile(file, "G10001", "", "营销规则", "v5");
+
+        assertEquals("MINIO_OBJECT", response.getSourceType());
+        assertEquals("knowledge/test/tablet-rule.md", response.getSourceName());
+        assertEquals("agent-group", response.getObjectStorageBucket());
+        assertEquals("knowledge/test/tablet-rule.md", response.getObjectKey());
+        assertEquals("text/markdown", response.getContentType());
+        assertEquals(file.getSize(), response.getObjectSize());
+        assertEquals(2, repository.fragments.size());
+        assertEquals(2, vectorRepository.savedFragments.size());
+        assertEquals(file.getOriginalFilename(), storageClient.originalFilename);
+    }
+
     private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository) {
         return service(repository, new FakeKnowledgeVectorRepository());
     }
 
     private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository,
                                                    FakeKnowledgeVectorRepository vectorRepository) {
+        return service(repository, vectorRepository, null);
+    }
+
+    private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository,
+                                                   FakeKnowledgeVectorRepository vectorRepository,
+                                                   KnowledgeObjectStorageClient storageClient) {
         return new KnowledgeDocumentUploadService(
                 new KnowledgeDocumentService(),
                 new KnowledgeDocumentParser(),
                 repository,
-                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository));
+                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository),
+                storageClient);
     }
 
     private UploadKnowledgeDocumentRequest request() {
@@ -158,6 +194,24 @@ class KnowledgeDocumentUploadServiceTest {
             return savedFragments.stream()
                     .limit(limit)
                     .toList();
+        }
+    }
+
+    private static class FakeKnowledgeObjectStorageClient implements KnowledgeObjectStorageClient {
+
+        private String originalFilename;
+
+        @Override
+        public StoredKnowledgeObject store(String originalFilename, String contentType, byte[] content) {
+            this.originalFilename = originalFilename;
+            StoredKnowledgeObject object = new StoredKnowledgeObject();
+            object.setBucketName("agent-group");
+            object.setObjectKey("knowledge/test/" + originalFilename);
+            object.setObjectUrl("http://127.0.0.1:9000/agent-group/" + object.getObjectKey());
+            object.setOriginalFilename(originalFilename);
+            object.setContentType(contentType);
+            object.setObjectSize(content.length);
+            return object;
         }
     }
 }

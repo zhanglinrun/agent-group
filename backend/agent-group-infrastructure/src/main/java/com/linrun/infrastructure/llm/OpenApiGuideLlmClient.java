@@ -6,6 +6,7 @@ import com.linrun.domain.guide.adapter.GuideLlmClient;
 import com.linrun.domain.guide.model.GuideRagPrompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -37,6 +38,7 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
     private final ObjectMapper objectMapper;
     private final AtomicLong lastCallMillis = new AtomicLong(0L);
 
+    @Autowired
     public OpenApiGuideLlmClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                  @Value("${agent.group.llm.api-key:}") String apiKey,
                                  @Value("${agent.group.llm.chat-model:qwen-plus}") String chatModel,

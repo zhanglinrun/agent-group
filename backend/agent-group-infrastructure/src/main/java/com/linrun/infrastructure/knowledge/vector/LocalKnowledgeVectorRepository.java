@@ -3,6 +3,7 @@ package com.linrun.infrastructure.knowledge.vector;
 import com.linrun.domain.knowledge.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.knowledge.model.KnowledgeFragmentStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -30,6 +31,7 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         this("", "", "");
     }
 
+    @Autowired
     public LocalKnowledgeVectorRepository(@Value("${agent.group.vector.host:}") String host,
                                           @Value("${agent.group.vector.port:15432}") int port,
                                           @Value("${agent.group.vector.database:}") String database,

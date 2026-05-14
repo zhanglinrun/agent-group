@@ -16,6 +16,11 @@ public class UploadKnowledgeDocumentResponse implements Serializable {
     private String knowledgeVersion;
     private String sourceType;
     private String sourceName;
+    private String objectStorageBucket;
+    private String objectKey;
+    private String objectUrl;
+    private String contentType;
+    private Long objectSize;
     private String documentStatus;
     private Integer fragmentCount;
     private LocalDateTime createTime;

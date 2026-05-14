@@ -1,9 +1,12 @@
 package com.linrun.trigger.service;
 
 import com.linrun.api.trade.response.TradeStatusFlowDTO;
+import com.linrun.domain.trade.adapter.TradeEventPublisher;
 import com.linrun.domain.trade.adapter.TradeStatusFlowRepository;
+import com.linrun.domain.trade.model.TradeEventMessage;
 import com.linrun.domain.trade.model.TradeStatusFlow;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -39,9 +42,17 @@ public class TradeStatusFlowService {
     private static final DateTimeFormatter FLOW_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final TradeStatusFlowRepository tradeStatusFlowRepository;
+    private final TradeEventPublisher tradeEventPublisher;
+
+    @Autowired
+    public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository,
+                                  TradeEventPublisher tradeEventPublisher) {
+        this.tradeStatusFlowRepository = tradeStatusFlowRepository;
+        this.tradeEventPublisher = tradeEventPublisher;
+    }
 
     public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository) {
-        this.tradeStatusFlowRepository = tradeStatusFlowRepository;
+        this(tradeStatusFlowRepository, TradeEventPublisher.noop());
     }
 
     public void record(String orderId,
@@ -75,6 +86,7 @@ public class TradeStatusFlowService {
                 remark == null ? "" : remark,
                 LocalDateTime.now());
         tradeStatusFlowRepository.save(flow);
+        tradeEventPublisher.publish(TradeEventMessage.fromFlow(flow));
     }
 
     public List<TradeStatusFlowDTO> queryByOrderId(String orderId) {

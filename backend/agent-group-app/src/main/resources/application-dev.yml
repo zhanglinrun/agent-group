@@ -46,6 +46,8 @@ agent:
     stream:
       timeout-millis: 60000
       mock-delay-millis: 350
+    rabbit:
+      enabled: ${AGENT_GROUP_RABBIT_ENABLED:true}
     vector:
       host: ${AGENT_GROUP_PGVECTOR_HOST:127.0.0.1}
       port: ${AGENT_GROUP_PGVECTOR_PORT:15432}

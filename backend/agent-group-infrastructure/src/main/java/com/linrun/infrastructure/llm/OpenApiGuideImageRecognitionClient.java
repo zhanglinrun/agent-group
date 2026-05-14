@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.guide.adapter.GuideImageRecognitionClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,7 @@ public class OpenApiGuideImageRecognitionClient implements GuideImageRecognition
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public OpenApiGuideImageRecognitionClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                               @Value("${agent.group.llm.api-key:}") String apiKey,
                                               @Value("${agent.group.llm.vision-model:qwen-vl-plus}") String visionModel,
