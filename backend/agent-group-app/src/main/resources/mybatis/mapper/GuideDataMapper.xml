@@ -67,6 +67,44 @@
         limit #{limit}
     </select>
 
+    <select id="queryCandidateProducts" resultMap="GuideProductMap">
+        select g.goods_id,
+               g.goods_name,
+               g.image_url,
+               g.origin_price,
+               a.group_price,
+               g.spec_summary,
+               g.after_sale_policy,
+               g.recommend_reason,
+               g.not_suitable_for,
+               a.activity_id,
+               a.team_size,
+               timestampdiff(second, now(), a.end_time) as remaining_seconds
+        from guide_goods g
+        left join group_activity a
+          on a.goods_id = g.goods_id
+         and a.enabled = 1
+         and a.start_time &lt;= now()
+         and a.end_time &gt; now()
+        where g.enabled = 1
+        <if test="keywords != null and keywords.size > 0">
+        order by (
+            <foreach collection="keywords" item="keyword" separator=" + ">
+            case when g.goods_name like concat('%', #{keyword}, '%') then 20 else 0 end
+            + case when g.spec_summary like concat('%', #{keyword}, '%') then 16 else 0 end
+            + case when g.recommend_reason like concat('%', #{keyword}, '%') then 12 else 0 end
+            + case when g.not_suitable_for like concat('%', #{keyword}, '%') then -10 else 0 end
+            </foreach>
+        ) desc,
+        g.sort_order asc,
+        g.id asc
+        </if>
+        <if test="keywords == null or keywords.size == 0">
+        order by g.sort_order asc, g.id asc
+        </if>
+        limit #{limit}
+    </select>
+
     <select id="queryRecommendProduct" resultMap="GuideProductMap">
         select g.goods_id,
                g.goods_name,

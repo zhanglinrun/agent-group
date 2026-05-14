@@ -1,19 +1,51 @@
 package com.linrun.infrastructure.evaluate;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.evaluate.adapter.GuideEvaluationCaseRepository;
 import com.linrun.domain.evaluate.model.GuideEvaluationCase;
 import com.linrun.domain.guide.model.GuideIntentType;
+import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 @Repository
 public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRepository {
 
     private static final String GOODS_ID = "G10001";
+    private final ObjectMapper objectMapper;
+    private final String caseFile;
+
+    public LocalGuideEvaluationCaseRepository() {
+        this(new ObjectMapper(), "");
+    }
+
+    @Autowired
+    public LocalGuideEvaluationCaseRepository(@Value("${agent.group.evaluate.case-file:}") String caseFile) {
+        this(new ObjectMapper(), caseFile);
+    }
+
+    LocalGuideEvaluationCaseRepository(ObjectMapper objectMapper, String caseFile) {
+        this.objectMapper = objectMapper;
+        this.caseFile = caseFile;
+    }
 
     @Override
     public List<GuideEvaluationCase> queryEnabledCases() {
+        if (StringUtils.hasText(caseFile)) {
+            return loadCasesFromFile(caseFile);
+        }
+        return defaultCases();
+    }
+
+    private List<GuideEvaluationCase> defaultCases() {
         return List.of(
                 evaluationCase("EV10001", "学生预算导购", "我是学生，预算有限，想买适合看网课的平板",
                         GuideIntentType.PRODUCT_RECOMMEND, false, List.of("学习", "网课"), List.of("拼团价", "2099")),
@@ -56,6 +88,25 @@ public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRe
                 evaluationCase("EV10020", "订单查询意图", "我想查订单和支付状态",
                         GuideIntentType.ORDER_QUERY, false, List.of("商品"), List.of("商品"))
         );
+    }
+
+    private List<GuideEvaluationCase> loadCasesFromFile(String file) {
+        Path path = Path.of(file);
+        if (!Files.exists(path) || !Files.isRegularFile(path)) {
+            throw new AppException("EVAL_0001", "评测用例文件不存在：" + file);
+        }
+        try {
+            List<GuideEvaluationCase> cases = objectMapper.readValue(
+                    Files.readString(path),
+                    new TypeReference<>() {
+                    });
+            if (cases == null || cases.isEmpty()) {
+                throw new AppException("EVAL_0002", "评测用例文件不能为空");
+            }
+            return cases;
+        } catch (IOException e) {
+            throw new AppException("EVAL_0003", "评测用例文件解析失败：" + e.getMessage());
+        }
     }
 
     private GuideEvaluationCase evaluationCase(String caseId,

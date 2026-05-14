@@ -48,6 +48,22 @@ class MyBatisGuideDataRepositoryTest {
         assertEquals(0, guideDataDao.queryCount);
     }
 
+    @Test
+    void shouldQueryCandidateProductsByExtractedKeywords() {
+        FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
+        MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
+                guideDataDao,
+                new KnowledgeKeywordService());
+
+        List<GuideProduct> products = repository.queryCandidateProducts("我想剪视频，需要高配性能", 5);
+
+        assertEquals(1, products.size());
+        assertEquals("G10002", products.get(0).getGoodsId());
+        assertTrue(guideDataDao.keywords.contains("剪视频"));
+        assertTrue(guideDataDao.keywords.contains("高配"));
+        assertEquals(5, guideDataDao.limit);
+    }
+
     private static class FakeGuideDataDao implements IGuideDataDao {
 
         private List<String> keywords;
@@ -60,6 +76,16 @@ class MyBatisGuideDataRepositoryTest {
             this.limit = limit;
             this.queryCount++;
             return List.of();
+        }
+
+        @Override
+        public List<GuideProduct> queryCandidateProducts(List<String> keywords, int limit) {
+            this.keywords = keywords;
+            this.limit = limit;
+            GuideProduct product = new GuideProduct();
+            product.setGoodsId("G10002");
+            product.setGoodsName("高配创作平板");
+            return List.of(product);
         }
 
         @Override

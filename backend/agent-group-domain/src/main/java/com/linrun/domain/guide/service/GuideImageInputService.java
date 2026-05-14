@@ -24,6 +24,10 @@ public class GuideImageInputService {
     }
 
     public String parseImage(String imageUrl) {
+        return parseImage(imageUrl, "");
+    }
+
+    public String parseImage(String imageUrl, String imageName) {
         if (!StringUtils.hasText(imageUrl)) {
             return "";
         }
@@ -34,7 +38,7 @@ public class GuideImageInputService {
             }
         }
 
-        String source = summarizeSource(imageUrl);
+        String source = summarizeSource(imageUrl, imageName);
         String normalized = source.toLowerCase(Locale.ROOT);
         List<String> clues = new ArrayList<>();
         if (containsAny(normalized, "pad", "tablet", "ipad", "平板")) {
@@ -49,13 +53,16 @@ public class GuideImageInputService {
         if (clues.isEmpty()) {
             clues.add("已收到用户上传图片，需要结合图片中的商品外观、规格、价格或页面信息进行判断");
         }
+        if (imageUrl.startsWith("data:image/")) {
+            clues.add("图片已以内联数据传入，可在配置视觉模型后直接识别图片内容");
+        }
         return String.join("；", clues) + "。图片来源：" + source;
     }
 
-    private String summarizeSource(String imageUrl) {
-        String source = imageUrl.trim();
+    private String summarizeSource(String imageUrl, String imageName) {
+        String source = StringUtils.hasText(imageName) ? imageName.trim() : imageUrl.trim();
         if (source.startsWith("data:image/")) {
-            return "内联图片数据";
+            return inlineImageSource(source);
         }
         int index = Math.max(source.lastIndexOf('/'), source.lastIndexOf('\\'));
         if (index >= 0 && index + 1 < source.length()) {
@@ -65,6 +72,14 @@ public class GuideImageInputService {
             return source;
         }
         return source.substring(0, 120);
+    }
+
+    private String inlineImageSource(String source) {
+        int semicolonIndex = source.indexOf(';');
+        String mimeType = semicolonIndex > 0 ? source.substring("data:".length(), semicolonIndex) : "image/*";
+        int commaIndex = source.indexOf(',');
+        int payloadLength = commaIndex > 0 ? Math.max(0, source.length() - commaIndex - 1) : 0;
+        return "内联图片数据（" + mimeType + "，约" + payloadLength + "字符）";
     }
 
     private boolean containsAny(String source, String... keywords) {

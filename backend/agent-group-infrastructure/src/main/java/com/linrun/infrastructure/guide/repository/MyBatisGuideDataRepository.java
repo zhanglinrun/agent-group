@@ -45,6 +45,16 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     }
 
     @Override
+    public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        int safeLimit = limit <= 0 ? 5 : limit;
+        return guideDataDao.queryCandidateProducts(knowledgeKeywordService.extractKeywords(question), safeLimit)
+                .stream()
+                .map(this::normalizeProduct)
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    @Override
     public Optional<GuideProduct> queryRecommendProduct(String question) {
         GuideProduct product = guideDataDao.queryRecommendProduct(question);
         return normalizeProduct(product);

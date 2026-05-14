@@ -43,6 +43,8 @@ class GuideEvaluationServiceTest {
         assertEquals(new BigDecimal("100.00"), report.getRecommendationReasonableRate());
         assertEquals(new BigDecimal("100.00"), report.getContextConsistencyRate());
         assertEquals(100, report.getItems().get(0).getScore());
+        assertEquals(1, report.getFeedbacks().size());
+        assertEquals("QUALITY", report.getFeedbacks().get(0).getTargetType());
     }
 
     private static GroupBuyActivityService groupBuyService() {

@@ -2,6 +2,7 @@ package com.linrun.domain.evaluate.service;
 
 import com.linrun.domain.evaluate.adapter.GuideEvaluationCaseRepository;
 import com.linrun.domain.evaluate.model.GuideEvaluationCase;
+import com.linrun.domain.evaluate.model.GuideEvaluationFeedback;
 import com.linrun.domain.evaluate.model.GuideEvaluationItemResult;
 import com.linrun.domain.evaluate.model.GuideEvaluationReport;
 import com.linrun.domain.guide.model.GuideDecisionResult;
@@ -53,6 +54,7 @@ public class GuideEvaluationService {
         report.setRecommendationReasonableRate(rate(items, GuideEvaluationItemResult::isRecommendationPassed));
         report.setContextConsistencyRate(rate(items, GuideEvaluationItemResult::isContextPassed));
         report.setItems(items);
+        report.setFeedbacks(buildFeedbacks(items));
         return report;
     }
 
@@ -151,5 +153,35 @@ public class GuideEvaluationService {
         return BigDecimal.valueOf(passed)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private List<GuideEvaluationFeedback> buildFeedbacks(List<GuideEvaluationItemResult> items) {
+        List<GuideEvaluationFeedback> feedbacks = new java.util.ArrayList<>();
+        long referenceFailed = items.stream().filter(item -> !item.isReferencePassed()).count();
+        long answerFailed = items.stream().filter(item -> !item.isAnswerPassed()).count();
+        long recommendationFailed = items.stream().filter(item -> !item.isRecommendationPassed()).count();
+        long contextFailed = items.stream().filter(item -> !item.isContextPassed()).count();
+
+        if (referenceFailed > 0) {
+            feedbacks.add(new GuideEvaluationFeedback("KNOWLEDGE", "HIGH",
+                    "有" + referenceFailed + "个用例检索依据未命中，优先补充商品详情、营销规则或售后政策片段。"));
+        }
+        if (answerFailed > 0) {
+            feedbacks.add(new GuideEvaluationFeedback("PROMPT", "HIGH",
+                    "有" + answerFailed + "个用例回答缺少关键结论，建议调整导购回答模板，强制输出价格、规则和适用边界。"));
+        }
+        if (recommendationFailed > 0) {
+            feedbacks.add(new GuideEvaluationFeedback("RECOMMENDATION", "MEDIUM",
+                    "有" + recommendationFailed + "个用例推荐商品不符合预期，建议复核商品标签、候选排序和自检规则。"));
+        }
+        if (contextFailed > 0) {
+            feedbacks.add(new GuideEvaluationFeedback("CONTEXT", "MEDIUM",
+                    "有" + contextFailed + "个多轮用例上下文不一致，建议补充最近对话摘要和追问指代消解。"));
+        }
+        if (feedbacks.isEmpty()) {
+            feedbacks.add(new GuideEvaluationFeedback("QUALITY", "LOW",
+                    "本批次评测全部通过，保留当前提示词和知识版本，继续扩展更复杂的真实导购用例。"));
+        }
+        return feedbacks;
     }
 }

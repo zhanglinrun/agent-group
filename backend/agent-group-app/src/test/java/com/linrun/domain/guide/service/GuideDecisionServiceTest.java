@@ -69,6 +69,22 @@ class GuideDecisionServiceTest {
     }
 
     @Test
+    void shouldRankCreativeProductWhenUserNeedsPerformance() {
+        GuideDecisionService service = new GuideDecisionService(new CreativeGuideDataRepository(), groupBuyService());
+
+        GuideDecisionResult result = service.decide("我想剪视频和绘图，预算 3500 以内，标准版和高配版哪个更合适？");
+
+        assertEquals("G10002", result.getProduct().getGoodsId());
+        assertTrue(result.getIntent().isPerformanceSensitive());
+        assertEquals(new BigDecimal("3500"), result.getIntent().getBudgetUpperLimit());
+        assertEquals(2, result.getRecommendationResult().getCandidates().size());
+        assertTrue(result.getRecommendationResult().getReasons().stream()
+                .map(RecommendationReason::getReasonType)
+                .toList()
+                .containsAll(List.of("PERSONALIZED_RANK", "PERFORMANCE_MATCH", "BUDGET_LIMIT_MATCH")));
+    }
+
+    @Test
     void shouldReturnFailedSelfCheckWhenProductInfoIsIncomplete() {
         GuideDecisionService service = new GuideDecisionService(new IncompleteGuideDataRepository(), groupBuyService());
 
@@ -154,6 +170,24 @@ class GuideDecisionServiceTest {
         @Override
         public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             return Optional.empty();
+        }
+    }
+
+    private static class CreativeGuideDataRepository extends FakeGuideDataRepository {
+
+        @Override
+        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+            GuideProduct standard = queryRecommendProduct(question).orElseThrow();
+            GuideProduct creative = new GuideProduct();
+            creative.setGoodsId("G10002");
+            creative.setGoodsName("高配创作平板");
+            creative.setImageUrl("");
+            creative.setOriginPrice(new BigDecimal("3299.00"));
+            creative.setSpecSummary("12.1 英寸高刷屏，256GB 存储，适合剪视频、绘图和多任务");
+            creative.setAfterSalePolicy("7 天无理由退货，1 年质保");
+            creative.setRecommendReason("性能更强，适合创作类应用");
+            creative.setNotSuitableFor("只做笔记和看网课且预算有限的用户");
+            return List.of(standard, creative);
         }
     }
 

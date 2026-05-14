@@ -1,5 +1,6 @@
 package com.linrun.domain.guide.model;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +12,9 @@ public class UserRequirement {
     private boolean groupBuyConcerned;
     private boolean afterSaleConcerned;
     private boolean compareConcerned;
+    private boolean performanceSensitive;
+    private boolean portabilitySensitive;
+    private BigDecimal budgetUpperLimit;
 
     public static UserRequirement fromIntent(GuideIntent intent) {
         UserRequirement requirement = new UserRequirement();
@@ -20,6 +24,9 @@ public class UserRequirement {
         requirement.setGroupBuyConcerned(intent.isGroupBuyConcerned());
         requirement.setAfterSaleConcerned(intent.isAfterSaleConcerned());
         requirement.setCompareConcerned(intent.isCompareConcerned());
+        requirement.setPerformanceSensitive(intent.isPerformanceSensitive());
+        requirement.setPortabilitySensitive(intent.isPortabilitySensitive());
+        requirement.setBudgetUpperLimit(intent.getBudgetUpperLimit());
         return requirement;
     }
 
@@ -69,5 +76,29 @@ public class UserRequirement {
 
     public void setCompareConcerned(boolean compareConcerned) {
         this.compareConcerned = compareConcerned;
+    }
+
+    public boolean isPerformanceSensitive() {
+        return performanceSensitive;
+    }
+
+    public void setPerformanceSensitive(boolean performanceSensitive) {
+        this.performanceSensitive = performanceSensitive;
+    }
+
+    public boolean isPortabilitySensitive() {
+        return portabilitySensitive;
+    }
+
+    public void setPortabilitySensitive(boolean portabilitySensitive) {
+        this.portabilitySensitive = portabilitySensitive;
+    }
+
+    public BigDecimal getBudgetUpperLimit() {
+        return budgetUpperLimit;
+    }
+
+    public void setBudgetUpperLimit(BigDecimal budgetUpperLimit) {
+        this.budgetUpperLimit = budgetUpperLimit;
     }
 }

@@ -1,7 +1,9 @@
 package com.linrun.trigger.service;
 
+import com.linrun.api.evaluate.response.GuideEvaluationFeedbackDTO;
 import com.linrun.api.evaluate.response.GuideEvaluationItemDTO;
 import com.linrun.api.evaluate.response.GuideEvaluationReportResponse;
+import com.linrun.domain.evaluate.model.GuideEvaluationFeedback;
 import com.linrun.domain.evaluate.model.GuideEvaluationItemResult;
 import com.linrun.domain.evaluate.model.GuideEvaluationReport;
 import com.linrun.domain.evaluate.service.GuideEvaluationService;
@@ -31,7 +33,16 @@ public class GuideEvaluationTriggerService {
         response.setRecommendationReasonableRate(report.getRecommendationReasonableRate());
         response.setContextConsistencyRate(report.getContextConsistencyRate());
         response.setItems(report.getItems().stream().map(this::item).toList());
+        response.setFeedbacks(report.getFeedbacks().stream().map(this::feedback).toList());
         return response;
+    }
+
+    private GuideEvaluationFeedbackDTO feedback(GuideEvaluationFeedback feedback) {
+        GuideEvaluationFeedbackDTO dto = new GuideEvaluationFeedbackDTO();
+        dto.setTargetType(feedback.getTargetType());
+        dto.setPriority(feedback.getPriority());
+        dto.setContent(feedback.getContent());
+        return dto;
     }
 
     private GuideEvaluationItemDTO item(GuideEvaluationItemResult itemResult) {

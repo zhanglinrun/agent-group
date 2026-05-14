@@ -69,6 +69,8 @@ agent:
       timeout-seconds: ${AGENT_GROUP_LLM_TIMEOUT_SECONDS:20}
       max-retries: ${AGENT_GROUP_LLM_MAX_RETRIES:2}
       min-interval-millis: ${AGENT_GROUP_LLM_MIN_INTERVAL_MILLIS:200}
+    evaluate:
+      case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:
       alipay:
         gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}

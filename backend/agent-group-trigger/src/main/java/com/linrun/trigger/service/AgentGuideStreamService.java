@@ -47,7 +47,7 @@ public class AgentGuideStreamService {
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         AtomicInteger sequence = new AtomicInteger(1);
-        String imageSummary = guideImageInputService.parseImage(request.getImageUrl());
+        String imageSummary = guideImageInputService.parseImage(request.getImageUrl(), request.getImageName());
 
         if (!StringUtils.hasText(request.getQuestion()) && !StringUtils.hasText(imageSummary)) {
             add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error("0001", "问题不能为空"));

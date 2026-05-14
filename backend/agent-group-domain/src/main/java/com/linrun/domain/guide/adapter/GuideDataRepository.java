@@ -10,6 +10,12 @@ public interface GuideDataRepository {
 
     List<GuideReference> queryReferences(String question, int limit);
 
+    default List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        return queryRecommendProduct(question)
+                .map(List::of)
+                .orElseGet(List::of);
+    }
+
     Optional<GuideProduct> queryRecommendProduct(String question);
 
     Optional<GuideProduct> queryProductByGoodsId(String goodsId);

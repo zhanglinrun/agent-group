@@ -1,5 +1,6 @@
 package com.linrun.domain.guide.model;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +11,9 @@ public class GuideIntent {
     private boolean groupBuyConcerned;
     private boolean afterSaleConcerned;
     private boolean compareConcerned;
+    private boolean performanceSensitive;
+    private boolean portabilitySensitive;
+    private BigDecimal budgetUpperLimit;
     private String userIdentity;
     private List<String> usageScenarios = new ArrayList<>();
 
@@ -51,6 +55,30 @@ public class GuideIntent {
 
     public void setCompareConcerned(boolean compareConcerned) {
         this.compareConcerned = compareConcerned;
+    }
+
+    public boolean isPerformanceSensitive() {
+        return performanceSensitive;
+    }
+
+    public void setPerformanceSensitive(boolean performanceSensitive) {
+        this.performanceSensitive = performanceSensitive;
+    }
+
+    public boolean isPortabilitySensitive() {
+        return portabilitySensitive;
+    }
+
+    public void setPortabilitySensitive(boolean portabilitySensitive) {
+        this.portabilitySensitive = portabilitySensitive;
+    }
+
+    public BigDecimal getBudgetUpperLimit() {
+        return budgetUpperLimit;
+    }
+
+    public void setBudgetUpperLimit(BigDecimal budgetUpperLimit) {
+        this.budgetUpperLimit = budgetUpperLimit;
     }
 
     public String getUserIdentity() {

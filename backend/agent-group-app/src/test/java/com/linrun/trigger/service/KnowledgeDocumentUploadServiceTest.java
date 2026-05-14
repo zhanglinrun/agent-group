@@ -107,6 +107,31 @@ class KnowledgeDocumentUploadServiceTest {
         assertEquals(file.getOriginalFilename(), storageClient.originalFilename);
     }
 
+    @Test
+    void shouldUseFileExtractorBeforeParsingUploadedFile() {
+        FakeKnowledgeDocumentRepository repository = new FakeKnowledgeDocumentRepository();
+        FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository();
+        FakeKnowledgeObjectStorageClient storageClient = new FakeKnowledgeObjectStorageClient();
+        KnowledgeDocumentUploadService service = new KnowledgeDocumentUploadService(
+                new KnowledgeDocumentService(),
+                new KnowledgeDocumentParser(),
+                repository,
+                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository),
+                storageClient,
+                (fileName, contentType, content) -> "解析后的 PDF 商品详情。\n\n解析后的售后政策。");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "tablet-rule.pdf",
+                "application/pdf",
+                "binary".getBytes(StandardCharsets.UTF_8));
+
+        service.uploadFile(file, "G10001", "", "商品资料", "v6");
+
+        assertEquals(2, repository.fragments.size());
+        assertEquals("解析后的 PDF 商品详情。", repository.fragments.get(0).getContent());
+        assertEquals("解析后的售后政策。", repository.fragments.get(1).getContent());
+    }
+
     private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository) {
         return service(repository, new FakeKnowledgeVectorRepository());
     }

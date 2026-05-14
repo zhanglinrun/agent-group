@@ -3,6 +3,7 @@ package com.linrun.trigger.service;
 import com.linrun.api.knowledge.request.UploadKnowledgeDocumentRequest;
 import com.linrun.api.knowledge.response.KnowledgeFragmentDTO;
 import com.linrun.api.knowledge.response.UploadKnowledgeDocumentResponse;
+import com.linrun.domain.knowledge.adapter.KnowledgeDocumentTextExtractor;
 import com.linrun.domain.knowledge.adapter.KnowledgeObjectStorageClient;
 import com.linrun.domain.knowledge.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.knowledge.model.CreateKnowledgeDocumentCommand;
@@ -36,25 +37,36 @@ public class KnowledgeDocumentUploadService {
     private final KnowledgeDocumentRepository knowledgeDocumentRepository;
     private final KnowledgeVectorService knowledgeVectorService;
     private final KnowledgeObjectStorageClient knowledgeObjectStorageClient;
+    private final KnowledgeDocumentTextExtractor knowledgeDocumentTextExtractor;
 
     @Autowired
     public KnowledgeDocumentUploadService(KnowledgeDocumentService knowledgeDocumentService,
                                           KnowledgeDocumentParser knowledgeDocumentParser,
                                           KnowledgeDocumentRepository knowledgeDocumentRepository,
                                           KnowledgeVectorService knowledgeVectorService,
-                                          KnowledgeObjectStorageClient knowledgeObjectStorageClient) {
+                                          KnowledgeObjectStorageClient knowledgeObjectStorageClient,
+                                          KnowledgeDocumentTextExtractor knowledgeDocumentTextExtractor) {
         this.knowledgeDocumentService = knowledgeDocumentService;
         this.knowledgeDocumentParser = knowledgeDocumentParser;
         this.knowledgeDocumentRepository = knowledgeDocumentRepository;
         this.knowledgeVectorService = knowledgeVectorService;
         this.knowledgeObjectStorageClient = knowledgeObjectStorageClient;
+        this.knowledgeDocumentTextExtractor = knowledgeDocumentTextExtractor;
+    }
+
+    public KnowledgeDocumentUploadService(KnowledgeDocumentService knowledgeDocumentService,
+                                          KnowledgeDocumentParser knowledgeDocumentParser,
+                                          KnowledgeDocumentRepository knowledgeDocumentRepository,
+                                          KnowledgeVectorService knowledgeVectorService,
+                                          KnowledgeObjectStorageClient knowledgeObjectStorageClient) {
+        this(knowledgeDocumentService, knowledgeDocumentParser, knowledgeDocumentRepository, knowledgeVectorService, knowledgeObjectStorageClient, null);
     }
 
     public KnowledgeDocumentUploadService(KnowledgeDocumentService knowledgeDocumentService,
                                           KnowledgeDocumentParser knowledgeDocumentParser,
                                           KnowledgeDocumentRepository knowledgeDocumentRepository,
                                           KnowledgeVectorService knowledgeVectorService) {
-        this(knowledgeDocumentService, knowledgeDocumentParser, knowledgeDocumentRepository, knowledgeVectorService, null);
+        this(knowledgeDocumentService, knowledgeDocumentParser, knowledgeDocumentRepository, knowledgeVectorService, null, null);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -100,7 +112,7 @@ public class KnowledgeDocumentUploadService {
         request.setSourceType("MINIO_OBJECT");
         request.setSourceName(storedObject.getObjectKey());
         request.setGoodsId(goodsId);
-        request.setContent(new String(content, StandardCharsets.UTF_8));
+        request.setContent(extractFileText(file, content));
 
         UploadKnowledgeDocumentResponse response = uploadText(request);
         response.setObjectStorageBucket(storedObject.getBucketName());
@@ -133,6 +145,13 @@ public class KnowledgeDocumentUploadService {
         } catch (IOException e) {
             throw new AppException("0001", "上传文件读取失败：" + e.getMessage());
         }
+    }
+
+    private String extractFileText(MultipartFile file, byte[] content) {
+        if (knowledgeDocumentTextExtractor != null) {
+            return knowledgeDocumentTextExtractor.extract(file.getOriginalFilename(), file.getContentType(), content);
+        }
+        return new String(content, StandardCharsets.UTF_8);
     }
 
     private UploadKnowledgeDocumentResponse toResponse(KnowledgeDocumentBuildResult buildResult) {

@@ -15,6 +15,7 @@ public class GuideEvaluationReport {
     private BigDecimal recommendationReasonableRate;
     private BigDecimal contextConsistencyRate;
     private List<GuideEvaluationItemResult> items = new ArrayList<>();
+    private List<GuideEvaluationFeedback> feedbacks = new ArrayList<>();
 
     public String getBatchNo() {
         return batchNo;
@@ -86,5 +87,13 @@ public class GuideEvaluationReport {
 
     public void setItems(List<GuideEvaluationItemResult> items) {
         this.items = items;
+    }
+
+    public List<GuideEvaluationFeedback> getFeedbacks() {
+        return feedbacks;
+    }
+
+    public void setFeedbacks(List<GuideEvaluationFeedback> feedbacks) {
+        this.feedbacks = feedbacks == null ? new ArrayList<>() : new ArrayList<>(feedbacks);
     }
 }

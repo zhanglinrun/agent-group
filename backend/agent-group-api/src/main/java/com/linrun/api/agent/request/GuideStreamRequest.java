@@ -16,4 +16,5 @@ public class GuideStreamRequest implements Serializable {
     private String userId;
     private String question;
     private String imageUrl;
+    private String imageName;
 }

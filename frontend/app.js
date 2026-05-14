@@ -69,6 +69,7 @@ const state = {
   abortController: null,
   answerTarget: null,
   pendingImageUrl: "",
+  pendingImageName: "",
   products: [],
   docs: loadStore("agentGroupDocs", defaultDocs),
   orders: loadStore("agentGroupOrders", []),
@@ -163,7 +164,16 @@ function handleFiles(files, type) {
       saveStore("agentGroupDocs", state.docs);
       uploadKnowledgeFile(file, chip);
     } else if (type === "图片") {
+      state.pendingImageName = file.name;
       state.pendingImageUrl = `local-image://${file.name}`;
+      readFileAsDataUrl(file)
+        .then((dataUrl) => {
+          state.pendingImageUrl = dataUrl;
+          chip.textContent = `图片：${file.name} 已就绪`;
+        })
+        .catch(() => {
+          chip.textContent = `图片：${file.name} 已添加`;
+        });
     }
   });
 }
@@ -201,7 +211,9 @@ function updateDocStatus(name, status) {
 
 function runGuide(message) {
   const imageUrl = state.pendingImageUrl;
+  const imageName = state.pendingImageName;
   state.pendingImageUrl = "";
+  state.pendingImageName = "";
   cancelCurrentRequest();
   stopTimers();
   state.streaming = true;
@@ -223,7 +235,7 @@ function runGuide(message) {
   addMessage("user", "你", message);
   state.answerTarget = addMessage("assistant", "AI 导购", "");
 
-  requestGuideStream(message, imageUrl).catch((error) => {
+  requestGuideStream(message, imageUrl, imageName).catch((error) => {
     if (!state.streaming || error.name === "AbortError") {
       return;
     }
@@ -232,7 +244,7 @@ function runGuide(message) {
   });
 }
 
-async function requestGuideStream(message, imageUrl) {
+async function requestGuideStream(message, imageUrl, imageName) {
   state.abortController = new AbortController();
   const response = await fetch(GUIDE_STREAM_URL, {
     method: "POST",
@@ -244,7 +256,8 @@ async function requestGuideStream(message, imageUrl) {
       sessionId: getSessionId(),
       userId: "U10001",
       question: message,
-      imageUrl: imageUrl || ""
+      imageUrl: imageUrl || "",
+      imageName: imageName || ""
     }),
     signal: state.abortController.signal
   });
@@ -273,6 +286,15 @@ async function requestGuideStream(message, imageUrl) {
   if (state.streaming) {
     finishStream("后端已完成");
   }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function runLocalGuideDemo() {
@@ -800,7 +822,7 @@ function renderEvaluationReport(report) {
   setText("#metricAccuracy", `${formatRate(report.answerAccuracyRate)}%`);
   setText("#metricRecommend", `${formatRate(report.recommendationReasonableRate)}%`);
   setText("#metricContext", `${formatRate(report.contextConsistencyRate)}%`);
-  state.evalCases = (report.items || []).map((item) => ({
+  const itemRows = (report.items || []).map((item) => ({
     name: item.caseName,
     recall: item.referencePassed ? "通过" : "待复核",
     answer: item.answerPassed ? "通过" : "待复核",
@@ -808,8 +830,28 @@ function renderEvaluationReport(report) {
     context: item.contextPassed ? "通过" : "待复核",
     suggestion: item.suggestion || "通过"
   }));
+  const feedbackRows = (report.feedbacks || []).map((item) => ({
+    name: `反馈建议：${feedbackTargetName(item.targetType)}`,
+    recall: "-",
+    answer: "-",
+    recommend: "-",
+    context: item.priority || "LOW",
+    suggestion: item.content || "继续观察"
+  }));
+  state.evalCases = [...feedbackRows, ...itemRows];
   saveStore("agentGroupEvalCases", state.evalCases);
   renderEvalRows();
+}
+
+function feedbackTargetName(targetType) {
+  const names = {
+    KNOWLEDGE: "知识库",
+    PROMPT: "提示词",
+    RECOMMENDATION: "推荐策略",
+    CONTEXT: "多轮上下文",
+    QUALITY: "质量基线"
+  };
+  return names[targetType] || targetType || "质量闭环";
 }
 
 function runLocalEval() {
