@@ -32,6 +32,7 @@ public class GuideEvaluationTriggerService {
         response.setAnswerAccuracyRate(report.getAnswerAccuracyRate());
         response.setRecommendationReasonableRate(report.getRecommendationReasonableRate());
         response.setContextConsistencyRate(report.getContextConsistencyRate());
+        response.setAverageLatencyMillis(report.getAverageLatencyMillis());
         response.setItems(report.getItems().stream().map(this::item).toList());
         response.setFeedbacks(report.getFeedbacks().stream().map(this::feedback).toList());
         return response;
@@ -56,6 +57,7 @@ public class GuideEvaluationTriggerService {
         dto.setAnswerPassed(itemResult.isAnswerPassed());
         dto.setRecommendationPassed(itemResult.isRecommendationPassed());
         dto.setContextPassed(itemResult.isContextPassed());
+        dto.setLatencyMillis(itemResult.getLatencyMillis());
         dto.setScore(itemResult.getScore());
         dto.setSuggestion(itemResult.getSuggestion());
         return dto;

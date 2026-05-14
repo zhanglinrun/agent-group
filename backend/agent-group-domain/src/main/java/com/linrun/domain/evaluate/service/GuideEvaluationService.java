@@ -53,12 +53,14 @@ public class GuideEvaluationService {
         report.setAnswerAccuracyRate(rate(items, GuideEvaluationItemResult::isAnswerPassed));
         report.setRecommendationReasonableRate(rate(items, GuideEvaluationItemResult::isRecommendationPassed));
         report.setContextConsistencyRate(rate(items, GuideEvaluationItemResult::isContextPassed));
+        report.setAverageLatencyMillis(averageLatencyMillis(items));
         report.setItems(items);
         report.setFeedbacks(buildFeedbacks(items));
         return report;
     }
 
     private GuideEvaluationItemResult evaluateOne(GuideEvaluationCase evaluationCase) {
+        long startNanos = System.nanoTime();
         GuideEvaluationItemResult item = baseItem(evaluationCase);
         try {
             GuideDecisionResult decisionResult = guideDecisionService.decide(evaluationCase.getQuestion());
@@ -85,6 +87,8 @@ public class GuideEvaluationService {
             item.setSuggestion("用例执行失败，需要检查商品、活动或知识库数据：" + e.getMessage());
             item.setScore(0);
             return item;
+        } finally {
+            item.setLatencyMillis(elapsedMillis(startNanos));
         }
     }
 
@@ -153,6 +157,20 @@ public class GuideEvaluationService {
         return BigDecimal.valueOf(passed)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private long averageLatencyMillis(List<GuideEvaluationItemResult> items) {
+        if (items.isEmpty()) {
+            return 0L;
+        }
+        return Math.round(items.stream()
+                .mapToLong(GuideEvaluationItemResult::getLatencyMillis)
+                .average()
+                .orElse(0D));
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 
     private List<GuideEvaluationFeedback> buildFeedbacks(List<GuideEvaluationItemResult> items) {

@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GuideEvaluationServiceTest {
 
@@ -42,7 +43,9 @@ class GuideEvaluationServiceTest {
         assertEquals(new BigDecimal("100.00"), report.getAnswerAccuracyRate());
         assertEquals(new BigDecimal("100.00"), report.getRecommendationReasonableRate());
         assertEquals(new BigDecimal("100.00"), report.getContextConsistencyRate());
+        assertTrue(report.getAverageLatencyMillis() >= 0);
         assertEquals(100, report.getItems().get(0).getScore());
+        assertTrue(report.getItems().get(0).getLatencyMillis() >= 0);
         assertEquals(1, report.getFeedbacks().size());
         assertEquals("QUALITY", report.getFeedbacks().get(0).getTargetType());
     }

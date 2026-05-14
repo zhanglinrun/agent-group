@@ -11,6 +11,7 @@ public class GuideEvaluationItemResult {
     private boolean answerPassed;
     private boolean recommendationPassed;
     private boolean contextPassed;
+    private long latencyMillis;
     private int score;
     private String suggestion;
 
@@ -84,6 +85,14 @@ public class GuideEvaluationItemResult {
 
     public void setContextPassed(boolean contextPassed) {
         this.contextPassed = contextPassed;
+    }
+
+    public long getLatencyMillis() {
+        return latencyMillis;
+    }
+
+    public void setLatencyMillis(long latencyMillis) {
+        this.latencyMillis = latencyMillis;
     }
 
     public int getScore() {

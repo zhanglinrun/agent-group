@@ -18,6 +18,7 @@ public class GuideEvaluationReportResponse implements Serializable {
     private BigDecimal answerAccuracyRate;
     private BigDecimal recommendationReasonableRate;
     private BigDecimal contextConsistencyRate;
+    private Long averageLatencyMillis;
     private List<GuideEvaluationItemDTO> items = new ArrayList<>();
     private List<GuideEvaluationFeedbackDTO> feedbacks = new ArrayList<>();
 }

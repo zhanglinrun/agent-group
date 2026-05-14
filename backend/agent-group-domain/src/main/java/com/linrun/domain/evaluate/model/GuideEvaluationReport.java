@@ -14,6 +14,7 @@ public class GuideEvaluationReport {
     private BigDecimal answerAccuracyRate;
     private BigDecimal recommendationReasonableRate;
     private BigDecimal contextConsistencyRate;
+    private long averageLatencyMillis;
     private List<GuideEvaluationItemResult> items = new ArrayList<>();
     private List<GuideEvaluationFeedback> feedbacks = new ArrayList<>();
 
@@ -79,6 +80,14 @@ public class GuideEvaluationReport {
 
     public void setContextConsistencyRate(BigDecimal contextConsistencyRate) {
         this.contextConsistencyRate = contextConsistencyRate;
+    }
+
+    public long getAverageLatencyMillis() {
+        return averageLatencyMillis;
+    }
+
+    public void setAverageLatencyMillis(long averageLatencyMillis) {
+        this.averageLatencyMillis = averageLatencyMillis;
     }
 
     public List<GuideEvaluationItemResult> getItems() {

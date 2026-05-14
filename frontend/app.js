@@ -774,13 +774,17 @@ function renderEvalRows() {
   root.innerHTML = "";
   state.evalCases.forEach((item) => {
     const needReview = [item.recall, item.answer, item.recommend, item.context].includes("待复核");
-    root.appendChild(renderDataItem(item.name, [
+    const lines = [
       `检索命中：${item.recall}`,
       `回答准确：${item.answer}`,
       `推荐结果：${item.recommend}`,
       `多轮一致：${item.context || "通过"}`,
       `建议：${item.suggestion || "通过"}`
-    ], needReview ? "warn" : "info"));
+    ];
+    if (item.latency) {
+      lines.splice(4, 0, `耗时：${item.latency}`);
+    }
+    root.appendChild(renderDataItem(item.name, lines, needReview ? "warn" : "info"));
   });
 }
 
@@ -850,12 +854,14 @@ function renderEvaluationReport(report) {
   setText("#metricAccuracy", `${formatRate(report.answerAccuracyRate)}%`);
   setText("#metricRecommend", `${formatRate(report.recommendationReasonableRate)}%`);
   setText("#metricContext", `${formatRate(report.contextConsistencyRate)}%`);
+  setText("#metricLatency", `${formatLatency(report.averageLatencyMillis)}`);
   const itemRows = (report.items || []).map((item) => ({
     name: item.caseName,
     recall: item.referencePassed ? "通过" : "待复核",
     answer: item.answerPassed ? "通过" : "待复核",
     recommend: item.recommendationPassed ? "通过" : "待复核",
     context: item.contextPassed ? "通过" : "待复核",
+    latency: formatLatency(item.latencyMillis),
     suggestion: item.suggestion || "通过"
   }));
   const feedbackRows = (report.feedbacks || []).map((item) => ({
@@ -887,11 +893,12 @@ function runLocalEval() {
   setText("#metricAccuracy", "82%");
   setText("#metricRecommend", "84%");
   setText("#metricContext", "88%");
+  setText("#metricLatency", "420 ms");
   state.evalCases = [
-    { name: "学生预算导购", recall: "通过", answer: "通过", recommend: "通过", context: "通过", suggestion: "通过" },
-    { name: "拼团退款规则", recall: "通过", answer: "通过", recommend: "不适用", context: "通过", suggestion: "通过" },
-    { name: "标准版和高配版对比", recall: "通过", answer: "通过", recommend: "通过", context: "通过", suggestion: "通过" },
-    { name: "多轮追问预算限制", recall: "通过", answer: "通过", recommend: "通过", context: "通过", suggestion: "通过" }
+    { name: "学生预算导购", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "390 ms", suggestion: "通过" },
+    { name: "拼团退款规则", recall: "通过", answer: "通过", recommend: "不适用", context: "通过", latency: "410 ms", suggestion: "通过" },
+    { name: "标准版和高配版对比", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "435 ms", suggestion: "通过" },
+    { name: "多轮追问预算限制", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "445 ms", suggestion: "通过" }
   ];
   saveStore("agentGroupEvalCases", state.evalCases);
   renderEvalRows();
@@ -972,6 +979,14 @@ function formatRate(value) {
     return "0";
   }
   return Number.isInteger(numberValue) ? String(numberValue) : numberValue.toFixed(2);
+}
+
+function formatLatency(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return "-";
+  }
+  return `${Math.max(0, Math.round(numberValue))} ms`;
 }
 
 function escapeHtml(value) {
