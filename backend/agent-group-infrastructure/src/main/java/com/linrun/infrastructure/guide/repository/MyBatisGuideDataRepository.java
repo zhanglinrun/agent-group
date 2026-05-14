@@ -8,6 +8,7 @@ import com.linrun.domain.knowledge.service.KnowledgeKeywordService;
 import com.linrun.domain.knowledge.service.KnowledgeVectorService;
 import com.linrun.infrastructure.dao.IGuideDataDao;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
@@ -21,14 +22,23 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     private final IGuideDataDao guideDataDao;
     private final KnowledgeKeywordService knowledgeKeywordService;
     private final KnowledgeVectorService knowledgeVectorService;
+    private final boolean keywordFallbackEnabled;
 
     @Autowired
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
                                       KnowledgeKeywordService knowledgeKeywordService,
-                                      KnowledgeVectorService knowledgeVectorService) {
+                                      KnowledgeVectorService knowledgeVectorService,
+                                      @Value("${agent.group.vector.keyword-fallback-enabled:true}") boolean keywordFallbackEnabled) {
         this.guideDataDao = guideDataDao;
         this.knowledgeKeywordService = knowledgeKeywordService;
         this.knowledgeVectorService = knowledgeVectorService;
+        this.keywordFallbackEnabled = keywordFallbackEnabled;
+    }
+
+    public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
+                                      KnowledgeKeywordService knowledgeKeywordService,
+                                      KnowledgeVectorService knowledgeVectorService) {
+        this(guideDataDao, knowledgeKeywordService, knowledgeVectorService, true);
     }
 
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao, KnowledgeKeywordService knowledgeKeywordService) {
@@ -40,6 +50,9 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         List<GuideReference> vectorReferences = queryVectorReferences(question, limit);
         if (!vectorReferences.isEmpty()) {
             return vectorReferences;
+        }
+        if (!keywordFallbackEnabled) {
+            return List.of();
         }
         return guideDataDao.queryReferences(knowledgeKeywordService.extractKeywords(question), limit);
     }

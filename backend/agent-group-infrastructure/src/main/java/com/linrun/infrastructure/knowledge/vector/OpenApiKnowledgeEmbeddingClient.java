@@ -3,6 +3,7 @@ package com.linrun.infrastructure.knowledge.vector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.knowledge.adapter.KnowledgeEmbeddingClient;
+import com.linrun.infrastructure.llm.OpenApiEndpointSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
     private final String baseUrl;
     private final String apiKey;
     private final String embeddingModel;
+    private final int dimension;
     private final Duration timeout;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -40,9 +42,10 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
     public OpenApiKnowledgeEmbeddingClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                            @Value("${agent.group.llm.api-key:}") String apiKey,
                                            @Value("${agent.group.llm.embedding-model:text-embedding-v4}") String embeddingModel,
+                                           @Value("${agent.group.vector.dimension:1024}") int dimension,
                                            @Value("${agent.group.llm.timeout-seconds:20}") long timeoutSeconds,
                                            LocalKnowledgeEmbeddingClient fallbackClient) {
-        this(baseUrl, apiKey, embeddingModel, Duration.ofSeconds(Math.max(1L, timeoutSeconds)),
+        this(baseUrl, apiKey, embeddingModel, dimension, Duration.ofSeconds(Math.max(1L, timeoutSeconds)),
                 HttpClient.newHttpClient(), new ObjectMapper(), fallbackClient);
     }
 
@@ -53,9 +56,21 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
                                     HttpClient httpClient,
                                     ObjectMapper objectMapper,
                                     LocalKnowledgeEmbeddingClient fallbackClient) {
+        this(baseUrl, apiKey, embeddingModel, 1024, timeout, httpClient, objectMapper, fallbackClient);
+    }
+
+    OpenApiKnowledgeEmbeddingClient(String baseUrl,
+                                    String apiKey,
+                                    String embeddingModel,
+                                    int dimension,
+                                    Duration timeout,
+                                    HttpClient httpClient,
+                                    ObjectMapper objectMapper,
+                                    LocalKnowledgeEmbeddingClient fallbackClient) {
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
         this.embeddingModel = embeddingModel;
+        this.dimension = Math.max(16, dimension);
         this.timeout = timeout;
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
@@ -89,14 +104,15 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
     }
 
     private URI embeddingsUri() {
-        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        return URI.create(normalizedBaseUrl + "v1/embeddings");
+        return OpenApiEndpointSupport.uri(baseUrl, "embeddings");
     }
 
     private String requestBody(String content) throws IOException {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", embeddingModel);
         body.put("input", StringUtils.hasText(content) ? content : "");
+        body.put("dimensions", dimension);
+        body.put("encoding_format", "float");
         return objectMapper.writeValueAsString(body);
     }
 

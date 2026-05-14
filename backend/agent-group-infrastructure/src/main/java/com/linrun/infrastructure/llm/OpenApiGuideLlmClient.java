@@ -117,8 +117,7 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
     }
 
     private URI chatCompletionsUri() {
-        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        return URI.create(normalizedBaseUrl + "v1/chat/completions");
+        return OpenApiEndpointSupport.uri(baseUrl, "chat/completions");
     }
 
     private String requestBody(GuideRagPrompt prompt) throws IOException {

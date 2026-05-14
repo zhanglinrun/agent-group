@@ -53,7 +53,27 @@ class OpenApiKnowledgeEmbeddingClientTest {
             assertEquals(List.of(0.1d, 0.2d, 0.3d), embedding);
             assertEquals("Bearer test-api-key", authorization.get());
             assertTrue(requestBody.get().contains("\"model\":\"text-embedding-v4\""));
+            assertTrue(requestBody.get().contains("\"dimensions\":1024"));
+            assertTrue(requestBody.get().contains("\"encoding_format\":\"float\""));
             assertTrue(requestBody.get().contains("拼团退款"));
+        }
+    }
+
+    @Test
+    void shouldAcceptBaseUrlThatAlreadyEndsWithV1() throws IOException {
+        try (MockEmbeddingServer server = MockEmbeddingServer.start(new AtomicReference<>(), new AtomicReference<>(), 200, """
+                {"data":[{"embedding":[0.4,0.5]}]}
+                """)) {
+            OpenApiKnowledgeEmbeddingClient client = new OpenApiKnowledgeEmbeddingClient(
+                    server.baseUrl() + "v1/",
+                    "test-api-key",
+                    "text-embedding-v4",
+                    Duration.ofSeconds(2),
+                    HttpClient.newHttpClient(),
+                    new ObjectMapper(),
+                    new LocalKnowledgeEmbeddingClient(16));
+
+            assertEquals(List.of(0.4d, 0.5d), client.embed("拼团退款"));
         }
     }
 

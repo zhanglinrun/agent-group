@@ -1,0 +1,52 @@
+[
+  {
+    "caseId": "SAMPLE-EV-001",
+    "caseName": "学生预算导购",
+    "question": "我是学生，预算有限，主要写论文和看网课，哪款平板更合适？",
+    "expectedIntentType": "PRODUCT_COMPARE",
+    "expectedGoodsId": "G10001",
+    "contextRequired": false,
+    "requiredReferenceKeywords": ["学习", "网课", "论文"],
+    "requiredAnswerKeywords": ["标准版", "拼团价", "2099"]
+  },
+  {
+    "caseId": "SAMPLE-EV-002",
+    "caseName": "拼团退款规则",
+    "question": "拼团失败会不会退款？会不会重复扣款？",
+    "expectedIntentType": "AFTER_SALE",
+    "expectedGoodsId": "G10001",
+    "contextRequired": false,
+    "requiredReferenceKeywords": ["退款", "未成团"],
+    "requiredAnswerKeywords": ["退款", "不会重复扣款"]
+  },
+  {
+    "caseId": "SAMPLE-EV-003",
+    "caseName": "创作性能对比",
+    "question": "我经常剪视频和绘图，标准版够用吗？",
+    "expectedIntentType": "PRODUCT_RECOMMEND",
+    "expectedGoodsId": "G10002",
+    "contextRequired": false,
+    "requiredReferenceKeywords": ["剪视频", "绘图"],
+    "requiredAnswerKeywords": ["高配", "创作"]
+  },
+  {
+    "caseId": "SAMPLE-EV-004",
+    "caseName": "多轮预算追问",
+    "question": "刚才说标准版更适合学生，那怎么下单更省钱？",
+    "expectedIntentType": "PRODUCT_RECOMMEND",
+    "expectedGoodsId": "G10001",
+    "contextRequired": true,
+    "requiredReferenceKeywords": ["拼团价"],
+    "requiredAnswerKeywords": ["拼团", "2099"]
+  },
+  {
+    "caseId": "SAMPLE-EV-005",
+    "caseName": "直接购买和拼团购买",
+    "question": "直接购买和拼团购买有什么区别？",
+    "expectedIntentType": "GROUP_RULE",
+    "expectedGoodsId": "G10001",
+    "contextRequired": false,
+    "requiredReferenceKeywords": ["直接购买", "拼团购买"],
+    "requiredAnswerKeywords": ["原价", "拼团价"]
+  }
+]

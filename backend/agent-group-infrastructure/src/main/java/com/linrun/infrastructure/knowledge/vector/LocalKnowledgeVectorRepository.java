@@ -26,9 +26,10 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
     private final String jdbcUrl;
     private final String username;
     private final String password;
+    private final boolean localFallbackEnabled;
 
     public LocalKnowledgeVectorRepository() {
-        this("", "", "");
+        this("", "", "", true);
     }
 
     @Autowired
@@ -36,18 +37,25 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
                                           @Value("${agent.group.vector.port:15432}") int port,
                                           @Value("${agent.group.vector.database:}") String database,
                                           @Value("${agent.group.vector.username:}") String username,
-                                          @Value("${agent.group.vector.password:}") String password) {
+                                          @Value("${agent.group.vector.password:}") String password,
+                                          @Value("${agent.group.vector.local-fallback-enabled:true}") boolean localFallbackEnabled) {
         this(StringUtils.hasText(host) && StringUtils.hasText(database)
                         ? "jdbc:postgresql://" + host + ":" + port + "/" + database
                         : "",
                 username,
-                password);
+                password,
+                localFallbackEnabled);
     }
 
     LocalKnowledgeVectorRepository(String jdbcUrl, String username, String password) {
+        this(jdbcUrl, username, password, true);
+    }
+
+    LocalKnowledgeVectorRepository(String jdbcUrl, String username, String password, boolean localFallbackEnabled) {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
+        this.localFallbackEnabled = localFallbackEnabled;
     }
 
     @Override
@@ -67,6 +75,9 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         List<KnowledgeFragment> pgvectorResult = searchPgvector(queryEmbedding, limit);
         if (!pgvectorResult.isEmpty()) {
             return pgvectorResult;
+        }
+        if (!localFallbackEnabled) {
+            return List.of();
         }
         return vectorRecords.values().stream()
                 .map(record -> new ScoredFragment(record.fragment(), cosine(queryEmbedding, record.embedding())))

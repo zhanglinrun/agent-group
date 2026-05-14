@@ -48,6 +48,8 @@ agent:
       mock-delay-millis: 350
     rabbit:
       enabled: ${AGENT_GROUP_RABBIT_ENABLED:true}
+    redis:
+      key-prefix: ${AGENT_GROUP_REDIS_KEY_PREFIX:agent-group}
     vector:
       host: ${AGENT_GROUP_PGVECTOR_HOST:127.0.0.1}
       port: ${AGENT_GROUP_PGVECTOR_PORT:15432}
@@ -55,20 +57,30 @@ agent:
       username: ${AGENT_GROUP_PGVECTOR_USERNAME:agent_group}
       password: ${AGENT_GROUP_PGVECTOR_PASSWORD:agent_group_dev}
       dimension: 1024
+      local-fallback-enabled: ${AGENT_GROUP_VECTOR_LOCAL_FALLBACK_ENABLED:true}
+      keyword-fallback-enabled: ${AGENT_GROUP_VECTOR_KEYWORD_FALLBACK_ENABLED:true}
     minio:
       endpoint: ${AGENT_GROUP_MINIO_ENDPOINT:http://127.0.0.1:9000}
       access-key: ${AGENT_GROUP_MINIO_ACCESS_KEY:agent_group}
       secret-key: ${AGENT_GROUP_MINIO_SECRET_KEY:agent_group_dev}
       bucket-name: ${AGENT_GROUP_MINIO_BUCKET:agent-group}
     llm:
-      base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/}
+      base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
       api-key: ${AGENT_GROUP_LLM_API_KEY:}
-      chat-model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen-plus}
-      embedding-model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v4}
-      vision-model: ${AGENT_GROUP_LLM_VISION_MODEL:qwen-vl-plus}
+      chat-model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.6-plus}
+      embedding-model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v3}
+      vision-model: ${AGENT_GROUP_LLM_VISION_MODEL:qwen3.6-plus}
       timeout-seconds: ${AGENT_GROUP_LLM_TIMEOUT_SECONDS:20}
       max-retries: ${AGENT_GROUP_LLM_MAX_RETRIES:2}
       min-interval-millis: ${AGENT_GROUP_LLM_MIN_INTERVAL_MILLIS:200}
+    upload:
+      allowed-extensions: ${AGENT_GROUP_UPLOAD_ALLOWED_EXTENSIONS:md,txt,pdf,docx}
+      max-file-size-bytes: ${AGENT_GROUP_UPLOAD_MAX_FILE_SIZE_BYTES:10485760}
+    security:
+      admin-username: ${AGENT_GROUP_ADMIN_USERNAME:admin}
+      admin-password: ${AGENT_GROUP_ADMIN_PASSWORD:admin_dev}
+      operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
+      operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:
@@ -89,3 +101,17 @@ agent:
 mybatis:
   mapper-locations: classpath:/mybatis/mapper/*.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: agent-group

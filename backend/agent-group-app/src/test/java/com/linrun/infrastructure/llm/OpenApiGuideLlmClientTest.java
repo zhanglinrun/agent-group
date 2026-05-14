@@ -55,6 +55,22 @@ class OpenApiGuideLlmClientTest {
     }
 
     @Test
+    void shouldAcceptBaseUrlThatAlreadyEndsWithV1() throws IOException {
+        try (MockLlmServer server = MockLlmServer.start(new AtomicReference<>(), new AtomicReference<>(), 200, """
+                {"choices":[{"message":{"content":"兼容 v1 地址"}}]}
+                """)) {
+            OpenApiGuideLlmClient client = new OpenApiGuideLlmClient(
+                    server.baseUrl() + "v1",
+                    "test-api-key",
+                    "qwen-plus",
+                    HttpClient.newHttpClient(),
+                    new ObjectMapper());
+
+            assertEquals("兼容 v1 地址", client.complete(prompt()));
+        }
+    }
+
+    @Test
     void shouldFallbackWhenOpenApiReturnsError() throws IOException {
         try (MockLlmServer server = MockLlmServer.start(new AtomicReference<>(), new AtomicReference<>(), 500, "{}")) {
             OpenApiGuideLlmClient client = new OpenApiGuideLlmClient(

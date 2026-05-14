@@ -17,6 +17,7 @@ import com.linrun.domain.knowledge.service.KnowledgeDocumentService;
 import com.linrun.domain.knowledge.service.KnowledgeVectorService;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -24,13 +25,25 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class KnowledgeDocumentUploadService {
 
     private static final String DEFAULT_KNOWLEDGE_VERSION = "v1";
     private static final String DEFAULT_SOURCE_TYPE = "OPERATOR_UPLOAD";
+    private static final int MAX_FILENAME_LENGTH = 160;
+    private static final Set<String> BLOCKED_EXTENSION_MARKERS = Set.of(
+            ".jsp.", ".php.", ".asp.", ".aspx.", ".js.", ".exe.", ".sh.", ".bat.", ".cmd.");
+    private static final Set<String> STRICT_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+            "text/markdown");
 
     private final KnowledgeDocumentService knowledgeDocumentService;
     private final KnowledgeDocumentParser knowledgeDocumentParser;
@@ -38,6 +51,12 @@ public class KnowledgeDocumentUploadService {
     private final KnowledgeVectorService knowledgeVectorService;
     private final KnowledgeObjectStorageClient knowledgeObjectStorageClient;
     private final KnowledgeDocumentTextExtractor knowledgeDocumentTextExtractor;
+
+    @Value("${agent.group.upload.allowed-extensions:md,txt,pdf,docx}")
+    private String allowedExtensions = "md,txt,pdf,docx";
+
+    @Value("${agent.group.upload.max-file-size-bytes:10485760}")
+    private long maxFileSizeBytes = 10 * 1024 * 1024L;
 
     @Autowired
     public KnowledgeDocumentUploadService(KnowledgeDocumentService knowledgeDocumentService,
@@ -99,6 +118,7 @@ public class KnowledgeDocumentUploadService {
         if (knowledgeObjectStorageClient == null) {
             throw new AppException("MINIO_0002", "对象存储客户端不可用");
         }
+        validateUploadFile(file);
 
         byte[] content = readFile(file);
         StoredKnowledgeObject storedObject = knowledgeObjectStorageClient.store(
@@ -121,6 +141,46 @@ public class KnowledgeDocumentUploadService {
         response.setContentType(storedObject.getContentType());
         response.setObjectSize(storedObject.getObjectSize());
         return response;
+    }
+
+    private void validateUploadFile(MultipartFile file) {
+        String filename = file.getOriginalFilename();
+        if (!StringUtils.hasText(filename) || filename.length() > MAX_FILENAME_LENGTH) {
+            throw new AppException("UPLOAD_0001", "文件名不能为空，且长度不能超过 160 个字符");
+        }
+        if (file.getSize() > maxFileSizeBytes) {
+            throw new AppException("UPLOAD_0002", "上传文件超过大小限制");
+        }
+        String safeName = filename.replace("\\", "/");
+        safeName = safeName.substring(safeName.lastIndexOf('/') + 1).toLowerCase(Locale.ROOT);
+        if (BLOCKED_EXTENSION_MARKERS.stream().anyMatch(safeName::contains)) {
+            throw new AppException("UPLOAD_0003", "上传文件包含高风险扩展名");
+        }
+        String extension = extension(safeName);
+        if (!allowedExtensionSet().contains(extension)) {
+            throw new AppException("UPLOAD_0004", "当前只允许上传 md、txt、pdf、docx 类型文件");
+        }
+        String contentType = file.getContentType();
+        if (StringUtils.hasText(contentType) && !"application/octet-stream".equalsIgnoreCase(contentType)
+                && !STRICT_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+            throw new AppException("UPLOAD_0005", "上传文件类型与知识库白名单不匹配");
+        }
+    }
+
+    private Set<String> allowedExtensionSet() {
+        return Arrays.stream(allowedExtensions.split(","))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+    }
+
+    private String extension(String filename) {
+        int index = filename.lastIndexOf('.');
+        if (index < 0 || index == filename.length() - 1) {
+            return "";
+        }
+        return filename.substring(index + 1);
     }
 
     private CreateKnowledgeDocumentCommand toDocumentCommand(UploadKnowledgeDocumentRequest request) {

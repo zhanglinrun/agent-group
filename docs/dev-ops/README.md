@@ -11,6 +11,8 @@
 | PostgreSQL + pgvector | 保存知识片段向量，后续用于向量检索。 |
 | MinIO | 保存上传的商品文档、售后文档和图片。 |
 | RabbitMQ | 承接支付成功、成团、退款等交易事件。 |
+| Prometheus | 采集后端 `Actuator`（应用监控端点）指标。 |
+| Grafana | 展示 `Prometheus`（指标采集工具）里的运行指标。 |
 
 ## 启动命令
 
@@ -24,7 +26,9 @@ docker compose -f docker-compose-environment.yml up -d
 如果容器数据卷已经存在，`docker-entrypoint-initdb.d`（数据库初始化目录）下的脚本不会自动重复执行。需要刷新演示数据时，可以手动导入：
 
 ```bash
-docker exec -i agent-group-mysql mysql -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/02-demo-data.sql
+docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/00-schema-upgrade.sql
+docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/01-agent-group.sql
+docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/02-demo-data.sql
 ```
 
 ## 默认端口
@@ -40,7 +44,22 @@ docker exec -i agent-group-mysql mysql -uroot -pagent_group_dev agent_group < do
 | RabbitMQ Console | 15672 |
 | phpMyAdmin | 8899 |
 | Redis Admin | 8081 |
+| Prometheus | 19090 |
+| Grafana | 13000 |
+
+如果本机 `13306`（数据库端口）已经被其他项目占用，可以临时改成本项目专用端口：
+
+```powershell
+$env:AGENT_GROUP_MYSQL_PORT="13316"
+docker compose -f docker-compose-environment.yml up -d mysql
+```
+
+后端同时指定：
+
+```powershell
+$env:AGENT_GROUP_MYSQL_URL="jdbc:mysql://127.0.0.1:13316/agent_group?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+```
 
 ## 当前接入状态
 
-当前导购流式接口已经通过 MyBatis 从 MySQL 读取商品卡片和知识片段。演示数据脚本已经补充商品、知识片段、拼团活动、样例订单和状态流水。`Redis`、`pgvector`、`MinIO` 和 `RabbitMQ` 先完成容器与配置预留，后续分别接入会话缓存、向量检索、文档上传和交易事件。
+当前导购流式接口已经通过 MyBatis 从 MySQL 读取商品卡片和知识片段。上传知识文档时会写入 `MinIO`（对象存储）、解析文本、切片、生成向量，并优先写入 `pgvector`（向量检索）。如果真实向量库不可用，开发环境会回退到本地向量检索，方便演示不断链。`Redis`（缓存数据库）已用于会话和停止生成状态，`Prometheus`（指标采集工具）和 `Grafana`（指标看板工具）用于基础监控。

@@ -132,6 +132,24 @@ class KnowledgeDocumentUploadServiceTest {
         assertEquals("解析后的售后政策。", repository.fragments.get(1).getContent());
     }
 
+    @Test
+    void shouldRejectUnsafeUploadExtension() {
+        KnowledgeDocumentUploadService service = service(
+                new FakeKnowledgeDocumentRepository(),
+                new FakeKnowledgeVectorRepository(),
+                new FakeKnowledgeObjectStorageClient());
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "attack.jsp",
+                "text/plain",
+                "bad".getBytes(StandardCharsets.UTF_8));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> service.uploadFile(file, "G10001", "", "商品资料", "v1"));
+
+        assertEquals("UPLOAD_0004", exception.getCode());
+    }
+
     private KnowledgeDocumentUploadService service(FakeKnowledgeDocumentRepository repository) {
         return service(repository, new FakeKnowledgeVectorRepository());
     }

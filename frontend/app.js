@@ -55,6 +55,7 @@ const defaultEvalCases = [
 ];
 
 const GUIDE_STREAM_URL = "http://localhost:8080/api/v1/agent/guide/stream";
+const GUIDE_STOP_URL = "http://localhost:8080/api/v1/agent/stop";
 const GUIDE_EVALUATION_URL = "http://localhost:8080/api/v1/evaluate/guide/run";
 const KNOWLEDGE_UPLOAD_FILE_URL = "http://localhost:8080/api/v1/knowledge/document/upload-file";
 const DIRECT_ORDER_URL = "http://localhost:8080/api/v1/trade/order/direct";
@@ -62,6 +63,7 @@ const GROUP_LOCK_URL = "http://localhost:8080/api/v1/group/trade/lock";
 const PAYMENT_CREATE_URL = "http://localhost:8080/api/v1/payment/create";
 const PAYMENT_WEBHOOK_URL = "http://localhost:8080/api/v1/payment/webhook";
 const STATUS_FLOW_URL = "http://localhost:8080/api/v1/trade/order/status-flow";
+const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 
 const state = {
   timers: [],
@@ -186,7 +188,7 @@ async function uploadKnowledgeFile(file, chip) {
   form.append("documentType", "商品资料");
   form.append("knowledgeVersion", "v1");
   try {
-    const result = await postForm(KNOWLEDGE_UPLOAD_FILE_URL, form);
+    const result = await postForm(KNOWLEDGE_UPLOAD_FILE_URL, form, adminAuthHeaders());
     updateDocStatus(file.name, "已入库并向量化");
     if (chip) {
       chip.textContent = `文档：${file.name} 已入库`;
@@ -429,6 +431,7 @@ function stopCurrentStream() {
   if (!state.streaming) {
     return;
   }
+  postJson(GUIDE_STOP_URL, { sessionId: getSessionId() }).catch(() => {});
   cancelCurrentRequest();
   stopTimers();
   state.streaming = false;
@@ -674,11 +677,12 @@ async function postJson(url, payload) {
   return handleJsonResponse(response);
 }
 
-async function postForm(url, form) {
+async function postForm(url, form, headers = {}) {
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "Accept": "application/json"
+      "Accept": "application/json",
+      ...headers
     },
     body: form
   });
@@ -800,7 +804,8 @@ async function runEval() {
     const response = await fetch(GUIDE_EVALUATION_URL, {
       method: "POST",
       headers: {
-        "Accept": "application/json"
+        "Accept": "application/json",
+        ...adminAuthHeaders()
       }
     });
     if (!response.ok) {
@@ -811,6 +816,29 @@ async function runEval() {
   } catch {
     runLocalEval();
   }
+}
+
+function adminAuthHeaders() {
+  const auth = getAdminAuth();
+  return auth ? { Authorization: `Basic ${auth}` } : {};
+}
+
+function getAdminAuth() {
+  let auth = loadStore(ADMIN_AUTH_KEY, "");
+  if (auth) {
+    return auth;
+  }
+  const username = window.prompt("运营账号", "operator");
+  if (!username) {
+    return "";
+  }
+  const password = window.prompt("运营密码", "operator_dev");
+  if (!password) {
+    return "";
+  }
+  auth = window.btoa(`${username}:${password}`);
+  saveStore(ADMIN_AUTH_KEY, auth);
+  return auth;
 }
 
 function renderEvaluationReport(report) {

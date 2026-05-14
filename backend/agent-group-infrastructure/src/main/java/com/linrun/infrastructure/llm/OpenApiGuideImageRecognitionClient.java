@@ -87,8 +87,7 @@ public class OpenApiGuideImageRecognitionClient implements GuideImageRecognition
     }
 
     private URI chatCompletionsUri() {
-        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        return URI.create(normalizedBaseUrl + "v1/chat/completions");
+        return OpenApiEndpointSupport.uri(baseUrl, "chat/completions");
     }
 
     private String requestBody(String imageUrl) throws IOException {

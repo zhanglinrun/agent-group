@@ -12,7 +12,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${AGENT_GROUP_MYSQL_ROOT_PASSWORD:-agent_group_dev}
       MYSQL_DATABASE: agent_group
     ports:
-      - "13306:3306"
+      - "${AGENT_GROUP_MYSQL_PORT:-13306}:3306"
     volumes:
       - agent-group-mysql-data:/var/lib/mysql
       - ./mysql/my.cnf:/etc/mysql/conf.d/mysql.cnf:ro
@@ -154,6 +154,37 @@ services:
     networks:
       - agent-group-network
 
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: agent-group-prometheus
+    restart: always
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - agent-group-prometheus-data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - agent-group-network
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: agent-group-grafana
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: ${AGENT_GROUP_GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${AGENT_GROUP_GRAFANA_PASSWORD:-admin_dev}
+    ports:
+      - "13000:3000"
+    volumes:
+      - agent-group-grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - agent-group-network
+
 networks:
   agent-group-network:
     driver: bridge
@@ -163,3 +194,5 @@ volumes:
   agent-group-redis-data:
   agent-group-pgvector-data:
   agent-group-minio-data:
+  agent-group-prometheus-data:
+  agent-group-grafana-data:
