@@ -10,6 +10,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,6 +68,25 @@ class OpenApiGuideLlmClientTest {
         }
     }
 
+    @Test
+    void shouldRetryWhenOpenApiReturnsServerError() throws IOException {
+        AtomicInteger count = new AtomicInteger();
+        try (MockLlmServer server = MockLlmServer.startSequence(count)) {
+            OpenApiGuideLlmClient client = new OpenApiGuideLlmClient(
+                    server.baseUrl(),
+                    "test-api-key",
+                    "qwen-plus",
+                    HttpClient.newHttpClient(),
+                    new ObjectMapper(),
+                    Duration.ofSeconds(2),
+                    1,
+                    0L);
+
+            assertEquals("重试后回答", client.complete(prompt()));
+            assertEquals(2, count.get());
+        }
+    }
+
     private GuideRagPrompt prompt() {
         GuideRagPrompt prompt = new GuideRagPrompt();
         prompt.setSystemPrompt("系统提示词");
@@ -83,6 +104,24 @@ class OpenApiGuideLlmClientTest {
             HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
             server.createContext("/v1/chat/completions", exchange -> handle(exchange, authorization, requestBody,
                     status, responseBody));
+            server.start();
+            return new MockLlmServer(server);
+        }
+
+        static MockLlmServer startSequence(AtomicInteger count) throws IOException {
+            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+            server.createContext("/v1/chat/completions", exchange -> {
+                int current = count.incrementAndGet();
+                int status = current == 1 ? 500 : 200;
+                String responseBody = current == 1 ? "{}" : """
+                        {"choices":[{"message":{"content":"重试后回答"}}]}
+                        """;
+                byte[] responseBytes = responseBody.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(status, responseBytes.length);
+                exchange.getResponseBody().write(responseBytes);
+                exchange.close();
+            });
             server.start();
             return new MockLlmServer(server);
         }

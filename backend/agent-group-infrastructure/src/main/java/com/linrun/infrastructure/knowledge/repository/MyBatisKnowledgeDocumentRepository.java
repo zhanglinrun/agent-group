@@ -37,4 +37,9 @@ public class MyBatisKnowledgeDocumentRepository implements KnowledgeDocumentRepo
     public List<KnowledgeFragment> queryFragmentsByDocumentId(String documentId) {
         return knowledgeDocumentDao.queryFragmentsByDocumentId(documentId);
     }
+
+    @Override
+    public List<KnowledgeFragment> queryEnabledFragmentsByVersion(String knowledgeVersion) {
+        return knowledgeDocumentDao.queryEnabledFragmentsByVersion(knowledgeVersion);
+    }
 }

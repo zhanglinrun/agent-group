@@ -13,4 +13,6 @@ public interface KnowledgeDocumentRepository {
     Optional<KnowledgeDocument> queryDocumentByDocumentId(String documentId);
 
     List<KnowledgeFragment> queryFragmentsByDocumentId(String documentId);
+
+    List<KnowledgeFragment> queryEnabledFragmentsByVersion(String knowledgeVersion);
 }

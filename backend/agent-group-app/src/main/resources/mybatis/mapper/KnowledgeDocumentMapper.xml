@@ -120,4 +120,23 @@
         where document_id = #{documentId}
         order by rank_no asc, id asc
     </select>
+
+    <select id="queryEnabledFragmentsByVersion" resultMap="KnowledgeFragmentMap">
+        select fragment_id,
+               document_id,
+               goods_id,
+               document_type,
+               knowledge_version,
+               content,
+               rank_no,
+               fragment_status,
+               enabled,
+               create_time,
+               update_time
+        from knowledge_fragment
+        where knowledge_version = #{knowledgeVersion}
+          and enabled = 1
+          and fragment_status = 'ENABLED'
+        order by document_id asc, rank_no asc, id asc
+    </select>
 </mapper>

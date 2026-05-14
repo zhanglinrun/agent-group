@@ -127,6 +127,13 @@ class KnowledgeDocumentUploadServiceTest {
                     .filter(item -> item.getDocumentId().equals(documentId))
                     .toList();
         }
+
+        @Override
+        public List<KnowledgeFragment> queryEnabledFragmentsByVersion(String knowledgeVersion) {
+            return fragments.stream()
+                    .filter(item -> item.getKnowledgeVersion().equals(knowledgeVersion))
+                    .toList();
+        }
     }
 
     private static class FakeKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient {

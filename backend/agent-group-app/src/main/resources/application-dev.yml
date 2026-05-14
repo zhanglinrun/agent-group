@@ -63,6 +63,24 @@ agent:
       api-key: ${AGENT_GROUP_LLM_API_KEY:}
       chat-model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen-plus}
       embedding-model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v4}
+      vision-model: ${AGENT_GROUP_LLM_VISION_MODEL:qwen-vl-plus}
+      timeout-seconds: ${AGENT_GROUP_LLM_TIMEOUT_SECONDS:20}
+      max-retries: ${AGENT_GROUP_LLM_MAX_RETRIES:2}
+      min-interval-millis: ${AGENT_GROUP_LLM_MIN_INTERVAL_MILLIS:200}
+    payment:
+      alipay:
+        gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+        app-id: ${AGENT_GROUP_ALIPAY_APP_ID:}
+        private-key: ${AGENT_GROUP_ALIPAY_PRIVATE_KEY:}
+        public-key: ${AGENT_GROUP_ALIPAY_PUBLIC_KEY:}
+        charset: ${AGENT_GROUP_ALIPAY_CHARSET:UTF-8}
+        sign-type: ${AGENT_GROUP_ALIPAY_SIGN_TYPE:RSA2}
+      wechat:
+        app-id: ${AGENT_GROUP_WECHAT_APP_ID:}
+        merchant-id: ${AGENT_GROUP_WECHAT_MERCHANT_ID:}
+        private-key-path: ${AGENT_GROUP_WECHAT_PRIVATE_KEY_PATH:}
+        merchant-serial-no: ${AGENT_GROUP_WECHAT_MERCHANT_SERIAL_NO:}
+        api-v3-key: ${AGENT_GROUP_WECHAT_API_V3_KEY:}
 
 mybatis:
   mapper-locations: classpath:/mybatis/mapper/*.xml

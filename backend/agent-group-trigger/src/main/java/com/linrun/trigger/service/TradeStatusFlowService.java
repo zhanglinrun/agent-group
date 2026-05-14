@@ -32,6 +32,9 @@ public class TradeStatusFlowService {
     public static final String EVENT_REFUNDED = "REFUNDED";
     public static final String EVENT_REFUND_SUCCESS = "REFUND_SUCCESS";
     public static final String EVENT_RELEASE_PAID_LOCK = "RELEASE_PAID_LOCK";
+    public static final String EVENT_CREATE_GATEWAY_PAYMENT = "CREATE_GATEWAY_PAYMENT";
+    public static final String EVENT_PAYMENT_WEBHOOK_VERIFIED = "PAYMENT_WEBHOOK_VERIFIED";
+    public static final String EVENT_RECONCILE_PAYMENT = "RECONCILE_PAYMENT";
 
     private static final DateTimeFormatter FLOW_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 

@@ -17,4 +17,6 @@ public interface IKnowledgeDocumentDao {
     KnowledgeDocument queryDocumentByDocumentId(@Param("documentId") String documentId);
 
     List<KnowledgeFragment> queryFragmentsByDocumentId(@Param("documentId") String documentId);
+
+    List<KnowledgeFragment> queryEnabledFragmentsByVersion(@Param("knowledgeVersion") String knowledgeVersion);
 }

@@ -1,5 +1,7 @@
 package com.linrun.domain.guide.service;
 
+import com.linrun.domain.guide.adapter.GuideImageRecognitionClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -10,9 +12,26 @@ import java.util.Locale;
 @Service
 public class GuideImageInputService {
 
+    private final List<GuideImageRecognitionClient> recognitionClients;
+
+    public GuideImageInputService() {
+        this(List.of());
+    }
+
+    @Autowired
+    public GuideImageInputService(List<GuideImageRecognitionClient> recognitionClients) {
+        this.recognitionClients = recognitionClients == null ? List.of() : recognitionClients;
+    }
+
     public String parseImage(String imageUrl) {
         if (!StringUtils.hasText(imageUrl)) {
             return "";
+        }
+        for (GuideImageRecognitionClient recognitionClient : recognitionClients) {
+            String recognized = recognitionClient.recognize(imageUrl);
+            if (StringUtils.hasText(recognized)) {
+                return recognized;
+            }
         }
 
         String source = summarizeSource(imageUrl);
