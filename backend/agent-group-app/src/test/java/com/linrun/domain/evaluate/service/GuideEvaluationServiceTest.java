@@ -44,6 +44,8 @@ class GuideEvaluationServiceTest {
         assertEquals(new BigDecimal("100.00"), report.getRecommendationReasonableRate());
         assertEquals(new BigDecimal("100.00"), report.getContextConsistencyRate());
         assertTrue(report.getAverageLatencyMillis() >= 0);
+        assertTrue(report.getP99LatencyMillis() >= 0);
+        assertEquals(0L, report.getTotalTokens());
         assertEquals(100, report.getItems().get(0).getScore());
         assertTrue(report.getItems().get(0).getLatencyMillis() >= 0);
         assertEquals(1, report.getFeedbacks().size());

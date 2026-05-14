@@ -784,6 +784,18 @@ function renderEvalRows() {
     if (item.latency) {
       lines.splice(4, 0, `耗时：${item.latency}`);
     }
+    if (item.llmLatency) {
+      lines.splice(5, 0, `模型耗时：${item.llmLatency}`);
+    }
+    if (item.tokens) {
+      lines.splice(6, 0, `模型用量：${item.tokens}`);
+    }
+    if (item.cost) {
+      lines.splice(7, 0, `估算成本：${item.cost}`);
+    }
+    if (item.fallback) {
+      lines.splice(8, 0, `兜底回答：${item.fallback}`);
+    }
     root.appendChild(renderDataItem(item.name, lines, needReview ? "warn" : "info"));
   });
 }
@@ -855,6 +867,9 @@ function renderEvaluationReport(report) {
   setText("#metricRecommend", `${formatRate(report.recommendationReasonableRate)}%`);
   setText("#metricContext", `${formatRate(report.contextConsistencyRate)}%`);
   setText("#metricLatency", `${formatLatency(report.averageLatencyMillis)}`);
+  setText("#metricP99Latency", `${formatLatency(report.p99LatencyMillis)}`);
+  setText("#metricTokens", formatInteger(report.totalTokens));
+  setText("#metricCost", formatCostYuan(report.estimatedCostYuan));
   const itemRows = (report.items || []).map((item) => ({
     name: item.caseName,
     recall: item.referencePassed ? "通过" : "待复核",
@@ -862,6 +877,10 @@ function renderEvaluationReport(report) {
     recommend: item.recommendationPassed ? "通过" : "待复核",
     context: item.contextPassed ? "通过" : "待复核",
     latency: formatLatency(item.latencyMillis),
+    llmLatency: formatLatency(item.llmLatencyMillis),
+    tokens: formatInteger(item.totalTokens),
+    cost: formatCostYuan(item.estimatedCostYuan),
+    fallback: item.fallbackUsed ? "是" : "否",
     suggestion: item.suggestion || "通过"
   }));
   const feedbackRows = (report.feedbacks || []).map((item) => ({
@@ -894,6 +913,9 @@ function runLocalEval() {
   setText("#metricRecommend", "84%");
   setText("#metricContext", "88%");
   setText("#metricLatency", "420 ms");
+  setText("#metricP99Latency", "445 ms");
+  setText("#metricTokens", "6,200");
+  setText("#metricCost", "¥0.000000");
   state.evalCases = [
     { name: "学生预算导购", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "390 ms", suggestion: "通过" },
     { name: "拼团退款规则", recall: "通过", answer: "通过", recommend: "不适用", context: "通过", latency: "410 ms", suggestion: "通过" },
@@ -987,6 +1009,22 @@ function formatLatency(value) {
     return "-";
   }
   return `${Math.max(0, Math.round(numberValue))} ms`;
+}
+
+function formatInteger(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return "0";
+  }
+  return Math.max(0, Math.round(numberValue)).toLocaleString("zh-CN");
+}
+
+function formatCostYuan(value) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return "¥0.000000";
+  }
+  return `¥${Math.max(0, numberValue).toFixed(6)}`;
 }
 
 function escapeHtml(value) {

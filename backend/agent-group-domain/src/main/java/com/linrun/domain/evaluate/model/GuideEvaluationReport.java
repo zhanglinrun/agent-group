@@ -15,6 +15,11 @@ public class GuideEvaluationReport {
     private BigDecimal recommendationReasonableRate;
     private BigDecimal contextConsistencyRate;
     private long averageLatencyMillis;
+    private long p99LatencyMillis;
+    private long totalPromptTokens;
+    private long totalCompletionTokens;
+    private long totalTokens;
+    private BigDecimal estimatedCostYuan = BigDecimal.ZERO;
     private List<GuideEvaluationItemResult> items = new ArrayList<>();
     private List<GuideEvaluationFeedback> feedbacks = new ArrayList<>();
 
@@ -88,6 +93,46 @@ public class GuideEvaluationReport {
 
     public void setAverageLatencyMillis(long averageLatencyMillis) {
         this.averageLatencyMillis = averageLatencyMillis;
+    }
+
+    public long getP99LatencyMillis() {
+        return p99LatencyMillis;
+    }
+
+    public void setP99LatencyMillis(long p99LatencyMillis) {
+        this.p99LatencyMillis = p99LatencyMillis;
+    }
+
+    public long getTotalPromptTokens() {
+        return totalPromptTokens;
+    }
+
+    public void setTotalPromptTokens(long totalPromptTokens) {
+        this.totalPromptTokens = totalPromptTokens;
+    }
+
+    public long getTotalCompletionTokens() {
+        return totalCompletionTokens;
+    }
+
+    public void setTotalCompletionTokens(long totalCompletionTokens) {
+        this.totalCompletionTokens = totalCompletionTokens;
+    }
+
+    public long getTotalTokens() {
+        return totalTokens;
+    }
+
+    public void setTotalTokens(long totalTokens) {
+        this.totalTokens = totalTokens;
+    }
+
+    public BigDecimal getEstimatedCostYuan() {
+        return estimatedCostYuan;
+    }
+
+    public void setEstimatedCostYuan(BigDecimal estimatedCostYuan) {
+        this.estimatedCostYuan = estimatedCostYuan == null ? BigDecimal.ZERO : estimatedCostYuan;
     }
 
     public List<GuideEvaluationItemResult> getItems() {

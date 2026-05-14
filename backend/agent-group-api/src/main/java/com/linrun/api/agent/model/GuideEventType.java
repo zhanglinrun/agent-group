@@ -18,6 +18,7 @@ public enum GuideEventType {
     PRODUCT_CARD("product_card"),
     ORDER_DELTA("order_delta"),
     SELF_CHECK("self_check"),
+    USAGE_METRIC("usage_metric"),
     DONE("done"),
     ERROR("error");
 

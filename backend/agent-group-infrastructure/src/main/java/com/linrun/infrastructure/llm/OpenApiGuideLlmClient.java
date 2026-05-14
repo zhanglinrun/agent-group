@@ -3,7 +3,9 @@ package com.linrun.infrastructure.llm;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.guide.adapter.GuideLlmClient;
+import com.linrun.domain.guide.model.GuideLlmResult;
 import com.linrun.domain.guide.model.GuideRagPrompt;
+import com.linrun.domain.guide.model.GuideTokenUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -34,6 +38,8 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
     private final Duration timeout;
     private final int maxRetries;
     private final long minIntervalMillis;
+    private final BigDecimal promptTokenPriceYuanPer1k;
+    private final BigDecimal completionTokenPriceYuanPer1k;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final AtomicLong lastCallMillis = new AtomicLong(0L);
@@ -44,11 +50,13 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
                                  @Value("${agent.group.llm.chat-model:qwen-plus}") String chatModel,
                                  @Value("${agent.group.llm.timeout-seconds:20}") long timeoutSeconds,
                                  @Value("${agent.group.llm.max-retries:2}") int maxRetries,
-                                 @Value("${agent.group.llm.min-interval-millis:200}") long minIntervalMillis) {
+                                 @Value("${agent.group.llm.min-interval-millis:200}") long minIntervalMillis,
+                                 @Value("${agent.group.llm.prompt-token-price-yuan-per-1k:0}") BigDecimal promptTokenPriceYuanPer1k,
+                                 @Value("${agent.group.llm.completion-token-price-yuan-per-1k:0}") BigDecimal completionTokenPriceYuanPer1k) {
         this(baseUrl, apiKey, chatModel, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(Math.max(1L, timeoutSeconds)))
                 .build(), new ObjectMapper(), Duration.ofSeconds(Math.max(1L, timeoutSeconds)),
-                maxRetries, minIntervalMillis);
+                maxRetries, minIntervalMillis, promptTokenPriceYuanPer1k, completionTokenPriceYuanPer1k);
     }
 
     OpenApiGuideLlmClient(String baseUrl,
@@ -56,7 +64,8 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
                           String chatModel,
                           HttpClient httpClient,
                           ObjectMapper objectMapper) {
-        this(baseUrl, apiKey, chatModel, httpClient, objectMapper, DEFAULT_TIMEOUT, 0, 0L);
+        this(baseUrl, apiKey, chatModel, httpClient, objectMapper, DEFAULT_TIMEOUT, 0, 0L,
+                BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
     OpenApiGuideLlmClient(String baseUrl,
@@ -67,6 +76,20 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
                           Duration timeout,
                           int maxRetries,
                           long minIntervalMillis) {
+        this(baseUrl, apiKey, chatModel, httpClient, objectMapper, timeout, maxRetries, minIntervalMillis,
+                BigDecimal.ZERO, BigDecimal.ZERO);
+    }
+
+    OpenApiGuideLlmClient(String baseUrl,
+                          String apiKey,
+                          String chatModel,
+                          HttpClient httpClient,
+                          ObjectMapper objectMapper,
+                          Duration timeout,
+                          int maxRetries,
+                          long minIntervalMillis,
+                          BigDecimal promptTokenPriceYuanPer1k,
+                          BigDecimal completionTokenPriceYuanPer1k) {
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
         this.chatModel = chatModel;
@@ -75,12 +98,20 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
         this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
         this.maxRetries = Math.max(0, maxRetries);
         this.minIntervalMillis = Math.max(0L, minIntervalMillis);
+        this.promptTokenPriceYuanPer1k = nonNegative(promptTokenPriceYuanPer1k);
+        this.completionTokenPriceYuanPer1k = nonNegative(completionTokenPriceYuanPer1k);
     }
 
     @Override
     public String complete(GuideRagPrompt prompt) {
+        return completeWithMetrics(prompt).getContent();
+    }
+
+    @Override
+    public GuideLlmResult completeWithMetrics(GuideRagPrompt prompt) {
+        long startNanos = System.nanoTime();
         if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl)) {
-            return prompt.getFallbackAnswer();
+            return fallback(prompt, startNanos);
         }
 
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
@@ -95,25 +126,25 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
                         .build();
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                    String content = parseContent(response.body());
-                    return StringUtils.hasText(content) ? content : prompt.getFallbackAnswer();
+                    GuideLlmResult result = parseResult(response.body(), startNanos);
+                    return StringUtils.hasText(result.getContent()) ? result : fallback(prompt, startNanos, result.getTokenUsage());
                 }
                 if (!shouldRetry(response.statusCode(), attempt)) {
                     LOGGER.warn("llm call failed without retry, status={}", response.statusCode());
-                    return prompt.getFallbackAnswer();
+                    return fallback(prompt, startNanos);
                 }
                 LOGGER.warn("llm call failed, status={}, attempt={}", response.statusCode(), attempt + 1);
                 sleepBeforeRetry(attempt);
             } catch (Exception e) {
                 if (attempt >= maxRetries) {
                     LOGGER.warn("llm call exhausted retries, reason={}", e.getClass().getSimpleName());
-                    return prompt.getFallbackAnswer();
+                    return fallback(prompt, startNanos);
                 }
                 LOGGER.warn("llm call exception, attempt={}, reason={}", attempt + 1, e.getClass().getSimpleName());
                 sleepBeforeRetry(attempt);
             }
         }
-        return prompt.getFallbackAnswer();
+        return fallback(prompt, startNanos);
     }
 
     private URI chatCompletionsUri() {
@@ -139,13 +170,68 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
         return message;
     }
 
-    private String parseContent(String responseBody) throws IOException {
+    private GuideLlmResult parseResult(String responseBody, long startNanos) throws IOException {
         JsonNode root = objectMapper.readTree(responseBody);
         JsonNode choices = root.path("choices");
         if (!choices.isArray() || choices.isEmpty()) {
-            return "";
+            return GuideLlmResult.of("", parseUsage(root), elapsedMillis(startNanos), true, chatModel);
         }
-        return choices.get(0).path("message").path("content").asText("");
+        String content = choices.get(0).path("message").path("content").asText("");
+        return GuideLlmResult.of(content, parseUsage(root), elapsedMillis(startNanos), false, chatModel);
+    }
+
+    private GuideTokenUsage parseUsage(JsonNode root) {
+        JsonNode usage = root.path("usage");
+        long promptTokens = firstLong(usage, "prompt_tokens", "input_tokens");
+        long completionTokens = firstLong(usage, "completion_tokens", "output_tokens");
+        long totalTokens = firstLong(usage, "total_tokens");
+        if (totalTokens <= 0L) {
+            totalTokens = promptTokens + completionTokens;
+        }
+        return new GuideTokenUsage(promptTokens, completionTokens, totalTokens,
+                estimateCostYuan(promptTokens, completionTokens));
+    }
+
+    private long firstLong(JsonNode node, String... fieldNames) {
+        if (node == null || node.isMissingNode()) {
+            return 0L;
+        }
+        for (String fieldName : fieldNames) {
+            JsonNode value = node.path(fieldName);
+            if (value.canConvertToLong()) {
+                return Math.max(0L, value.asLong());
+            }
+        }
+        return 0L;
+    }
+
+    private BigDecimal estimateCostYuan(long promptTokens, long completionTokens) {
+        BigDecimal promptCost = BigDecimal.valueOf(Math.max(0L, promptTokens))
+                .multiply(promptTokenPriceYuanPer1k)
+                .divide(BigDecimal.valueOf(1000L), 8, RoundingMode.HALF_UP);
+        BigDecimal completionCost = BigDecimal.valueOf(Math.max(0L, completionTokens))
+                .multiply(completionTokenPriceYuanPer1k)
+                .divide(BigDecimal.valueOf(1000L), 8, RoundingMode.HALF_UP);
+        return promptCost.add(completionCost).setScale(6, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal nonNegative(BigDecimal value) {
+        if (value == null || value.signum() < 0) {
+            return BigDecimal.ZERO;
+        }
+        return value;
+    }
+
+    private GuideLlmResult fallback(GuideRagPrompt prompt, long startNanos) {
+        return fallback(prompt, startNanos, GuideTokenUsage.empty());
+    }
+
+    private GuideLlmResult fallback(GuideRagPrompt prompt, long startNanos, GuideTokenUsage tokenUsage) {
+        return GuideLlmResult.of(prompt.getFallbackAnswer(), tokenUsage, elapsedMillis(startNanos), true, chatModel);
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 
     private boolean shouldRetry(int statusCode, int attempt) {

@@ -33,6 +33,11 @@ public class GuideEvaluationTriggerService {
         response.setRecommendationReasonableRate(report.getRecommendationReasonableRate());
         response.setContextConsistencyRate(report.getContextConsistencyRate());
         response.setAverageLatencyMillis(report.getAverageLatencyMillis());
+        response.setP99LatencyMillis(report.getP99LatencyMillis());
+        response.setTotalPromptTokens(report.getTotalPromptTokens());
+        response.setTotalCompletionTokens(report.getTotalCompletionTokens());
+        response.setTotalTokens(report.getTotalTokens());
+        response.setEstimatedCostYuan(report.getEstimatedCostYuan());
         response.setItems(report.getItems().stream().map(this::item).toList());
         response.setFeedbacks(report.getFeedbacks().stream().map(this::feedback).toList());
         return response;
@@ -58,6 +63,12 @@ public class GuideEvaluationTriggerService {
         dto.setRecommendationPassed(itemResult.isRecommendationPassed());
         dto.setContextPassed(itemResult.isContextPassed());
         dto.setLatencyMillis(itemResult.getLatencyMillis());
+        dto.setLlmLatencyMillis(itemResult.getLlmLatencyMillis());
+        dto.setPromptTokens(itemResult.getPromptTokens());
+        dto.setCompletionTokens(itemResult.getCompletionTokens());
+        dto.setTotalTokens(itemResult.getTotalTokens());
+        dto.setEstimatedCostYuan(itemResult.getEstimatedCostYuan());
+        dto.setFallbackUsed(itemResult.isFallbackUsed());
         dto.setScore(itemResult.getScore());
         dto.setSuggestion(itemResult.getSuggestion());
         return dto;

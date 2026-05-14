@@ -7,7 +7,9 @@ import com.linrun.domain.evaluate.model.GuideEvaluationItemResult;
 import com.linrun.domain.evaluate.model.GuideEvaluationReport;
 import com.linrun.domain.guide.model.GuideDecisionResult;
 import com.linrun.domain.guide.model.GuideProduct;
+import com.linrun.domain.guide.model.GuideRagAnswerResult;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.model.GuideTokenUsage;
 import com.linrun.domain.guide.service.GuideDecisionService;
 import com.linrun.domain.guide.service.GuideRagAnswerService;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,6 +57,11 @@ public class GuideEvaluationService {
         report.setRecommendationReasonableRate(rate(items, GuideEvaluationItemResult::isRecommendationPassed));
         report.setContextConsistencyRate(rate(items, GuideEvaluationItemResult::isContextPassed));
         report.setAverageLatencyMillis(averageLatencyMillis(items));
+        report.setP99LatencyMillis(percentileLatencyMillis(items, 0.99D));
+        report.setTotalPromptTokens(sum(items, GuideEvaluationItemResult::getPromptTokens));
+        report.setTotalCompletionTokens(sum(items, GuideEvaluationItemResult::getCompletionTokens));
+        report.setTotalTokens(sum(items, GuideEvaluationItemResult::getTotalTokens));
+        report.setEstimatedCostYuan(totalEstimatedCostYuan(items));
         report.setItems(items);
         report.setFeedbacks(buildFeedbacks(items));
         return report;
@@ -64,12 +72,14 @@ public class GuideEvaluationService {
         GuideEvaluationItemResult item = baseItem(evaluationCase);
         try {
             GuideDecisionResult decisionResult = guideDecisionService.decide(evaluationCase.getQuestion());
-            List<String> answerSegments = guideRagAnswerService.answer(evaluationCase.getQuestion(), decisionResult);
+            GuideRagAnswerResult answerResult = guideRagAnswerService.answerWithMetrics(evaluationCase.getQuestion(), decisionResult);
+            List<String> answerSegments = answerResult.getSegments();
             String referenceText = decisionResult.getReferences().stream()
                     .map(GuideReference::getContent)
                     .collect(Collectors.joining("\n"));
             String answerText = String.join("\n", answerSegments);
             GuideProduct product = decisionResult.getProduct();
+            fillTokenUsage(item, answerResult);
 
             item.setActualGoodsId(product == null ? "" : product.getGoodsId());
             item.setReferencePassed(containsAll(referenceText, evaluationCase.getRequiredReferenceKeywords()));
@@ -90,6 +100,16 @@ public class GuideEvaluationService {
         } finally {
             item.setLatencyMillis(elapsedMillis(startNanos));
         }
+    }
+
+    private void fillTokenUsage(GuideEvaluationItemResult item, GuideRagAnswerResult answerResult) {
+        GuideTokenUsage tokenUsage = answerResult.getTokenUsage();
+        item.setPromptTokens(tokenUsage.getPromptTokens());
+        item.setCompletionTokens(tokenUsage.getCompletionTokens());
+        item.setTotalTokens(tokenUsage.getTotalTokens());
+        item.setEstimatedCostYuan(tokenUsage.getEstimatedCostYuan());
+        item.setLlmLatencyMillis(answerResult.getLlmLatencyMillis());
+        item.setFallbackUsed(answerResult.isFallbackUsed());
     }
 
     private GuideEvaluationItemResult baseItem(GuideEvaluationCase evaluationCase) {
@@ -167,6 +187,30 @@ public class GuideEvaluationService {
                 .mapToLong(GuideEvaluationItemResult::getLatencyMillis)
                 .average()
                 .orElse(0D));
+    }
+
+    private long percentileLatencyMillis(List<GuideEvaluationItemResult> items, double percentile) {
+        if (items.isEmpty()) {
+            return 0L;
+        }
+        List<Long> latencies = items.stream()
+                .map(GuideEvaluationItemResult::getLatencyMillis)
+                .sorted()
+                .toList();
+        int index = (int) Math.ceil(latencies.size() * percentile) - 1;
+        return latencies.get(Math.max(0, Math.min(index, latencies.size() - 1)));
+    }
+
+    private long sum(List<GuideEvaluationItemResult> items, ToLongFunction<GuideEvaluationItemResult> mapper) {
+        return items.stream().mapToLong(mapper).sum();
+    }
+
+    private BigDecimal totalEstimatedCostYuan(List<GuideEvaluationItemResult> items) {
+        return items.stream()
+                .map(GuideEvaluationItemResult::getEstimatedCostYuan)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(6, RoundingMode.HALF_UP);
     }
 
     private long elapsedMillis(long startNanos) {

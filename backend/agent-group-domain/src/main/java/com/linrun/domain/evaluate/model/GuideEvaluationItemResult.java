@@ -12,6 +12,12 @@ public class GuideEvaluationItemResult {
     private boolean recommendationPassed;
     private boolean contextPassed;
     private long latencyMillis;
+    private long llmLatencyMillis;
+    private long promptTokens;
+    private long completionTokens;
+    private long totalTokens;
+    private java.math.BigDecimal estimatedCostYuan = java.math.BigDecimal.ZERO;
+    private boolean fallbackUsed;
     private int score;
     private String suggestion;
 
@@ -93,6 +99,54 @@ public class GuideEvaluationItemResult {
 
     public void setLatencyMillis(long latencyMillis) {
         this.latencyMillis = latencyMillis;
+    }
+
+    public long getLlmLatencyMillis() {
+        return llmLatencyMillis;
+    }
+
+    public void setLlmLatencyMillis(long llmLatencyMillis) {
+        this.llmLatencyMillis = llmLatencyMillis;
+    }
+
+    public long getPromptTokens() {
+        return promptTokens;
+    }
+
+    public void setPromptTokens(long promptTokens) {
+        this.promptTokens = promptTokens;
+    }
+
+    public long getCompletionTokens() {
+        return completionTokens;
+    }
+
+    public void setCompletionTokens(long completionTokens) {
+        this.completionTokens = completionTokens;
+    }
+
+    public long getTotalTokens() {
+        return totalTokens;
+    }
+
+    public void setTotalTokens(long totalTokens) {
+        this.totalTokens = totalTokens;
+    }
+
+    public java.math.BigDecimal getEstimatedCostYuan() {
+        return estimatedCostYuan;
+    }
+
+    public void setEstimatedCostYuan(java.math.BigDecimal estimatedCostYuan) {
+        this.estimatedCostYuan = estimatedCostYuan == null ? java.math.BigDecimal.ZERO : estimatedCostYuan;
+    }
+
+    public boolean isFallbackUsed() {
+        return fallbackUsed;
+    }
+
+    public void setFallbackUsed(boolean fallbackUsed) {
+        this.fallbackUsed = fallbackUsed;
     }
 
     public int getScore() {

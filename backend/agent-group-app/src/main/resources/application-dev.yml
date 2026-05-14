@@ -73,6 +73,8 @@ agent:
       timeout-seconds: ${AGENT_GROUP_LLM_TIMEOUT_SECONDS:20}
       max-retries: ${AGENT_GROUP_LLM_MAX_RETRIES:2}
       min-interval-millis: ${AGENT_GROUP_LLM_MIN_INTERVAL_MILLIS:200}
+      prompt-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_PROMPT_TOKEN_PRICE_YUAN_PER_1K:0}
+      completion-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_COMPLETION_TOKEN_PRICE_YUAN_PER_1K:0}
     upload:
       allowed-extensions: ${AGENT_GROUP_UPLOAD_ALLOWED_EXTENSIONS:md,txt,pdf,docx}
       max-file-size-bytes: ${AGENT_GROUP_UPLOAD_MAX_FILE_SIZE_BYTES:10485760}

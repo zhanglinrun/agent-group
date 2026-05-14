@@ -5,13 +5,16 @@ import com.linrun.api.agent.request.GuideStreamRequest;
 import com.linrun.api.agent.response.AnswerDeltaDTO;
 import com.linrun.api.agent.response.ErrorDTO;
 import com.linrun.api.agent.response.GuideStreamEvent;
+import com.linrun.api.agent.response.GuideUsageMetricsDTO;
 import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.ReferenceDeltaDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.guide.model.GuideDecisionResult;
 import com.linrun.domain.guide.model.GuideProduct;
+import com.linrun.domain.guide.model.GuideRagAnswerResult;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.guide.model.GuideTokenUsage;
 import com.linrun.domain.guide.model.GuideUserInput;
 import com.linrun.domain.guide.model.RecommendationResult;
 import com.linrun.domain.guide.service.GuideConversationService;
@@ -45,6 +48,7 @@ public class AgentGuideStreamService {
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
+        long startNanos = System.nanoTime();
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         AtomicInteger sequence = new AtomicInteger(1);
         String imageSummary = guideImageInputService.parseImage(request.getImageUrl(), request.getImageName());
@@ -81,7 +85,8 @@ public class AgentGuideStreamService {
             add(events, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference));
         }
 
-        List<String> answerSegments = guideRagAnswerService.answer(effectiveQuestion, decisionResult);
+        GuideRagAnswerResult answerResult = guideRagAnswerService.answerWithMetrics(effectiveQuestion, decisionResult);
+        List<String> answerSegments = answerResult.getSegments();
         for (String answerSegment : answerSegments) {
             add(events, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment));
         }
@@ -91,6 +96,8 @@ public class AgentGuideStreamService {
                 selfCheck(decisionResult.getRecommendationResult()));
         guideConversationService.rememberUserInput(userInput);
         guideConversationService.rememberAssistantAnswer(sessionId, answerSegments);
+        add(events, sessionId, requestId, sequence, GuideEventType.USAGE_METRIC,
+                usageMetrics(answerResult, elapsedMillis(startNanos)));
         add(events, sessionId, requestId, sequence, GuideEventType.DONE, "done");
         return events;
     }
@@ -153,6 +160,23 @@ public class AgentGuideStreamService {
         dto.setPassed(recommendationResult.isPassedSelfCheck());
         dto.setMessage(recommendationResult.getSelfCheckMessage());
         return dto;
+    }
+
+    private GuideUsageMetricsDTO usageMetrics(GuideRagAnswerResult answerResult, long totalLatencyMillis) {
+        GuideUsageMetricsDTO dto = new GuideUsageMetricsDTO();
+        GuideTokenUsage tokenUsage = answerResult.getTokenUsage();
+        dto.setPromptTokens(tokenUsage.getPromptTokens());
+        dto.setCompletionTokens(tokenUsage.getCompletionTokens());
+        dto.setTotalTokens(tokenUsage.getTotalTokens());
+        dto.setEstimatedCostYuan(tokenUsage.getEstimatedCostYuan());
+        dto.setLlmLatencyMillis(answerResult.getLlmLatencyMillis());
+        dto.setTotalLatencyMillis(totalLatencyMillis);
+        dto.setFallbackUsed(answerResult.isFallbackUsed());
+        return dto;
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 
     private ErrorDTO error(String code, String message) {

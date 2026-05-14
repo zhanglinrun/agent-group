@@ -4,6 +4,7 @@ import com.linrun.api.agent.model.GuideEventType;
 import com.linrun.api.agent.request.GuideStreamRequest;
 import com.linrun.api.agent.response.ErrorDTO;
 import com.linrun.api.agent.response.GuideStreamEvent;
+import com.linrun.api.agent.response.GuideUsageMetricsDTO;
 import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
@@ -52,9 +53,10 @@ class AgentGuideStreamServiceTest {
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.PRODUCT_CARD.getCode(),
                 GuideEventType.SELF_CHECK.getCode(),
+                GuideEventType.USAGE_METRIC.getCode(),
                 GuideEventType.DONE.getCode()
         ), events.stream().map(GuideStreamEvent::getEvent).toList());
-        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), events.stream().map(GuideStreamEvent::getSequence).toList());
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), events.stream().map(GuideStreamEvent::getSequence).toList());
 
         ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(7).getData());
         assertEquals("G10001", productCard.getGoodsId());
@@ -62,6 +64,8 @@ class AgentGuideStreamServiceTest {
         assertEquals(new BigDecimal("2099.00"), productCard.getGroupPrice());
         SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(8).getData());
         assertEquals(Boolean.TRUE, selfCheck.getPassed());
+        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(9).getData());
+        assertTrue(usageMetrics.getTotalLatencyMillis() >= 0);
         assertEquals("推荐商品、价格、规格和推荐理由完整", selfCheck.getMessage());
     }
 

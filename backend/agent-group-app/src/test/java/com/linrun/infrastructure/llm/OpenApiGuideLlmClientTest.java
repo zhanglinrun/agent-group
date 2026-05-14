@@ -1,12 +1,14 @@
 package com.linrun.infrastructure.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.domain.guide.model.GuideLlmResult;
 import com.linrun.domain.guide.model.GuideRagPrompt;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
@@ -51,6 +53,34 @@ class OpenApiGuideLlmClientTest {
             assertEquals("Bearer test-api-key", authorization.get());
             assertTrue(requestBody.get().contains("\"model\":\"qwen-plus\""));
             assertTrue(requestBody.get().contains("用户提示词"));
+        }
+    }
+
+    @Test
+    void shouldParseUsageAndEstimateCost() throws IOException {
+        try (MockLlmServer server = MockLlmServer.start(new AtomicReference<>(), new AtomicReference<>(), 200, """
+                {"choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":1000,"completion_tokens":1000,"total_tokens":2000}}
+                """)) {
+            OpenApiGuideLlmClient client = new OpenApiGuideLlmClient(
+                    server.baseUrl(),
+                    "test-api-key",
+                    "qwen-plus",
+                    HttpClient.newHttpClient(),
+                    new ObjectMapper(),
+                    Duration.ofSeconds(2),
+                    0,
+                    0L,
+                    new BigDecimal("0.001"),
+                    new BigDecimal("0.002"));
+
+            GuideLlmResult result = client.completeWithMetrics(prompt());
+
+            assertEquals("ok", result.getContent());
+            assertEquals(1000L, result.getTokenUsage().getPromptTokens());
+            assertEquals(1000L, result.getTokenUsage().getCompletionTokens());
+            assertEquals(2000L, result.getTokenUsage().getTotalTokens());
+            assertEquals(new BigDecimal("0.003000"), result.getTokenUsage().getEstimatedCostYuan());
+            assertTrue(result.getLatencyMillis() >= 0);
         }
     }
 
