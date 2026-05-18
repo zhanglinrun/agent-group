@@ -24,6 +24,11 @@ public class GuideEvaluationReportResponse implements Serializable {
     private Long totalCompletionTokens;
     private Long totalTokens;
     private BigDecimal estimatedCostYuan;
+    private String baselineBatchNo;
+    private BigDecimal retrievalHitRateDelta;
+    private BigDecimal answerAccuracyRateDelta;
+    private BigDecimal recommendationReasonableRateDelta;
+    private BigDecimal contextConsistencyRateDelta;
     private List<GuideEvaluationItemDTO> items = new ArrayList<>();
     private List<GuideEvaluationFeedbackDTO> feedbacks = new ArrayList<>();
 }

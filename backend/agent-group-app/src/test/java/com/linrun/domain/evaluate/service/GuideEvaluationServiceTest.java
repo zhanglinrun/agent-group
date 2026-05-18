@@ -1,6 +1,7 @@
 package com.linrun.domain.evaluate.service;
 
 import com.linrun.domain.evaluate.adapter.GuideEvaluationCaseRepository;
+import com.linrun.domain.evaluate.adapter.GuideEvaluationReportRepository;
 import com.linrun.domain.evaluate.model.GuideEvaluationCase;
 import com.linrun.domain.evaluate.model.GuideEvaluationReport;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,8 +31,10 @@ class GuideEvaluationServiceTest {
 
     @Test
     void shouldRunBatchAndCalculateQualityMetrics() {
+        FakeGuideEvaluationReportRepository reportRepository = new FakeGuideEvaluationReportRepository();
         GuideEvaluationService service = new GuideEvaluationService(
                 new FakeGuideEvaluationCaseRepository(),
+                reportRepository,
                 new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService()),
                 new GuideRagAnswerService(
                         new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
@@ -50,6 +54,36 @@ class GuideEvaluationServiceTest {
         assertTrue(report.getItems().get(0).getLatencyMillis() >= 0);
         assertEquals(1, report.getFeedbacks().size());
         assertEquals("QUALITY", report.getFeedbacks().get(0).getTargetType());
+        assertEquals(report.getBatchNo(), reportRepository.queryLatest().orElseThrow().getBatchNo());
+    }
+
+    @Test
+    void shouldCompareCurrentReportWithLatestPersistedBaseline() {
+        FakeGuideEvaluationReportRepository reportRepository = new FakeGuideEvaluationReportRepository();
+        GuideEvaluationReport baseline = new GuideEvaluationReport();
+        baseline.setBatchNo("EVAL20260518090000000");
+        baseline.setRetrievalHitRate(new BigDecimal("75.00"));
+        baseline.setAnswerAccuracyRate(new BigDecimal("80.00"));
+        baseline.setRecommendationReasonableRate(new BigDecimal("90.00"));
+        baseline.setContextConsistencyRate(new BigDecimal("100.00"));
+        reportRepository.save(baseline);
+
+        GuideEvaluationService service = new GuideEvaluationService(
+                new FakeGuideEvaluationCaseRepository(),
+                reportRepository,
+                new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService()),
+                new GuideRagAnswerService(
+                        new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
+                        prompt -> prompt.getFallbackAnswer()));
+
+        GuideEvaluationReport report = service.runBatch();
+
+        assertEquals("EVAL20260518090000000", report.getBaselineBatchNo());
+        assertEquals(new BigDecimal("25.00"), report.getRetrievalHitRateDelta());
+        assertEquals(new BigDecimal("20.00"), report.getAnswerAccuracyRateDelta());
+        assertEquals(new BigDecimal("10.00"), report.getRecommendationReasonableRateDelta());
+        assertEquals(new BigDecimal("0.00"), report.getContextConsistencyRateDelta());
+        assertEquals(report.getBatchNo(), service.queryLatestReport().getBatchNo());
     }
 
     private static GroupBuyActivityService groupBuyService() {
@@ -104,6 +138,11 @@ class GuideEvaluationServiceTest {
         }
 
         @Override
+        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+            return queryRecommendProduct(question).stream().toList();
+        }
+
+        @Override
         public Optional<GuideProduct> queryRecommendProduct(String question) {
             GuideProduct product = new GuideProduct();
             product.setGoodsId("G10001");
@@ -120,6 +159,21 @@ class GuideEvaluationServiceTest {
         @Override
         public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             return queryRecommendProduct(goodsId);
+        }
+    }
+
+    private static class FakeGuideEvaluationReportRepository implements GuideEvaluationReportRepository {
+
+        private final AtomicReference<GuideEvaluationReport> latest = new AtomicReference<>();
+
+        @Override
+        public void save(GuideEvaluationReport report) {
+            latest.set(report);
+        }
+
+        @Override
+        public Optional<GuideEvaluationReport> queryLatest() {
+            return Optional.ofNullable(latest.get());
         }
     }
 

@@ -1,6 +1,7 @@
 package com.linrun.domain.evaluate.service;
 
 import com.linrun.domain.evaluate.adapter.GuideEvaluationCaseRepository;
+import com.linrun.domain.evaluate.adapter.GuideEvaluationReportRepository;
 import com.linrun.domain.evaluate.model.GuideEvaluationCase;
 import com.linrun.domain.evaluate.model.GuideEvaluationFeedback;
 import com.linrun.domain.evaluate.model.GuideEvaluationItemResult;
@@ -27,16 +28,19 @@ import java.util.stream.Collectors;
 @Service
 public class GuideEvaluationService {
 
-    private static final DateTimeFormatter BATCH_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final DateTimeFormatter BATCH_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
 
     private final GuideEvaluationCaseRepository guideEvaluationCaseRepository;
+    private final GuideEvaluationReportRepository guideEvaluationReportRepository;
     private final GuideDecisionService guideDecisionService;
     private final GuideRagAnswerService guideRagAnswerService;
 
     public GuideEvaluationService(GuideEvaluationCaseRepository guideEvaluationCaseRepository,
+                                  GuideEvaluationReportRepository guideEvaluationReportRepository,
                                   GuideDecisionService guideDecisionService,
                                   GuideRagAnswerService guideRagAnswerService) {
         this.guideEvaluationCaseRepository = guideEvaluationCaseRepository;
+        this.guideEvaluationReportRepository = guideEvaluationReportRepository;
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
     }
@@ -63,8 +67,35 @@ public class GuideEvaluationService {
         report.setTotalTokens(sum(items, GuideEvaluationItemResult::getTotalTokens));
         report.setEstimatedCostYuan(totalEstimatedCostYuan(items));
         report.setItems(items);
+        fillBaselineDelta(report);
         report.setFeedbacks(buildFeedbacks(items));
+        guideEvaluationReportRepository.save(report);
         return report;
+    }
+
+    public GuideEvaluationReport queryLatestReport() {
+        return guideEvaluationReportRepository.queryLatest()
+                .orElseGet(GuideEvaluationReport::new);
+    }
+
+    private void fillBaselineDelta(GuideEvaluationReport report) {
+        guideEvaluationReportRepository.queryLatest().ifPresent(previous -> {
+            report.setBaselineBatchNo(previous.getBatchNo());
+            report.setRetrievalHitRateDelta(delta(report.getRetrievalHitRate(), previous.getRetrievalHitRate()));
+            report.setAnswerAccuracyRateDelta(delta(report.getAnswerAccuracyRate(), previous.getAnswerAccuracyRate()));
+            report.setRecommendationReasonableRateDelta(delta(report.getRecommendationReasonableRate(),
+                    previous.getRecommendationReasonableRate()));
+            report.setContextConsistencyRateDelta(delta(report.getContextConsistencyRate(),
+                    previous.getContextConsistencyRate()));
+        });
+    }
+
+    private BigDecimal delta(BigDecimal current, BigDecimal previous) {
+        return zero(current).subtract(zero(previous)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal zero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private GuideEvaluationItemResult evaluateOne(GuideEvaluationCase evaluationCase) {

@@ -20,6 +20,11 @@ public class GuideEvaluationReport {
     private long totalCompletionTokens;
     private long totalTokens;
     private BigDecimal estimatedCostYuan = BigDecimal.ZERO;
+    private String baselineBatchNo;
+    private BigDecimal retrievalHitRateDelta = BigDecimal.ZERO;
+    private BigDecimal answerAccuracyRateDelta = BigDecimal.ZERO;
+    private BigDecimal recommendationReasonableRateDelta = BigDecimal.ZERO;
+    private BigDecimal contextConsistencyRateDelta = BigDecimal.ZERO;
     private List<GuideEvaluationItemResult> items = new ArrayList<>();
     private List<GuideEvaluationFeedback> feedbacks = new ArrayList<>();
 
@@ -135,12 +140,54 @@ public class GuideEvaluationReport {
         this.estimatedCostYuan = estimatedCostYuan == null ? BigDecimal.ZERO : estimatedCostYuan;
     }
 
+    public String getBaselineBatchNo() {
+        return baselineBatchNo;
+    }
+
+    public void setBaselineBatchNo(String baselineBatchNo) {
+        this.baselineBatchNo = baselineBatchNo;
+    }
+
+    public BigDecimal getRetrievalHitRateDelta() {
+        return retrievalHitRateDelta;
+    }
+
+    public void setRetrievalHitRateDelta(BigDecimal retrievalHitRateDelta) {
+        this.retrievalHitRateDelta = retrievalHitRateDelta == null ? BigDecimal.ZERO : retrievalHitRateDelta;
+    }
+
+    public BigDecimal getAnswerAccuracyRateDelta() {
+        return answerAccuracyRateDelta;
+    }
+
+    public void setAnswerAccuracyRateDelta(BigDecimal answerAccuracyRateDelta) {
+        this.answerAccuracyRateDelta = answerAccuracyRateDelta == null ? BigDecimal.ZERO : answerAccuracyRateDelta;
+    }
+
+    public BigDecimal getRecommendationReasonableRateDelta() {
+        return recommendationReasonableRateDelta;
+    }
+
+    public void setRecommendationReasonableRateDelta(BigDecimal recommendationReasonableRateDelta) {
+        this.recommendationReasonableRateDelta = recommendationReasonableRateDelta == null
+                ? BigDecimal.ZERO
+                : recommendationReasonableRateDelta;
+    }
+
+    public BigDecimal getContextConsistencyRateDelta() {
+        return contextConsistencyRateDelta;
+    }
+
+    public void setContextConsistencyRateDelta(BigDecimal contextConsistencyRateDelta) {
+        this.contextConsistencyRateDelta = contextConsistencyRateDelta == null ? BigDecimal.ZERO : contextConsistencyRateDelta;
+    }
+
     public List<GuideEvaluationItemResult> getItems() {
         return items;
     }
 
     public void setItems(List<GuideEvaluationItemResult> items) {
-        this.items = items;
+        this.items = items == null ? new ArrayList<>() : new ArrayList<>(items);
     }
 
     public List<GuideEvaluationFeedback> getFeedbacks() {

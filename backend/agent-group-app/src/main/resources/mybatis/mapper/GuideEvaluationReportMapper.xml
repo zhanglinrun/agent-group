@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IGuideEvaluationReportDao">
+
+    <resultMap id="GuideEvaluationReportMap" type="com.linrun.domain.evaluate.model.GuideEvaluationReport">
+        <id column="batch_no" property="batchNo"/>
+        <result column="prompt_version" property="promptVersion"/>
+        <result column="knowledge_version" property="knowledgeVersion"/>
+        <result column="total_count" property="totalCount"/>
+        <result column="retrieval_hit_rate" property="retrievalHitRate"/>
+        <result column="answer_accuracy_rate" property="answerAccuracyRate"/>
+        <result column="recommendation_reasonable_rate" property="recommendationReasonableRate"/>
+        <result column="context_consistency_rate" property="contextConsistencyRate"/>
+        <result column="average_latency_millis" property="averageLatencyMillis"/>
+        <result column="p99_latency_millis" property="p99LatencyMillis"/>
+        <result column="total_prompt_tokens" property="totalPromptTokens"/>
+        <result column="total_completion_tokens" property="totalCompletionTokens"/>
+        <result column="total_tokens" property="totalTokens"/>
+        <result column="estimated_cost_yuan" property="estimatedCostYuan"/>
+        <result column="baseline_batch_no" property="baselineBatchNo"/>
+        <result column="retrieval_hit_rate_delta" property="retrievalHitRateDelta"/>
+        <result column="answer_accuracy_rate_delta" property="answerAccuracyRateDelta"/>
+        <result column="recommendation_reasonable_rate_delta" property="recommendationReasonableRateDelta"/>
+        <result column="context_consistency_rate_delta" property="contextConsistencyRateDelta"/>
+    </resultMap>
+
+    <resultMap id="GuideEvaluationItemMap" type="com.linrun.domain.evaluate.model.GuideEvaluationItemResult">
+        <id column="case_id" property="caseId"/>
+        <result column="case_name" property="caseName"/>
+        <result column="question" property="question"/>
+        <result column="expected_goods_id" property="expectedGoodsId"/>
+        <result column="actual_goods_id" property="actualGoodsId"/>
+        <result column="reference_passed" property="referencePassed"/>
+        <result column="answer_passed" property="answerPassed"/>
+        <result column="recommendation_passed" property="recommendationPassed"/>
+        <result column="context_passed" property="contextPassed"/>
+        <result column="latency_millis" property="latencyMillis"/>
+        <result column="llm_latency_millis" property="llmLatencyMillis"/>
+        <result column="prompt_tokens" property="promptTokens"/>
+        <result column="completion_tokens" property="completionTokens"/>
+        <result column="total_tokens" property="totalTokens"/>
+        <result column="estimated_cost_yuan" property="estimatedCostYuan"/>
+        <result column="fallback_used" property="fallbackUsed"/>
+        <result column="score" property="score"/>
+        <result column="suggestion" property="suggestion"/>
+    </resultMap>
+
+    <resultMap id="GuideEvaluationFeedbackMap" type="com.linrun.domain.evaluate.model.GuideEvaluationFeedback">
+        <result column="target_type" property="targetType"/>
+        <result column="priority" property="priority"/>
+        <result column="content" property="content"/>
+    </resultMap>
+
+    <insert id="insertReport" parameterType="com.linrun.domain.evaluate.model.GuideEvaluationReport">
+        insert into guide_evaluation_report (
+          batch_no,
+          prompt_version,
+          knowledge_version,
+          total_count,
+          retrieval_hit_rate,
+          answer_accuracy_rate,
+          recommendation_reasonable_rate,
+          context_consistency_rate,
+          average_latency_millis,
+          p99_latency_millis,
+          total_prompt_tokens,
+          total_completion_tokens,
+          total_tokens,
+          estimated_cost_yuan,
+          baseline_batch_no,
+          retrieval_hit_rate_delta,
+          answer_accuracy_rate_delta,
+          recommendation_reasonable_rate_delta,
+          context_consistency_rate_delta
+        ) values (
+          #{batchNo},
+          #{promptVersion},
+          #{knowledgeVersion},
+          #{totalCount},
+          #{retrievalHitRate},
+          #{answerAccuracyRate},
+          #{recommendationReasonableRate},
+          #{contextConsistencyRate},
+          #{averageLatencyMillis},
+          #{p99LatencyMillis},
+          #{totalPromptTokens},
+          #{totalCompletionTokens},
+          #{totalTokens},
+          #{estimatedCostYuan},
+          #{baselineBatchNo},
+          #{retrievalHitRateDelta},
+          #{answerAccuracyRateDelta},
+          #{recommendationReasonableRateDelta},
+          #{contextConsistencyRateDelta}
+        )
+    </insert>
+
+    <insert id="insertItems">
+        insert into guide_evaluation_item (
+          batch_no,
+          case_id,
+          case_name,
+          question,
+          expected_goods_id,
+          actual_goods_id,
+          reference_passed,
+          answer_passed,
+          recommendation_passed,
+          context_passed,
+          latency_millis,
+          llm_latency_millis,
+          prompt_tokens,
+          completion_tokens,
+          total_tokens,
+          estimated_cost_yuan,
+          fallback_used,
+          score,
+          suggestion
+        ) values
+        <foreach collection="items" item="item" separator=",">
+        (
+          #{batchNo},
+          #{item.caseId},
+          #{item.caseName},
+          #{item.question},
+          #{item.expectedGoodsId},
+          #{item.actualGoodsId},
+          #{item.referencePassed},
+          #{item.answerPassed},
+          #{item.recommendationPassed},
+          #{item.contextPassed},
+          #{item.latencyMillis},
+          #{item.llmLatencyMillis},
+          #{item.promptTokens},
+          #{item.completionTokens},
+          #{item.totalTokens},
+          #{item.estimatedCostYuan},
+          #{item.fallbackUsed},
+          #{item.score},
+          #{item.suggestion}
+        )
+        </foreach>
+    </insert>
+
+    <insert id="insertFeedbacks">
+        insert into guide_evaluation_feedback (
+          batch_no,
+          target_type,
+          priority,
+          content
+        ) values
+        <foreach collection="feedbacks" item="feedback" separator=",">
+        (
+          #{batchNo},
+          #{feedback.targetType},
+          #{feedback.priority},
+          #{feedback.content}
+        )
+        </foreach>
+    </insert>
+
+    <select id="queryLatestReport" resultMap="GuideEvaluationReportMap">
+        select batch_no,
+               prompt_version,
+               knowledge_version,
+               total_count,
+               retrieval_hit_rate,
+               answer_accuracy_rate,
+               recommendation_reasonable_rate,
+               context_consistency_rate,
+               average_latency_millis,
+               p99_latency_millis,
+               total_prompt_tokens,
+               total_completion_tokens,
+               total_tokens,
+               estimated_cost_yuan,
+               baseline_batch_no,
+               retrieval_hit_rate_delta,
+               answer_accuracy_rate_delta,
+               recommendation_reasonable_rate_delta,
+               context_consistency_rate_delta
+        from guide_evaluation_report
+        order by id desc
+        limit 1
+    </select>
+
+    <select id="queryItemsByBatchNo" resultMap="GuideEvaluationItemMap">
+        select case_id,
+               case_name,
+               question,
+               expected_goods_id,
+               actual_goods_id,
+               reference_passed,
+               answer_passed,
+               recommendation_passed,
+               context_passed,
+               latency_millis,
+               llm_latency_millis,
+               prompt_tokens,
+               completion_tokens,
+               total_tokens,
+               estimated_cost_yuan,
+               fallback_used,
+               score,
+               suggestion
+        from guide_evaluation_item
+        where batch_no = #{batchNo}
+        order by id asc
+    </select>
+
+    <select id="queryFeedbacksByBatchNo" resultMap="GuideEvaluationFeedbackMap">
+        select target_type,
+               priority,
+               content
+        from guide_evaluation_feedback
+        where batch_no = #{batchNo}
+        order by id asc
+    </select>
+</mapper>

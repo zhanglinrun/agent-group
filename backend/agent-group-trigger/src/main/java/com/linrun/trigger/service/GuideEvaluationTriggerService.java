@@ -22,6 +22,10 @@ public class GuideEvaluationTriggerService {
         return response(guideEvaluationService.runBatch());
     }
 
+    public GuideEvaluationReportResponse queryLatestReport() {
+        return response(guideEvaluationService.queryLatestReport());
+    }
+
     private GuideEvaluationReportResponse response(GuideEvaluationReport report) {
         GuideEvaluationReportResponse response = new GuideEvaluationReportResponse();
         response.setBatchNo(report.getBatchNo());
@@ -38,6 +42,11 @@ public class GuideEvaluationTriggerService {
         response.setTotalCompletionTokens(report.getTotalCompletionTokens());
         response.setTotalTokens(report.getTotalTokens());
         response.setEstimatedCostYuan(report.getEstimatedCostYuan());
+        response.setBaselineBatchNo(report.getBaselineBatchNo());
+        response.setRetrievalHitRateDelta(report.getRetrievalHitRateDelta());
+        response.setAnswerAccuracyRateDelta(report.getAnswerAccuracyRateDelta());
+        response.setRecommendationReasonableRateDelta(report.getRecommendationReasonableRateDelta());
+        response.setContextConsistencyRateDelta(report.getContextConsistencyRateDelta());
         response.setItems(report.getItems().stream().map(this::item).toList());
         response.setFeedbacks(report.getFeedbacks().stream().map(this::feedback).toList());
         return response;
