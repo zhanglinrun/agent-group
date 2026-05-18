@@ -66,15 +66,19 @@ agent:
       bucket-name: ${AGENT_GROUP_MINIO_BUCKET:agent-group}
     llm:
       base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-      api-key: ${AGENT_GROUP_LLM_API_KEY:}
+      api-key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:}}
       chat-model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.6-plus}
       embedding-model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v3}
-      vision-model: ${AGENT_GROUP_LLM_VISION_MODEL:qwen3.6-plus}
+      vision-model: ${AGENT_GROUP_LLM_VISION_MODEL:qwen3-vl-plus}
       timeout-seconds: ${AGENT_GROUP_LLM_TIMEOUT_SECONDS:20}
       max-retries: ${AGENT_GROUP_LLM_MAX_RETRIES:2}
       min-interval-millis: ${AGENT_GROUP_LLM_MIN_INTERVAL_MILLIS:200}
       prompt-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_PROMPT_TOKEN_PRICE_YUAN_PER_1K:0}
       completion-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_COMPLETION_TOKEN_PRICE_YUAN_PER_1K:0}
+    multimodal:
+      image:
+        max-file-size-bytes: ${AGENT_GROUP_MULTIMODAL_IMAGE_MAX_FILE_SIZE_BYTES:5242880}
+        allowed-content-types: ${AGENT_GROUP_MULTIMODAL_IMAGE_ALLOWED_CONTENT_TYPES:image/jpeg,image/png,image/webp,image/gif}
     upload:
       allowed-extensions: ${AGENT_GROUP_UPLOAD_ALLOWED_EXTENSIONS:md,txt,pdf,docx}
       max-file-size-bytes: ${AGENT_GROUP_UPLOAD_MAX_FILE_SIZE_BYTES:10485760}

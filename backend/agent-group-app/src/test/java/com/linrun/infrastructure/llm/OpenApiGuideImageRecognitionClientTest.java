@@ -22,7 +22,7 @@ class OpenApiGuideImageRecognitionClientTest {
         OpenApiGuideImageRecognitionClient client = new OpenApiGuideImageRecognitionClient(
                 "http://127.0.0.1:18080/",
                 "",
-                "qwen-vl-plus",
+                "qwen3-vl-plus",
                 Duration.ofSeconds(2),
                 HttpClient.newHttpClient(),
                 new ObjectMapper());
@@ -37,7 +37,7 @@ class OpenApiGuideImageRecognitionClientTest {
             OpenApiGuideImageRecognitionClient client = new OpenApiGuideImageRecognitionClient(
                     server.baseUrl(),
                     "test-api-key",
-                    "qwen-vl-plus",
+                    "qwen3-vl-plus",
                     Duration.ofSeconds(2),
                     HttpClient.newHttpClient(),
                     new ObjectMapper());
@@ -45,7 +45,7 @@ class OpenApiGuideImageRecognitionClientTest {
             String summary = client.recognize("https://example.com/pad.png");
 
             assertEquals("图片中包含平板商品和拼团价。", summary);
-            assertTrue(requestBody.get().contains("\"model\":\"qwen-vl-plus\""));
+            assertTrue(requestBody.get().contains("\"model\":\"qwen3-vl-plus\""));
             assertTrue(requestBody.get().contains("https://example.com/pad.png"));
         }
     }

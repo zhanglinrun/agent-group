@@ -1,9 +1,11 @@
 package com.linrun.trigger.http;
 
 import com.linrun.api.agent.request.GuideStreamRequest;
+import com.linrun.api.agent.response.GuideImageUploadResponse;
 import com.linrun.api.agent.response.GuideStreamEvent;
 import com.linrun.domain.guide.adapter.GuideStreamControlRepository;
 import com.linrun.trigger.config.RequestTraceContext;
+import com.linrun.trigger.service.GuideImageUploadService;
 import com.linrun.trigger.service.AgentGuideStreamService;
 import com.linrun.types.response.Response;
 import jakarta.annotation.PreDestroy;
@@ -14,7 +16,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
@@ -30,14 +34,22 @@ import java.util.concurrent.Executors;
 @RequestMapping("/api/v1/agent")
 public class AgentGuideController {
 
-    private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
+    private final ExecutorService streamExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final AgentGuideStreamService agentGuideStreamService;
+    private final GuideImageUploadService guideImageUploadService;
     private final GuideStreamControlRepository guideStreamControlRepository;
 
     public AgentGuideController(AgentGuideStreamService agentGuideStreamService,
+                                GuideImageUploadService guideImageUploadService,
                                 GuideStreamControlRepository guideStreamControlRepository) {
         this.agentGuideStreamService = agentGuideStreamService;
+        this.guideImageUploadService = guideImageUploadService;
         this.guideStreamControlRepository = guideStreamControlRepository;
+    }
+
+    @PostMapping(value = "/guide/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Response<GuideImageUploadResponse> uploadGuideImage(@RequestParam("file") MultipartFile file) {
+        return Response.success(guideImageUploadService.uploadImage(file), RequestTraceContext.getRequestId());
     }
 
     @PostMapping(value = "/guide/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

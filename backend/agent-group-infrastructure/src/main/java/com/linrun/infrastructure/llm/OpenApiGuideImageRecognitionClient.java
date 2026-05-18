@@ -37,7 +37,7 @@ public class OpenApiGuideImageRecognitionClient implements GuideImageRecognition
     @Autowired
     public OpenApiGuideImageRecognitionClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                               @Value("${agent.group.llm.api-key:}") String apiKey,
-                                              @Value("${agent.group.llm.vision-model:qwen-vl-plus}") String visionModel,
+                                              @Value("${agent.group.llm.vision-model:qwen3-vl-plus}") String visionModel,
                                               @Value("${agent.group.llm.timeout-seconds:20}") long timeoutSeconds) {
         this(baseUrl, apiKey, visionModel, Duration.ofSeconds(Math.max(1L, timeoutSeconds)),
                 HttpClient.newHttpClient(), new ObjectMapper());
