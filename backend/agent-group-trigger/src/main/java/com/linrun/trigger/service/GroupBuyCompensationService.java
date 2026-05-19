@@ -5,6 +5,7 @@ import com.linrun.api.groupbuy.request.RefundGroupBuyOrderRequest;
 import com.linrun.api.groupbuy.response.GroupBuyCompensationResponse;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
+import com.linrun.domain.groupbuy.adapter.GroupBuyTeamStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
@@ -34,6 +35,7 @@ public class GroupBuyCompensationService {
     private final TradeOrderService tradeOrderService;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final GroupBuyStockRepository groupBuyStockRepository;
+    private final GroupBuyTeamStockRepository groupBuyTeamStockRepository;
     private final TradeStatusFlowService tradeStatusFlowService;
 
     public GroupBuyCompensationService(TradeOrderRepository tradeOrderRepository,
@@ -41,7 +43,16 @@ public class GroupBuyCompensationService {
                                        GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                        TradeStatusFlowService tradeStatusFlowService) {
         this(tradeOrderRepository, tradeOrderService, groupBuyOrderLockRepository,
-                GroupBuyStockRepository.noop(), tradeStatusFlowService);
+                GroupBuyStockRepository.noop(), GroupBuyTeamStockRepository.noop(), tradeStatusFlowService);
+    }
+
+    public GroupBuyCompensationService(TradeOrderRepository tradeOrderRepository,
+                                       TradeOrderService tradeOrderService,
+                                       GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                       GroupBuyStockRepository groupBuyStockRepository,
+                                       TradeStatusFlowService tradeStatusFlowService) {
+        this(tradeOrderRepository, tradeOrderService, groupBuyOrderLockRepository,
+                groupBuyStockRepository, GroupBuyTeamStockRepository.noop(), tradeStatusFlowService);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -49,11 +60,13 @@ public class GroupBuyCompensationService {
                                        TradeOrderService tradeOrderService,
                                        GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                        GroupBuyStockRepository groupBuyStockRepository,
+                                       GroupBuyTeamStockRepository groupBuyTeamStockRepository,
                                        TradeStatusFlowService tradeStatusFlowService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.groupBuyStockRepository = groupBuyStockRepository;
+        this.groupBuyTeamStockRepository = groupBuyTeamStockRepository;
         this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
@@ -78,6 +91,7 @@ public class GroupBuyCompensationService {
                     releaseResult.getOrderLock().getGoodsId(),
                     releaseResult.getOrderLock().getOrderId(),
                     releaseResult.getOrderLock().getTeamId());
+            recoverTeamStock(releaseResult);
         }
         recordCloseFlow(tradeOrder, payOrder, releaseResult, fromOrderStatus, fromPayStatus);
         return toResponse(tradeOrder, payOrder, null, releaseResult, closeTime);
@@ -101,6 +115,7 @@ public class GroupBuyCompensationService {
                         releaseResult.getOrderLock().getGoodsId(),
                         releaseResult.getOrderLock().getOrderId(),
                         releaseResult.getOrderLock().getTeamId());
+                recoverTeamStock(releaseResult);
             }
             return toResponse(tradeOrder, payOrder, existed, releaseResult, existed.getRefundTime());
         }
@@ -124,6 +139,7 @@ public class GroupBuyCompensationService {
                     releaseResult.getOrderLock().getGoodsId(),
                     releaseResult.getOrderLock().getOrderId(),
                     releaseResult.getOrderLock().getTeamId());
+            recoverTeamStock(releaseResult);
         }
         recordRefundFlow(tradeOrder, payOrder, refundOrder, releaseResult, fromOrderStatus, fromPayStatus);
         return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundTime);
@@ -208,6 +224,14 @@ public class GroupBuyCompensationService {
         if (!TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
             throw new AppException("TRADE_0008", "非拼团订单不能做拼团补偿");
         }
+    }
+
+    private void recoverTeamStock(GroupBuySettlementResult releaseResult) {
+        groupBuyTeamStockRepository.recoverTeamStock(
+                releaseResult.getOrderLock().getActivityId(),
+                releaseResult.getOrderLock().getTeamId(),
+                releaseResult.getOrderLock().getOrderId(),
+                releaseResult.getTeam().getValidEndTime());
     }
 
     private TradeOrder queryTradeOrder(String orderId) {

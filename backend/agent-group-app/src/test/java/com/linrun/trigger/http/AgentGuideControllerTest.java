@@ -16,6 +16,9 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Mockito.mock;
@@ -27,6 +30,7 @@ class AgentGuideControllerTest {
 
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(new AgentGuideController(
+                    testExecutor(),
                     mock(AgentGuideStreamService.class),
                     new GuideImageUploadService(new GuideImageInputService()),
                     new NoopGuideStreamControlRepository()))
@@ -48,6 +52,10 @@ class AgentGuideControllerTest {
                 .andExpect(jsonPath("$.data.contentType").value("image/png"))
                 .andExpect(jsonPath("$.data.imageUrl").value(startsWith("data:image/png;base64,")))
                 .andExpect(jsonPath("$.data.imageSummary").value(startsWith("图片疑似平板商品或商品截图")));
+    }
+
+    private ThreadPoolExecutor testExecutor() {
+        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     }
 
     private byte[] png(int width, int height) throws IOException {

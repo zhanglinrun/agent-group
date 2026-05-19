@@ -10,6 +10,7 @@ import com.linrun.api.trade.response.MockPayCallbackResponse;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
+import com.linrun.domain.groupbuy.adapter.GroupBuyTeamStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
@@ -252,9 +253,11 @@ class GroupBuyLockOrderServiceTest {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         FakeGroupBuyStockRepository stockRepository = new FakeGroupBuyStockRepository(1);
+        FakeGroupBuyTeamStockRepository teamStockRepository = new FakeGroupBuyTeamStockRepository();
         GroupBuyLockOrderService lockOrderService = service(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
         MockPayCallbackService callbackService = callbackService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
-        GroupBuyCompensationService compensationService = compensationService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
+        GroupBuyCompensationService compensationService = compensationService(
+                lockRepository, stockRepository, teamStockRepository, tradeOrderRepository, flowRepository);
 
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_STOCK_10001"));
 
@@ -275,6 +278,26 @@ class GroupBuyLockOrderServiceTest {
         assertEquals(1, stockRepository.stock.getAvailableStock());
         assertEquals(0, stockRepository.stock.getPaidStock());
         assertEquals(GroupBuyStockFlowType.RELEASE_PAID.name(), stockRepository.flows.get(2));
+        assertEquals(1, teamStockRepository.recoverCount);
+    }
+
+    @Test
+    void shouldRecoverTeamStockWhenExistingTeamJoinFailsAfterOccupy() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        lockRepository.teams.put("T10001", team("T10001", 1));
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        FakeGroupBuyStockRepository stockRepository = new FakeGroupBuyStockRepository(0);
+        FakeGroupBuyTeamStockRepository teamStockRepository = new FakeGroupBuyTeamStockRepository();
+        GroupBuyLockOrderService service = service(
+                lockRepository, stockRepository, teamStockRepository, tradeOrderRepository, flowRepository);
+
+        AppException exception = assertThrows(AppException.class,
+                () -> service.lock(request("T10001", "IDEM_STOCK_RECOVER_10001")));
+
+        assertEquals("GROUP_0012", exception.getCode());
+        assertEquals(1, teamStockRepository.occupyCount);
+        assertEquals(1, teamStockRepository.recoverCount);
     }
 
     @Test
@@ -309,11 +332,21 @@ class GroupBuyLockOrderServiceTest {
                                              GroupBuyStockRepository stockRepository,
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository) {
+        return service(lockRepository, stockRepository, GroupBuyTeamStockRepository.noop(),
+                tradeOrderRepository, flowRepository);
+    }
+
+    private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
+                                             GroupBuyStockRepository stockRepository,
+                                             GroupBuyTeamStockRepository teamStockRepository,
+                                             FakeTradeOrderRepository tradeOrderRepository,
+                                             FakeTradeStatusFlowRepository flowRepository) {
         return new GroupBuyLockOrderService(
                 new FakeGuideDataRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", END_TIME)),
                 lockRepository,
                 stockRepository,
+                teamStockRepository,
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository));
@@ -374,11 +407,21 @@ class GroupBuyLockOrderServiceTest {
                                                             GroupBuyStockRepository stockRepository,
                                                             FakeTradeOrderRepository tradeOrderRepository,
                                                             FakeTradeStatusFlowRepository flowRepository) {
+        return compensationService(lockRepository, stockRepository, GroupBuyTeamStockRepository.noop(),
+                tradeOrderRepository, flowRepository);
+    }
+
+    private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                            GroupBuyStockRepository stockRepository,
+                                                            GroupBuyTeamStockRepository teamStockRepository,
+                                                            FakeTradeOrderRepository tradeOrderRepository,
+                                                            FakeTradeStatusFlowRepository flowRepository) {
         return new GroupBuyCompensationService(
                 tradeOrderRepository,
                 new TradeOrderService(),
                 lockRepository,
                 stockRepository,
+                teamStockRepository,
                 new TradeStatusFlowService(flowRepository));
     }
 
@@ -585,6 +628,23 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public Optional<GroupBuyStock> queryByActivityId(String activityId) {
             return Optional.of(stock);
+        }
+    }
+
+    private static class FakeGroupBuyTeamStockRepository implements GroupBuyTeamStockRepository {
+
+        private int occupyCount;
+        private int recoverCount;
+
+        @Override
+        public boolean occupyTeamStock(String activityId, String teamId, Integer targetCount, LocalDateTime validEndTime) {
+            occupyCount++;
+            return true;
+        }
+
+        @Override
+        public void recoverTeamStock(String activityId, String teamId, String orderId, LocalDateTime validEndTime) {
+            recoverCount++;
         }
     }
 

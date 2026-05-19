@@ -8,7 +8,6 @@ import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.GuideImageUploadService;
 import com.linrun.trigger.service.AgentGuideStreamService;
 import com.linrun.types.response.Response;
-import jakarta.annotation.PreDestroy;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -23,8 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 导购流式接口。
@@ -34,14 +32,16 @@ import java.util.concurrent.Executors;
 @RequestMapping("/api/v1/agent")
 public class AgentGuideController {
 
-    private final ExecutorService streamExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final ThreadPoolExecutor streamExecutor;
     private final AgentGuideStreamService agentGuideStreamService;
     private final GuideImageUploadService guideImageUploadService;
     private final GuideStreamControlRepository guideStreamControlRepository;
 
-    public AgentGuideController(AgentGuideStreamService agentGuideStreamService,
+    public AgentGuideController(ThreadPoolExecutor streamExecutor,
+                                AgentGuideStreamService agentGuideStreamService,
                                 GuideImageUploadService guideImageUploadService,
                                 GuideStreamControlRepository guideStreamControlRepository) {
+        this.streamExecutor = streamExecutor;
         this.agentGuideStreamService = agentGuideStreamService;
         this.guideImageUploadService = guideImageUploadService;
         this.guideStreamControlRepository = guideStreamControlRepository;
@@ -102,10 +102,5 @@ public class AgentGuideController {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-    }
-
-    @PreDestroy
-    public void destroy() {
-        streamExecutor.shutdown();
     }
 }

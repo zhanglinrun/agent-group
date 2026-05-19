@@ -1,3 +1,13 @@
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+    max-connections: ${AGENT_GROUP_TOMCAT_MAX_CONNECTIONS:20}
+    threads:
+      max: ${AGENT_GROUP_TOMCAT_THREADS_MAX:20}
+      min-spare: ${AGENT_GROUP_TOMCAT_THREADS_MIN_SPARE:10}
+    accept-count: ${AGENT_GROUP_TOMCAT_ACCEPT_COUNT:10}
+
 spring:
   mvc:
     async:
@@ -40,6 +50,16 @@ logging:
   level:
     root: info
     com.linrun: debug
+
+thread:
+  pool:
+    executor:
+      config:
+        core-pool-size: ${AGENT_GROUP_THREAD_CORE_POOL_SIZE:20}
+        max-pool-size: ${AGENT_GROUP_THREAD_MAX_POOL_SIZE:50}
+        keep-alive-time: ${AGENT_GROUP_THREAD_KEEP_ALIVE_TIME:5000}
+        block-queue-size: ${AGENT_GROUP_THREAD_BLOCK_QUEUE_SIZE:5000}
+        policy: ${AGENT_GROUP_THREAD_REJECT_POLICY:CallerRunsPolicy}
 
 agent:
   group:
