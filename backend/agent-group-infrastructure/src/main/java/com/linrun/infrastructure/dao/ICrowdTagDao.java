@@ -1,0 +1,36 @@
+package com.linrun.infrastructure.dao;
+
+import com.linrun.domain.tag.model.CrowdTagJob;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Mapper
+public interface ICrowdTagDao {
+
+    CrowdTagJob queryJob(@Param("tagId") String tagId, @Param("batchId") String batchId);
+
+    List<String> queryUserIdsByOrderCount(@Param("startTime") LocalDateTime startTime,
+                                          @Param("endTime") LocalDateTime endTime,
+                                          @Param("minOrderCount") int minOrderCount);
+
+    List<String> queryUserIdsByPayAmount(@Param("startTime") LocalDateTime startTime,
+                                         @Param("endTime") LocalDateTime endTime,
+                                         @Param("minPayAmount") BigDecimal minPayAmount);
+
+    List<String> queryDistinctPaidUserIds(@Param("startTime") LocalDateTime startTime,
+                                          @Param("endTime") LocalDateTime endTime);
+
+    int addCrowdTagUserId(@Param("tagId") String tagId, @Param("userId") String userId);
+
+    int countCrowdTagUsers(@Param("tagId") String tagId);
+
+    void updateCrowdTagStatistics(@Param("tagId") String tagId, @Param("statistics") int statistics);
+
+    void updateJobStatus(@Param("tagId") String tagId,
+                         @Param("batchId") String batchId,
+                         @Param("status") int status);
+}

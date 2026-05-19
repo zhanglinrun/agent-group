@@ -1,5 +1,40 @@
 use agent_group;
 
+insert into dynamic_config (
+  config_key, config_value, remark
+) values
+('downgradeSwitch', '0', 'market downgrade switch'),
+('cutRange', '100', 'market cut range percent'),
+('scBlacklist', '', 'source channel blacklist, split by comma'),
+('cacheSwitch', '0', 'cache switch'),
+('groupSettlementNotifyType', 'HTTP', 'group settlement notify type'),
+('groupSettlementNotifyUrl', '', 'group settlement notify url'),
+('groupSettlementNotifyMQ', 'agent.group.notify.group-settlement', 'group settlement notify mq')
+on duplicate key update
+  config_value = values(config_value),
+  remark = values(remark);
+
+insert into crowd_tags (
+  tag_id, tag_name, tag_desc, statistics
+) values
+('TAG_ORDER_2', '复购用户', '统计期内支付订单数达到 2 单的用户', 0),
+('TAG_PAY_2000', '高价值用户', '统计期内支付金额达到 2000 元的用户', 0)
+on duplicate key update
+  tag_name = values(tag_name),
+  tag_desc = values(tag_desc);
+
+insert into crowd_tags_job (
+  tag_id, batch_id, tag_type, tag_rule, stat_start_time, stat_end_time, status
+) values
+('TAG_ORDER_2', 'BATCH_DEMO_001', 1, '2', date_sub(now(), interval 30 day), now(), 0),
+('TAG_PAY_2000', 'BATCH_DEMO_001', 2, '2000', date_sub(now(), interval 30 day), now(), 0)
+on duplicate key update
+  tag_type = values(tag_type),
+  tag_rule = values(tag_rule),
+  stat_start_time = values(stat_start_time),
+  stat_end_time = values(stat_end_time),
+  status = values(status);
+
 insert into guide_goods (
   goods_id, goods_name, image_url, origin_price, spec_summary, after_sale_policy,
   recommend_reason, not_suitable_for, enabled, sort_order

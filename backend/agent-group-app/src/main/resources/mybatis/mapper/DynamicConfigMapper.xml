@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IDynamicConfigDao">
+
+    <resultMap id="DynamicConfigMap" type="com.linrun.domain.dcc.model.DynamicConfig">
+        <id column="id" property="id"/>
+        <result column="config_key" property="configKey"/>
+        <result column="config_value" property="configValue"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="queryByKey" resultMap="DynamicConfigMap">
+        select id,
+               config_key,
+               config_value,
+               remark,
+               create_time,
+               update_time
+        from dynamic_config
+        where config_key = #{configKey}
+        limit 1
+    </select>
+
+    <insert id="saveOrUpdate" parameterType="com.linrun.domain.dcc.model.DynamicConfig">
+        insert into dynamic_config (
+          config_key,
+          config_value,
+          remark,
+          create_time,
+          update_time
+        ) values (
+          #{configKey},
+          #{configValue},
+          #{remark},
+          now(),
+          now()
+        )
+        on duplicate key update
+          config_value = values(config_value),
+          remark = values(remark),
+          update_time = now()
+    </insert>
+</mapper>

@@ -3,11 +3,13 @@ package com.linrun.infrastructure.trade.repository;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.model.PayOrder;
 import com.linrun.domain.trade.model.RefundOrder;
+import com.linrun.domain.trade.model.TradeBuyType;
 import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.infrastructure.dao.ITradeOrderDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,6 +64,11 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    public void updateDealDone(TradeOrder tradeOrder) {
+        tradeOrderDao.updateTradeOrderDealDone(tradeOrder);
+    }
+
+    @Override
     public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
         return Optional.ofNullable(tradeOrderDao.queryRefundOrderByOrderId(orderId));
     }
@@ -74,5 +81,20 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     @Override
     public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
         return Optional.ofNullable(tradeOrderDao.queryPayOrderByOrderId(orderId));
+    }
+
+    @Override
+    public List<TradeOrder> queryUserTradeOrders(String userId, Long lastId, int pageSize) {
+        return tradeOrderDao.queryUserTradeOrders(userId, lastId, pageSize);
+    }
+
+    @Override
+    public List<String> queryTimeoutPayWaitOrderIds(LocalDateTime deadline, int limit) {
+        return tradeOrderDao.queryTimeoutPayWaitOrderIds(deadline, limit);
+    }
+
+    @Override
+    public Optional<TradeOrder> queryLatestUnpaidOrder(String userId, String goodsId, TradeBuyType buyType) {
+        return Optional.ofNullable(tradeOrderDao.queryLatestUnpaidOrder(userId, goodsId, buyType));
     }
 }

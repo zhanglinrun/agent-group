@@ -5,6 +5,7 @@ import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -35,4 +36,7 @@ public interface IGroupBuyOrderLockDao {
     int reduceTeamLockCount(@Param("teamId") String teamId);
 
     int reduceTeamPaidCount(@Param("teamId") String teamId);
+
+    List<String> queryTimeoutUnsettledPaidOrderIds(@Param("deadline") LocalDateTime deadline,
+                                                   @Param("limit") int limit);
 }

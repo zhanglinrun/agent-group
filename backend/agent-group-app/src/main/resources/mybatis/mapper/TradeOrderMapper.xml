@@ -5,7 +5,8 @@
 <mapper namespace="com.linrun.infrastructure.dao.ITradeOrderDao">
 
     <resultMap id="TradeOrderMap" type="com.linrun.domain.trade.model.TradeOrder">
-        <id column="order_id" property="orderId"/>
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
         <result column="user_id" property="userId"/>
         <result column="goods_id" property="goodsId"/>
         <result column="goods_name" property="goodsName"/>
@@ -171,8 +172,15 @@
         where order_id = #{orderId}
     </update>
 
+    <update id="updateTradeOrderDealDone" parameterType="com.linrun.domain.trade.model.TradeOrder">
+        update trade_order
+        set order_status = #{orderStatus}
+        where order_id = #{orderId}
+    </update>
+
     <select id="queryTradeOrderByOrderId" resultMap="TradeOrderMap">
-        select order_id,
+        select id,
+               order_id,
                user_id,
                goods_id,
                goods_name,
@@ -186,6 +194,61 @@
                close_time
         from trade_order
         where order_id = #{orderId}
+        limit 1
+    </select>
+
+    <select id="queryUserTradeOrders" resultMap="TradeOrderMap">
+        select id,
+               order_id,
+               user_id,
+               goods_id,
+               goods_name,
+               activity_id,
+               buy_type,
+               origin_amount,
+               pay_amount,
+               order_status,
+               create_time,
+               pay_time,
+               close_time
+        from trade_order
+        where user_id = #{userId}
+        <if test="lastId != null">
+            and id &gt; #{lastId}
+        </if>
+        order by id asc
+        limit #{pageSize}
+    </select>
+
+    <select id="queryTimeoutPayWaitOrderIds" resultType="java.lang.String">
+        select order_id
+        from trade_order
+        where order_status = 'PAY_WAIT'
+          and create_time &lt;= #{deadline}
+        order by id asc
+        limit #{limit}
+    </select>
+
+    <select id="queryLatestUnpaidOrder" resultMap="TradeOrderMap">
+        select id,
+               order_id,
+               user_id,
+               goods_id,
+               goods_name,
+               activity_id,
+               buy_type,
+               origin_amount,
+               pay_amount,
+               order_status,
+               create_time,
+               pay_time,
+               close_time
+        from trade_order
+        where user_id = #{userId}
+          and goods_id = #{goodsId}
+          and buy_type = #{buyType}
+          and order_status in ('CREATE', 'PAY_WAIT')
+        order by id desc
         limit 1
     </select>
 

@@ -20,22 +20,32 @@ public class GroupBuySettlementService {
     private final GroupBuyStockRepository groupBuyStockRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeStatusFlowService tradeStatusFlowService;
+    private final NotifyTaskService notifyTaskService;
 
     public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                      TradeOrderRepository tradeOrderRepository,
                                      TradeStatusFlowService tradeStatusFlowService) {
-        this(groupBuyOrderLockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, tradeStatusFlowService);
+        this(groupBuyOrderLockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, tradeStatusFlowService, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                      GroupBuyStockRepository groupBuyStockRepository,
                                      TradeOrderRepository tradeOrderRepository,
-                                     TradeStatusFlowService tradeStatusFlowService) {
+                                     TradeStatusFlowService tradeStatusFlowService,
+                                     NotifyTaskService notifyTaskService) {
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.groupBuyStockRepository = groupBuyStockRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeStatusFlowService = tradeStatusFlowService;
+        this.notifyTaskService = notifyTaskService;
+    }
+
+    public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                     GroupBuyStockRepository groupBuyStockRepository,
+                                     TradeOrderRepository tradeOrderRepository,
+                                     TradeStatusFlowService tradeStatusFlowService) {
+        this(groupBuyOrderLockRepository, groupBuyStockRepository, tradeOrderRepository, tradeStatusFlowService, null);
     }
 
     public void settlePaySuccess(TradeOrder tradeOrder) {
@@ -82,6 +92,9 @@ public class GroupBuySettlementService {
                 TradeOrderStatus.PAY_SUCCESS,
                 TradeOrderStatus.GROUP_SETTLED,
                 "order group settled"));
+        if (notifyTaskService != null) {
+            notifyTaskService.createGroupSettlementTask(settlementResult.getTeam(), orderIds);
+        }
         if (orderIds.contains(tradeOrder.getOrderId())) {
             tradeOrder.markGroupSettled();
         }

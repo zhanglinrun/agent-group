@@ -23,6 +23,15 @@ import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.payment.adapter.PaymentGatewayClient;
+import com.linrun.domain.payment.model.PaymentCreateCommand;
+import com.linrun.domain.payment.model.PaymentCreateResult;
+import com.linrun.domain.payment.model.PaymentReconcileCommand;
+import com.linrun.domain.payment.model.PaymentReconcileResult;
+import com.linrun.domain.payment.model.PaymentRefundCommand;
+import com.linrun.domain.payment.model.PaymentRefundResult;
+import com.linrun.domain.payment.model.PaymentWebhookCommand;
+import com.linrun.domain.payment.model.PaymentWebhookResult;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.PayOrder;
@@ -279,6 +288,44 @@ class GroupBuyLockOrderServiceTest {
         assertEquals(0, stockRepository.stock.getPaidStock());
         assertEquals(GroupBuyStockFlowType.RELEASE_PAID.name(), stockRepository.flows.get(2));
         assertEquals(1, teamStockRepository.recoverCount);
+    }
+
+    @Test
+    void shouldRefundTimeoutUnsettledGroupOrdersThroughTradeCompensation() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
+        MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
+        GroupBuyCompensationService groupCompensationService = compensationService(
+                lockRepository, tradeOrderRepository, flowRepository);
+        PaymentService paymentService = new PaymentService(
+                tradeOrderRepository,
+                new TradeOrderService(),
+                callbackService,
+                new FakePaymentGatewayClient(),
+                new TradeStatusFlowService(flowRepository),
+                groupCompensationService);
+        TradeCompensationService tradeCompensationService = new TradeCompensationService(
+                tradeOrderRepository,
+                new TradeOrderService(),
+                groupCompensationService,
+                lockRepository,
+                paymentService,
+                new TradeStatusFlowService(flowRepository));
+
+        LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_TIMEOUT_REFUND_10001"));
+        callbackService.paySuccess(callback(lockResponse.getOrderId(), "TTIMEOUT10001"));
+        GroupBuyOrderLock orderLock = lockRepository.queryLockByOrderId(lockResponse.getOrderId()).orElseThrow();
+        lockRepository.teams.get(orderLock.getTeamId()).setValidEndTime(LocalDateTime.now().minusMinutes(1));
+
+        int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(LocalDateTime.now(), 50);
+
+        assertEquals(1, refundCount);
+        assertEquals(TradeOrderStatus.REFUNDED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatus.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+        assertEquals(GroupBuyLockStatus.RELEASED, orderLock.getLockStatus());
+        assertTrue(tradeOrderRepository.refundOrders.containsKey(lockResponse.getOrderId()));
     }
 
     @Test
@@ -573,6 +620,58 @@ class GroupBuyLockOrderServiceTest {
                 team.setCompleteCount(Math.max(team.getCompleteCount() - 1, 0));
             }
             return new GroupBuySettlementResult(orderLock, teams.get(orderLock.getTeamId()), repeated);
+        }
+        @Override
+        public List<String> queryTimeoutUnsettledPaidOrderIds(LocalDateTime deadline, int limit) {
+            return locks.values().stream()
+                    .filter(orderLock -> GroupBuyLockStatus.PAID.equals(orderLock.getLockStatus()))
+                    .filter(orderLock -> {
+                        GroupBuyTeam team = teams.get(orderLock.getTeamId());
+                        return GroupBuyTeamStatus.PROCESSING.equals(team.getTeamStatus())
+                                && team.getValidEndTime() != null
+                                && !team.getValidEndTime().isAfter(deadline);
+                    })
+                    .limit(limit)
+                    .map(GroupBuyOrderLock::getOrderId)
+                    .toList();
+        }
+    }
+
+    private static class FakePaymentGatewayClient implements PaymentGatewayClient {
+
+        @Override
+        public PaymentCreateResult createPayment(PaymentCreateCommand command) {
+            return PaymentCreateResult.created(
+                    command.getOrderId(),
+                    command.getPayOrderId(),
+                    command.getPayChannel(),
+                    "mock://pay/" + command.getPayOrderId(),
+                    "GT" + command.getPayOrderId(),
+                    "created");
+        }
+
+        @Override
+        public PaymentWebhookResult verifyWebhook(PaymentWebhookCommand command) {
+            return PaymentWebhookResult.verified(
+                    command.getOrderId(),
+                    command.getPayOrderId(),
+                    command.getGatewayTradeNo(),
+                    command.getPayTime(),
+                    "verified");
+        }
+
+        @Override
+        public PaymentRefundResult refund(PaymentRefundCommand command) {
+            return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), "R10001", "refunded");
+        }
+
+        @Override
+        public PaymentReconcileResult reconcile(PaymentReconcileCommand command) {
+            return PaymentReconcileResult.matched(
+                    command.getOrderId(),
+                    command.getPayOrderId(),
+                    command.getGatewayTradeNo(),
+                    "matched");
         }
     }
 

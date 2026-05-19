@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.ICrowdTagDao">
+
+    <resultMap id="CrowdTagJobMap" type="com.linrun.domain.tag.model.CrowdTagJob">
+        <id column="id" property="id"/>
+        <result column="tag_id" property="tagId"/>
+        <result column="batch_id" property="batchId"/>
+        <result column="tag_type" property="tagType"/>
+        <result column="tag_rule" property="tagRule"/>
+        <result column="stat_start_time" property="statStartTime"/>
+        <result column="stat_end_time" property="statEndTime"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="queryJob" resultMap="CrowdTagJobMap">
+        select id,
+               tag_id,
+               batch_id,
+               tag_type,
+               tag_rule,
+               stat_start_time,
+               stat_end_time,
+               status,
+               create_time,
+               update_time
+        from crowd_tags_job
+        where tag_id = #{tagId}
+          and batch_id = #{batchId}
+        limit 1
+    </select>
+
+    <select id="queryUserIdsByOrderCount" resultType="java.lang.String">
+        select user_id
+        from trade_order
+        where pay_time is not null
+          and order_status in ('PAY_SUCCESS', 'GROUP_SETTLED', 'DEAL_DONE')
+          <if test="startTime != null">
+          and pay_time &gt;= #{startTime}
+          </if>
+          <if test="endTime != null">
+          and pay_time &lt;= #{endTime}
+          </if>
+        group by user_id
+        having count(1) &gt;= #{minOrderCount}
+    </select>
+
+    <select id="queryUserIdsByPayAmount" resultType="java.lang.String">
+        select user_id
+        from trade_order
+        where pay_time is not null
+          and order_status in ('PAY_SUCCESS', 'GROUP_SETTLED', 'DEAL_DONE')
+          <if test="startTime != null">
+          and pay_time &gt;= #{startTime}
+          </if>
+          <if test="endTime != null">
+          and pay_time &lt;= #{endTime}
+          </if>
+        group by user_id
+        having sum(pay_amount) &gt;= #{minPayAmount}
+    </select>
+
+    <select id="queryDistinctPaidUserIds" resultType="java.lang.String">
+        select distinct user_id
+        from trade_order
+        where pay_time is not null
+          and order_status in ('PAY_SUCCESS', 'GROUP_SETTLED', 'DEAL_DONE')
+          <if test="startTime != null">
+          and pay_time &gt;= #{startTime}
+          </if>
+          <if test="endTime != null">
+          and pay_time &lt;= #{endTime}
+          </if>
+    </select>
+
+    <insert id="addCrowdTagUserId">
+        insert into crowd_tags_detail (
+          tag_id,
+          user_id,
+          create_time,
+          update_time
+        ) values (
+          #{tagId},
+          #{userId},
+          now(),
+          now()
+        )
+        on duplicate key update
+          update_time = now()
+    </insert>
+
+    <select id="countCrowdTagUsers" resultType="int">
+        select count(1)
+        from crowd_tags_detail
+        where tag_id = #{tagId}
+    </select>
+
+    <update id="updateCrowdTagStatistics">
+        update crowd_tags
+        set statistics = #{statistics},
+            update_time = now()
+        where tag_id = #{tagId}
+    </update>
+
+    <update id="updateJobStatus">
+        update crowd_tags_job
+        set status = #{status},
+            update_time = now()
+        where tag_id = #{tagId}
+          and batch_id = #{batchId}
+    </update>
+</mapper>

@@ -159,3 +159,86 @@ create table if not exists guide_evaluation_feedback (
   primary key (id),
   key idx_batch_priority (batch_no, priority)
 ) engine=InnoDB default charset=utf8mb4 comment='导购评测反馈表';
+-- agent group dcc, crowd tags and notify task extension
+create table if not exists dynamic_config (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  config_key varchar(64) not null comment 'config key',
+  config_value varchar(512) not null default '' comment 'config value',
+  remark varchar(256) not null default '' comment 'remark',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_config_key (config_key)
+) engine=InnoDB default charset=utf8mb4 comment='dynamic config';
+
+create table if not exists crowd_tags (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  tag_id varchar(32) not null comment 'tag id',
+  tag_name varchar(128) not null comment 'tag name',
+  tag_desc varchar(256) not null default '' comment 'tag desc',
+  statistics int not null default 0 comment 'user count',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_tag_id (tag_id)
+) engine=InnoDB default charset=utf8mb4 comment='crowd tags';
+
+create table if not exists crowd_tags_detail (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  tag_id varchar(32) not null comment 'tag id',
+  user_id varchar(64) not null comment 'user id',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_tag_user (tag_id, user_id),
+  key idx_user_id (user_id)
+) engine=InnoDB default charset=utf8mb4 comment='crowd tag detail';
+
+create table if not exists crowd_tags_job (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  tag_id varchar(32) not null comment 'tag id',
+  batch_id varchar(40) not null comment 'batch id',
+  tag_type int not null default 0 comment '1 order count, 2 pay amount',
+  tag_rule varchar(64) not null default '' comment 'tag rule',
+  stat_start_time datetime default null comment 'stat start time',
+  stat_end_time datetime default null comment 'stat end time',
+  status int not null default 0 comment '0 init, 1 running, 3 done',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_tag_batch (tag_id, batch_id)
+) engine=InnoDB default charset=utf8mb4 comment='crowd tag job';
+
+create table if not exists notify_task (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  activity_id varchar(32) not null comment 'activity id',
+  team_id varchar(40) not null comment 'team id',
+  notify_category varchar(64) not null comment 'notify category',
+  notify_type varchar(16) not null comment 'HTTP or MQ',
+  notify_mq varchar(128) default null comment 'mq routing key',
+  notify_url varchar(512) default null comment 'http notify url',
+  notify_count int not null default 0 comment 'notify count',
+  notify_status int not null default 0 comment '0 init, 1 success, 2 retry, 3 error',
+  parameter_json varchar(2048) not null comment 'notify payload',
+  uuid varchar(128) not null comment 'unique key',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_uuid (uuid),
+  key idx_team_status (team_id, notify_status),
+  key idx_status_time (notify_status, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='notify task';
+
+insert into dynamic_config (
+  config_key, config_value, remark
+) values
+('downgradeSwitch', '0', 'market downgrade switch'),
+('cutRange', '100', 'market cut range percent'),
+('scBlacklist', '', 'source channel blacklist, split by comma'),
+('cacheSwitch', '0', 'cache switch'),
+('groupSettlementNotifyType', 'HTTP', 'group settlement notify type'),
+('groupSettlementNotifyUrl', '', 'group settlement notify url'),
+('groupSettlementNotifyMQ', 'agent.group.notify.group-settlement', 'group settlement notify mq')
+on duplicate key update
+  config_value = values(config_value),
+  remark = values(remark);

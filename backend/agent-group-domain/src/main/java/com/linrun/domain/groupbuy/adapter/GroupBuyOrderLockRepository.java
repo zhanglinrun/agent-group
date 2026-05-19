@@ -6,6 +6,7 @@ import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface GroupBuyOrderLockRepository {
@@ -27,4 +28,8 @@ public interface GroupBuyOrderLockRepository {
     GroupBuySettlementResult releaseLockedOrder(String orderId);
 
     GroupBuySettlementResult releasePaidOrder(String orderId);
+
+    default List<String> queryTimeoutUnsettledPaidOrderIds(LocalDateTime deadline, int limit) {
+        return List.of();
+    }
 }

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.INotifyTaskDao">
+
+    <resultMap id="NotifyTaskMap" type="com.linrun.domain.notify.model.NotifyTask">
+        <id column="id" property="id"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="team_id" property="teamId"/>
+        <result column="notify_category" property="notifyCategory"/>
+        <result column="notify_type" property="notifyType"/>
+        <result column="notify_mq" property="notifyMq"/>
+        <result column="notify_url" property="notifyUrl"/>
+        <result column="notify_count" property="notifyCount"/>
+        <result column="notify_status" property="notifyStatus"/>
+        <result column="parameter_json" property="parameterJson"/>
+        <result column="uuid" property="uuid"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.linrun.domain.notify.model.NotifyTask">
+        insert into notify_task (
+          activity_id,
+          team_id,
+          notify_category,
+          notify_type,
+          notify_mq,
+          notify_url,
+          notify_count,
+          notify_status,
+          parameter_json,
+          uuid,
+          create_time,
+          update_time
+        ) values (
+          #{activityId},
+          #{teamId},
+          #{notifyCategory},
+          #{notifyType},
+          #{notifyMq},
+          #{notifyUrl},
+          #{notifyCount},
+          #{notifyStatus},
+          #{parameterJson},
+          #{uuid},
+          now(),
+          now()
+        )
+        on duplicate key update
+          update_time = now()
+    </insert>
+
+    <select id="queryUnExecutedNotifyTaskList" resultMap="NotifyTaskMap">
+        select id,
+               activity_id,
+               team_id,
+               notify_category,
+               notify_type,
+               notify_mq,
+               notify_url,
+               notify_count,
+               notify_status,
+               parameter_json,
+               uuid,
+               create_time,
+               update_time
+        from notify_task
+        where notify_status in (0, 2)
+        order by id asc
+        limit #{limit}
+    </select>
+
+    <select id="queryUnExecutedNotifyTaskListByTeamId" resultMap="NotifyTaskMap">
+        select id,
+               activity_id,
+               team_id,
+               notify_category,
+               notify_type,
+               notify_mq,
+               notify_url,
+               notify_count,
+               notify_status,
+               parameter_json,
+               uuid,
+               create_time,
+               update_time
+        from notify_task
+        where team_id = #{teamId}
+          and notify_status in (0, 2)
+        order by id asc
+        limit 50
+    </select>
+
+    <update id="updateNotifyTaskStatusSuccess" parameterType="com.linrun.domain.notify.model.NotifyTask">
+        update notify_task
+        set notify_count = notify_count + 1,
+            notify_status = 1,
+            update_time = now()
+        where team_id = #{teamId}
+          and uuid = #{uuid}
+    </update>
+
+    <update id="updateNotifyTaskStatusRetry" parameterType="com.linrun.domain.notify.model.NotifyTask">
+        update notify_task
+        set notify_count = notify_count + 1,
+            notify_status = 2,
+            update_time = now()
+        where team_id = #{teamId}
+          and uuid = #{uuid}
+    </update>
+
+    <update id="updateNotifyTaskStatusError" parameterType="com.linrun.domain.notify.model.NotifyTask">
+        update notify_task
+        set notify_count = notify_count + 1,
+            notify_status = 3,
+            update_time = now()
+        where team_id = #{teamId}
+          and uuid = #{uuid}
+    </update>
+</mapper>

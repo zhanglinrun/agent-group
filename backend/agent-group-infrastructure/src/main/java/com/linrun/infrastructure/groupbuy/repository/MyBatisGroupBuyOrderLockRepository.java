@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
@@ -114,5 +115,10 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
         GroupBuyTeam team = Optional.ofNullable(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId()))
                 .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
         return new GroupBuySettlementResult(orderLock, team, updated != 1);
+    }
+
+    @Override
+    public List<String> queryTimeoutUnsettledPaidOrderIds(LocalDateTime deadline, int limit) {
+        return groupBuyOrderLockDao.queryTimeoutUnsettledPaidOrderIds(deadline, limit);
     }
 }

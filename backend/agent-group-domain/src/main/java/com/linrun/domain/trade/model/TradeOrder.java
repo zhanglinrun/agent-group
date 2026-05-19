@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public class TradeOrder {
 
+    private Long id;
     private String orderId;
     private String userId;
     private String goodsId;
@@ -82,10 +83,20 @@ public class TradeOrder {
         if (TradeOrderStatus.REFUNDED.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)) {
+        if (!TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)
+                && !TradeOrderStatus.GROUP_SETTLED.equals(orderStatus)
+                && !TradeOrderStatus.DEAL_DONE.equals(orderStatus)) {
             throw new AppException("TRADE_0015", "当前订单状态不能退款");
         }
         this.orderStatus = TradeOrderStatus.REFUNDED;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getOrderId() {
