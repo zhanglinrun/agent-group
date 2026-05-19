@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/trade/order/direct", "/api/v1/trade/order/status-flow").permitAll()
                         .requestMatchers("/api/v1/group/trade/lock").permitAll()
                         .requestMatchers("/api/v1/payment/create", "/api/v1/payment/webhook", "/api/v1/payment/webhook/**").permitAll()
+                        .requestMatchers("/api/v1/mcp", "/api/v1/mcp/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/knowledge/**", "/api/v1/evaluate/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/mock-pay-success").hasRole("ADMIN")
                         .requestMatchers("/api/v1/group/trade/close-unpaid", "/api/v1/group/trade/refund").hasRole("ADMIN")

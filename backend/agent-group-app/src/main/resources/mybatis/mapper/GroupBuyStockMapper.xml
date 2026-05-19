@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IGroupBuyStockDao">
+
+    <resultMap id="GroupBuyStockMap" type="com.linrun.domain.groupbuy.model.GroupBuyStock">
+        <id column="id" property="id"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="total_stock" property="totalStock"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="locked_stock" property="lockedStock"/>
+        <result column="paid_stock" property="paidStock"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="queryByActivityId" resultMap="GroupBuyStockMap">
+        select id,
+               activity_id,
+               goods_id,
+               total_stock,
+               available_stock,
+               locked_stock,
+               paid_stock,
+               create_time,
+               update_time
+        from group_buy_stock
+        where activity_id = #{activityId}
+        limit 1
+    </select>
+
+    <select id="queryByActivityIdAndGoodsIdForUpdate" resultMap="GroupBuyStockMap">
+        select id,
+               activity_id,
+               goods_id,
+               total_stock,
+               available_stock,
+               locked_stock,
+               paid_stock,
+               create_time,
+               update_time
+        from group_buy_stock
+        where activity_id = #{activityId}
+          and goods_id = #{goodsId}
+        limit 1
+        for update
+    </select>
+
+    <update id="lockStock">
+        update group_buy_stock
+        set available_stock = available_stock - 1,
+            locked_stock = locked_stock + 1
+        where activity_id = #{activityId}
+          and goods_id = #{goodsId}
+          and available_stock &gt; 0
+    </update>
+
+    <update id="markPaidStock">
+        update group_buy_stock
+        set locked_stock = greatest(locked_stock - 1, 0),
+            paid_stock = paid_stock + 1
+        where activity_id = #{activityId}
+          and goods_id = #{goodsId}
+          and locked_stock &gt; 0
+    </update>
+
+    <update id="releaseLockedStock">
+        update group_buy_stock
+        set available_stock = available_stock + 1,
+            locked_stock = greatest(locked_stock - 1, 0)
+        where activity_id = #{activityId}
+          and goods_id = #{goodsId}
+          and locked_stock &gt; 0
+    </update>
+
+    <update id="releasePaidStock">
+        update group_buy_stock
+        set available_stock = available_stock + 1,
+            paid_stock = greatest(paid_stock - 1, 0)
+        where activity_id = #{activityId}
+          and goods_id = #{goodsId}
+          and paid_stock &gt; 0
+    </update>
+
+    <insert id="insertStockFlow" parameterType="com.linrun.domain.groupbuy.model.GroupBuyStockFlow">
+        insert into group_buy_stock_flow (
+          flow_id,
+          activity_id,
+          goods_id,
+          team_id,
+          order_id,
+          flow_type,
+          quantity,
+          before_available_stock,
+          after_available_stock,
+          remark,
+          create_time
+        ) values (
+          #{flowId},
+          #{activityId},
+          #{goodsId},
+          #{teamId},
+          #{orderId},
+          #{flowType},
+          #{quantity},
+          #{beforeAvailableStock},
+          #{afterAvailableStock},
+          #{remark},
+          #{createTime}
+        )
+    </insert>
+</mapper>

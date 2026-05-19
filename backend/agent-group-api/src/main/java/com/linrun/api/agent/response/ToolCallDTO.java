@@ -16,4 +16,5 @@ public class ToolCallDTO implements Serializable {
     private String action;
     private String status;
     private String message;
+    private Long latencyMillis;
 }

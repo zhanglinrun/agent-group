@@ -89,6 +89,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (page === "admin") {
     initAdmin();
   }
+  if (page === "checkout") {
+    initCheckout();
+  }
 });
 
 function initConsumer() {
@@ -571,6 +574,241 @@ function renderProduct(product) {
 }
 
 async function startPurchase(product, mode) {
+  saveCheckoutSession(product, mode);
+  window.location.href = `./checkout.html?mode=${encodeURIComponent(mode)}&goodsId=${encodeURIComponent(product.id)}`;
+}
+
+function saveCheckoutSession(product, mode) {
+  saveStore("agentGroupCheckout", {
+    mode,
+    product,
+    createdAt: Date.now()
+  });
+}
+
+function initCheckout() {
+  const checkout = resolveCheckoutSession();
+  bindCheckoutActions(checkout);
+  renderCheckoutProduct(checkout);
+  if (checkout.order?.orderId) {
+    renderCheckoutOrder(checkout.order);
+    restoreCheckoutOrderState(checkout.order);
+    return;
+  }
+  renderCheckoutSteps(["确认商品和购买方式", "提交订单", "创建支付单", "模拟支付", "查看订单流水"], 0);
+}
+
+function resolveCheckoutSession() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get("mode") || "group";
+  const goodsId = params.get("goodsId") || "G10001";
+  const stored = loadStore("agentGroupCheckout", null);
+  if (stored?.product?.id === goodsId && stored.mode === mode) {
+    return stored;
+  }
+  return {
+    mode,
+    product: sampleProducts.find((item) => item.id === goodsId) || sampleProducts[0],
+    createdAt: Date.now()
+  };
+}
+
+function bindCheckoutActions(checkout) {
+  $("#confirmOrderBtn")?.addEventListener("click", () => submitCheckoutOrder(checkout));
+  $("#mockPayBtn")?.addEventListener("click", () => simulateCheckoutPay(checkout));
+  $("#refreshFlowBtn")?.addEventListener("click", () => refreshCheckoutFlow(checkout));
+}
+
+function renderCheckoutProduct(checkout) {
+  const product = checkout.product;
+  const isGroup = checkout.mode === "group";
+  setText("#checkoutMode", isGroup ? "拼团购买" : "直接购买");
+  setText("#checkoutTitle", product.name);
+  setText("#checkoutSpec", product.spec);
+  setText("#checkoutAfterSale", product.afterSale || "7 天无理由退货，1 年质保");
+  setText("#checkoutPrice", `￥${isGroup ? product.groupPrice : product.originPrice}`);
+  setText("#checkoutOrigin", `原价 ￥${product.originPrice}`);
+  setText("#checkoutGroup", `拼团价 ￥${product.groupPrice}`);
+  setText("#checkoutTeam", isGroup ? `${product.teamSize || 1} 人成团 · ${product.leftTime || "活动进行中"}` : "直接购买无需等待成团");
+  setText("#checkoutStatus", "待提交");
+  setDisabled("#mockPayBtn", true);
+  setDisabled("#refreshFlowBtn", true);
+}
+
+function restoreCheckoutOrderState(order) {
+  const paid = isPaidOrder(order);
+  setText("#checkoutStatus", order.orderStatus || "待支付");
+  setDisabled("#confirmOrderBtn", true);
+  setDisabled("#mockPayBtn", paid);
+  setDisabled("#refreshFlowBtn", false);
+  renderCheckoutSteps([
+    "已恢复本地结算会话",
+    paid ? "订单已支付，可刷新流水" : "订单待支付",
+    "可进入运营端查看交易监控"
+  ], paid ? 2 : 1);
+}
+
+async function submitCheckoutOrder(checkout) {
+  const isGroup = checkout.mode === "group";
+  const product = checkout.product;
+  setDisabled("#confirmOrderBtn", true);
+  setText("#checkoutStatus", isGroup ? "锁单中" : "下单中");
+  renderCheckoutSteps(["正在向后端提交订单"], 1);
+
+  try {
+    const createResult = isGroup
+      ? await createGroupOrder(product)
+      : await createDirectOrder(product);
+    const paymentResult = createResult.payOrderId && createResult.payUrl
+      ? null
+      : await createGatewayPayment(createResult.orderId);
+    checkout.order = normalizeCheckoutOrder(checkout, createResult, paymentResult);
+    saveStore("agentGroupCheckout", checkout);
+    upsertOrderForAdmin(checkout.order);
+    renderCheckoutOrder(checkout.order);
+    renderCheckoutSteps([
+      isGroup ? "拼团锁单成功" : "直接购买订单创建成功",
+      "支付网关单已创建",
+      "等待用户模拟支付"
+    ], 2);
+    setText("#checkoutStatus", "待支付");
+    setDisabled("#mockPayBtn", false);
+    setDisabled("#refreshFlowBtn", false);
+  } catch (error) {
+    setDisabled("#confirmOrderBtn", false);
+    setText("#checkoutStatus", "下单失败");
+    renderCheckoutSteps([error.message || "订单提交失败"], -1);
+  }
+}
+
+async function simulateCheckoutPay(checkout) {
+  if (!checkout.order?.orderId || !checkout.order?.payOrderId) {
+    renderCheckoutSteps(["请先确认下单"], -1);
+    return;
+  }
+  setDisabled("#mockPayBtn", true);
+  setText("#checkoutStatus", "支付处理中");
+  try {
+    const payResult = await verifyMockPayment(checkout.order.orderId, checkout.order.payOrderId);
+    checkout.order.orderStatus = payResult.orderStatus || "PAY_SUCCESS";
+    checkout.order.payStatus = payResult.payStatus || "SUCCESS";
+    checkout.order.gatewayTradeNo = payResult.gatewayTradeNo;
+    saveStore("agentGroupCheckout", checkout);
+    upsertOrderForAdmin({
+      ...checkout.order,
+      status: checkout.order.orderStatus
+    });
+    renderCheckoutOrder(checkout.order);
+    setText("#checkoutStatus", checkout.order.orderStatus);
+    renderCheckoutSteps(["模拟支付回调成功", "订单和支付单状态已推进"], 3);
+    await refreshCheckoutFlow(checkout);
+  } catch (error) {
+    setDisabled("#mockPayBtn", false);
+    setText("#checkoutStatus", "支付失败");
+    renderCheckoutSteps([error.message || "模拟支付失败"], -1);
+  }
+}
+
+async function refreshCheckoutFlow(checkout) {
+  const orderId = checkout.order?.orderId;
+  if (!orderId) {
+    renderCheckoutSteps(["请先确认下单"], -1);
+    return;
+  }
+  try {
+    const response = await fetch(`${STATUS_FLOW_URL}?orderId=${encodeURIComponent(orderId)}`, {
+      headers: { "Accept": "application/json" }
+    });
+    if (!response.ok) {
+      throw new Error(`交易流水查询失败：${response.status}`);
+    }
+    const body = await response.json();
+    const flows = unwrapResponse(body) || [];
+    const root = $("#checkoutTimeline");
+    if (root) {
+      root.innerHTML = "";
+      flows.forEach((flow) => {
+        const li = document.createElement("li");
+        li.className = "done";
+        li.textContent = `${flow.eventType}：${flow.fromStatus || "-"} → ${flow.toStatus}`;
+        root.appendChild(li);
+      });
+    }
+  } catch (error) {
+    renderCheckoutSteps([error.message || "订单流水查询失败"], -1);
+  }
+}
+
+function normalizeCheckoutOrder(checkout, createResult, paymentResult) {
+  const product = checkout.product;
+  const isGroup = checkout.mode === "group";
+  return {
+    orderId: createResult.orderId,
+    payOrderId: createResult.payOrderId || paymentResult?.payOrderId,
+    goodsId: product.id,
+    goods: product.name,
+    type: isGroup ? "拼团购买" : "直接购买",
+    amount: formatPrice(createResult.payAmount || createResult.lockAmount || (isGroup ? product.groupPrice : product.originPrice)),
+    orderStatus: createResult.orderStatus || "PAY_WAIT",
+    payStatus: createResult.payStatus || "WAIT_PAY",
+    payUrl: paymentResult?.payUrl || createResult.payUrl || "",
+    teamId: createResult.teamId || "",
+    teamStatus: createResult.teamStatus || "",
+    lockStatus: createResult.lockStatus || "",
+    createdAt: nowLocalDateTime()
+  };
+}
+
+function renderCheckoutOrder(order) {
+  setText("#checkoutOrderId", order.orderId || "-");
+  setText("#checkoutPayOrderId", order.payOrderId || "-");
+  setText("#checkoutPayUrl", order.payUrl || "-");
+  setText("#checkoutOrderStatus", order.orderStatus || "-");
+  setText("#checkoutPayStatus", order.payStatus || "-");
+  setText("#checkoutTeamId", order.teamId || "-");
+}
+
+function isPaidOrder(order) {
+  const orderStatus = String(order.orderStatus || order.status || "");
+  const payStatus = String(order.payStatus || "");
+  return orderStatus.includes("SUCCESS") || orderStatus.includes("PAID") || payStatus.includes("SUCCESS");
+}
+
+function renderCheckoutSteps(lines, activeIndex) {
+  const root = $("#checkoutTimeline");
+  if (!root) {
+    return;
+  }
+  root.innerHTML = "";
+  lines.forEach((line, index) => {
+    const li = document.createElement("li");
+    li.className = activeIndex < 0 ? "warn" : index <= activeIndex ? "done" : "wait";
+    li.textContent = line;
+    root.appendChild(li);
+  });
+}
+
+function upsertOrderForAdmin(order) {
+  const rows = loadStore("agentGroupOrders", []);
+  const orderNo = order.orderId || order.orderNo;
+  const next = {
+    orderNo,
+    type: order.type,
+    goods: order.goods,
+    amount: order.amount,
+    status: order.status || order.orderStatus || "待支付"
+  };
+  const index = rows.findIndex((item) => item.orderNo === orderNo);
+  if (index >= 0) {
+    rows[index] = { ...rows[index], ...next };
+  } else {
+    rows.unshift(next);
+  }
+  state.orders = rows;
+  saveStore("agentGroupOrders", rows);
+}
+
+async function runInlinePurchase(product, mode) {
   const isGroup = mode === "group";
   const order = {
     orderNo: "创建中",
@@ -757,12 +995,15 @@ function renderOrderRows() {
     return;
   }
   state.orders.forEach((order) => {
+    const statusText = String(order.status || "");
+    const normalStatus = statusText.includes("SUCCESS") || statusText.includes("PAID")
+      || statusText === "已成团" || statusText === "已完成";
     root.appendChild(renderDataItem(order.orderNo, [
       `类型：${order.type || "拼团购买"}`,
       `商品：${order.goods}`,
       `支付金额：￥${order.amount}`,
       `状态：${order.status}`
-    ], order.status === "已成团" || order.status === "已完成" ? "info" : "warn"));
+    ], normalStatus ? "info" : "warn"));
   });
 }
 

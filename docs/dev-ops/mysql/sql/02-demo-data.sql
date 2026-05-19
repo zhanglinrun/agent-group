@@ -30,6 +30,18 @@ on duplicate key update
   end_time = values(end_time),
   enabled = values(enabled);
 
+insert into group_buy_stock (
+  activity_id, goods_id, total_stock, available_stock, locked_stock, paid_stock
+) values
+('A10001', 'G10001', 100, 99, 0, 1),
+('A10002', 'G10002', 100, 100, 0, 0)
+on duplicate key update
+  goods_id = values(goods_id),
+  total_stock = values(total_stock),
+  available_stock = values(available_stock),
+  locked_stock = values(locked_stock),
+  paid_stock = values(paid_stock);
+
 insert into knowledge_document (
   document_id, document_name, document_type, knowledge_version, source_type, source_name, document_status, enabled
 ) values

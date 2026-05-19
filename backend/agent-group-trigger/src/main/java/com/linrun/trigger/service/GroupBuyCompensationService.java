@@ -4,6 +4,7 @@ import com.linrun.api.groupbuy.request.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.groupbuy.request.RefundGroupBuyOrderRequest;
 import com.linrun.api.groupbuy.response.GroupBuyCompensationResponse;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
@@ -32,15 +33,27 @@ public class GroupBuyCompensationService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
+    private final GroupBuyStockRepository groupBuyStockRepository;
     private final TradeStatusFlowService tradeStatusFlowService;
 
     public GroupBuyCompensationService(TradeOrderRepository tradeOrderRepository,
                                        TradeOrderService tradeOrderService,
                                        GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                        TradeStatusFlowService tradeStatusFlowService) {
+        this(tradeOrderRepository, tradeOrderService, groupBuyOrderLockRepository,
+                GroupBuyStockRepository.noop(), tradeStatusFlowService);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GroupBuyCompensationService(TradeOrderRepository tradeOrderRepository,
+                                       TradeOrderService tradeOrderService,
+                                       GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                       GroupBuyStockRepository groupBuyStockRepository,
+                                       TradeStatusFlowService tradeStatusFlowService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
+        this.groupBuyStockRepository = groupBuyStockRepository;
         this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
@@ -59,6 +72,13 @@ public class GroupBuyCompensationService {
         tradeOrderService.closeUnpaidOrder(tradeOrder, payOrder, closeTime);
         tradeOrderRepository.updateCloseUnpaid(tradeOrder, payOrder);
         GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releaseLockedOrder(tradeOrder.getOrderId());
+        if (!releaseResult.isRepeated()) {
+            groupBuyStockRepository.releaseLockedStock(
+                    releaseResult.getOrderLock().getActivityId(),
+                    releaseResult.getOrderLock().getGoodsId(),
+                    releaseResult.getOrderLock().getOrderId(),
+                    releaseResult.getOrderLock().getTeamId());
+        }
         recordCloseFlow(tradeOrder, payOrder, releaseResult, fromOrderStatus, fromPayStatus);
         return toResponse(tradeOrder, payOrder, null, releaseResult, closeTime);
     }
@@ -75,6 +95,13 @@ public class GroupBuyCompensationService {
         RefundOrder existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
         if (existed != null) {
             GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releasePaidOrder(tradeOrder.getOrderId());
+            if (!releaseResult.isRepeated()) {
+                groupBuyStockRepository.releasePaidStock(
+                        releaseResult.getOrderLock().getActivityId(),
+                        releaseResult.getOrderLock().getGoodsId(),
+                        releaseResult.getOrderLock().getOrderId(),
+                        releaseResult.getOrderLock().getTeamId());
+            }
             return toResponse(tradeOrder, payOrder, existed, releaseResult, existed.getRefundTime());
         }
 
@@ -91,6 +118,13 @@ public class GroupBuyCompensationService {
         tradeOrderRepository.saveRefundOrder(refundOrder);
         tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
         GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releasePaidOrder(tradeOrder.getOrderId());
+        if (!releaseResult.isRepeated()) {
+            groupBuyStockRepository.releasePaidStock(
+                    releaseResult.getOrderLock().getActivityId(),
+                    releaseResult.getOrderLock().getGoodsId(),
+                    releaseResult.getOrderLock().getOrderId(),
+                    releaseResult.getOrderLock().getTeamId());
+        }
         recordRefundFlow(tradeOrder, payOrder, refundOrder, releaseResult, fromOrderStatus, fromPayStatus);
         return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundTime);
     }

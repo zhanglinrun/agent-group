@@ -1,6 +1,7 @@
 package com.linrun.trigger.service;
 
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
@@ -16,13 +17,23 @@ import java.util.List;
 public class GroupBuySettlementService {
 
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
+    private final GroupBuyStockRepository groupBuyStockRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeStatusFlowService tradeStatusFlowService;
 
     public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                      TradeOrderRepository tradeOrderRepository,
                                      TradeStatusFlowService tradeStatusFlowService) {
+        this(groupBuyOrderLockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, tradeStatusFlowService);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                     GroupBuyStockRepository groupBuyStockRepository,
+                                     TradeOrderRepository tradeOrderRepository,
+                                     TradeStatusFlowService tradeStatusFlowService) {
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
+        this.groupBuyStockRepository = groupBuyStockRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeStatusFlowService = tradeStatusFlowService;
     }
@@ -36,6 +47,11 @@ public class GroupBuySettlementService {
         if (settlementResult.isRepeated()) {
             return;
         }
+        groupBuyStockRepository.markPaidStock(
+                settlementResult.getOrderLock().getActivityId(),
+                settlementResult.getOrderLock().getGoodsId(),
+                settlementResult.getOrderLock().getOrderId(),
+                settlementResult.getOrderLock().getTeamId());
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_GROUP,

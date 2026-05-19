@@ -37,6 +37,7 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final LocalKnowledgeEmbeddingClient fallbackClient;
+    private final KnowledgeVectorMetrics metrics;
 
     @Autowired
     public OpenApiKnowledgeEmbeddingClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
@@ -44,9 +45,10 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
                                            @Value("${agent.group.llm.embedding-model:text-embedding-v4}") String embeddingModel,
                                            @Value("${agent.group.vector.dimension:1024}") int dimension,
                                            @Value("${agent.group.llm.timeout-seconds:20}") long timeoutSeconds,
-                                           LocalKnowledgeEmbeddingClient fallbackClient) {
+                                           LocalKnowledgeEmbeddingClient fallbackClient,
+                                           KnowledgeVectorMetrics metrics) {
         this(baseUrl, apiKey, embeddingModel, dimension, Duration.ofSeconds(Math.max(1L, timeoutSeconds)),
-                HttpClient.newHttpClient(), new ObjectMapper(), fallbackClient);
+                HttpClient.newHttpClient(), new ObjectMapper(), fallbackClient, metrics);
     }
 
     OpenApiKnowledgeEmbeddingClient(String baseUrl,
@@ -67,6 +69,19 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
                                     HttpClient httpClient,
                                     ObjectMapper objectMapper,
                                     LocalKnowledgeEmbeddingClient fallbackClient) {
+        this(baseUrl, apiKey, embeddingModel, dimension, timeout, httpClient, objectMapper,
+                fallbackClient, KnowledgeVectorMetrics.noop());
+    }
+
+    OpenApiKnowledgeEmbeddingClient(String baseUrl,
+                                    String apiKey,
+                                    String embeddingModel,
+                                    int dimension,
+                                    Duration timeout,
+                                    HttpClient httpClient,
+                                    ObjectMapper objectMapper,
+                                    LocalKnowledgeEmbeddingClient fallbackClient,
+                                    KnowledgeVectorMetrics metrics) {
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
         this.embeddingModel = embeddingModel;
@@ -75,11 +90,13 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.fallbackClient = fallbackClient;
+        this.metrics = metrics == null ? KnowledgeVectorMetrics.noop() : metrics;
     }
 
     @Override
     public List<Double> embed(String content) {
         if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl)) {
+            metrics.recordEmbeddingFallback("llm_not_configured");
             return fallbackClient.embed(content);
         }
         try {
@@ -93,12 +110,18 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 LOGGER.warn("embedding call failed, status={}", response.statusCode());
+                metrics.recordEmbeddingFallback("http_status_" + response.statusCode());
                 return fallbackClient.embed(content);
             }
             List<Double> embedding = parseEmbedding(response.body());
-            return embedding.isEmpty() ? fallbackClient.embed(content) : embedding;
+            if (embedding.isEmpty()) {
+                metrics.recordEmbeddingFallback("empty_embedding");
+                return fallbackClient.embed(content);
+            }
+            return embedding;
         } catch (Exception e) {
             LOGGER.warn("embedding fallback, reason={}", e.getClass().getSimpleName());
+            metrics.recordEmbeddingFallback(e.getClass().getSimpleName());
             return fallbackClient.embed(content);
         }
     }

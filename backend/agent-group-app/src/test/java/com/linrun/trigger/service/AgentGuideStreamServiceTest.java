@@ -228,7 +228,8 @@ class AgentGuideStreamServiceTest {
                         new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
                         prompt -> prompt.getFallbackAnswer()),
                 new GuideConversationService(new LocalGuideConversationRepository()),
-                new GuideImageInputService());
+                new GuideImageInputService(),
+                new ToolExecutor());
     }
 
     private GroupBuyActivityService groupBuyService() {

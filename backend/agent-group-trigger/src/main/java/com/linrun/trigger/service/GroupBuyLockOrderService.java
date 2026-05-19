@@ -4,6 +4,7 @@ import com.linrun.api.groupbuy.request.LockGroupBuyOrderRequest;
 import com.linrun.api.groupbuy.response.LockGroupBuyOrderResponse;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyActivityStatus;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
@@ -19,6 +20,7 @@ import com.linrun.domain.trade.model.TradeOrder;
 import com.linrun.domain.trade.model.TradePayOrder;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -36,6 +38,7 @@ public class GroupBuyLockOrderService {
     private final GuideDataRepository guideDataRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
+    private final GroupBuyStockRepository groupBuyStockRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
@@ -46,9 +49,22 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService) {
+        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
+                GroupBuyStockRepository.noop(), tradeOrderRepository, tradeOrderService, tradeStatusFlowService);
+    }
+
+    @Autowired
+    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+                                    GroupBuyActivityRepository groupBuyActivityRepository,
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    GroupBuyStockRepository groupBuyStockRepository,
+                                    TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    TradeStatusFlowService tradeStatusFlowService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
+        this.groupBuyStockRepository = groupBuyStockRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
@@ -85,6 +101,8 @@ public class GroupBuyLockOrderService {
                 now);
         TradePayOrder tradePayOrder = createTradePayOrder(request, product, activity);
         orderLock.setOrderId(tradePayOrder.getTradeOrder().getOrderId());
+        groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
+                tradePayOrder.getTradeOrder().getOrderId(), teamId);
 
         if (!StringUtils.hasText(request.getTeamId())) {
             GroupBuyTeam team = GroupBuyTeam.create(teamId, activity, now);

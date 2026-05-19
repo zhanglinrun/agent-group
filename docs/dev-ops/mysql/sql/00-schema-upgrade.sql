@@ -52,6 +52,49 @@ prepare stmt from @sql;
 execute stmt;
 deallocate prepare stmt;
 
+create table if not exists group_buy_stock (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  activity_id varchar(32) not null comment '活动编号',
+  goods_id varchar(32) not null comment '商品编号',
+  total_stock int not null comment '总库存',
+  available_stock int not null comment '可用库存',
+  locked_stock int not null default 0 comment '锁定库存',
+  paid_stock int not null default 0 comment '已支付库存',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_activity_id (activity_id),
+  key idx_goods_id (goods_id)
+) engine=InnoDB default charset=utf8mb4 comment='拼团库存表';
+
+create table if not exists group_buy_stock_flow (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  flow_id varchar(40) not null comment '库存流水编号',
+  activity_id varchar(32) not null comment '活动编号',
+  goods_id varchar(32) not null comment '商品编号',
+  team_id varchar(40) not null comment '拼团队伍编号',
+  order_id varchar(40) not null comment '交易订单编号',
+  flow_type varchar(32) not null comment '流水类型',
+  quantity int not null comment '变动数量',
+  before_available_stock int not null comment '变动前可用库存',
+  after_available_stock int not null comment '变动后可用库存',
+  remark varchar(256) not null default '' comment '说明',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_flow_id (flow_id),
+  unique key uk_order_flow (order_id, flow_type),
+  key idx_activity_time (activity_id, create_time),
+  key idx_team_id (team_id)
+) engine=InnoDB default charset=utf8mb4 comment='拼团库存流水表';
+
+insert into group_buy_stock (
+  activity_id, goods_id, total_stock, available_stock, locked_stock, paid_stock
+)
+select activity_id, goods_id, 100, 100, 0, 0
+from group_activity
+on duplicate key update
+  goods_id = values(goods_id);
+
 create table if not exists guide_evaluation_report (
   id bigint unsigned not null auto_increment comment '自增主键',
   batch_no varchar(40) not null comment '评测批次编号',

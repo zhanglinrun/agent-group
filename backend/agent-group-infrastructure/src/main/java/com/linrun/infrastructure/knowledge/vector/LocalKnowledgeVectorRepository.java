@@ -3,6 +3,8 @@ package com.linrun.infrastructure.knowledge.vector;
 import com.linrun.domain.knowledge.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.knowledge.model.KnowledgeFragmentStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -22,14 +24,17 @@ import java.util.stream.Collectors;
 @Repository
 public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(LocalKnowledgeVectorRepository.class);
+
     private final Map<String, VectorRecord> vectorRecords = new ConcurrentHashMap<>();
     private final String jdbcUrl;
     private final String username;
     private final String password;
     private final boolean localFallbackEnabled;
+    private final KnowledgeVectorMetrics metrics;
 
     public LocalKnowledgeVectorRepository() {
-        this("", "", "", true);
+        this("", "", "", true, KnowledgeVectorMetrics.noop());
     }
 
     @Autowired
@@ -38,24 +43,35 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
                                           @Value("${agent.group.vector.database:}") String database,
                                           @Value("${agent.group.vector.username:}") String username,
                                           @Value("${agent.group.vector.password:}") String password,
-                                          @Value("${agent.group.vector.local-fallback-enabled:true}") boolean localFallbackEnabled) {
+                                          @Value("${agent.group.vector.local-fallback-enabled:true}") boolean localFallbackEnabled,
+                                          KnowledgeVectorMetrics metrics) {
         this(StringUtils.hasText(host) && StringUtils.hasText(database)
                         ? "jdbc:postgresql://" + host + ":" + port + "/" + database
                         : "",
                 username,
                 password,
-                localFallbackEnabled);
+                localFallbackEnabled,
+                metrics);
     }
 
     LocalKnowledgeVectorRepository(String jdbcUrl, String username, String password) {
-        this(jdbcUrl, username, password, true);
+        this(jdbcUrl, username, password, true, KnowledgeVectorMetrics.noop());
     }
 
     LocalKnowledgeVectorRepository(String jdbcUrl, String username, String password, boolean localFallbackEnabled) {
+        this(jdbcUrl, username, password, localFallbackEnabled, KnowledgeVectorMetrics.noop());
+    }
+
+    LocalKnowledgeVectorRepository(String jdbcUrl,
+                                   String username,
+                                   String password,
+                                   boolean localFallbackEnabled,
+                                   KnowledgeVectorMetrics metrics) {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
         this.localFallbackEnabled = localFallbackEnabled;
+        this.metrics = metrics == null ? KnowledgeVectorMetrics.noop() : metrics;
     }
 
     @Override
@@ -79,6 +95,7 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         if (!localFallbackEnabled) {
             return List.of();
         }
+        metrics.recordLocalFallback(StringUtils.hasText(jdbcUrl) ? "pgvector_empty_or_failed" : "pgvector_not_configured");
         return vectorRecords.values().stream()
                 .map(record -> new ScoredFragment(record.fragment(), cosine(queryEmbedding, record.embedding())))
                 .filter(item -> item.score() > 0.0d)
@@ -101,6 +118,7 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         if (!StringUtils.hasText(jdbcUrl)) {
             return;
         }
+        long startNanos = System.nanoTime();
         String sql = """
                 insert into knowledge_embedding (
                   fragment_id, document_id, goods_id, knowledge_version, content, embedding
@@ -122,8 +140,12 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
             statement.setString(5, fragment.getContent());
             statement.setString(6, vectorLiteral(embedding));
             statement.executeUpdate();
-        } catch (Exception ignored) {
-            // pgvector 不可用时保留本地向量检索能力。
+            metrics.recordPgvectorSave(true, elapsedMillis(startNanos));
+        } catch (Exception e) {
+            metrics.recordPgvectorSave(false, elapsedMillis(startNanos));
+            metrics.recordLocalFallback("pgvector_save_failed");
+            LOGGER.warn("pgvector save failed, fragmentId={}, reason={}",
+                    fragment.getFragmentId(), e.getClass().getSimpleName());
         }
     }
 
@@ -131,6 +153,7 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         if (!StringUtils.hasText(jdbcUrl)) {
             return List.of();
         }
+        long startNanos = System.nanoTime();
         String sql = """
                 select fragment_id, document_id, goods_id, knowledge_version, content
                 from knowledge_embedding
@@ -146,9 +169,12 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
                 while (resultSet.next()) {
                     fragments.add(fragment(resultSet));
                 }
+                metrics.recordPgvectorSearch(true, elapsedMillis(startNanos));
                 return fragments;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            metrics.recordPgvectorSearch(false, elapsedMillis(startNanos));
+            LOGGER.warn("pgvector search failed, reason={}", e.getClass().getSimpleName());
             return List.of();
         }
     }
@@ -171,6 +197,10 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         return "[" + embedding.stream()
                 .map(value -> Double.toString(value == null ? 0.0d : value))
                 .collect(Collectors.joining(",")) + "]";
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 
     private record VectorRecord(KnowledgeFragment fragment, List<Double> embedding) {

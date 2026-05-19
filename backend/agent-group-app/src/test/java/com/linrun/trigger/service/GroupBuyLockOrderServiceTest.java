@@ -9,11 +9,14 @@ import com.linrun.api.trade.request.MockPayCallbackRequest;
 import com.linrun.api.trade.response.MockPayCallbackResponse;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
+import com.linrun.domain.groupbuy.model.GroupBuyStock;
+import com.linrun.domain.groupbuy.model.GroupBuyStockFlowType;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
@@ -244,6 +247,37 @@ class GroupBuyLockOrderServiceTest {
     }
 
     @Test
+    void shouldMoveGroupBuyStockAcrossLockPayAndRefund() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        FakeGroupBuyStockRepository stockRepository = new FakeGroupBuyStockRepository(1);
+        GroupBuyLockOrderService lockOrderService = service(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
+        MockPayCallbackService callbackService = callbackService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
+        GroupBuyCompensationService compensationService = compensationService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
+
+        LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_STOCK_10001"));
+
+        assertEquals(0, stockRepository.stock.getAvailableStock());
+        assertEquals(1, stockRepository.stock.getLockedStock());
+        assertEquals(GroupBuyStockFlowType.LOCK.name(), stockRepository.flows.get(0));
+
+        callbackService.paySuccess(callback(lockResponse.getOrderId(), "TSTOCK10001"));
+
+        assertEquals(0, stockRepository.stock.getLockedStock());
+        assertEquals(1, stockRepository.stock.getPaidStock());
+        assertEquals(GroupBuyStockFlowType.PAY_SUCCESS.name(), stockRepository.flows.get(1));
+
+        RefundGroupBuyOrderRequest refundRequest = new RefundGroupBuyOrderRequest();
+        refundRequest.setOrderId(lockResponse.getOrderId());
+        compensationService.refundUnsettled(refundRequest);
+
+        assertEquals(1, stockRepository.stock.getAvailableStock());
+        assertEquals(0, stockRepository.stock.getPaidStock());
+        assertEquals(GroupBuyStockFlowType.RELEASE_PAID.name(), stockRepository.flows.get(2));
+    }
+
+    @Test
     void shouldRejectEndedActivity() {
         GroupBuyLockOrderService service = new GroupBuyLockOrderService(
                 new FakeGuideDataRepository(),
@@ -268,10 +302,18 @@ class GroupBuyLockOrderServiceTest {
     private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository) {
+        return service(lockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, flowRepository);
+    }
+
+    private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
+                                             GroupBuyStockRepository stockRepository,
+                                             FakeTradeOrderRepository tradeOrderRepository,
+                                             FakeTradeStatusFlowRepository flowRepository) {
         return new GroupBuyLockOrderService(
                 new FakeGuideDataRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", END_TIME)),
                 lockRepository,
+                stockRepository,
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository));
@@ -302,11 +344,18 @@ class GroupBuyLockOrderServiceTest {
     private MockPayCallbackService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
                                                    FakeTradeOrderRepository tradeOrderRepository,
                                                    FakeTradeStatusFlowRepository flowRepository) {
+        return callbackService(lockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, flowRepository);
+    }
+
+    private MockPayCallbackService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                   GroupBuyStockRepository stockRepository,
+                                                   FakeTradeOrderRepository tradeOrderRepository,
+                                                   FakeTradeStatusFlowRepository flowRepository) {
         TradeStatusFlowService tradeStatusFlowService = new TradeStatusFlowService(flowRepository);
         return new MockPayCallbackService(
                 tradeOrderRepository,
                 new TradeOrderService(),
-                new GroupBuySettlementService(lockRepository, tradeOrderRepository, tradeStatusFlowService),
+                new GroupBuySettlementService(lockRepository, stockRepository, tradeOrderRepository, tradeStatusFlowService),
                 tradeStatusFlowService);
     }
 
@@ -318,10 +367,18 @@ class GroupBuyLockOrderServiceTest {
     private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,
                                                             FakeTradeOrderRepository tradeOrderRepository,
                                                             FakeTradeStatusFlowRepository flowRepository) {
+        return compensationService(lockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, flowRepository);
+    }
+
+    private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                            GroupBuyStockRepository stockRepository,
+                                                            FakeTradeOrderRepository tradeOrderRepository,
+                                                            FakeTradeStatusFlowRepository flowRepository) {
         return new GroupBuyCompensationService(
                 tradeOrderRepository,
                 new TradeOrderService(),
                 lockRepository,
+                stockRepository,
                 new TradeStatusFlowService(flowRepository));
     }
 
@@ -473,6 +530,61 @@ class GroupBuyLockOrderServiceTest {
                 team.setCompleteCount(Math.max(team.getCompleteCount() - 1, 0));
             }
             return new GroupBuySettlementResult(orderLock, teams.get(orderLock.getTeamId()), repeated);
+        }
+    }
+
+    private static class FakeGroupBuyStockRepository implements GroupBuyStockRepository {
+
+        private final GroupBuyStock stock = new GroupBuyStock();
+        private final List<String> flows = new java.util.ArrayList<>();
+
+        private FakeGroupBuyStockRepository(int availableStock) {
+            stock.setActivityId("A10001");
+            stock.setGoodsId("G10001");
+            stock.setTotalStock(availableStock);
+            stock.setAvailableStock(availableStock);
+            stock.setLockedStock(0);
+            stock.setPaidStock(0);
+        }
+
+        @Override
+        public GroupBuyStock lockStock(String activityId, String goodsId, String orderId, String teamId) {
+            if (stock.getAvailableStock() <= 0) {
+                throw new AppException("GROUP_0012", "拼团库存不足");
+            }
+            stock.setAvailableStock(stock.getAvailableStock() - 1);
+            stock.setLockedStock(stock.getLockedStock() + 1);
+            flows.add(GroupBuyStockFlowType.LOCK.name());
+            return stock;
+        }
+
+        @Override
+        public GroupBuyStock markPaidStock(String activityId, String goodsId, String orderId, String teamId) {
+            stock.setLockedStock(Math.max(stock.getLockedStock() - 1, 0));
+            stock.setPaidStock(stock.getPaidStock() + 1);
+            flows.add(GroupBuyStockFlowType.PAY_SUCCESS.name());
+            return stock;
+        }
+
+        @Override
+        public GroupBuyStock releaseLockedStock(String activityId, String goodsId, String orderId, String teamId) {
+            stock.setAvailableStock(stock.getAvailableStock() + 1);
+            stock.setLockedStock(Math.max(stock.getLockedStock() - 1, 0));
+            flows.add(GroupBuyStockFlowType.RELEASE_LOCKED.name());
+            return stock;
+        }
+
+        @Override
+        public GroupBuyStock releasePaidStock(String activityId, String goodsId, String orderId, String teamId) {
+            stock.setAvailableStock(stock.getAvailableStock() + 1);
+            stock.setPaidStock(Math.max(stock.getPaidStock() - 1, 0));
+            flows.add(GroupBuyStockFlowType.RELEASE_PAID.name());
+            return stock;
+        }
+
+        @Override
+        public Optional<GroupBuyStock> queryByActivityId(String activityId) {
+            return Optional.of(stock);
         }
     }
 

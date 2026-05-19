@@ -36,22 +36,30 @@ public class AgentGuideStreamService {
     private final GuideRagAnswerService guideRagAnswerService;
     private final GuideConversationService guideConversationService;
     private final GuideImageInputService guideImageInputService;
+    private final ToolExecutor toolExecutor;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
                                    GuideRagAnswerService guideRagAnswerService,
                                    GuideConversationService guideConversationService,
-                                   GuideImageInputService guideImageInputService) {
+                                   GuideImageInputService guideImageInputService,
+                                   ToolExecutor toolExecutor) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
         this.guideConversationService = guideConversationService;
         this.guideImageInputService = guideImageInputService;
+        this.toolExecutor = toolExecutor;
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
         long startNanos = System.nanoTime();
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         AtomicInteger sequence = new AtomicInteger(1);
-        String imageSummary = guideImageInputService.parseImage(request.getImageUrl(), request.getImageName());
+        ToolExecution<String> imageExecution = toolExecutor.execute(
+                "image_parse",
+                "execute",
+                "已解析图片输入",
+                () -> guideImageInputService.parseImage(request.getImageUrl(), request.getImageName()));
+        String imageSummary = imageExecution.getResult();
 
         if (!StringUtils.hasText(request.getQuestion()) && !StringUtils.hasText(imageSummary)) {
             add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error("0001", "问题不能为空"));
@@ -63,19 +71,24 @@ public class AgentGuideStreamService {
 
         if (StringUtils.hasText(imageSummary)) {
             add(events, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                    toolCall("image_parse", "已解析图片输入：" + imageSummary));
+                    toolCall(imageExecution, "已解析图片输入：" + imageSummary));
         }
 
+        ToolExecution<GuideDecisionResult> decisionExecution = toolExecutor.execute(
+                "intent_recognize",
+                "execute",
+                "已识别用户预算、使用场景和购买限制",
+                () -> guideDecisionService.decide(effectiveQuestion));
         add(events, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                toolCall("intent_recognize", "正在识别用户预算、使用场景和购买限制"));
+                toolCall(decisionExecution, decisionExecution.getMessage()));
 
-        GuideDecisionResult decisionResult;
-        try {
-            decisionResult = guideDecisionService.decide(effectiveQuestion);
-        } catch (AppException e) {
-            add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
-            return events;
-        } catch (Exception e) {
+        GuideDecisionResult decisionResult = decisionExecution.getResult();
+        if (!decisionExecution.isSuccess()) {
+            Exception exception = decisionExecution.getException();
+            if (exception instanceof AppException e) {
+                add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
+                return events;
+            }
             add(events, sessionId, requestId, sequence, GuideEventType.ERROR,
                     error("DATA_0001", "导购数据源不可用，请先启动本地 Docker 基础设施并初始化数据"));
             return events;
@@ -117,12 +130,13 @@ public class AgentGuideStreamService {
         events.add(GuideStreamEvent.of(eventType.getCode(), sessionId, requestId, sequence.getAndIncrement(), data));
     }
 
-    private ToolCallDTO toolCall(String toolName, String message) {
+    private ToolCallDTO toolCall(ToolExecution<?> execution, String message) {
         ToolCallDTO dto = new ToolCallDTO();
-        dto.setToolName(toolName);
-        dto.setAction("mock_execute");
-        dto.setStatus("success");
+        dto.setToolName(execution.getToolName());
+        dto.setAction(execution.getAction());
+        dto.setStatus(execution.getStatus());
         dto.setMessage(message);
+        dto.setLatencyMillis(execution.getLatencyMillis());
         return dto;
     }
 

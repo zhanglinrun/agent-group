@@ -39,6 +39,7 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+logs/
 
 ### Mac OS ###
 .DS_Store
