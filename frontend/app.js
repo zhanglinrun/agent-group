@@ -547,29 +547,60 @@ function renderProduct(product) {
   const card = document.createElement("article");
   card.className = "product-card";
   card.innerHTML = `
-    <div class="product-art" aria-hidden="true"><div class="tablet-shape"></div></div>
+    <div class="product-art" aria-hidden="true">
+      <img src="https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=760&q=82" alt="">
+      <span class="media-badge">AI 精选</span>
+      <div class="media-thumbs">
+        <i></i><i></i><i></i>
+      </div>
+    </div>
     <div class="product-info">
       <div class="product-title">
         <strong>${escapeHtml(product.name)}</strong>
-        <span class="price">拼团 ￥${product.groupPrice}</span>
+        <span class="tag info">本轮推荐</span>
+      </div>
+      <div class="product-rating">
+        <span>4.9 分</span>
+        <span>1.2 万人关注</span>
+        <span>48 小时发货</span>
+      </div>
+      <div class="product-price-line">
+        <strong>￥${product.groupPrice}</strong>
+        <span>拼团到手价</span>
+        <em>省 ￥${formatPrice(Number(product.originPrice) - Number(product.groupPrice))}</em>
       </div>
       <div class="price-stack">
         <span>直接价 ￥${product.originPrice}</span>
-        <span>拼团价 ￥${product.groupPrice}</span>
+        <span>${product.teamSize} 人成团</span>
+        <span>剩余 ${escapeHtml(product.leftTime)}</span>
+      </div>
+      <div class="coupon-row">
+        <span>拼团立减</span>
+        <span>学生补贴</span>
+        <span>售后无忧</span>
       </div>
       <div class="product-meta">${escapeHtml(product.spec)}</div>
       <p class="product-reason">${escapeHtml(product.reason)}</p>
       <div class="product-meta">不适合：${escapeHtml(product.notSuitable)}</div>
-      <div class="product-meta">${product.teamSize} 人成团 · 剩余 ${escapeHtml(product.leftTime)}</div>
+      <div class="service-strip">
+        <span>正品保障</span>
+        <span>7 天无理由</span>
+        <span>未成团自动退</span>
+      </div>
       <div class="product-actions">
         <button class="soft-button direct-buy-button" type="button">直接购买</button>
         <button class="primary-button group-buy-button" type="button">拼团购买</button>
-        <button class="soft-button" type="button">查看规则</button>
+        <button class="soft-button rule-button" type="button">查看规则</button>
       </div>
     </div>
   `;
   card.querySelector(".direct-buy-button").addEventListener("click", () => startPurchase(product, "direct"));
   card.querySelector(".group-buy-button").addEventListener("click", () => startPurchase(product, "group"));
+  card.querySelector(".rule-button").addEventListener("click", () => {
+    setText("#tradeState", "规则已展开");
+    setHtml("#tradeTimeline", "");
+    pushTradeStep(`${product.teamSize} 人成团，拼团价 ￥${product.groupPrice}；未成团自动退款。`, "done");
+  });
   root.appendChild(card);
 }
 
