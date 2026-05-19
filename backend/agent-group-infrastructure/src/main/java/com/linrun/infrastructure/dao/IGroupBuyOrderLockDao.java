@@ -2,6 +2,8 @@ package com.linrun.infrastructure.dao;
 
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamDetail;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamStatistic;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -39,4 +41,16 @@ public interface IGroupBuyOrderLockDao {
 
     List<String> queryTimeoutUnsettledPaidOrderIds(@Param("deadline") LocalDateTime deadline,
                                                    @Param("limit") int limit);
+
+    int countUserActivityLocks(@Param("userId") String userId, @Param("activityId") String activityId);
+
+    List<GroupBuyTeamDetail> queryInProgressOwnerTeamDetails(@Param("activityId") String activityId,
+                                                             @Param("userId") String userId,
+                                                             @Param("limit") int limit);
+
+    List<GroupBuyTeamDetail> queryInProgressRandomTeamDetails(@Param("activityId") String activityId,
+                                                              @Param("userId") String userId,
+                                                              @Param("limit") int limit);
+
+    GroupBuyTeamStatistic queryTeamStatisticByActivityId(@Param("activityId") String activityId);
 }

@@ -32,6 +32,24 @@
         <result column="lock_time" property="lockTime"/>
     </resultMap>
 
+    <resultMap id="GroupBuyTeamDetailMap" type="com.linrun.domain.groupbuy.model.GroupBuyTeamDetail">
+        <result column="user_id" property="userId"/>
+        <result column="team_id" property="teamId"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="target_count" property="targetCount"/>
+        <result column="complete_count" property="completeCount"/>
+        <result column="lock_count" property="lockCount"/>
+        <result column="valid_start_time" property="validStartTime"/>
+        <result column="valid_end_time" property="validEndTime"/>
+        <result column="out_trade_no" property="outTradeNo"/>
+    </resultMap>
+
+    <resultMap id="GroupBuyTeamStatisticMap" type="com.linrun.domain.groupbuy.model.GroupBuyTeamStatistic">
+        <result column="all_team_count" property="allTeamCount"/>
+        <result column="all_team_complete_count" property="allTeamCompleteCount"/>
+        <result column="all_team_user_count" property="allTeamUserCount"/>
+    </resultMap>
+
     <insert id="insertTeam" parameterType="com.linrun.domain.groupbuy.model.GroupBuyTeam">
         insert into group_buy_team (
           team_id,
@@ -207,5 +225,68 @@
           and t.valid_end_time &lt;= #{deadline}
         order by l.id asc
         limit #{limit}
+    </select>
+
+    <select id="countUserActivityLocks" resultType="int">
+        select count(1)
+        from group_buy_order_lock
+        where user_id = #{userId}
+          and activity_id = #{activityId}
+          and lock_status in ('LOCKED', 'PAID')
+    </select>
+
+    <select id="queryInProgressOwnerTeamDetails" resultMap="GroupBuyTeamDetailMap">
+        select l.user_id,
+               t.team_id,
+               t.activity_id,
+               t.target_count,
+               t.complete_count,
+               t.lock_count,
+               t.valid_start_time,
+               t.valid_end_time,
+               coalesce(p.out_trade_no, l.idempotent_key) as out_trade_no
+        from group_buy_order_lock l
+        inner join group_buy_team t on t.team_id = l.team_id
+        left join pay_order p on p.order_id = l.order_id
+        where t.activity_id = #{activityId}
+          and l.user_id = #{userId}
+          and t.team_status = 'PROCESSING'
+          and (t.valid_end_time is null or t.valid_end_time &gt; now())
+          and l.lock_status in ('LOCKED', 'PAID')
+        order by t.id desc
+        limit #{limit}
+    </select>
+
+    <select id="queryInProgressRandomTeamDetails" resultMap="GroupBuyTeamDetailMap">
+        select '' as user_id,
+               t.team_id,
+               t.activity_id,
+               t.target_count,
+               t.complete_count,
+               t.lock_count,
+               t.valid_start_time,
+               t.valid_end_time,
+               '' as out_trade_no
+        from group_buy_team t
+        where t.activity_id = #{activityId}
+          and t.team_status = 'PROCESSING'
+          and (t.valid_end_time is null or t.valid_end_time &gt; now())
+          and (#{userId} is null or not exists (
+              select 1
+              from group_buy_order_lock l
+              where l.team_id = t.team_id
+                and l.user_id = #{userId}
+                and l.lock_status in ('LOCKED', 'PAID')
+          ))
+        order by t.id desc
+        limit #{limit}
+    </select>
+
+    <select id="queryTeamStatisticByActivityId" resultMap="GroupBuyTeamStatisticMap">
+        select count(1) as all_team_count,
+               sum(case when team_status = 'SUCCESS' then 1 else 0 end) as all_team_complete_count,
+               coalesce(sum(complete_count), 0) as all_team_user_count
+        from group_buy_team
+        where activity_id = #{activityId}
     </select>
 </mapper>

@@ -7,22 +7,40 @@
     <resultMap id="GroupBuyActivityMap" type="com.linrun.domain.groupbuy.model.GroupBuyActivity">
         <id column="id" property="id"/>
         <result column="activity_id" property="activityId"/>
+        <result column="activity_name" property="activityName"/>
         <result column="goods_id" property="goodsId"/>
         <result column="group_price" property="groupPrice"/>
         <result column="team_size" property="teamSize"/>
+        <result column="discount_id" property="discountId"/>
+        <result column="group_type" property="groupType"/>
+        <result column="take_limit_count" property="takeLimitCount"/>
+        <result column="target" property="target"/>
+        <result column="valid_time" property="validTime"/>
+        <result column="status" property="status"/>
         <result column="start_time" property="startTime"/>
         <result column="end_time" property="endTime"/>
+        <result column="tag_id" property="tagId"/>
+        <result column="tag_scope" property="tagScope"/>
         <result column="enabled" property="enabled"/>
     </resultMap>
 
     <select id="queryByGoodsId" resultMap="GroupBuyActivityMap">
         select id,
                activity_id,
+               activity_name,
                goods_id,
                group_price,
-               team_size,
+               case when target is not null and target &gt; 1 then target else team_size end as team_size,
+               discount_id,
+               group_type,
+               take_limit_count,
+               target,
+               valid_time,
+               status,
                start_time,
                end_time,
+               tag_id,
+               tag_scope,
                enabled
         from group_activity
         where goods_id = #{goodsId}
@@ -40,11 +58,20 @@
     <select id="queryByActivityId" resultMap="GroupBuyActivityMap">
         select id,
                activity_id,
+               activity_name,
                goods_id,
                group_price,
-               team_size,
+               case when target is not null and target &gt; 1 then target else team_size end as team_size,
+               discount_id,
+               group_type,
+               take_limit_count,
+               target,
+               valid_time,
+               status,
                start_time,
                end_time,
+               tag_id,
+               tag_scope,
                enabled
         from group_activity
         where activity_id = #{activityId}

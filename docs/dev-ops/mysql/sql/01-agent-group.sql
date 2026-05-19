@@ -28,8 +28,17 @@ create table if not exists group_activity (
   goods_id varchar(32) not null comment '商品编号',
   group_price decimal(10, 2) not null comment '拼团价',
   team_size int not null comment '成团人数',
+  activity_name varchar(128) not null default '' comment 'activity name',
+  discount_id varchar(32) default null comment 'discount id',
+  group_type tinyint not null default 0 comment 'group type',
+  take_limit_count int not null default 1 comment 'user take limit',
+  target int not null default 1 comment 'target count',
+  valid_time int not null default 1440 comment 'team valid minutes',
+  status tinyint not null default 1 comment 'activity status',
   start_time datetime not null comment '开始时间',
   end_time datetime not null comment '结束时间',
+  tag_id varchar(32) default null comment 'crowd tag id',
+  tag_scope varchar(16) default null comment 'tag scope, 1 visible, 2 enable',
   enabled tinyint not null default 1 comment '是否启用',
   create_time datetime not null default current_timestamp comment '创建时间',
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
@@ -37,6 +46,47 @@ create table if not exists group_activity (
   unique key uk_activity_id (activity_id),
   key idx_goods_id (goods_id)
 ) engine=InnoDB default charset=utf8mb4 comment='拼团活动表';
+
+create table if not exists group_buy_discount (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  discount_id varchar(32) not null comment 'discount id',
+  discount_name varchar(64) not null comment 'discount name',
+  discount_desc varchar(256) not null default '' comment 'discount desc',
+  discount_type tinyint not null default 0 comment '0 base, 1 tag',
+  market_plan varchar(8) not null comment 'ZJ/MJ/ZK/N',
+  market_expr varchar(64) not null comment 'discount expression',
+  tag_id varchar(32) default null comment 'tag id for tag discount',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_discount_id (discount_id)
+) engine=InnoDB default charset=utf8mb4 comment='group buy discount';
+
+create table if not exists sku (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  source varchar(32) not null default '' comment 'source',
+  channel varchar(32) not null default '' comment 'channel',
+  goods_id varchar(32) not null comment 'goods id',
+  goods_name varchar(128) not null comment 'goods name',
+  original_price decimal(10, 2) not null comment 'original price',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_goods_id (goods_id)
+) engine=InnoDB default charset=utf8mb4 comment='sku';
+
+create table if not exists sc_sku_activity (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  source varchar(32) not null comment 'source',
+  channel varchar(32) not null comment 'channel',
+  activity_id varchar(32) not null comment 'activity id',
+  goods_id varchar(32) not null comment 'goods id',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_sc_goods (source, channel, goods_id),
+  key idx_activity_id (activity_id)
+) engine=InnoDB default charset=utf8mb4 comment='source channel sku activity';
 
 create table if not exists group_buy_team (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -407,17 +457,62 @@ on duplicate key update
   sort_order = values(sort_order);
 
 insert into group_activity (
-  activity_id, goods_id, group_price, team_size, start_time, end_time, enabled
+  activity_id, goods_id, group_price, team_size, activity_name, discount_id,
+  group_type, take_limit_count, target, valid_time, status, start_time, end_time,
+  tag_id, tag_scope, enabled
 ) values
-('A10001', 'G10001', 2099.00, 3, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 1),
-('A10002', 'G10002', 2899.00, 5, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 1)
+('A10001', 'G10001', 2099.00, 3, '学习平板标准版拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
+('A10002', 'G10002', 2899.00, 5, '高配创作平板拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1)
 on duplicate key update
   goods_id = values(goods_id),
   group_price = values(group_price),
   team_size = values(team_size),
+  activity_name = values(activity_name),
+  discount_id = values(discount_id),
+  group_type = values(group_type),
+  take_limit_count = values(take_limit_count),
+  target = values(target),
+  valid_time = values(valid_time),
+  status = values(status),
   start_time = values(start_time),
   end_time = values(end_time),
+  tag_id = values(tag_id),
+  tag_scope = values(tag_scope),
   enabled = values(enabled);
+
+insert into group_buy_discount (
+  discount_id, discount_name, discount_desc, discount_type, market_plan, market_expr, tag_id
+) values
+('D10001', '直减 300', '标准版拼团直减 300 元', 0, 'ZJ', '300', null),
+('D10002', '满 3000 减 400', '高配版满减优惠', 0, 'MJ', '3000,400', null),
+('D10003', '八折优惠', '折扣算法示例', 0, 'ZK', '0.8', null),
+('D10004', 'N 元购', '固定金额算法示例', 0, 'N', '1.99', null)
+on duplicate key update
+  discount_name = values(discount_name),
+  discount_desc = values(discount_desc),
+  discount_type = values(discount_type),
+  market_plan = values(market_plan),
+  market_expr = values(market_expr),
+  tag_id = values(tag_id);
+
+insert into sku (
+  source, channel, goods_id, goods_name, original_price
+) values
+('s01', 'c01', 'G10001', '学习平板标准版', 2399.00),
+('s01', 'c01', 'G10002', '高配创作平板', 3299.00)
+on duplicate key update
+  source = values(source),
+  channel = values(channel),
+  goods_name = values(goods_name),
+  original_price = values(original_price);
+
+insert into sc_sku_activity (
+  source, channel, activity_id, goods_id
+) values
+('s01', 'c01', 'A10001', 'G10001'),
+('s01', 'c01', 'A10002', 'G10002')
+on duplicate key update
+  activity_id = values(activity_id);
 
 insert into group_buy_stock (
   activity_id, goods_id, total_stock, available_stock, locked_stock, paid_stock

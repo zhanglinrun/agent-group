@@ -6,12 +6,15 @@ import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamDetail;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamStatistic;
 import com.linrun.infrastructure.dao.IGroupBuyOrderLockDao;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -120,5 +123,31 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     @Override
     public List<String> queryTimeoutUnsettledPaidOrderIds(LocalDateTime deadline, int limit) {
         return groupBuyOrderLockDao.queryTimeoutUnsettledPaidOrderIds(deadline, limit);
+    }
+
+    @Override
+    public int countUserActivityLocks(String userId, String activityId) {
+        return groupBuyOrderLockDao.countUserActivityLocks(userId, activityId);
+    }
+
+    @Override
+    public List<GroupBuyTeamDetail> queryInProgressTeamDetails(String activityId,
+                                                               String userId,
+                                                               int ownerCount,
+                                                               int randomCount) {
+        List<GroupBuyTeamDetail> result = new ArrayList<>();
+        if (ownerCount > 0) {
+            result.addAll(groupBuyOrderLockDao.queryInProgressOwnerTeamDetails(activityId, userId, ownerCount));
+        }
+        if (randomCount > 0) {
+            result.addAll(groupBuyOrderLockDao.queryInProgressRandomTeamDetails(activityId, userId, randomCount));
+        }
+        return result;
+    }
+
+    @Override
+    public GroupBuyTeamStatistic queryTeamStatisticByActivityId(String activityId) {
+        GroupBuyTeamStatistic statistic = groupBuyOrderLockDao.queryTeamStatisticByActivityId(activityId);
+        return statistic == null ? new GroupBuyTeamStatistic() : statistic;
     }
 }

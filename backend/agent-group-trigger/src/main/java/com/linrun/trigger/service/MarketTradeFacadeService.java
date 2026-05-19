@@ -14,8 +14,12 @@ import com.linrun.api.trade.request.MockPayCallbackRequest;
 import com.linrun.domain.dcc.service.DynamicConfigService;
 import com.linrun.domain.groupbuy.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
-import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.model.GroupBuyMarketTrialCommand;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamDetail;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamStatistic;
+import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
+import com.linrun.domain.groupbuy.service.GroupBuyMarketTrialService;
 import com.linrun.domain.guide.adapter.GuideDataRepository;
 import com.linrun.domain.guide.model.GuideProduct;
 import com.linrun.domain.trade.adapter.TradeOrderRepository;
@@ -38,6 +42,7 @@ public class MarketTradeFacadeService {
     private final TradeCompensationService tradeCompensationService;
     private final TradeOrderRepository tradeOrderRepository;
     private final DynamicConfigService dynamicConfigService;
+    private final GroupBuyMarketTrialService groupBuyMarketTrialService;
 
     public MarketTradeFacadeService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -46,7 +51,8 @@ public class MarketTradeFacadeService {
                                     MockPayCallbackService mockPayCallbackService,
                                     TradeCompensationService tradeCompensationService,
                                     TradeOrderRepository tradeOrderRepository,
-                                    DynamicConfigService dynamicConfigService) {
+                                    DynamicConfigService dynamicConfigService,
+                                    GroupBuyMarketTrialService groupBuyMarketTrialService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
@@ -55,18 +61,25 @@ public class MarketTradeFacadeService {
         this.tradeCompensationService = tradeCompensationService;
         this.tradeOrderRepository = tradeOrderRepository;
         this.dynamicConfigService = dynamicConfigService;
+        this.groupBuyMarketTrialService = groupBuyMarketTrialService;
     }
 
     public LockMarketPayOrderResponse lockMarketPayOrder(LockMarketPayOrderRequest request) {
         validateLockRequest(request);
-        LockGroupBuyOrderResponse lockResponse = groupBuyLockOrderService.lock(toGroupBuyRequest(request));
-        GuideProduct product = queryProduct(request.getGoodsId());
+        GroupBuyTrialResult trialResult = groupBuyMarketTrialService.trial(toTrialCommand(request));
+        if (!request.getActivityId().equals(trialResult.getActivityId())) {
+            throw new AppException("GROUP_0018", "request activity does not match market trial activity");
+        }
+        if (!trialResult.isEnable() || !trialResult.isAvailable()) {
+            throw new AppException("GROUP_0019", "user cannot join this group activity");
+        }
+        LockGroupBuyOrderResponse lockResponse = groupBuyLockOrderService.lock(toGroupBuyRequest(request, trialResult));
 
         LockMarketPayOrderResponse response = new LockMarketPayOrderResponse();
         response.setOrderId(lockResponse.getOrderId());
-        response.setOriginalPrice(product.getOriginPrice());
+        response.setOriginalPrice(trialResult.getOriginalPrice());
         response.setPayPrice(lockResponse.getLockAmount());
-        response.setDeductionPrice(product.getOriginPrice().subtract(lockResponse.getLockAmount()));
+        response.setDeductionPrice(trialResult.getOriginalPrice().subtract(lockResponse.getLockAmount()));
         response.setTradeOrderStatus(0);
         response.setTeamId(lockResponse.getTeamId());
         return response;
@@ -119,22 +132,26 @@ public class MarketTradeFacadeService {
         if (request == null || !StringUtils.hasText(request.getGoodsId())) {
             throw new AppException("0001", "goodsId cannot be blank");
         }
-        GuideProduct product = queryProduct(request.getGoodsId());
-        GroupBuyActivity activity = groupBuyActivityRepository.queryByGoodsId(request.getGoodsId())
-                .orElseThrow(() -> new AppException("GROUP_0001", "group activity not found"));
+        GroupBuyTrialResult trialResult = groupBuyMarketTrialService.trial(toTrialCommand(request));
 
         GoodsMarketResponse response = new GoodsMarketResponse();
-        response.setActivityId(activity.getActivityId());
+        response.setActivityId(trialResult.getActivityId());
+        response.setVisible(trialResult.isVisible());
+        response.setEnable(trialResult.isEnable());
+        response.setMessage(trialResult.getMessage());
+        response.setDiscount(toDiscount(trialResult));
         GoodsMarketResponse.Goods goods = new GoodsMarketResponse.Goods();
-        goods.setGoodsId(product.getGoodsId());
-        goods.setOriginalPrice(product.getOriginPrice());
-        goods.setPayPrice(activity.getGroupPrice());
-        goods.setDeductionPrice(product.getOriginPrice().subtract(activity.getGroupPrice()));
+        goods.setGoodsId(trialResult.getGoodsId());
+        goods.setGoodsName(trialResult.getGoodsName());
+        goods.setOriginalPrice(trialResult.getOriginalPrice());
+        goods.setPayPrice(trialResult.getPayPrice());
+        goods.setDeductionPrice(trialResult.getDeductionPrice());
         response.setGoods(goods);
+        fillTeamInfo(response, trialResult, request.getUserId());
         return response;
     }
 
-    private LockGroupBuyOrderRequest toGroupBuyRequest(LockMarketPayOrderRequest request) {
+    private LockGroupBuyOrderRequest toGroupBuyRequest(LockMarketPayOrderRequest request, GroupBuyTrialResult trialResult) {
         LockGroupBuyOrderRequest groupRequest = new LockGroupBuyOrderRequest();
         groupRequest.setUserId(request.getUserId());
         groupRequest.setGoodsId(request.getGoodsId());
@@ -142,7 +159,71 @@ public class MarketTradeFacadeService {
         groupRequest.setTeamId(request.getTeamId());
         groupRequest.setIdempotentKey(resolveIdempotentKey(request));
         groupRequest.setPayChannel("MOCK_PAY");
+        groupRequest.setGoodsName(trialResult.getGoodsName());
+        groupRequest.setOriginalAmount(trialResult.getOriginalPrice());
+        groupRequest.setPayAmount(trialResult.getPayPrice());
         return groupRequest;
+    }
+
+    private GroupBuyMarketTrialCommand toTrialCommand(LockMarketPayOrderRequest request) {
+        GroupBuyMarketTrialCommand command = new GroupBuyMarketTrialCommand();
+        command.setUserId(request.getUserId());
+        command.setGoodsId(request.getGoodsId());
+        command.setSource(request.getSource());
+        command.setChannel(request.getChannel());
+        command.setActivityId(request.getActivityId());
+        return command;
+    }
+
+    private GroupBuyMarketTrialCommand toTrialCommand(GoodsMarketRequest request) {
+        GroupBuyMarketTrialCommand command = new GroupBuyMarketTrialCommand();
+        command.setUserId(request.getUserId());
+        command.setGoodsId(request.getGoodsId());
+        command.setSource(request.getSource());
+        command.setChannel(request.getChannel());
+        return command;
+    }
+
+    private GoodsMarketResponse.Discount toDiscount(GroupBuyTrialResult trialResult) {
+        if (!StringUtils.hasText(trialResult.getDiscountId())) {
+            return null;
+        }
+        GoodsMarketResponse.Discount discount = new GoodsMarketResponse.Discount();
+        discount.setDiscountId(trialResult.getDiscountId());
+        discount.setDiscountName(trialResult.getDiscountName());
+        discount.setMarketPlan(trialResult.getMarketPlan());
+        discount.setMarketExpr(trialResult.getMarketExpr());
+        discount.setTagId(trialResult.getTagId());
+        discount.setTagScope(trialResult.getTagScope());
+        return discount;
+    }
+
+    private void fillTeamInfo(GoodsMarketResponse response, GroupBuyTrialResult trialResult, String userId) {
+        if (!StringUtils.hasText(trialResult.getActivityId())) {
+            return;
+        }
+        GroupBuyTeamStatistic statistic = groupBuyOrderLockRepository.queryTeamStatisticByActivityId(trialResult.getActivityId());
+        response.getTeamStatistic().setAllTeamCount(statistic.getAllTeamCount());
+        response.getTeamStatistic().setAllTeamCompleteCount(statistic.getAllTeamCompleteCount());
+        response.getTeamStatistic().setAllTeamUserCount(statistic.getAllTeamUserCount());
+        for (GroupBuyTeamDetail detail : groupBuyOrderLockRepository.queryInProgressTeamDetails(
+                trialResult.getActivityId(), userId, 2, 3)) {
+            response.getTeamList().add(toTeam(detail));
+        }
+    }
+
+    private GoodsMarketResponse.Team toTeam(GroupBuyTeamDetail detail) {
+        GoodsMarketResponse.Team team = new GoodsMarketResponse.Team();
+        team.setUserId(detail.getUserId());
+        team.setTeamId(detail.getTeamId());
+        team.setActivityId(detail.getActivityId());
+        team.setTargetCount(detail.getTargetCount());
+        team.setCompleteCount(detail.getCompleteCount());
+        team.setLockCount(detail.getLockCount());
+        team.setValidStartTime(detail.getValidStartTime());
+        team.setValidEndTime(detail.getValidEndTime());
+        team.setOutTradeNo(detail.getOutTradeNo());
+        return team;
     }
 
     private void validateLockRequest(LockMarketPayOrderRequest request) {

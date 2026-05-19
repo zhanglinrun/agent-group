@@ -28,6 +28,8 @@ public interface ICrowdTagDao {
 
     int countCrowdTagUsers(@Param("tagId") String tagId);
 
+    boolean isTagCrowdRange(@Param("tagId") String tagId, @Param("userId") String userId);
+
     void updateCrowdTagStatistics(@Param("tagId") String tagId, @Param("statistics") int statistics);
 
     void updateJobStatus(@Param("tagId") String tagId,

@@ -53,17 +53,62 @@ on duplicate key update
   sort_order = values(sort_order);
 
 insert into group_activity (
-  activity_id, goods_id, group_price, team_size, start_time, end_time, enabled
+  activity_id, goods_id, group_price, team_size, activity_name, discount_id,
+  group_type, take_limit_count, target, valid_time, status, start_time, end_time,
+  tag_id, tag_scope, enabled
 ) values
-('A10001', 'G10001', 2099.00, 3, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 1),
-('A10002', 'G10002', 2899.00, 5, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 1)
+('A10001', 'G10001', 2099.00, 3, '学习平板标准版拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
+('A10002', 'G10002', 2899.00, 5, '高配创作平板拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1)
 on duplicate key update
   goods_id = values(goods_id),
   group_price = values(group_price),
   team_size = values(team_size),
+  activity_name = values(activity_name),
+  discount_id = values(discount_id),
+  group_type = values(group_type),
+  take_limit_count = values(take_limit_count),
+  target = values(target),
+  valid_time = values(valid_time),
+  status = values(status),
   start_time = values(start_time),
   end_time = values(end_time),
+  tag_id = values(tag_id),
+  tag_scope = values(tag_scope),
   enabled = values(enabled);
+
+insert into group_buy_discount (
+  discount_id, discount_name, discount_desc, discount_type, market_plan, market_expr, tag_id
+) values
+('D10001', '直减 300', '标准版拼团直减 300 元', 0, 'ZJ', '300', null),
+('D10002', '满 3000 减 400', '高配版满减优惠', 0, 'MJ', '3000,400', null),
+('D10003', '八折优惠', '折扣算法示例', 0, 'ZK', '0.8', null),
+('D10004', 'N 元购', '固定金额算法示例', 0, 'N', '1.99', null)
+on duplicate key update
+  discount_name = values(discount_name),
+  discount_desc = values(discount_desc),
+  discount_type = values(discount_type),
+  market_plan = values(market_plan),
+  market_expr = values(market_expr),
+  tag_id = values(tag_id);
+
+insert into sku (
+  source, channel, goods_id, goods_name, original_price
+) values
+('s01', 'c01', 'G10001', '学习平板标准版', 2399.00),
+('s01', 'c01', 'G10002', '高配创作平板', 3299.00)
+on duplicate key update
+  source = values(source),
+  channel = values(channel),
+  goods_name = values(goods_name),
+  original_price = values(original_price);
+
+insert into sc_sku_activity (
+  source, channel, activity_id, goods_id
+) values
+('s01', 'c01', 'A10001', 'G10001'),
+('s01', 'c01', 'A10002', 'G10002')
+on duplicate key update
+  activity_id = values(activity_id);
 
 insert into group_buy_stock (
   activity_id, goods_id, total_stock, available_stock, locked_stock, paid_stock

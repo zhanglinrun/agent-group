@@ -23,12 +23,12 @@ public class GroupBuyTeam {
         team.setTeamId(teamId);
         team.setActivityId(activity.getActivityId());
         team.setGoodsId(activity.getGoodsId());
-        team.setTargetCount(activity.getTeamSize());
+        team.setTargetCount(activity.resolveTeamSize());
         team.setCompleteCount(0);
         team.setLockCount(1);
         team.setTeamStatus(GroupBuyTeamStatus.PROCESSING);
         team.setValidStartTime(now);
-        team.setValidEndTime(activity.getEndTime());
+        team.setValidEndTime(activity.resolveTeamValidEndTime(now));
         team.setCreateTime(now);
         return team;
     }

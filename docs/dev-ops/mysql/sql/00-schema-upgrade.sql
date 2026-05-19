@@ -242,3 +242,162 @@ insert into dynamic_config (
 on duplicate key update
   config_value = values(config_value),
   remark = values(remark);
+
+-- group project marketing rule extension
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column activity_name varchar(128) not null default '''' comment ''activity name'' after team_size',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'activity_name'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column discount_id varchar(32) default null comment ''discount id'' after activity_name',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'discount_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column group_type tinyint not null default 0 comment ''group type'' after discount_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'group_type'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column take_limit_count int not null default 1 comment ''user take limit'' after group_type',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'take_limit_count'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column target int not null default 1 comment ''target count'' after take_limit_count',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'target'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column valid_time int not null default 1440 comment ''team valid minutes'' after target',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'valid_time'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column status tinyint not null default 1 comment ''activity status'' after valid_time',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'status'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column tag_id varchar(32) default null comment ''crowd tag id'' after end_time',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'tag_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_activity add column tag_scope varchar(16) default null comment ''tag scope'' after tag_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_activity'
+    and column_name = 'tag_scope'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+create table if not exists group_buy_discount (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  discount_id varchar(32) not null comment 'discount id',
+  discount_name varchar(64) not null comment 'discount name',
+  discount_desc varchar(256) not null default '' comment 'discount desc',
+  discount_type tinyint not null default 0 comment '0 base, 1 tag',
+  market_plan varchar(8) not null comment 'ZJ/MJ/ZK/N',
+  market_expr varchar(64) not null comment 'discount expression',
+  tag_id varchar(32) default null comment 'tag id for tag discount',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_discount_id (discount_id)
+) engine=InnoDB default charset=utf8mb4 comment='group buy discount';
+
+create table if not exists sku (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  source varchar(32) not null default '' comment 'source',
+  channel varchar(32) not null default '' comment 'channel',
+  goods_id varchar(32) not null comment 'goods id',
+  goods_name varchar(128) not null comment 'goods name',
+  original_price decimal(10, 2) not null comment 'original price',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_goods_id (goods_id)
+) engine=InnoDB default charset=utf8mb4 comment='sku';
+
+create table if not exists sc_sku_activity (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  source varchar(32) not null comment 'source',
+  channel varchar(32) not null comment 'channel',
+  activity_id varchar(32) not null comment 'activity id',
+  goods_id varchar(32) not null comment 'goods id',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_sc_goods (source, channel, goods_id),
+  key idx_activity_id (activity_id)
+) engine=InnoDB default charset=utf8mb4 comment='source channel sku activity';

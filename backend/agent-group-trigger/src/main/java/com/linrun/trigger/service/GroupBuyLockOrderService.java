@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -107,8 +108,10 @@ public class GroupBuyLockOrderService {
 
         LocalDateTime now = LocalDateTime.now();
         validateActivity(request, activity, now);
+        validateTakeLimit(request, activity);
 
         String teamId = StringUtils.hasText(request.getTeamId()) ? request.getTeamId() : nextNo("T");
+        BigDecimal payAmount = resolvePayAmount(request, activity);
         GroupBuyOrderLock orderLock = GroupBuyOrderLock.locked(
                 nextNo("L"),
                 request.getIdempotentKey(),
@@ -116,7 +119,8 @@ public class GroupBuyLockOrderService {
                 teamId,
                 activity,
                 now);
-        TradePayOrder tradePayOrder = createTradePayOrder(request, product, activity);
+        orderLock.setLockAmount(payAmount);
+        TradePayOrder tradePayOrder = createTradePayOrder(request, product, activity, payAmount);
         orderLock.setOrderId(tradePayOrder.getTradeOrder().getOrderId());
 
         if (!StringUtils.hasText(request.getTeamId())) {
@@ -207,18 +211,42 @@ public class GroupBuyLockOrderService {
         }
     }
 
-    private TradePayOrder createTradePayOrder(LockGroupBuyOrderRequest request, GuideProduct product, GroupBuyActivity activity) {
+    private void validateTakeLimit(LockGroupBuyOrderRequest request, GroupBuyActivity activity) {
+        Integer takeLimitCount = activity.getTakeLimitCount();
+        if (takeLimitCount == null || takeLimitCount <= 0) {
+            return;
+        }
+        int count = groupBuyOrderLockRepository.countUserActivityLocks(request.getUserId(), activity.getActivityId());
+        if (count >= takeLimitCount) {
+            throw new AppException("GROUP_0017", "user group buy take limit reached");
+        }
+    }
+
+    private TradePayOrder createTradePayOrder(LockGroupBuyOrderRequest request,
+                                              GuideProduct product,
+                                              GroupBuyActivity activity,
+                                              BigDecimal payAmount) {
         CreateTradeOrderCommand command = new CreateTradeOrderCommand();
         command.setUserId(request.getUserId());
         command.setGoodsId(product.getGoodsId());
-        command.setGoodsName(product.getGoodsName());
+        command.setGoodsName(StringUtils.hasText(request.getGoodsName()) ? request.getGoodsName() : product.getGoodsName());
         command.setActivityId(activity.getActivityId());
         command.setBuyType(TradeBuyType.GROUP_BUY);
-        command.setOriginAmount(product.getOriginPrice());
-        command.setPayAmount(activity.getGroupPrice());
+        command.setOriginAmount(request.getOriginalAmount() == null ? product.getOriginPrice() : request.getOriginalAmount());
+        command.setPayAmount(payAmount);
 
         TradeOrder tradeOrder = tradeOrderService.createOrder(command);
         return tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
+    }
+
+    private BigDecimal resolvePayAmount(LockGroupBuyOrderRequest request, GroupBuyActivity activity) {
+        if (request.getPayAmount() != null) {
+            return request.getPayAmount();
+        }
+        if (activity.getGroupPrice() != null) {
+            return activity.getGroupPrice();
+        }
+        return BigDecimal.ZERO;
     }
 
     private TradePayOrder queryTradePayOrder(String orderId) {

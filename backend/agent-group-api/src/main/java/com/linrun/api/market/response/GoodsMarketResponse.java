@@ -12,6 +12,10 @@ import java.util.List;
 public class GoodsMarketResponse implements Serializable {
 
     private String activityId;
+    private Boolean visible;
+    private Boolean enable;
+    private String message;
+    private Discount discount;
     private Goods goods;
     private List<Team> teamList = new ArrayList<>();
     private TeamStatistic teamStatistic = new TeamStatistic();
@@ -20,9 +24,21 @@ public class GoodsMarketResponse implements Serializable {
     public static class Goods implements Serializable {
 
         private String goodsId;
+        private String goodsName;
         private BigDecimal originalPrice;
         private BigDecimal deductionPrice;
         private BigDecimal payPrice;
+    }
+
+    @Data
+    public static class Discount implements Serializable {
+
+        private String discountId;
+        private String discountName;
+        private String marketPlan;
+        private String marketExpr;
+        private String tagId;
+        private String tagScope;
     }
 
     @Data

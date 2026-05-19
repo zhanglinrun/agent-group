@@ -99,6 +99,13 @@
         where tag_id = #{tagId}
     </select>
 
+    <select id="isTagCrowdRange" resultType="boolean">
+        select count(1) > 0
+        from crowd_tags_detail
+        where tag_id = #{tagId}
+          and user_id = #{userId}
+    </select>
+
     <update id="updateCrowdTagStatistics">
         update crowd_tags
         set statistics = #{statistics},
