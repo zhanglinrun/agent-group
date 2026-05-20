@@ -32,6 +32,11 @@ public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
     }
 
     @Override
+    public int updateNotifyTaskStatusProcessing(NotifyTask notifyTask) {
+        return notifyTaskDao.updateNotifyTaskStatusProcessing(notifyTask);
+    }
+
+    @Override
     public int updateNotifyTaskStatusSuccess(NotifyTask notifyTask) {
         return notifyTaskDao.updateNotifyTaskStatusSuccess(notifyTask);
     }

@@ -328,7 +328,7 @@ create table if not exists notify_task (
   notify_mq varchar(128) default null comment 'mq routing key',
   notify_url varchar(512) default null comment 'http notify url',
   notify_count int not null default 0 comment 'notify count',
-  notify_status int not null default 0 comment '0 init, 1 success, 2 retry, 3 error',
+  notify_status int not null default 0 comment '0 init, 1 success, 2 retry, 3 error, 4 processing',
   parameter_json varchar(2048) not null comment 'notify payload',
   uuid varchar(128) not null comment 'unique key',
   create_time datetime not null default current_timestamp comment 'create time',

@@ -16,8 +16,12 @@ public class RabbitTradeEventListener {
     @RabbitListener(queues = RabbitTradeEventConfiguration.TRADE_EVENT_QUEUE)
     public void consume(TradeEventMessage message) {
         if (message != null) {
-            LOGGER.info("trade event consumed, eventType={}, orderId={}, bizId={}",
-                    message.getEventType(), message.getOrderId(), message.getBizId());
+            LOGGER.info("trade event consumed, eventId={}, routingKey={}, eventType={}, orderId={}, bizId={}",
+                    message.getFlowId(),
+                    message.getRoutingKey(),
+                    message.getEventType(),
+                    message.getOrderId(),
+                    message.getBizId());
         }
     }
 }

@@ -38,6 +38,13 @@ spring:
     port: ${AGENT_GROUP_RABBITMQ_PORT:5672}
     username: ${AGENT_GROUP_RABBITMQ_USERNAME:agent_group}
     password: ${AGENT_GROUP_RABBITMQ_PASSWORD:agent_group_dev}
+    listener:
+      simple:
+        prefetch: ${AGENT_GROUP_RABBITMQ_LISTENER_PREFETCH:1}
+        retry:
+          enabled: ${AGENT_GROUP_RABBITMQ_LISTENER_RETRY_ENABLED:true}
+          max-attempts: ${AGENT_GROUP_RABBITMQ_LISTENER_RETRY_MAX_ATTEMPTS:3}
+          initial-interval: ${AGENT_GROUP_RABBITMQ_LISTENER_RETRY_INITIAL_INTERVAL:1000ms}
   servlet:
     multipart:
       enabled: true

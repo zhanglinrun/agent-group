@@ -12,6 +12,8 @@ public interface NotifyTaskRepository {
 
     List<NotifyTask> queryUnExecutedNotifyTaskList(String teamId);
 
+    int updateNotifyTaskStatusProcessing(NotifyTask notifyTask);
+
     int updateNotifyTaskStatusSuccess(NotifyTask notifyTask);
 
     int updateNotifyTaskStatusRetry(NotifyTask notifyTask);

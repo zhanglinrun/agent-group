@@ -12,6 +12,7 @@ public class NotifyTask {
     public static final int STATUS_SUCCESS = 1;
     public static final int STATUS_RETRY = 2;
     public static final int STATUS_ERROR = 3;
+    public static final int STATUS_PROCESSING = 4;
 
     private Long id;
     private String activityId;

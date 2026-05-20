@@ -10,6 +10,7 @@ public class TradeEventMessage implements Serializable {
     private String bizType;
     private String bizId;
     private String eventType;
+    private String routingKey;
     private String fromStatus;
     private String toStatus;
     private String remark;
@@ -67,6 +68,14 @@ public class TradeEventMessage implements Serializable {
 
     public void setEventType(String eventType) {
         this.eventType = eventType;
+    }
+
+    public String getRoutingKey() {
+        return routingKey;
+    }
+
+    public void setRoutingKey(String routingKey) {
+        this.routingKey = routingKey;
     }
 
     public String getFromStatus() {

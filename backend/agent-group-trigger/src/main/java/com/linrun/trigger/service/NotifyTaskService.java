@@ -84,15 +84,16 @@ public class NotifyTaskService {
         int retryCount = 0;
         int errorCount = 0;
         for (NotifyTask task : tasks) {
+            if (notifyTaskRepository.updateNotifyTaskStatusProcessing(task) != 1) {
+                continue;
+            }
             String dispatchResult = dispatch(task);
             if (DISPATCH_SUCCESS.equals(dispatchResult)) {
                 successCount += notifyTaskRepository.updateNotifyTaskStatusSuccess(task);
-            } else if (DISPATCH_ERROR.equals(dispatchResult)) {
-                if (task.getNotifyCount() != null && task.getNotifyCount() >= MAX_RETRY_COUNT) {
-                    errorCount += notifyTaskRepository.updateNotifyTaskStatusError(task);
-                } else {
-                    retryCount += notifyTaskRepository.updateNotifyTaskStatusRetry(task);
-                }
+            } else if (shouldMarkError(task)) {
+                errorCount += notifyTaskRepository.updateNotifyTaskStatusError(task);
+            } else {
+                retryCount += notifyTaskRepository.updateNotifyTaskStatusRetry(task);
             }
         }
         NotifyTaskExecuteResponse response = new NotifyTaskExecuteResponse();
@@ -101,6 +102,10 @@ public class NotifyTaskService {
         response.setRetryCount(retryCount);
         response.setErrorCount(errorCount);
         return response;
+    }
+
+    private boolean shouldMarkError(NotifyTask task) {
+        return task.getNotifyCount() != null && task.getNotifyCount() >= MAX_RETRY_COUNT;
     }
 
     private String dispatch(NotifyTask task) {
@@ -140,6 +145,7 @@ public class NotifyTaskService {
         message.setBizType("NOTIFY");
         message.setBizId(task.getTeamId());
         message.setEventType(task.getNotifyCategory());
+        message.setRoutingKey(task.getNotifyMq());
         message.setToStatus("DISPATCHED");
         message.setRemark(task.getParameterJson());
         message.setCreateTime(LocalDateTime.now());

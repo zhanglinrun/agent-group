@@ -68,6 +68,7 @@
                update_time
         from notify_task
         where notify_status in (0, 2)
+           or (notify_status = 4 and update_time &lt; date_sub(now(), interval 5 minute))
         order by id asc
         limit #{limit}
     </select>
@@ -88,10 +89,25 @@
                update_time
         from notify_task
         where team_id = #{teamId}
-          and notify_status in (0, 2)
+          and (
+              notify_status in (0, 2)
+              or (notify_status = 4 and update_time &lt; date_sub(now(), interval 5 minute))
+          )
         order by id asc
         limit 50
     </select>
+
+    <update id="updateNotifyTaskStatusProcessing" parameterType="com.linrun.domain.notify.model.NotifyTask">
+        update notify_task
+        set notify_status = 4,
+            update_time = now()
+        where team_id = #{teamId}
+          and uuid = #{uuid}
+          and (
+              notify_status in (0, 2)
+              or (notify_status = 4 and update_time &lt; date_sub(now(), interval 5 minute))
+          )
+    </update>
 
     <update id="updateNotifyTaskStatusSuccess" parameterType="com.linrun.domain.notify.model.NotifyTask">
         update notify_task
@@ -100,6 +116,7 @@
             update_time = now()
         where team_id = #{teamId}
           and uuid = #{uuid}
+          and notify_status = 4
     </update>
 
     <update id="updateNotifyTaskStatusRetry" parameterType="com.linrun.domain.notify.model.NotifyTask">
@@ -109,6 +126,7 @@
             update_time = now()
         where team_id = #{teamId}
           and uuid = #{uuid}
+          and notify_status = 4
     </update>
 
     <update id="updateNotifyTaskStatusError" parameterType="com.linrun.domain.notify.model.NotifyTask">
@@ -118,5 +136,6 @@
             update_time = now()
         where team_id = #{teamId}
           and uuid = #{uuid}
+          and notify_status = 4
     </update>
 </mapper>

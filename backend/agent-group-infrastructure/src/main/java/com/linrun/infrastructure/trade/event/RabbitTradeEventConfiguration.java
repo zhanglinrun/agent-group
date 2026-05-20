@@ -17,6 +17,7 @@ public class RabbitTradeEventConfiguration {
     public static final String TRADE_EVENT_EXCHANGE = "agent.group.trade.event.exchange";
     public static final String TRADE_EVENT_QUEUE = "agent.group.trade.event.queue";
     public static final String TRADE_EVENT_ROUTING_KEY = "trade.event.#";
+    public static final String NOTIFY_EVENT_ROUTING_KEY = "agent.group.notify.#";
 
     @Bean
     public TopicExchange tradeEventExchange() {
@@ -33,6 +34,13 @@ public class RabbitTradeEventConfiguration {
         return BindingBuilder.bind(tradeEventQueue)
                 .to(tradeEventExchange)
                 .with(TRADE_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding notifyEventBinding(TopicExchange tradeEventExchange, Queue tradeEventQueue) {
+        return BindingBuilder.bind(tradeEventQueue)
+                .to(tradeEventExchange)
+                .with(NOTIFY_EVENT_ROUTING_KEY);
     }
 
     @Bean
