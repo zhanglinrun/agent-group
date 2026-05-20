@@ -1,14 +1,14 @@
 package com.linrun.trigger.service;
 
-import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
-import com.linrun.domain.groupbuy.adapter.GroupBuyStockRepository;
-import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
-import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
-import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
-import com.linrun.domain.trade.adapter.TradeOrderRepository;
-import com.linrun.domain.trade.model.TradeBuyType;
-import com.linrun.domain.trade.model.TradeOrder;
-import com.linrun.domain.trade.model.TradeOrderStatus;
+import com.linrun.domain.marketing.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.marketing.adapter.GroupBuyStockRepository;
+import com.linrun.domain.marketing.model.GroupBuyLockStatus;
+import com.linrun.domain.marketing.model.GroupBuySettlementResult;
+import com.linrun.domain.marketing.model.GroupBuyTeamStatus;
+import com.linrun.domain.order.adapter.TradeOrderRepository;
+import com.linrun.domain.order.model.TradeBuyType;
+import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.TradeOrderStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

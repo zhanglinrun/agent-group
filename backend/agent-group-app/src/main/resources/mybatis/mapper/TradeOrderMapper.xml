@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.ITradeOrderDao">
 
-    <resultMap id="TradeOrderMap" type="com.linrun.domain.trade.model.TradeOrder">
+    <resultMap id="TradeOrderMap" type="com.linrun.domain.order.model.TradeOrder">
         <id column="id" property="id"/>
         <result column="order_id" property="orderId"/>
         <result column="user_id" property="userId"/>
@@ -20,7 +20,7 @@
         <result column="close_time" property="closeTime"/>
     </resultMap>
 
-    <resultMap id="PayOrderMap" type="com.linrun.domain.trade.model.PayOrder">
+    <resultMap id="PayOrderMap" type="com.linrun.domain.order.model.PayOrder">
         <id column="pay_order_id" property="payOrderId"/>
         <result column="order_id" property="orderId"/>
         <result column="pay_channel" property="payChannel"/>
@@ -32,7 +32,7 @@
         <result column="pay_time" property="payTime"/>
     </resultMap>
 
-    <resultMap id="RefundOrderMap" type="com.linrun.domain.trade.model.RefundOrder">
+    <resultMap id="RefundOrderMap" type="com.linrun.domain.order.model.RefundOrder">
         <id column="refund_id" property="refundId"/>
         <result column="order_id" property="orderId"/>
         <result column="pay_order_id" property="payOrderId"/>
@@ -44,7 +44,7 @@
         <result column="refund_time" property="refundTime"/>
     </resultMap>
 
-    <insert id="insertTradeOrder" parameterType="com.linrun.domain.trade.model.TradeOrder">
+    <insert id="insertTradeOrder" parameterType="com.linrun.domain.order.model.TradeOrder">
         insert into trade_order (
           order_id,
           user_id,
@@ -74,7 +74,7 @@
         )
     </insert>
 
-    <insert id="insertPayOrder" parameterType="com.linrun.domain.trade.model.PayOrder">
+    <insert id="insertPayOrder" parameterType="com.linrun.domain.order.model.PayOrder">
         insert into pay_order (
           pay_order_id,
           order_id,
@@ -98,14 +98,14 @@
         )
     </insert>
 
-    <update id="updateTradeOrderPaySuccess" parameterType="com.linrun.domain.trade.model.TradeOrder">
+    <update id="updateTradeOrderPaySuccess" parameterType="com.linrun.domain.order.model.TradeOrder">
         update trade_order
         set order_status = #{orderStatus},
             pay_time = #{payTime}
         where order_id = #{orderId}
     </update>
 
-    <update id="updatePayOrderSuccess" parameterType="com.linrun.domain.trade.model.PayOrder">
+    <update id="updatePayOrderSuccess" parameterType="com.linrun.domain.order.model.PayOrder">
         update pay_order
         set pay_status = #{payStatus},
             out_trade_no = #{outTradeNo},
@@ -123,20 +123,20 @@
           </foreach>
     </update>
 
-    <update id="updateTradeOrderClosed" parameterType="com.linrun.domain.trade.model.TradeOrder">
+    <update id="updateTradeOrderClosed" parameterType="com.linrun.domain.order.model.TradeOrder">
         update trade_order
         set order_status = #{orderStatus},
             close_time = #{closeTime}
         where order_id = #{orderId}
     </update>
 
-    <update id="updatePayOrderClosed" parameterType="com.linrun.domain.trade.model.PayOrder">
+    <update id="updatePayOrderClosed" parameterType="com.linrun.domain.order.model.PayOrder">
         update pay_order
         set pay_status = #{payStatus}
         where order_id = #{orderId}
     </update>
 
-    <insert id="insertRefundOrder" parameterType="com.linrun.domain.trade.model.RefundOrder">
+    <insert id="insertRefundOrder" parameterType="com.linrun.domain.order.model.RefundOrder">
         insert into refund_order (
           refund_id,
           order_id,
@@ -160,19 +160,19 @@
         )
     </insert>
 
-    <update id="updateTradeOrderRefunded" parameterType="com.linrun.domain.trade.model.TradeOrder">
+    <update id="updateTradeOrderRefunded" parameterType="com.linrun.domain.order.model.TradeOrder">
         update trade_order
         set order_status = #{orderStatus}
         where order_id = #{orderId}
     </update>
 
-    <update id="updatePayOrderRefunded" parameterType="com.linrun.domain.trade.model.PayOrder">
+    <update id="updatePayOrderRefunded" parameterType="com.linrun.domain.order.model.PayOrder">
         update pay_order
         set pay_status = #{payStatus}
         where order_id = #{orderId}
     </update>
 
-    <update id="updateTradeOrderDealDone" parameterType="com.linrun.domain.trade.model.TradeOrder">
+    <update id="updateTradeOrderDealDone" parameterType="com.linrun.domain.order.model.TradeOrder">
         update trade_order
         set order_status = #{orderStatus}
         where order_id = #{orderId}

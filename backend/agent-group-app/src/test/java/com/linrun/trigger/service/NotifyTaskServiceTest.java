@@ -5,11 +5,11 @@ import com.linrun.api.notify.response.NotifyTaskExecuteResponse;
 import com.linrun.domain.dcc.adapter.DynamicConfigRepository;
 import com.linrun.domain.dcc.model.DynamicConfig;
 import com.linrun.domain.dcc.service.DynamicConfigService;
-import com.linrun.domain.groupbuy.model.GroupBuyTeam;
+import com.linrun.domain.marketing.model.GroupBuyTeam;
 import com.linrun.domain.notify.adapter.NotifyTaskRepository;
 import com.linrun.domain.notify.model.NotifyTask;
-import com.linrun.domain.trade.adapter.TradeEventPublisher;
-import com.linrun.domain.trade.model.TradeEventMessage;
+import com.linrun.domain.order.adapter.TradeEventPublisher;
+import com.linrun.domain.order.model.TradeEventMessage;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

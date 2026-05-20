@@ -1,16 +1,16 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.trade.request.CreateDirectOrderRequest;
-import com.linrun.api.trade.response.CreateDirectOrderResponse;
-import com.linrun.domain.guide.adapter.GuideDataRepository;
-import com.linrun.domain.guide.model.GuideProduct;
-import com.linrun.domain.trade.adapter.TradeOrderRepository;
-import com.linrun.domain.trade.model.CreateTradeOrderCommand;
-import com.linrun.domain.trade.model.PayOrder;
-import com.linrun.domain.trade.model.TradeBuyType;
-import com.linrun.domain.trade.model.TradeOrder;
-import com.linrun.domain.trade.model.TradePayOrder;
-import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.api.order.request.CreateDirectOrderRequest;
+import com.linrun.api.order.response.CreateDirectOrderResponse;
+import com.linrun.domain.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.conversation.model.GuideProduct;
+import com.linrun.domain.order.adapter.TradeOrderRepository;
+import com.linrun.domain.order.model.CreateTradeOrderCommand;
+import com.linrun.domain.order.model.PayOrder;
+import com.linrun.domain.order.model.TradeBuyType;
+import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.TradePayOrder;
+import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;

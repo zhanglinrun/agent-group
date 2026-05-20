@@ -1,7 +1,7 @@
 package com.linrun.trigger.http;
 
-import com.linrun.domain.guide.adapter.GuideStreamControlRepository;
-import com.linrun.domain.guide.service.GuideImageInputService;
+import com.linrun.domain.conversation.adapter.GuideStreamControlRepository;
+import com.linrun.domain.conversation.service.GuideImageInputService;
 import com.linrun.trigger.service.AgentGuideStreamService;
 import com.linrun.trigger.service.GuideImageUploadService;
 import com.linrun.types.enums.ResponseCode;

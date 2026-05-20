@@ -1,9 +1,9 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
-import com.linrun.domain.groupbuy.model.GroupBuyTeam;
-import com.linrun.domain.groupbuy.model.GroupBuyTeamDetail;
-import com.linrun.domain.groupbuy.model.GroupBuyTeamStatistic;
+import com.linrun.domain.marketing.model.GroupBuyOrderLock;
+import com.linrun.domain.marketing.model.GroupBuyTeam;
+import com.linrun.domain.marketing.model.GroupBuyTeamDetail;
+import com.linrun.domain.marketing.model.GroupBuyTeamStatistic;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

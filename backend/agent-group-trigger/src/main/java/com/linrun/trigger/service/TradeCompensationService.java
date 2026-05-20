@@ -1,15 +1,15 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.groupbuy.request.CloseUnpaidGroupBuyOrderRequest;
+import com.linrun.api.marketing.request.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.payment.request.RefundPaymentRequest;
-import com.linrun.domain.groupbuy.adapter.GroupBuyOrderLockRepository;
-import com.linrun.domain.trade.adapter.TradeOrderRepository;
-import com.linrun.domain.trade.model.PayOrder;
-import com.linrun.domain.trade.model.PayStatus;
-import com.linrun.domain.trade.model.TradeBuyType;
-import com.linrun.domain.trade.model.TradeOrder;
-import com.linrun.domain.trade.model.TradeOrderStatus;
-import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.domain.marketing.adapter.GroupBuyOrderLockRepository;
+import com.linrun.domain.order.adapter.TradeOrderRepository;
+import com.linrun.domain.order.model.PayOrder;
+import com.linrun.domain.order.model.PayStatus;
+import com.linrun.domain.order.model.TradeBuyType;
+import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

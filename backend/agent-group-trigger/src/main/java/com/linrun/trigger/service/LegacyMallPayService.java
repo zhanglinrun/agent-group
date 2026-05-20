@@ -1,7 +1,7 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.groupbuy.request.LockGroupBuyOrderRequest;
-import com.linrun.api.groupbuy.response.LockGroupBuyOrderResponse;
+import com.linrun.api.marketing.request.LockGroupBuyOrderRequest;
+import com.linrun.api.marketing.response.LockGroupBuyOrderResponse;
 import com.linrun.api.mall.request.CreatePayRequest;
 import com.linrun.api.mall.request.NotifyRequest;
 import com.linrun.api.mall.request.QueryOrderListRequest;
@@ -12,12 +12,12 @@ import com.linrun.api.payment.request.CreatePaymentRequest;
 import com.linrun.api.payment.request.ReconcilePaymentRequest;
 import com.linrun.api.payment.response.CreatePaymentResponse;
 import com.linrun.api.payment.response.ReconcilePaymentResponse;
-import com.linrun.api.trade.request.CreateDirectOrderRequest;
-import com.linrun.api.trade.response.CreateDirectOrderResponse;
-import com.linrun.domain.trade.adapter.TradeOrderRepository;
-import com.linrun.domain.trade.model.PayOrder;
-import com.linrun.domain.trade.model.TradeBuyType;
-import com.linrun.domain.trade.model.TradeOrder;
+import com.linrun.api.order.request.CreateDirectOrderRequest;
+import com.linrun.api.order.response.CreateDirectOrderResponse;
+import com.linrun.domain.order.adapter.TradeOrderRepository;
+import com.linrun.domain.order.model.PayOrder;
+import com.linrun.domain.order.model.TradeBuyType;
+import com.linrun.domain.order.model.TradeOrder;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;

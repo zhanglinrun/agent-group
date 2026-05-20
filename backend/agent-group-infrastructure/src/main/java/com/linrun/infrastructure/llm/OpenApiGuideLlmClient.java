@@ -2,10 +2,10 @@ package com.linrun.infrastructure.llm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.domain.guide.adapter.GuideLlmClient;
-import com.linrun.domain.guide.model.GuideLlmResult;
-import com.linrun.domain.guide.model.GuideRagPrompt;
-import com.linrun.domain.guide.model.GuideTokenUsage;
+import com.linrun.domain.conversation.adapter.GuideLlmClient;
+import com.linrun.domain.conversation.model.GuideLlmResult;
+import com.linrun.domain.conversation.model.GuideRagPrompt;
+import com.linrun.domain.conversation.model.GuideTokenUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

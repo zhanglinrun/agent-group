@@ -1,9 +1,9 @@
 package com.linrun.trigger.service;
 
-import com.linrun.domain.trade.adapter.TradeEventPublisher;
-import com.linrun.domain.trade.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.trade.model.TradeEventMessage;
-import com.linrun.domain.trade.model.TradeStatusFlow;
+import com.linrun.domain.order.adapter.TradeEventPublisher;
+import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
+import com.linrun.domain.order.model.TradeEventMessage;
+import com.linrun.domain.order.model.TradeStatusFlow;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

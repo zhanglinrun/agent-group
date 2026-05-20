@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.groupbuy.model.GroupBuyMarketSku;
+import com.linrun.domain.marketing.model.GroupBuyMarketSku;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -1,10 +1,10 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.groupbuy.request.CloseUnpaidGroupBuyOrderRequest;
-import com.linrun.api.groupbuy.request.LockGroupBuyOrderRequest;
-import com.linrun.api.groupbuy.request.RefundGroupBuyOrderRequest;
-import com.linrun.api.groupbuy.response.GroupBuyCompensationResponse;
-import com.linrun.api.groupbuy.response.LockGroupBuyOrderResponse;
+import com.linrun.api.marketing.request.CloseUnpaidGroupBuyOrderRequest;
+import com.linrun.api.marketing.request.LockGroupBuyOrderRequest;
+import com.linrun.api.marketing.request.RefundGroupBuyOrderRequest;
+import com.linrun.api.marketing.response.GroupBuyCompensationResponse;
+import com.linrun.api.marketing.response.LockGroupBuyOrderResponse;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.GroupBuyCompensationService;
 import com.linrun.trigger.service.GroupBuyLockOrderService;

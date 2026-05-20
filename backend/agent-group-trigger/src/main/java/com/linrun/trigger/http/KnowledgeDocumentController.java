@@ -1,7 +1,7 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.knowledge.request.UploadKnowledgeDocumentRequest;
-import com.linrun.api.knowledge.response.UploadKnowledgeDocumentResponse;
+import com.linrun.api.knowledgeasset.request.UploadKnowledgeDocumentRequest;
+import com.linrun.api.knowledgeasset.response.UploadKnowledgeDocumentResponse;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.KnowledgeDocumentUploadService;
 import com.linrun.types.response.Response;

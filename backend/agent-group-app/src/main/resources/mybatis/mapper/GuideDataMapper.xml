@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.IGuideDataDao">
 
-    <resultMap id="GuideReferenceMap" type="com.linrun.domain.guide.model.GuideReference">
+    <resultMap id="GuideReferenceMap" type="com.linrun.domain.conversation.model.GuideReference">
         <id column="fragment_id" property="fragmentId"/>
         <result column="document_id" property="documentId"/>
         <result column="goods_id" property="goodsId"/>
@@ -14,7 +14,7 @@
         <result column="rank_no" property="rank"/>
     </resultMap>
 
-    <resultMap id="GuideProductMap" type="com.linrun.domain.guide.model.GuideProduct">
+    <resultMap id="GuideProductMap" type="com.linrun.domain.conversation.model.GuideProduct">
         <id column="goods_id" property="goodsId"/>
         <result column="goods_name" property="goodsName"/>
         <result column="image_url" property="imageUrl"/>

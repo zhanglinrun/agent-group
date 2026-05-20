@@ -1,7 +1,7 @@
 package com.linrun.trigger.service;
 
 import com.linrun.api.agent.response.GuideImageUploadResponse;
-import com.linrun.domain.guide.service.GuideImageInputService;
+import com.linrun.domain.conversation.service.GuideImageInputService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;

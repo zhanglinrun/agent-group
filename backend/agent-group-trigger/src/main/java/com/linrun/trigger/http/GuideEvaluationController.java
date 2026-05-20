@@ -1,6 +1,6 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.evaluate.response.GuideEvaluationReportResponse;
+import com.linrun.api.quality.response.GuideEvaluationReportResponse;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.GuideEvaluationTriggerService;
 import com.linrun.types.response.Response;

@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.IGuideEvaluationReportDao">
 
-    <resultMap id="GuideEvaluationReportMap" type="com.linrun.domain.evaluate.model.GuideEvaluationReport">
+    <resultMap id="GuideEvaluationReportMap" type="com.linrun.domain.quality.model.GuideEvaluationReport">
         <id column="batch_no" property="batchNo"/>
         <result column="prompt_version" property="promptVersion"/>
         <result column="knowledge_version" property="knowledgeVersion"/>
@@ -26,7 +26,7 @@
         <result column="context_consistency_rate_delta" property="contextConsistencyRateDelta"/>
     </resultMap>
 
-    <resultMap id="GuideEvaluationItemMap" type="com.linrun.domain.evaluate.model.GuideEvaluationItemResult">
+    <resultMap id="GuideEvaluationItemMap" type="com.linrun.domain.quality.model.GuideEvaluationItemResult">
         <id column="case_id" property="caseId"/>
         <result column="case_name" property="caseName"/>
         <result column="question" property="question"/>
@@ -47,13 +47,13 @@
         <result column="suggestion" property="suggestion"/>
     </resultMap>
 
-    <resultMap id="GuideEvaluationFeedbackMap" type="com.linrun.domain.evaluate.model.GuideEvaluationFeedback">
+    <resultMap id="GuideEvaluationFeedbackMap" type="com.linrun.domain.quality.model.GuideEvaluationFeedback">
         <result column="target_type" property="targetType"/>
         <result column="priority" property="priority"/>
         <result column="content" property="content"/>
     </resultMap>
 
-    <insert id="insertReport" parameterType="com.linrun.domain.evaluate.model.GuideEvaluationReport">
+    <insert id="insertReport" parameterType="com.linrun.domain.quality.model.GuideEvaluationReport">
         insert into guide_evaluation_report (
           batch_no,
           prompt_version,

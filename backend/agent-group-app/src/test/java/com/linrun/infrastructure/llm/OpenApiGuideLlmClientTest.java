@@ -1,8 +1,8 @@
 package com.linrun.infrastructure.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.domain.guide.model.GuideLlmResult;
-import com.linrun.domain.guide.model.GuideRagPrompt;
+import com.linrun.domain.conversation.model.GuideLlmResult;
+import com.linrun.domain.conversation.model.GuideRagPrompt;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;

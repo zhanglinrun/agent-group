@@ -1,11 +1,11 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.knowledge.request.BackupKnowledgeVectorRequest;
-import com.linrun.api.knowledge.request.EvaluateKnowledgeRecallRequest;
-import com.linrun.api.knowledge.request.RebuildKnowledgeVectorRequest;
-import com.linrun.api.knowledge.response.KnowledgeVectorMaintenanceResponse;
-import com.linrun.domain.knowledge.model.KnowledgeVectorMaintenanceReport;
-import com.linrun.domain.knowledge.service.KnowledgeVectorMaintenanceService;
+import com.linrun.api.knowledgeasset.request.BackupKnowledgeVectorRequest;
+import com.linrun.api.knowledgeasset.request.EvaluateKnowledgeRecallRequest;
+import com.linrun.api.knowledgeasset.request.RebuildKnowledgeVectorRequest;
+import com.linrun.api.knowledgeasset.response.KnowledgeVectorMaintenanceResponse;
+import com.linrun.domain.knowledgeasset.model.KnowledgeVectorMaintenanceReport;
+import com.linrun.domain.knowledgeasset.service.KnowledgeVectorMaintenanceService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 

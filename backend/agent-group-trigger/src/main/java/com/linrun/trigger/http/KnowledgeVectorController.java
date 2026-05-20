@@ -1,9 +1,9 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.knowledge.request.BackupKnowledgeVectorRequest;
-import com.linrun.api.knowledge.request.EvaluateKnowledgeRecallRequest;
-import com.linrun.api.knowledge.request.RebuildKnowledgeVectorRequest;
-import com.linrun.api.knowledge.response.KnowledgeVectorMaintenanceResponse;
+import com.linrun.api.knowledgeasset.request.BackupKnowledgeVectorRequest;
+import com.linrun.api.knowledgeasset.request.EvaluateKnowledgeRecallRequest;
+import com.linrun.api.knowledgeasset.request.RebuildKnowledgeVectorRequest;
+import com.linrun.api.knowledgeasset.response.KnowledgeVectorMaintenanceResponse;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.KnowledgeVectorOpsService;
 import com.linrun.types.response.Response;

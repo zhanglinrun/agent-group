@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.guide.model.GuideProduct;
-import com.linrun.domain.guide.model.GuideReference;
+import com.linrun.domain.conversation.model.GuideProduct;
+import com.linrun.domain.conversation.model.GuideReference;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -1,10 +1,10 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.trade.request.CreateDirectOrderRequest;
-import com.linrun.api.trade.request.MockPayCallbackRequest;
-import com.linrun.api.trade.response.CreateDirectOrderResponse;
-import com.linrun.api.trade.response.MockPayCallbackResponse;
-import com.linrun.api.trade.response.TradeStatusFlowDTO;
+import com.linrun.api.order.request.CreateDirectOrderRequest;
+import com.linrun.api.order.request.MockPayCallbackRequest;
+import com.linrun.api.order.response.CreateDirectOrderResponse;
+import com.linrun.api.order.response.MockPayCallbackResponse;
+import com.linrun.api.order.response.TradeStatusFlowDTO;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.DirectBuyOrderService;
 import com.linrun.trigger.service.MockPayCallbackService;

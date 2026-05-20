@@ -1,20 +1,20 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.trade.request.CreateDirectOrderRequest;
-import com.linrun.api.trade.response.CreateDirectOrderResponse;
-import com.linrun.domain.guide.adapter.GuideDataRepository;
-import com.linrun.domain.guide.model.GuideProduct;
-import com.linrun.domain.guide.model.GuideReference;
-import com.linrun.domain.trade.adapter.TradeOrderRepository;
-import com.linrun.domain.trade.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.trade.model.PayOrder;
-import com.linrun.domain.trade.model.PayStatus;
-import com.linrun.domain.trade.model.RefundOrder;
-import com.linrun.domain.trade.model.TradeStatusFlow;
-import com.linrun.domain.trade.model.TradeBuyType;
-import com.linrun.domain.trade.model.TradeOrder;
-import com.linrun.domain.trade.model.TradeOrderStatus;
-import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.api.order.request.CreateDirectOrderRequest;
+import com.linrun.api.order.response.CreateDirectOrderResponse;
+import com.linrun.domain.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.conversation.model.GuideProduct;
+import com.linrun.domain.conversation.model.GuideReference;
+import com.linrun.domain.order.adapter.TradeOrderRepository;
+import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
+import com.linrun.domain.order.model.PayOrder;
+import com.linrun.domain.order.model.PayStatus;
+import com.linrun.domain.order.model.RefundOrder;
+import com.linrun.domain.order.model.TradeStatusFlow;
+import com.linrun.domain.order.model.TradeBuyType;
+import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 

@@ -3,7 +3,7 @@ package com.linrun.trigger.http;
 import com.linrun.api.agent.request.GuideStreamRequest;
 import com.linrun.api.agent.response.GuideImageUploadResponse;
 import com.linrun.api.agent.response.GuideStreamEvent;
-import com.linrun.domain.guide.adapter.GuideStreamControlRepository;
+import com.linrun.domain.conversation.adapter.GuideStreamControlRepository;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.GuideImageUploadService;
 import com.linrun.trigger.service.AgentGuideStreamService;

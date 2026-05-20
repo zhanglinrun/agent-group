@@ -1,12 +1,12 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.evaluate.response.GuideEvaluationFeedbackDTO;
-import com.linrun.api.evaluate.response.GuideEvaluationItemDTO;
-import com.linrun.api.evaluate.response.GuideEvaluationReportResponse;
-import com.linrun.domain.evaluate.model.GuideEvaluationFeedback;
-import com.linrun.domain.evaluate.model.GuideEvaluationItemResult;
-import com.linrun.domain.evaluate.model.GuideEvaluationReport;
-import com.linrun.domain.evaluate.service.GuideEvaluationService;
+import com.linrun.api.quality.response.GuideEvaluationFeedbackDTO;
+import com.linrun.api.quality.response.GuideEvaluationItemDTO;
+import com.linrun.api.quality.response.GuideEvaluationReportResponse;
+import com.linrun.domain.quality.model.GuideEvaluationFeedback;
+import com.linrun.domain.quality.model.GuideEvaluationItemResult;
+import com.linrun.domain.quality.model.GuideEvaluationReport;
+import com.linrun.domain.quality.service.GuideEvaluationService;
 import org.springframework.stereotype.Service;
 
 @Service
