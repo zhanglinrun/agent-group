@@ -22,14 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 
 @Service
 public class GroupBuyCompensationService {
-
-    private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-    private static final String DEFAULT_REFUND_REASON = "拼团未成团自动退款";
 
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
@@ -99,6 +94,11 @@ public class GroupBuyCompensationService {
 
     @Transactional(rollbackFor = Exception.class)
     public GroupBuyCompensationResponse refundUnsettled(RefundGroupBuyOrderRequest request) {
+        return releaseRefundedOrder(request);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public GroupBuyCompensationResponse releaseRefundedOrder(RefundGroupBuyOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
@@ -106,43 +106,11 @@ public class GroupBuyCompensationService {
         PayOrder payOrder = queryPayOrder(request.getOrderId());
         validateGroupBuyOrder(tradeOrder);
 
-        RefundOrder existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
-        if (existed != null) {
-            GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releasePaidOrder(tradeOrder.getOrderId());
-            if (!releaseResult.isRepeated()) {
-                groupBuyStockRepository.releasePaidStock(
-                        releaseResult.getOrderLock().getActivityId(),
-                        releaseResult.getOrderLock().getGoodsId(),
-                        releaseResult.getOrderLock().getOrderId(),
-                        releaseResult.getOrderLock().getTeamId());
-                recoverTeamStock(releaseResult);
-            }
-            return toResponse(tradeOrder, payOrder, existed, releaseResult, existed.getRefundTime());
-        }
-
-        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
-        PayStatus fromPayStatus = payOrder.getPayStatus();
-        LocalDateTime refundTime = request.getRefundTime() == null ? LocalDateTime.now() : request.getRefundTime();
-        RefundOrder refundOrder = RefundOrder.success(
-                nextNo("R"),
-                tradeOrder,
-                payOrder,
-                resolveRefundReason(request),
-                refundTime);
-        tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
-        tradeOrderRepository.saveRefundOrder(refundOrder);
-        tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
-        GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releasePaidOrder(tradeOrder.getOrderId());
-        if (!releaseResult.isRepeated()) {
-            groupBuyStockRepository.releasePaidStock(
-                    releaseResult.getOrderLock().getActivityId(),
-                    releaseResult.getOrderLock().getGoodsId(),
-                    releaseResult.getOrderLock().getOrderId(),
-                    releaseResult.getOrderLock().getTeamId());
-            recoverTeamStock(releaseResult);
-        }
-        recordRefundFlow(tradeOrder, payOrder, refundOrder, releaseResult, fromOrderStatus, fromPayStatus);
-        return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundTime);
+        RefundOrder refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId())
+                .orElseThrow(() -> new AppException("TRADE_0015", "refund order not found"));
+        GroupBuySettlementResult releaseResult = releasePaidGroupBuyOrder(tradeOrder.getOrderId());
+        recordRefundReleaseFlow(tradeOrder, releaseResult);
+        return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundOrder.getRefundTime());
     }
 
     private void recordCloseFlow(TradeOrder tradeOrder,
@@ -178,46 +146,37 @@ public class GroupBuyCompensationService {
         }
     }
 
-    private void recordRefundFlow(TradeOrder tradeOrder,
-                                  PayOrder payOrder,
-                                  RefundOrder refundOrder,
-                                  GroupBuySettlementResult releaseResult,
-                                  TradeOrderStatus fromOrderStatus,
-                                  PayStatus fromPayStatus) {
-        tradeStatusFlowService.record(
-                tradeOrder.getOrderId(),
-                TradeStatusFlowService.BIZ_ORDER,
-                tradeOrder.getOrderId(),
-                TradeStatusFlowService.EVENT_REFUNDED,
-                fromOrderStatus,
-                tradeOrder.getOrderStatus(),
-                "order refunded");
-        tradeStatusFlowService.record(
-                tradeOrder.getOrderId(),
-                TradeStatusFlowService.BIZ_PAY,
-                payOrder.getPayOrderId(),
-                TradeStatusFlowService.EVENT_REFUNDED,
-                fromPayStatus,
-                payOrder.getPayStatus(),
-                "pay order refunded");
-        tradeStatusFlowService.record(
-                tradeOrder.getOrderId(),
-                TradeStatusFlowService.BIZ_REFUND,
-                refundOrder.getRefundId(),
-                TradeStatusFlowService.EVENT_REFUND_SUCCESS,
-                null,
-                refundOrder.getRefundStatus(),
-                "refund success");
-        if (!releaseResult.isRepeated()) {
-            tradeStatusFlowService.record(
-                    tradeOrder.getOrderId(),
-                    TradeStatusFlowService.BIZ_GROUP,
-                    releaseResult.getOrderLock().getLockId(),
-                    TradeStatusFlowService.EVENT_RELEASE_PAID_LOCK,
-                    GroupBuyLockStatus.PAID,
-                    releaseResult.getOrderLock().getLockStatus(),
-                    "paid group lock released");
+    private GroupBuySettlementResult releasePaidGroupBuyOrder(String orderId) {
+        GroupBuySettlementResult releaseResult = groupBuyOrderLockRepository.releasePaidOrder(orderId);
+        if (isNewPaidRelease(releaseResult)) {
+            groupBuyStockRepository.releasePaidStock(
+                    releaseResult.getOrderLock().getActivityId(),
+                    releaseResult.getOrderLock().getGoodsId(),
+                    releaseResult.getOrderLock().getOrderId(),
+                    releaseResult.getOrderLock().getTeamId());
+            recoverTeamStock(releaseResult);
         }
+        return releaseResult;
+    }
+
+    private void recordRefundReleaseFlow(TradeOrder tradeOrder,
+                                         GroupBuySettlementResult releaseResult) {
+        if (!isNewPaidRelease(releaseResult)) {
+            return;
+        }
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_GROUP,
+                releaseResult.getOrderLock().getLockId(),
+                TradeStatusFlowService.EVENT_RELEASE_PAID_LOCK,
+                GroupBuyLockStatus.PAID,
+                releaseResult.getOrderLock().getLockStatus(),
+                "paid group lock released");
+    }
+
+    private boolean isNewPaidRelease(GroupBuySettlementResult releaseResult) {
+        return !releaseResult.isRepeated()
+                && GroupBuyLockStatus.RELEASED.equals(releaseResult.getOrderLock().getLockStatus());
     }
 
     private void validateGroupBuyOrder(TradeOrder tradeOrder) {
@@ -244,13 +203,9 @@ public class GroupBuyCompensationService {
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
     }
 
-    private String resolveRefundReason(RefundGroupBuyOrderRequest request) {
-        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : DEFAULT_REFUND_REASON;
-    }
-
     private GroupBuyCompensationResponse toResponse(TradeOrder tradeOrder,
-                                                   PayOrder payOrder,
-                                                   RefundOrder refundOrder,
+                                                    PayOrder payOrder,
+                                                    RefundOrder refundOrder,
                                                    GroupBuySettlementResult releaseResult,
                                                    LocalDateTime finishTime) {
         GroupBuyCompensationResponse response = new GroupBuyCompensationResponse();
@@ -267,11 +222,5 @@ public class GroupBuyCompensationService {
         response.setRefundAmount(refundOrder == null ? null : refundOrder.getRefundAmount());
         response.setFinishTime(finishTime);
         return response;
-    }
-
-    private String nextNo(String prefix) {
-        String timePart = LocalDateTime.now().format(ORDER_TIME_FORMATTER);
-        String randomPart = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
-        return prefix + timePart + randomPart;
     }
 }

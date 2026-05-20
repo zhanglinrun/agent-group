@@ -8,6 +8,7 @@ import com.linrun.api.marketing.response.LockGroupBuyOrderResponse;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.GroupBuyCompensationService;
 import com.linrun.trigger.service.GroupBuyLockOrderService;
+import com.linrun.trigger.service.TradeRefundService;
 import com.linrun.types.response.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,11 +23,14 @@ public class GroupBuyTradeController {
 
     private final GroupBuyLockOrderService groupBuyLockOrderService;
     private final GroupBuyCompensationService groupBuyCompensationService;
+    private final TradeRefundService tradeRefundService;
 
     public GroupBuyTradeController(GroupBuyLockOrderService groupBuyLockOrderService,
-                                   GroupBuyCompensationService groupBuyCompensationService) {
+                                   GroupBuyCompensationService groupBuyCompensationService,
+                                   TradeRefundService tradeRefundService) {
         this.groupBuyLockOrderService = groupBuyLockOrderService;
         this.groupBuyCompensationService = groupBuyCompensationService;
+        this.tradeRefundService = tradeRefundService;
     }
 
     @PostMapping("/lock")
@@ -41,6 +45,6 @@ public class GroupBuyTradeController {
 
     @PostMapping("/refund")
     public Response<GroupBuyCompensationResponse> refund(@RequestBody RefundGroupBuyOrderRequest request) {
-        return Response.success(groupBuyCompensationService.refundUnsettled(request), RequestTraceContext.getRequestId());
+        return Response.success(tradeRefundService.refundGroupBuy(request), RequestTraceContext.getRequestId());
     }
 }

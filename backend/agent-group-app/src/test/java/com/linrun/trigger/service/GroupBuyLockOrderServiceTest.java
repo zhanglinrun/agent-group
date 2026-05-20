@@ -234,13 +234,15 @@ class GroupBuyLockOrderServiceTest {
         GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
         MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService compensationService = compensationService(lockRepository, tradeOrderRepository, flowRepository);
+        TradeRefundService tradeRefundService = tradeRefundService(
+                tradeOrderRepository, callbackService, compensationService, flowRepository);
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_30002"));
         callbackService.paySuccess(callback(lockResponse.getOrderId(), "T30002"));
         RefundGroupBuyOrderRequest refundRequest = new RefundGroupBuyOrderRequest();
         refundRequest.setOrderId(lockResponse.getOrderId());
         refundRequest.setRefundReason("拼团超时未成团");
 
-        GroupBuyCompensationResponse response = compensationService.refundUnsettled(refundRequest);
+        GroupBuyCompensationResponse response = tradeRefundService.refundGroupBuy(refundRequest);
 
         assertTrue(response.getRefundId().startsWith("R"));
         assertEquals(TradeOrderStatus.REFUNDED.name(), response.getOrderStatus());
@@ -267,6 +269,8 @@ class GroupBuyLockOrderServiceTest {
         MockPayCallbackService callbackService = callbackService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService compensationService = compensationService(
                 lockRepository, stockRepository, teamStockRepository, tradeOrderRepository, flowRepository);
+        TradeRefundService tradeRefundService = tradeRefundService(
+                tradeOrderRepository, callbackService, compensationService, flowRepository);
 
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_STOCK_10001"));
 
@@ -282,7 +286,7 @@ class GroupBuyLockOrderServiceTest {
 
         RefundGroupBuyOrderRequest refundRequest = new RefundGroupBuyOrderRequest();
         refundRequest.setOrderId(lockResponse.getOrderId());
-        compensationService.refundUnsettled(refundRequest);
+        tradeRefundService.refundGroupBuy(refundRequest);
 
         assertEquals(1, stockRepository.stock.getAvailableStock());
         assertEquals(0, stockRepository.stock.getPaidStock());
@@ -304,14 +308,17 @@ class GroupBuyLockOrderServiceTest {
                 new TradeOrderService(),
                 callbackService,
                 new FakePaymentGatewayClient(),
-                new TradeStatusFlowService(flowRepository),
+                new TradeStatusFlowService(flowRepository));
+        TradeRefundService tradeRefundService = new TradeRefundService(
+                tradeOrderRepository,
+                paymentService,
                 groupCompensationService);
         TradeCompensationService tradeCompensationService = new TradeCompensationService(
                 tradeOrderRepository,
                 new TradeOrderService(),
                 groupCompensationService,
                 lockRepository,
-                paymentService,
+                tradeRefundService,
                 new TradeStatusFlowService(flowRepository));
 
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_TIMEOUT_REFUND_10001"));
@@ -442,6 +449,19 @@ class GroupBuyLockOrderServiceTest {
     private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,
                                                             FakeTradeOrderRepository tradeOrderRepository) {
         return compensationService(lockRepository, tradeOrderRepository, new FakeTradeStatusFlowRepository());
+    }
+
+    private TradeRefundService tradeRefundService(FakeTradeOrderRepository tradeOrderRepository,
+                                                  MockPayCallbackService callbackService,
+                                                  GroupBuyCompensationService compensationService,
+                                                  FakeTradeStatusFlowRepository flowRepository) {
+        PaymentService paymentService = new PaymentService(
+                tradeOrderRepository,
+                new TradeOrderService(),
+                callbackService,
+                new FakePaymentGatewayClient(),
+                new TradeStatusFlowService(flowRepository));
+        return new TradeRefundService(tradeOrderRepository, paymentService, compensationService);
     }
 
     private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,

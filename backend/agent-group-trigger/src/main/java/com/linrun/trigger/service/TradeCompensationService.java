@@ -25,20 +25,20 @@ public class TradeCompensationService {
     private final TradeOrderService tradeOrderService;
     private final GroupBuyCompensationService groupBuyCompensationService;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
-    private final PaymentService paymentService;
+    private final TradeRefundService tradeRefundService;
     private final TradeStatusFlowService tradeStatusFlowService;
 
     public TradeCompensationService(TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     GroupBuyCompensationService groupBuyCompensationService,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    PaymentService paymentService,
+                                    TradeRefundService tradeRefundService,
                                     TradeStatusFlowService tradeStatusFlowService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuyCompensationService = groupBuyCompensationService;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
-        this.paymentService = paymentService;
+        this.tradeRefundService = tradeRefundService;
         this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
@@ -61,7 +61,7 @@ public class TradeCompensationService {
             RefundPaymentRequest request = new RefundPaymentRequest();
             request.setOrderId(orderId);
             request.setRefundReason("group buy timeout unformed");
-            paymentService.refund(request);
+            tradeRefundService.refund(request);
             refundCount++;
         }
         return refundCount;
@@ -111,7 +111,7 @@ public class TradeCompensationService {
         RefundPaymentRequest request = new RefundPaymentRequest();
         request.setOrderId(orderId);
         request.setRefundReason(refundReason);
-        paymentService.refund(request);
+        tradeRefundService.refund(request);
         return true;
     }
 

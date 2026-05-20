@@ -10,6 +10,7 @@ import com.linrun.api.payment.response.ReconcilePaymentResponse;
 import com.linrun.api.payment.response.RefundPaymentResponse;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.service.PaymentService;
+import com.linrun.trigger.service.TradeRefundService;
 import com.linrun.types.response.Response;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
@@ -32,9 +33,12 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final TradeRefundService tradeRefundService;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(PaymentService paymentService,
+                             TradeRefundService tradeRefundService) {
         this.paymentService = paymentService;
+        this.tradeRefundService = tradeRefundService;
     }
 
     @PostMapping("/create")
@@ -61,7 +65,7 @@ public class PaymentController {
 
     @PostMapping("/refund")
     public Response<RefundPaymentResponse> refund(@RequestBody RefundPaymentRequest request) {
-        return Response.success(paymentService.refund(request), RequestTraceContext.getRequestId());
+        return Response.success(tradeRefundService.refund(request), RequestTraceContext.getRequestId());
     }
 
     @PostMapping("/reconcile")

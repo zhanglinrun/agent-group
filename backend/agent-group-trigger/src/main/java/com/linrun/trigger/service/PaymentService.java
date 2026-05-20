@@ -1,6 +1,5 @@
 package com.linrun.trigger.service;
 
-import com.linrun.api.marketing.request.RefundGroupBuyOrderRequest;
 import com.linrun.api.payment.request.CreatePaymentRequest;
 import com.linrun.api.payment.request.PaymentWebhookRequest;
 import com.linrun.api.payment.request.ReconcilePaymentRequest;
@@ -24,7 +23,6 @@ import com.linrun.domain.payment.model.PaymentWebhookResult;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.PayOrder;
 import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeBuyType;
 import com.linrun.domain.order.model.TradeOrder;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
@@ -47,30 +45,17 @@ public class PaymentService {
     private final MockPayCallbackService mockPayCallbackService;
     private final PaymentGatewayClient paymentGatewayClient;
     private final TradeStatusFlowService tradeStatusFlowService;
-    private final GroupBuyCompensationService groupBuyCompensationService;
 
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
                           MockPayCallbackService mockPayCallbackService,
                           PaymentGatewayClient paymentGatewayClient,
                           TradeStatusFlowService tradeStatusFlowService) {
-        this(tradeOrderRepository, tradeOrderService, mockPayCallbackService,
-                paymentGatewayClient, tradeStatusFlowService, null);
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
-    public PaymentService(TradeOrderRepository tradeOrderRepository,
-                          TradeOrderService tradeOrderService,
-                          MockPayCallbackService mockPayCallbackService,
-                          PaymentGatewayClient paymentGatewayClient,
-                          TradeStatusFlowService tradeStatusFlowService,
-                          GroupBuyCompensationService groupBuyCompensationService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.mockPayCallbackService = mockPayCallbackService;
         this.paymentGatewayClient = paymentGatewayClient;
         this.tradeStatusFlowService = tradeStatusFlowService;
-        this.groupBuyCompensationService = groupBuyCompensationService;
     }
 
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {
@@ -137,7 +122,6 @@ public class PaymentService {
         PayOrder payOrder = queryPayOrder(request.getOrderId());
         RefundOrder existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
         if (existed != null) {
-            releaseGroupBuyAfterRefund(tradeOrder, request);
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
         }
 
@@ -153,7 +137,6 @@ public class PaymentService {
         tradeOrderRepository.saveRefundOrder(refundOrder);
         tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
         recordRefundFlow(tradeOrder, payOrder, refundOrder);
-        releaseGroupBuyAfterRefund(tradeOrder, request);
         return toRefundResponse(tradeOrder, payOrder, refundOrder, gatewayResult.getMessage());
     }
 
@@ -313,16 +296,6 @@ public class PaymentService {
                 null,
                 refundOrder.getRefundStatus(),
                 "refund success");
-    }
-
-    private void releaseGroupBuyAfterRefund(TradeOrder tradeOrder, RefundPaymentRequest request) {
-        if (groupBuyCompensationService == null || !TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
-            return;
-        }
-        RefundGroupBuyOrderRequest groupRequest = new RefundGroupBuyOrderRequest();
-        groupRequest.setOrderId(tradeOrder.getOrderId());
-        groupRequest.setRefundReason(resolveRefundReason(request));
-        groupBuyCompensationService.refundUnsettled(groupRequest);
     }
 
     private TradeOrder queryTradeOrder(String orderId) {
