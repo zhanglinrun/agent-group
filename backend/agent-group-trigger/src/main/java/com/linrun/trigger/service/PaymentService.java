@@ -24,6 +24,7 @@ import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.entity.PayOrderEntity;
 import com.linrun.domain.order.model.entity.RefundOrderEntity;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -43,18 +44,24 @@ public class PaymentService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final MockPayCallbackService mockPayCallbackService;
+    private final com.linrun.trigger.config.MockPaymentAccessChecker mockPaymentAccessChecker;
     private final PaymentGatewayClient paymentGatewayClient;
+    private final PaymentWebhookReplayGuard paymentWebhookReplayGuard;
     private final TradeStatusFlowService tradeStatusFlowService;
 
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
                           MockPayCallbackService mockPayCallbackService,
+                          com.linrun.trigger.config.MockPaymentAccessChecker mockPaymentAccessChecker,
                           PaymentGatewayClient paymentGatewayClient,
+                          PaymentWebhookReplayGuard paymentWebhookReplayGuard,
                           TradeStatusFlowService tradeStatusFlowService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.mockPayCallbackService = mockPayCallbackService;
+        this.mockPaymentAccessChecker = mockPaymentAccessChecker;
         this.paymentGatewayClient = paymentGatewayClient;
+        this.paymentWebhookReplayGuard = paymentWebhookReplayGuard;
         this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
@@ -65,6 +72,9 @@ public class PaymentService {
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
         String payChannel = resolvePayChannel(request.getPayChannel(), payOrder);
+        if (PaymentChannel.MOCK_PAY.name().equals(payChannel)) {
+            mockPaymentAccessChecker.assertAllowed();
+        }
         PaymentCreateResult result = paymentGatewayClient.createPayment(toCreateCommand(
                 tradeOrder,
                 payOrder,
@@ -95,6 +105,18 @@ public class PaymentService {
         if (!StringUtils.hasText(webhookResult.getOrderId())) {
             throw new AppException("0001", "支付回调缺少订单编号");
         }
+        PaymentChannel payChannel = PaymentChannel.parse(request.getPayChannel());
+        if (PaymentChannel.MOCK_PAY.equals(payChannel)) {
+            mockPaymentAccessChecker.assertAllowed();
+        }
+        if (!paymentWebhookReplayGuard.markFirstSeen(payChannel, webhookResult)) {
+            return buildWebhookIdempotentResponse(webhookResult);
+        }
+
+        PaymentWebhookResponse existingResponse = queryExistingWebhookResponse(webhookResult);
+        if (existingResponse != null) {
+            return existingResponse;
+        }
 
         MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
         callbackRequest.setOrderId(webhookResult.getOrderId());
@@ -120,6 +142,9 @@ public class PaymentService {
         }
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
+        if (PaymentChannel.MOCK_PAY.name().equals(resolvePayChannel(payOrder.getPayChannel(), payOrder))) {
+            mockPaymentAccessChecker.assertAllowed();
+        }
         RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
         if (existed != null) {
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
@@ -184,6 +209,40 @@ public class PaymentService {
         command.setGatewayTradeNo(request.getGatewayTradeNo());
         command.setPayTime(request.getPayTime());
         return command;
+    }
+
+    private PaymentWebhookResponse queryExistingWebhookResponse(PaymentWebhookResult webhookResult) {
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(webhookResult.getOrderId()).orElse(null);
+        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(webhookResult.getOrderId()).orElse(null);
+        if (tradeOrder == null || payOrder == null) {
+            return null;
+        }
+        if (!PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
+            return null;
+        }
+        return toWebhookResponse(webhookResult, existingCallbackResponse(tradeOrder, payOrder));
+    }
+
+    private PaymentWebhookResponse buildWebhookIdempotentResponse(PaymentWebhookResult webhookResult) {
+        PaymentWebhookResponse response = new PaymentWebhookResponse();
+        response.setOrderId(webhookResult.getOrderId());
+        response.setPayOrderId(webhookResult.getPayOrderId());
+        response.setGatewayTradeNo(webhookResult.getGatewayTradeNo());
+        response.setPayTime(webhookResult.getPayTime());
+        response.setVerified(true);
+        response.setMessage("重复支付回调已忽略");
+        return response;
+    }
+
+    private MockPayCallbackResponse existingCallbackResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        MockPayCallbackResponse response = new MockPayCallbackResponse();
+        response.setOrderId(tradeOrder.getOrderId());
+        response.setPayOrderId(payOrder.getPayOrderId());
+        response.setOrderStatus(tradeOrder.getOrderStatus().name());
+        response.setPayStatus(payOrder.getPayStatus().name());
+        response.setOutTradeNo(payOrder.getOutTradeNo());
+        response.setPayTime(payOrder.getPayTime());
+        return response;
     }
 
     private PaymentRefundCommand toRefundCommand(TradeOrderEntity tradeOrder, PayOrderEntity payOrder,

@@ -117,6 +117,8 @@ agent:
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:
+      webhook:
+        replay-window-seconds: ${AGENT_GROUP_PAYMENT_WEBHOOK_REPLAY_WINDOW_SECONDS:300}
       alipay:
         gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
         app-id: ${AGENT_GROUP_ALIPAY_APP_ID:}

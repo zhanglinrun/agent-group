@@ -72,7 +72,7 @@ class MockPayCallbackServiceTest {
         assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getPayStatus());
         assertEquals("T10001", response.getOutTradeNo());
         assertEquals(PAY_TIME, response.getPayTime());
-        assertEquals(1, repository.updateCount);
+        assertEquals(0, repository.updateCount);
         assertEquals(0, flowRepository.flows.size());
     }
 

@@ -42,8 +42,10 @@ import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
+import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -303,11 +305,15 @@ class GroupBuyLockOrderServiceTest {
         MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService groupCompensationService = compensationService(
                 lockRepository, tradeOrderRepository, flowRepository);
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("dev");
         PaymentService paymentService = new PaymentService(
                 tradeOrderRepository,
                 new TradeOrderService(),
                 callbackService,
+                new MockPaymentAccessChecker(environment),
                 new FakePaymentGatewayClient(),
+                new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
         TradeRefundService tradeRefundService = new TradeRefundService(
                 tradeOrderRepository,
@@ -459,9 +465,17 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 callbackService,
+                new MockPaymentAccessChecker(devEnvironment()),
                 new FakePaymentGatewayClient(),
+                new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
         return new TradeRefundService(tradeOrderRepository, paymentService, compensationService);
+    }
+
+    private MockEnvironment devEnvironment() {
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("dev");
+        return environment;
     }
 
     private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,

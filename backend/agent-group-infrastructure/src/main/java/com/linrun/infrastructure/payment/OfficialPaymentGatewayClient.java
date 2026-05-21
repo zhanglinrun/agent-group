@@ -54,6 +54,7 @@ import java.util.UUID;
 public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     private static final DateTimeFormatter NO_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    private static final DateTimeFormatter ALIPAY_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final String alipayGatewayUrl;
     private final String alipayAppId;
@@ -200,6 +201,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                     firstText(params.get("out_trade_no"), command.getPayOrderId()),
                     firstText(params.get("trade_no"), command.getGatewayTradeNo()),
                     command.getPayTime() == null ? LocalDateTime.now() : command.getPayTime(),
+                    firstText(params.get("notify_id"), params.get("trade_no")),
+                    parseAlipayTime(firstText(params.get("notify_time"), params.get("gmt_payment"))),
                     "支付宝回调验签通过");
         } catch (AlipayApiException e) {
             throw new AppException("PAY_0002", "支付宝回调验签异常：" + e.getMessage());
@@ -262,11 +265,14 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 .body(command.getRequestBody())
                 .build();
         Transaction transaction = new NotificationParser(wechatConfig()).parse(requestParam, Transaction.class);
+        LocalDateTime webhookTime = parseWechatTimestamp(header(headers, "Wechatpay-Timestamp"));
         return PaymentWebhookResult.verified(
                 firstText(transaction.getAttach(), command.getOrderId()),
                 firstText(transaction.getOutTradeNo(), command.getPayOrderId()),
                 transaction.getTransactionId(),
                 parseWechatTime(transaction.getSuccessTime()),
+                firstText(transaction.getTransactionId(), header(headers, "Wechatpay-Serial")),
+                webhookTime,
                 "微信支付回调验签通过");
     }
 
@@ -395,5 +401,27 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             return LocalDateTime.now();
         }
         return OffsetDateTime.parse(value).toLocalDateTime();
+    }
+
+    private LocalDateTime parseWechatTimestamp(String value) {
+        if (!StringUtils.hasText(value)) {
+            return LocalDateTime.now();
+        }
+        try {
+            return LocalDateTime.ofInstant(java.time.Instant.ofEpochSecond(Long.parseLong(value)), java.time.ZoneId.systemDefault());
+        } catch (NumberFormatException e) {
+            throw new AppException("PAY_0002", "微信支付回调时间戳格式不正确");
+        }
+    }
+
+    private LocalDateTime parseAlipayTime(String value) {
+        if (!StringUtils.hasText(value)) {
+            return LocalDateTime.now();
+        }
+        try {
+            return LocalDateTime.parse(value, ALIPAY_TIME_FORMATTER);
+        } catch (Exception e) {
+            throw new AppException("PAY_0002", "支付宝回调时间戳格式不正确");
+        }
     }
 }

@@ -50,6 +50,10 @@ public class MockPayCallbackService {
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(request.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
+        if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
+            return toResponse(tradeOrder, payOrder);
+        }
+
         TradeOrderStatusEnumVO fromOrderStatus = tradeOrder.getOrderStatus();
         PayStatusEnumVO fromPayStatus = payOrder.getPayStatus();
         LocalDateTime payTime = request.getPayTime() == null ? LocalDateTime.now() : request.getPayTime();
