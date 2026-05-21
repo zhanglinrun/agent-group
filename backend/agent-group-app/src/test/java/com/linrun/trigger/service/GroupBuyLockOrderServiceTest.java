@@ -152,6 +152,34 @@ class GroupBuyLockOrderServiceTest {
     }
 
     @Test
+    void shouldRejectRepeatedIdempotentKeyWhenRequestScopeMismatches() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        GroupBuyTeam team = team("T10001", 1);
+        lockRepository.teams.put(team.getTeamId(), team);
+        GroupBuyLockOrderService service = service(lockRepository, new FakeTradeOrderRepository());
+
+        service.lock(request("T10001", "IDEM_10005"));
+        LockGroupBuyOrderRequest repeatedRequest = request("T10001", "IDEM_10005");
+        repeatedRequest.setUserId("U20001");
+        repeatedRequest.setGoodsId("G20001");
+        repeatedRequest.setActivityId("A20001");
+
+        AppException exception = assertThrows(AppException.class, () -> service.lock(repeatedRequest));
+
+        assertEquals("GROUP_0020", exception.getCode());
+    }
+
+    @Test
+    void shouldNotExposeClientControlledPriceFields() {
+        assertThrows(NoSuchFieldException.class,
+                () -> LockGroupBuyOrderRequest.class.getDeclaredField("goodsName"));
+        assertThrows(NoSuchFieldException.class,
+                () -> LockGroupBuyOrderRequest.class.getDeclaredField("originalAmount"));
+        assertThrows(NoSuchFieldException.class,
+                () -> LockGroupBuyOrderRequest.class.getDeclaredField("payAmount"));
+    }
+
+    @Test
     void shouldMarkGroupBuyOrderPaySuccessAfterMockCallback() {
         FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();

@@ -1,5 +1,6 @@
 package com.linrun.domain.payment.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -11,6 +12,8 @@ public class PaymentWebhookCommand {
     private String orderId;
     private String payOrderId;
     private String gatewayTradeNo;
+    private BigDecimal payAmount;
+    private String tradeStatus;
     private LocalDateTime payTime;
 
     public String getPayChannel() {
@@ -59,6 +62,22 @@ public class PaymentWebhookCommand {
 
     public void setGatewayTradeNo(String gatewayTradeNo) {
         this.gatewayTradeNo = gatewayTradeNo;
+    }
+
+    public BigDecimal getPayAmount() {
+        return payAmount;
+    }
+
+    public void setPayAmount(BigDecimal payAmount) {
+        this.payAmount = payAmount;
+    }
+
+    public String getTradeStatus() {
+        return tradeStatus;
+    }
+
+    public void setTradeStatus(String tradeStatus) {
+        this.tradeStatus = tradeStatus;
     }
 
     public LocalDateTime getPayTime() {

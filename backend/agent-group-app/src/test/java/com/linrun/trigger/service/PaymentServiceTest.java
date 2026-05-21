@@ -28,6 +28,7 @@ import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.trigger.config.MockPaymentAccessChecker;
+import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -40,6 +41,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PaymentServiceTest {
@@ -75,6 +77,60 @@ class PaymentServiceTest {
         assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, fixture.repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatusEnumVO.SUCCESS, fixture.repository.payOrder.getPayStatus());
         assertEquals("GT10001", response.getGatewayTradeNo());
+    }
+
+    @Test
+    void shouldRejectRealWebhookWhenPayOrderMismatches() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.gateway.webhookPayOrderId = "P20001";
+        fixture.gateway.webhookGatewayTradeNo = "GT10001";
+        fixture.gateway.webhookAmount = new BigDecimal("2399.00");
+        fixture.gateway.webhookTradeStatus = "TRADE_SUCCESS";
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.handleWebhook(request));
+
+        assertEquals("PAY_0010", exception.getCode());
+        assertEquals(PayStatusEnumVO.WAIT_PAY, fixture.repository.payOrder.getPayStatus());
+    }
+
+    @Test
+    void shouldRejectRealWebhookWhenAmountMismatches() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.gateway.webhookPayOrderId = "P10001";
+        fixture.gateway.webhookGatewayTradeNo = "GT10001";
+        fixture.gateway.webhookAmount = new BigDecimal("1.00");
+        fixture.gateway.webhookTradeStatus = "TRADE_SUCCESS";
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.handleWebhook(request));
+
+        assertEquals("PAY_0012", exception.getCode());
+        assertEquals(PayStatusEnumVO.WAIT_PAY, fixture.repository.payOrder.getPayStatus());
+    }
+
+    @Test
+    void shouldRejectRealWebhookWhenTradeStatusIsNotSuccess() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.gateway.webhookPayOrderId = "P10001";
+        fixture.gateway.webhookGatewayTradeNo = "GT10001";
+        fixture.gateway.webhookAmount = new BigDecimal("2399.00");
+        fixture.gateway.webhookTradeStatus = "WAIT_BUYER_PAY";
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.handleWebhook(request));
+
+        assertEquals("PAY_0014", exception.getCode());
+        assertEquals(PayStatusEnumVO.WAIT_PAY, fixture.repository.payOrder.getPayStatus());
     }
 
     @Test
@@ -139,6 +195,10 @@ class PaymentServiceTest {
     private static class FakePaymentGatewayClient implements PaymentGatewayClient {
 
         private PaymentCreateCommand createCommand;
+        private String webhookPayOrderId;
+        private String webhookGatewayTradeNo;
+        private BigDecimal webhookAmount;
+        private String webhookTradeStatus;
 
         @Override
         public PaymentCreateResult createPayment(PaymentCreateCommand command) {
@@ -156,9 +216,13 @@ class PaymentServiceTest {
         public PaymentWebhookResult verifyWebhook(PaymentWebhookCommand command) {
             return PaymentWebhookResult.verified(
                     command.getOrderId(),
-                    command.getPayOrderId(),
-                    command.getGatewayTradeNo(),
+                    webhookPayOrderId == null ? command.getPayOrderId() : webhookPayOrderId,
+                    webhookGatewayTradeNo == null ? command.getGatewayTradeNo() : webhookGatewayTradeNo,
                     command.getPayTime(),
+                    "EVT10001",
+                    LocalDateTime.now(),
+                    webhookAmount == null ? command.getPayAmount() : webhookAmount,
+                    webhookTradeStatus == null ? command.getTradeStatus() : webhookTradeStatus,
                     "verified");
         }
 

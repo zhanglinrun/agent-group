@@ -31,9 +31,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -109,6 +112,7 @@ public class PaymentService {
         if (PaymentChannel.MOCK_PAY.equals(payChannel)) {
             mockPaymentAccessChecker.assertAllowed();
         }
+        validateWebhookConsistency(payChannel, webhookResult);
         if (!paymentWebhookReplayGuard.markFirstSeen(payChannel, webhookResult)) {
             return buildWebhookIdempotentResponse(webhookResult);
         }
@@ -207,8 +211,42 @@ public class PaymentService {
         command.setOrderId(request.getOrderId());
         command.setPayOrderId(request.getPayOrderId());
         command.setGatewayTradeNo(request.getGatewayTradeNo());
+        command.setPayAmount(request.getPayAmount());
+        command.setTradeStatus(request.getTradeStatus());
         command.setPayTime(request.getPayTime());
         return command;
+    }
+
+    private void validateWebhookConsistency(PaymentChannel payChannel, PaymentWebhookResult webhookResult) {
+        TradeOrderEntity tradeOrder = queryTradeOrder(webhookResult.getOrderId());
+        PayOrderEntity payOrder = queryPayOrder(webhookResult.getOrderId());
+        if (!tradeOrder.getOrderId().equals(payOrder.getOrderId())) {
+            throw new AppException("PAY_0010", "payment webhook local order mismatch");
+        }
+        if (!PaymentChannel.parse(payOrder.getPayChannel()).equals(payChannel)) {
+            throw new AppException("PAY_0011", "payment webhook channel mismatch");
+        }
+        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
+                && !StringUtils.hasText(webhookResult.getPayOrderId())) {
+            throw new AppException("PAY_0010", "payment webhook missing pay order id");
+        }
+        if (StringUtils.hasText(webhookResult.getPayOrderId())
+                && !webhookResult.getPayOrderId().equals(payOrder.getPayOrderId())) {
+            throw new AppException("PAY_0010", "payment webhook pay order mismatch");
+        }
+        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
+                && !StringUtils.hasText(webhookResult.getGatewayTradeNo())) {
+            throw new AppException("PAY_0013", "payment webhook missing gateway trade no");
+        }
+        if (webhookResult.getPayAmount() != null
+                && normalize(webhookResult.getPayAmount()).compareTo(normalize(payOrder.getPayAmount())) != 0) {
+            throw new AppException("PAY_0012", "payment webhook amount mismatch");
+        }
+        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
+                && StringUtils.hasText(webhookResult.getTradeStatus())
+                && !isSuccessTradeStatus(payChannel, webhookResult.getTradeStatus())) {
+            throw new AppException("PAY_0014", "payment webhook trade status is not success");
+        }
     }
 
     private PaymentWebhookResponse queryExistingWebhookResponse(PaymentWebhookResult webhookResult) {
@@ -383,6 +421,20 @@ public class PaymentService {
         }
         return "GT" + LocalDateTime.now().format(ORDER_TIME_FORMATTER)
                 + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+    }
+
+    private BigDecimal normalize(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
+                : amount.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isSuccessTradeStatus(PaymentChannel payChannel, String tradeStatus) {
+        String normalized = tradeStatus.trim().toUpperCase(Locale.ROOT);
+        return switch (payChannel) {
+            case ALIPAY -> "TRADE_SUCCESS".equals(normalized) || "TRADE_FINISHED".equals(normalized);
+            case WECHAT_PAY -> "SUCCESS".equals(normalized);
+            case MOCK_PAY -> true;
+        };
     }
 
     private String resolveRefundReason(RefundPaymentRequest request) {

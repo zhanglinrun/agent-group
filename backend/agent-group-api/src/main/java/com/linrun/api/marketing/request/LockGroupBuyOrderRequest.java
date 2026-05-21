@@ -3,7 +3,6 @@ package com.linrun.api.marketing.request;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 
 @Data
 public class LockGroupBuyOrderRequest implements Serializable {
@@ -14,7 +13,4 @@ public class LockGroupBuyOrderRequest implements Serializable {
     private String teamId;
     private String idempotentKey;
     private String payChannel;
-    private String goodsName;
-    private BigDecimal originalAmount;
-    private BigDecimal payAmount;
 }

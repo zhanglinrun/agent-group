@@ -26,6 +26,7 @@ import com.wechat.pay.java.core.RSAAutoCertificateConfig;
 import com.wechat.pay.java.core.notification.NotificationParser;
 import com.wechat.pay.java.core.notification.RequestParam;
 import com.wechat.pay.java.service.payments.model.Transaction;
+import com.wechat.pay.java.service.payments.model.TransactionAmount;
 import com.wechat.pay.java.service.payments.nativepay.NativePayService;
 import com.wechat.pay.java.service.payments.nativepay.model.Amount;
 import com.wechat.pay.java.service.payments.nativepay.model.PrepayRequest;
@@ -154,6 +155,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 StringUtils.hasText(command.getPayOrderId()) ? command.getPayOrderId() : command.getGatewayTradeNo(),
                 StringUtils.hasText(command.getGatewayTradeNo()) ? command.getGatewayTradeNo() : "MOCK" + command.getPayOrderId(),
                 command.getPayTime() == null ? LocalDateTime.now() : command.getPayTime(),
+                command.getPayAmount(),
+                command.getTradeStatus(),
                 "模拟支付回调验签通过");
     }
 
@@ -203,6 +206,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                     command.getPayTime() == null ? LocalDateTime.now() : command.getPayTime(),
                     firstText(params.get("notify_id"), params.get("trade_no")),
                     parseAlipayTime(firstText(params.get("notify_time"), params.get("gmt_payment"))),
+                    parseAmount(params.get("total_amount")),
+                    firstText(params.get("trade_status"), command.getTradeStatus()),
                     "支付宝回调验签通过");
         } catch (AlipayApiException e) {
             throw new AppException("PAY_0002", "支付宝回调验签异常：" + e.getMessage());
@@ -273,6 +278,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 parseWechatTime(transaction.getSuccessTime()),
                 firstText(transaction.getTransactionId(), header(headers, "Wechatpay-Serial")),
                 webhookTime,
+                amountYuan(transaction.getAmount()),
+                transaction.getTradeState() == null ? command.getTradeStatus() : transaction.getTradeState().name(),
                 "微信支付回调验签通过");
     }
 
@@ -355,6 +362,24 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     private Integer centsInt(BigDecimal amount) {
         return amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).intValueExact();
+    }
+
+    private BigDecimal parseAmount(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value).setScale(2, RoundingMode.HALF_UP);
+        } catch (NumberFormatException e) {
+            throw new AppException("PAY_0002", "支付回调金额格式不正确");
+        }
+    }
+
+    private BigDecimal amountYuan(TransactionAmount amount) {
+        if (amount == null || amount.getTotal() == null) {
+            return null;
+        }
+        return BigDecimal.valueOf(amount.getTotal(), 2).setScale(2, RoundingMode.HALF_UP);
     }
 
     private String nextNo(String prefix) {

@@ -95,6 +95,7 @@ public class GroupBuyLockOrderService {
         GroupBuyOrderLock repeatedLock = groupBuyOrderLockRepository.queryLockByIdempotentKey(request.getIdempotentKey())
                 .orElse(null);
         if (repeatedLock != null) {
+            validateRepeatedLock(request, repeatedLock);
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
                     .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
             TradePayOrderAggregate tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
@@ -111,7 +112,7 @@ public class GroupBuyLockOrderService {
         validateTakeLimit(request, activity);
 
         String teamId = StringUtils.hasText(request.getTeamId()) ? request.getTeamId() : nextNo("T");
-        BigDecimal payAmount = resolvePayAmount(request, activity);
+        BigDecimal payAmount = resolvePayAmount(activity);
         GroupBuyOrderLock orderLock = GroupBuyOrderLock.locked(
                 nextNo("L"),
                 request.getIdempotentKey(),
@@ -222,6 +223,14 @@ public class GroupBuyLockOrderService {
         }
     }
 
+    private void validateRepeatedLock(LockGroupBuyOrderRequest request, GroupBuyOrderLock repeatedLock) {
+        if (!request.getUserId().equals(repeatedLock.getUserId())
+                || !request.getGoodsId().equals(repeatedLock.getGoodsId())
+                || !request.getActivityId().equals(repeatedLock.getActivityId())) {
+            throw new AppException("GROUP_0020", "idempotent key conflict");
+        }
+    }
+
     private TradePayOrderAggregate createTradePayOrder(LockGroupBuyOrderRequest request,
                                               GuideProduct product,
                                               GroupBuyActivity activity,
@@ -229,21 +238,18 @@ public class GroupBuyLockOrderService {
         CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId(request.getUserId());
         command.setGoodsId(product.getGoodsId());
-        command.setGoodsName(StringUtils.hasText(request.getGoodsName()) ? request.getGoodsName() : product.getGoodsName());
+        command.setGoodsName(product.getGoodsName());
         command.setIdempotentKey(request.getIdempotentKey());
         command.setActivityId(activity.getActivityId());
         command.setBuyType(TradeBuyTypeEnumVO.GROUP_BUY);
-        command.setOriginAmount(request.getOriginalAmount() == null ? product.getOriginPrice() : request.getOriginalAmount());
+        command.setOriginAmount(product.getOriginPrice());
         command.setPayAmount(payAmount);
 
         TradeOrderEntity tradeOrder = tradeOrderService.createOrder(command);
         return tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
     }
 
-    private BigDecimal resolvePayAmount(LockGroupBuyOrderRequest request, GroupBuyActivity activity) {
-        if (request.getPayAmount() != null) {
-            return request.getPayAmount();
-        }
+    private BigDecimal resolvePayAmount(GroupBuyActivity activity) {
         if (activity.getGroupPrice() != null) {
             return activity.getGroupPrice();
         }

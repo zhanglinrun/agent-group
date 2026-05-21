@@ -73,7 +73,7 @@ public class MarketTradeFacadeService {
         if (!trialResult.isEnable() || !trialResult.isAvailable()) {
             throw new AppException("GROUP_0019", "user cannot join this group activity");
         }
-        LockGroupBuyOrderResponse lockResponse = groupBuyLockOrderService.lock(toGroupBuyRequest(request, trialResult));
+        LockGroupBuyOrderResponse lockResponse = groupBuyLockOrderService.lock(toGroupBuyRequest(request));
 
         LockMarketPayOrderResponse response = new LockMarketPayOrderResponse();
         response.setOrderId(lockResponse.getOrderId());
@@ -151,7 +151,7 @@ public class MarketTradeFacadeService {
         return response;
     }
 
-    private LockGroupBuyOrderRequest toGroupBuyRequest(LockMarketPayOrderRequest request, GroupBuyTrialResult trialResult) {
+    private LockGroupBuyOrderRequest toGroupBuyRequest(LockMarketPayOrderRequest request) {
         LockGroupBuyOrderRequest groupRequest = new LockGroupBuyOrderRequest();
         groupRequest.setUserId(request.getUserId());
         groupRequest.setGoodsId(request.getGoodsId());
@@ -159,9 +159,6 @@ public class MarketTradeFacadeService {
         groupRequest.setTeamId(request.getTeamId());
         groupRequest.setIdempotentKey(resolveIdempotentKey(request));
         groupRequest.setPayChannel("MOCK_PAY");
-        groupRequest.setGoodsName(trialResult.getGoodsName());
-        groupRequest.setOriginalAmount(trialResult.getOriginalPrice());
-        groupRequest.setPayAmount(trialResult.getPayPrice());
         return groupRequest;
     }
 
