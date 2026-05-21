@@ -6,9 +6,6 @@ import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
-import java.util.Locale;
 
 @Component
 @ConditionalOnProperty(prefix = "agent.group.rabbit", name = "enabled", havingValue = "true")
@@ -41,11 +38,9 @@ public class RabbitTradeEventPublisher implements TradeEventPublisher {
     }
 
     private String routingKey(TradeEventMessageEntity message) {
-        if (StringUtils.hasText(message.getRoutingKey())) {
+        if (message.getRoutingKey() != null && !message.getRoutingKey().isBlank()) {
             return message.getRoutingKey();
         }
-        String bizType = message.getBizType() == null ? "unknown" : message.getBizType().toLowerCase(Locale.ROOT);
-        String eventType = message.getEventType() == null ? "unknown" : message.getEventType().toLowerCase(Locale.ROOT);
-        return "trade.event." + bizType + "." + eventType;
+        return TradeEventMessageEntity.defaultRoutingKey(message.getBizType(), message.getEventType());
     }
 }

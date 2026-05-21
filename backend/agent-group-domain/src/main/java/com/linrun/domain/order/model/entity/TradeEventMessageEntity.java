@@ -2,6 +2,7 @@ package com.linrun.domain.order.model.entity;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 public class TradeEventMessageEntity implements Serializable {
 
@@ -23,11 +24,18 @@ public class TradeEventMessageEntity implements Serializable {
         message.setBizType(flow.getBizType());
         message.setBizId(flow.getBizId());
         message.setEventType(flow.getEventType());
+        message.setRoutingKey(defaultRoutingKey(flow.getBizType(), flow.getEventType()));
         message.setFromStatus(flow.getFromStatus());
         message.setToStatus(flow.getToStatus());
         message.setRemark(flow.getRemark());
         message.setCreateTime(flow.getCreateTime());
         return message;
+    }
+
+    public static String defaultRoutingKey(String bizType, String eventType) {
+        String routeBizType = bizType == null ? "unknown" : bizType.toLowerCase(Locale.ROOT);
+        String routeEventType = eventType == null ? "unknown" : eventType.toLowerCase(Locale.ROOT);
+        return "trade.event." + routeBizType + "." + routeEventType;
     }
 
     public String getFlowId() {

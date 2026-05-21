@@ -48,5 +48,15 @@
     "contextRequired": false,
     "requiredReferenceKeywords": ["直接购买", "拼团购买"],
     "requiredAnswerKeywords": ["原价", "拼团价"]
+  },
+  {
+    "caseId": "SAMPLE-EV-006",
+    "caseName": "拼团失败追问",
+    "question": "刚才那个拼团失败后会怎么处理？",
+    "expectedIntentType": "AFTER_SALE",
+    "expectedGoodsId": "G10001",
+    "contextRequired": true,
+    "requiredReferenceKeywords": ["未成团", "退款"],
+    "requiredAnswerKeywords": ["退款"]
   }
 ]

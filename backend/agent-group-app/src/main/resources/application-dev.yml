@@ -41,6 +41,7 @@ spring:
     listener:
       simple:
         prefetch: ${AGENT_GROUP_RABBITMQ_LISTENER_PREFETCH:1}
+        default-requeue-rejected: ${AGENT_GROUP_RABBITMQ_LISTENER_DEFAULT_REQUEUE_REJECTED:false}
         retry:
           enabled: ${AGENT_GROUP_RABBITMQ_LISTENER_RETRY_ENABLED:true}
           max-attempts: ${AGENT_GROUP_RABBITMQ_LISTENER_RETRY_MAX_ATTEMPTS:3}

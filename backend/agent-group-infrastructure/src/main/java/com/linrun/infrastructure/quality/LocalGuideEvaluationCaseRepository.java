@@ -86,7 +86,9 @@ public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRe
                 evaluationCase("EV10019", "价格敏感对比", "如果我只看价格，直接买和拼团买哪个更合适",
                         GuideIntentType.GROUP_RULE, false, List.of("拼团"), List.of("拼团价")),
                 evaluationCase("EV10020", "订单查询意图", "我想查订单和支付状态",
-                        GuideIntentType.ORDER_QUERY, false, List.of("商品"), List.of("商品"))
+                        GuideIntentType.ORDER_QUERY, false, List.of("商品"), List.of("商品")),
+                evaluationCase("EV10021", "拼团失败追问", "刚才那个拼团失败后会怎么处理？",
+                        GuideIntentType.AFTER_SALE, true, List.of("未成团", "退款"), List.of("退款"))
         );
     }
 

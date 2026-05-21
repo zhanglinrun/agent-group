@@ -2,11 +2,14 @@ package com.linrun.infrastructure.order.event;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,7 +19,10 @@ public class RabbitTradeEventConfiguration {
 
     public static final String TRADE_EVENT_EXCHANGE = "agent.group.trade.event.exchange";
     public static final String TRADE_EVENT_QUEUE = "agent.group.trade.event.queue";
+    public static final String TRADE_EVENT_DEAD_LETTER_EXCHANGE = "agent.group.trade.event.dlx";
+    public static final String TRADE_EVENT_DEAD_LETTER_QUEUE = "agent.group.trade.event.dlq";
     public static final String TRADE_EVENT_ROUTING_KEY = "trade.event.#";
+    public static final String TRADE_EVENT_DEAD_LETTER_ROUTING_KEY = "trade.event.dead";
     public static final String NOTIFY_EVENT_ROUTING_KEY = "agent.group.notify.#";
 
     @Bean
@@ -26,21 +32,44 @@ public class RabbitTradeEventConfiguration {
 
     @Bean
     public Queue tradeEventQueue() {
-        return new Queue(TRADE_EVENT_QUEUE, true);
+        return QueueBuilder.durable(TRADE_EVENT_QUEUE)
+                .deadLetterExchange(TRADE_EVENT_DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(TRADE_EVENT_DEAD_LETTER_ROUTING_KEY)
+                .build();
     }
 
     @Bean
-    public Binding tradeEventBinding(TopicExchange tradeEventExchange, Queue tradeEventQueue) {
+    public Binding tradeEventBinding(TopicExchange tradeEventExchange,
+                                     @Qualifier("tradeEventQueue") Queue tradeEventQueue) {
         return BindingBuilder.bind(tradeEventQueue)
                 .to(tradeEventExchange)
                 .with(TRADE_EVENT_ROUTING_KEY);
     }
 
     @Bean
-    public Binding notifyEventBinding(TopicExchange tradeEventExchange, Queue tradeEventQueue) {
+    public Binding notifyEventBinding(TopicExchange tradeEventExchange,
+                                      @Qualifier("tradeEventQueue") Queue tradeEventQueue) {
         return BindingBuilder.bind(tradeEventQueue)
                 .to(tradeEventExchange)
                 .with(NOTIFY_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    public DirectExchange tradeEventDeadLetterExchange() {
+        return new DirectExchange(TRADE_EVENT_DEAD_LETTER_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue tradeEventDeadLetterQueue() {
+        return QueueBuilder.durable(TRADE_EVENT_DEAD_LETTER_QUEUE).build();
+    }
+
+    @Bean
+    public Binding tradeEventDeadLetterBinding(DirectExchange tradeEventDeadLetterExchange,
+                                               @Qualifier("tradeEventDeadLetterQueue") Queue tradeEventDeadLetterQueue) {
+        return BindingBuilder.bind(tradeEventDeadLetterQueue)
+                .to(tradeEventDeadLetterExchange)
+                .with(TRADE_EVENT_DEAD_LETTER_ROUTING_KEY);
     }
 
     @Bean

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.ITradeEventConsumeRecordDao">
+
+    <resultMap id="TradeEventConsumeRecordMap" type="com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity">
+        <id column="id" property="id"/>
+        <result column="event_id" property="eventId"/>
+        <result column="order_id" property="orderId"/>
+        <result column="biz_type" property="bizType"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="event_type" property="eventType"/>
+        <result column="routing_key" property="routingKey"/>
+        <result column="consume_count" property="consumeCount"/>
+        <result column="consume_status" property="consumeStatus"/>
+        <result column="last_error" property="lastError"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity">
+        insert into trade_event_consume_record (
+          event_id,
+          order_id,
+          biz_type,
+          biz_id,
+          event_type,
+          routing_key,
+          consume_count,
+          consume_status,
+          last_error,
+          create_time,
+          update_time
+        ) values (
+          #{eventId},
+          #{orderId},
+          #{bizType},
+          #{bizId},
+          #{eventType},
+          #{routingKey},
+          #{consumeCount},
+          #{consumeStatus},
+          #{lastError},
+          #{createTime},
+          now()
+        )
+        on duplicate key update
+          event_id = event_id
+    </insert>
+
+    <select id="queryByEventId" resultMap="TradeEventConsumeRecordMap">
+        select id,
+               event_id,
+               order_id,
+               biz_type,
+               biz_id,
+               event_type,
+               routing_key,
+               consume_count,
+               consume_status,
+               last_error,
+               create_time,
+               update_time
+        from trade_event_consume_record
+        where event_id = #{eventId}
+    </select>
+
+    <update id="updateStatusProcessing" parameterType="com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity">
+        update trade_event_consume_record
+        set consume_status = 4,
+            update_time = now()
+        where event_id = #{eventId}
+          and (
+              consume_status in (0, 2)
+              or (consume_status = 4 and update_time &lt; date_sub(now(), interval 5 minute))
+          )
+    </update>
+
+    <update id="updateStatusConsumed" parameterType="com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity">
+        update trade_event_consume_record
+        set consume_count = consume_count + 1,
+            consume_status = 1,
+            last_error = null,
+            update_time = now()
+        where event_id = #{eventId}
+          and consume_status = 4
+    </update>
+
+    <update id="updateStatusRetry" parameterType="com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity">
+        update trade_event_consume_record
+        set consume_count = consume_count + 1,
+            consume_status = 2,
+            last_error = #{lastError},
+            update_time = now()
+        where event_id = #{eventId}
+          and consume_status = 4
+    </update>
+
+    <update id="updateStatusDeadLetter" parameterType="com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity">
+        update trade_event_consume_record
+        set consume_count = consume_count + 1,
+            consume_status = 3,
+            last_error = #{lastError},
+            update_time = now()
+        where event_id = #{eventId}
+          and consume_status in (0, 2, 4)
+    </update>
+</mapper>

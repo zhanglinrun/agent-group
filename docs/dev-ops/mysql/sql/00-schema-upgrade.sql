@@ -255,6 +255,45 @@ create table if not exists notify_task (
   key idx_status_time (notify_status, update_time)
 ) engine=InnoDB default charset=utf8mb4 comment='notify task';
 
+create table if not exists trade_event_outbox (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  event_id varchar(128) not null comment 'event id',
+  order_id varchar(40) not null comment 'order id',
+  biz_type varchar(32) not null comment 'biz type',
+  biz_id varchar(64) not null comment 'biz id',
+  event_type varchar(32) not null comment 'event type',
+  routing_key varchar(128) not null comment 'routing key',
+  from_status varchar(32) default null comment 'from status',
+  to_status varchar(32) not null comment 'to status',
+  remark varchar(256) not null default '' comment 'remark',
+  send_count int not null default 0 comment 'send count',
+  send_status int not null default 0 comment '0 init, 1 success, 2 retry, 3 dead, 4 processing',
+  last_error varchar(512) default null comment 'last error',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_event_id (event_id),
+  key idx_status_time (send_status, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='trade event outbox';
+
+create table if not exists trade_event_consume_record (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  event_id varchar(128) not null comment 'event id',
+  order_id varchar(40) not null comment 'order id',
+  biz_type varchar(32) not null comment 'biz type',
+  biz_id varchar(64) not null comment 'biz id',
+  event_type varchar(32) not null comment 'event type',
+  routing_key varchar(128) not null comment 'routing key',
+  consume_count int not null default 0 comment 'consume count',
+  consume_status int not null default 0 comment '0 init, 1 consumed, 2 retry, 3 dead, 4 processing',
+  last_error varchar(512) default null comment 'last error',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_event_id (event_id),
+  key idx_status_time (consume_status, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='trade event consume record';
+
 insert into dynamic_config (
   config_key, config_value, remark
 ) values

@@ -1,13 +1,15 @@
 package com.linrun.trigger.service;
 
 import com.linrun.api.order.response.TradeStatusFlowDTO;
-import com.linrun.domain.order.adapter.TradeEventPublisher;
+import com.linrun.domain.order.adapter.TradeEventOutboxRepository;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
 import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
+import com.linrun.domain.order.model.entity.TradeEventOutboxEntity;
 import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -42,19 +44,20 @@ public class TradeStatusFlowService {
     private static final DateTimeFormatter FLOW_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final TradeStatusFlowRepository tradeStatusFlowRepository;
-    private final TradeEventPublisher tradeEventPublisher;
+    private final TradeEventOutboxRepository tradeEventOutboxRepository;
 
     @Autowired
     public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository,
-                                  TradeEventPublisher tradeEventPublisher) {
+                                  TradeEventOutboxRepository tradeEventOutboxRepository) {
         this.tradeStatusFlowRepository = tradeStatusFlowRepository;
-        this.tradeEventPublisher = tradeEventPublisher;
+        this.tradeEventOutboxRepository = tradeEventOutboxRepository;
     }
 
     public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository) {
-        this(tradeStatusFlowRepository, TradeEventPublisher.noop());
+        this(tradeStatusFlowRepository, TradeEventOutboxRepository.noop());
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void record(String orderId,
                        String bizType,
                        String bizId,
@@ -86,7 +89,8 @@ public class TradeStatusFlowService {
                 remark == null ? "" : remark,
                 LocalDateTime.now());
         tradeStatusFlowRepository.save(flow);
-        tradeEventPublisher.publish(TradeEventMessageEntity.fromFlow(flow));
+        TradeEventMessageEntity message = TradeEventMessageEntity.fromFlow(flow);
+        tradeEventOutboxRepository.save(TradeEventOutboxEntity.fromMessage(message));
     }
 
     public List<TradeStatusFlowDTO> queryByOrderId(String orderId) {

@@ -1,8 +1,9 @@
 package com.linrun.trigger.service;
 
-import com.linrun.domain.order.adapter.TradeEventPublisher;
+import com.linrun.domain.order.adapter.TradeEventOutboxRepository;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
 import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
+import com.linrun.domain.order.model.entity.TradeEventOutboxEntity;
 import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import org.junit.jupiter.api.Test;
 
@@ -10,14 +11,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TradeStatusFlowServiceTest {
 
     @Test
-    void shouldPublishTradeEventAfterFlowSaved() {
+    void shouldSaveTradeFlowAndOutboxAfterRecord() {
         FakeTradeStatusFlowRepository repository = new FakeTradeStatusFlowRepository();
-        FakeTradeEventPublisher publisher = new FakeTradeEventPublisher();
-        TradeStatusFlowService service = new TradeStatusFlowService(repository, publisher);
+        FakeTradeEventOutboxRepository outboxRepository = new FakeTradeEventOutboxRepository();
+        TradeStatusFlowService service = new TradeStatusFlowService(repository, outboxRepository);
 
         service.record(
                 "O10001",
@@ -29,9 +31,14 @@ class TradeStatusFlowServiceTest {
                 "pay success");
 
         assertEquals(1, repository.flows.size());
-        assertEquals(1, publisher.messages.size());
-        assertEquals("O10001", publisher.messages.get(0).getOrderId());
-        assertEquals(TradeStatusFlowService.EVENT_PAY_SUCCESS, publisher.messages.get(0).getEventType());
+        assertEquals(1, outboxRepository.outboxes.size());
+        TradeEventOutboxEntity outbox = outboxRepository.outboxes.get(0);
+        assertEquals("O10001", outbox.getOrderId());
+        assertEquals(TradeStatusFlowService.EVENT_PAY_SUCCESS, outbox.getEventType());
+        assertTrue(outbox.getRoutingKey().startsWith("trade.event.pay."));
+        TradeEventMessageEntity message = outbox.toMessage();
+        assertEquals(outbox.getEventId(), message.getFlowId());
+        assertEquals(outbox.getRoutingKey(), message.getRoutingKey());
     }
 
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
@@ -51,13 +58,62 @@ class TradeStatusFlowServiceTest {
         }
     }
 
-    private static class FakeTradeEventPublisher implements TradeEventPublisher {
+    private static class FakeTradeEventOutboxRepository implements TradeEventOutboxRepository {
 
-        private final List<TradeEventMessageEntity> messages = new ArrayList<>();
+        private final List<TradeEventOutboxEntity> outboxes = new ArrayList<>();
 
         @Override
-        public void publish(TradeEventMessageEntity message) {
-            messages.add(message);
+        public void save(TradeEventOutboxEntity outbox) {
+            outboxes.add(outbox);
+        }
+
+        @Override
+        public List<TradeEventOutboxEntity> queryPending(int limit) {
+            return outboxes.stream()
+                    .filter(outbox -> outbox.getSendStatus() == TradeEventOutboxEntity.STATUS_INIT
+                            || outbox.getSendStatus() == TradeEventOutboxEntity.STATUS_RETRY)
+                    .limit(limit)
+                    .toList();
+        }
+
+        @Override
+        public int updateStatusProcessing(TradeEventOutboxEntity outbox) {
+            if (outbox.getSendStatus() == TradeEventOutboxEntity.STATUS_INIT
+                    || outbox.getSendStatus() == TradeEventOutboxEntity.STATUS_RETRY) {
+                outbox.setSendStatus(TradeEventOutboxEntity.STATUS_PROCESSING);
+                return 1;
+            }
+            return 0;
+        }
+
+        @Override
+        public int updateStatusSuccess(TradeEventOutboxEntity outbox) {
+            if (outbox.getSendStatus() != TradeEventOutboxEntity.STATUS_PROCESSING) {
+                return 0;
+            }
+            outbox.setSendStatus(TradeEventOutboxEntity.STATUS_SUCCESS);
+            outbox.setSendCount(outbox.getSendCount() + 1);
+            return 1;
+        }
+
+        @Override
+        public int updateStatusRetry(TradeEventOutboxEntity outbox) {
+            if (outbox.getSendStatus() != TradeEventOutboxEntity.STATUS_PROCESSING) {
+                return 0;
+            }
+            outbox.setSendStatus(TradeEventOutboxEntity.STATUS_RETRY);
+            outbox.setSendCount(outbox.getSendCount() + 1);
+            return 1;
+        }
+
+        @Override
+        public int updateStatusDeadLetter(TradeEventOutboxEntity outbox) {
+            if (outbox.getSendStatus() != TradeEventOutboxEntity.STATUS_PROCESSING) {
+                return 0;
+            }
+            outbox.setSendStatus(TradeEventOutboxEntity.STATUS_DEAD_LETTER);
+            outbox.setSendCount(outbox.getSendCount() + 1);
+            return 1;
         }
     }
 }
