@@ -1,14 +1,21 @@
 package com.linrun.trigger.http;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.agent.model.GuideEventType;
+import com.linrun.api.agent.response.AnswerDeltaDTO;
+import com.linrun.api.agent.response.GuideStreamEvent;
 import com.linrun.domain.conversation.adapter.GuideStreamControlRepository;
 import com.linrun.domain.conversation.service.GuideImageInputService;
 import com.linrun.trigger.service.AgentGuideStreamService;
 import com.linrun.trigger.service.GuideImageUploadService;
 import com.linrun.types.enums.ResponseCode;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import reactor.core.publisher.Flux;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
@@ -16,24 +23,30 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class AgentGuideControllerTest {
 
+    private final AgentGuideStreamService agentGuideStreamService = mock(AgentGuideStreamService.class);
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(new AgentGuideController(
-                    testExecutor(),
-                    mock(AgentGuideStreamService.class),
+                    agentGuideStreamService,
                     new GuideImageUploadService(new GuideImageInputService()),
-                    new NoopGuideStreamControlRepository()))
+                    new NoopGuideStreamControlRepository(),
+                    new ObjectMapper()))
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
@@ -54,8 +67,29 @@ class AgentGuideControllerTest {
                 .andExpect(jsonPath("$.data.imageSummary").value(startsWith("图片疑似平板商品或商品截图")));
     }
 
-    private ThreadPoolExecutor testExecutor() {
-        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+    @Test
+    void shouldReturnFluxTextEventStreamForGuideStream() throws Exception {
+        GuideStreamEvent<AnswerDeltaDTO> event = GuideStreamEvent.of(
+                GuideEventType.ANSWER_DELTA.getCode(),
+                "S10001",
+                "R10001",
+                1,
+                new AnswerDeltaDTO("第一段"));
+        when(agentGuideStreamService.streamEventFlux(any(), anyString(), anyString(), any()))
+                .thenReturn(Flux.just(event));
+
+        MvcResult result = mockMvc.perform(post("/api/v1/agent/guide/stream")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .content("{\"sessionId\":\"S10001\",\"question\":\"推荐一款学习平板\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data:")))
+                .andExpect(content().string(containsString("answer_delta")))
+                .andExpect(content().string(containsString("\"content\"")));
     }
 
     private byte[] png(int width, int height) throws IOException {

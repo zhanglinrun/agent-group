@@ -10,6 +10,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 @Service
 public class GuideRagAnswerService {
@@ -29,17 +32,55 @@ public class GuideRagAnswerService {
     public GuideRagAnswerResult answerWithMetrics(String question, GuideDecisionResult decisionResult) {
         GuideRagPrompt prompt = guideRagPromptBuilder.build(question, decisionResult);
         GuideLlmResult llmResult = guideLlmClient.completeWithMetrics(prompt);
-        String answer = llmResult.getContent();
+        return toAnswerResult(prompt, llmResult, llmResult.getContent());
+    }
+
+    public GuideRagAnswerResult streamAnswerWithMetrics(String question,
+                                                        GuideDecisionResult decisionResult,
+                                                        Consumer<String> chunkSink,
+                                                        BooleanSupplier stopped) {
+        GuideRagPrompt prompt = guideRagPromptBuilder.build(question, decisionResult);
+        StringBuilder answerBuffer = new StringBuilder();
+        AtomicBoolean chunkEmitted = new AtomicBoolean(false);
+        GuideLlmResult llmResult = guideLlmClient.streamWithMetrics(prompt, chunk -> {
+            if (!StringUtils.hasText(chunk) || isStopped(stopped)) {
+                return;
+            }
+            answerBuffer.append(chunk);
+            chunkEmitted.set(true);
+            if (chunkSink != null) {
+                chunkSink.accept(chunk);
+            }
+        }, stopped);
+
+        GuideRagAnswerResult answerResult = toAnswerResult(prompt, llmResult,
+                answerBuffer.isEmpty() ? llmResult.getContent() : answerBuffer.toString());
+        if (!chunkEmitted.get() && !isStopped(stopped)) {
+            answerResult.getSegments().forEach(segment -> {
+                if (!isStopped(stopped) && chunkSink != null) {
+                    chunkSink.accept(segment + "\n");
+                }
+            });
+        }
+        return answerResult;
+    }
+
+    private GuideRagAnswerResult toAnswerResult(GuideRagPrompt prompt, GuideLlmResult llmResult, String answer) {
         boolean fallbackUsed = llmResult.isFallbackUsed();
-        if (!StringUtils.hasText(answer)) {
-            answer = prompt.getFallbackAnswer();
+        String effectiveAnswer = answer;
+        if (!StringUtils.hasText(effectiveAnswer)) {
+            effectiveAnswer = prompt.getFallbackAnswer();
             fallbackUsed = true;
         }
-        List<String> segments = Arrays.stream(answer.split("\\R+"))
+        List<String> segments = Arrays.stream(effectiveAnswer.split("\\R+"))
                 .map(String::trim)
                 .filter(StringUtils::hasText)
                 .toList();
         return new GuideRagAnswerResult(segments, llmResult.getTokenUsage(), llmResult.getLatencyMillis(),
                 fallbackUsed, llmResult.getModel());
+    }
+
+    private boolean isStopped(BooleanSupplier stopped) {
+        return stopped != null && stopped.getAsBoolean();
     }
 }

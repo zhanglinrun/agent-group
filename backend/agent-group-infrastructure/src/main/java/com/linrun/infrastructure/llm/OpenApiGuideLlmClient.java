@@ -13,18 +13,25 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 @Component
 public class OpenApiGuideLlmClient implements GuideLlmClient {
@@ -122,7 +129,7 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
                         .timeout(timeout)
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(requestBody(prompt)))
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody(prompt, false)))
                         .build();
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -147,15 +154,63 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
         return fallback(prompt, startNanos);
     }
 
+    @Override
+    public GuideLlmResult streamWithMetrics(GuideRagPrompt prompt,
+                                            Consumer<String> chunkSink,
+                                            BooleanSupplier stopped) {
+        long startNanos = System.nanoTime();
+        if (!StringUtils.hasText(apiKey) || !StringUtils.hasText(baseUrl)) {
+            return fallback(prompt, startNanos, GuideTokenUsage.empty(), chunkSink, stopped);
+        }
+
+        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                throttleIfNecessary();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(chatCompletionsUri())
+                        .timeout(timeout)
+                        .header("Authorization", "Bearer " + apiKey)
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "text/event-stream")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody(prompt, true)))
+                        .build();
+                HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    GuideLlmResult result = parseStreamResult(response.body(), startNanos, chunkSink, stopped);
+                    return StringUtils.hasText(result.getContent())
+                            ? result
+                            : fallback(prompt, startNanos, result.getTokenUsage(), chunkSink, stopped);
+                }
+                if (!shouldRetry(response.statusCode(), attempt)) {
+                    LOGGER.warn("llm stream call failed without retry, status={}", response.statusCode());
+                    return fallback(prompt, startNanos, GuideTokenUsage.empty(), chunkSink, stopped);
+                }
+                LOGGER.warn("llm stream call failed, status={}, attempt={}", response.statusCode(), attempt + 1);
+                sleepBeforeRetry(attempt);
+            } catch (Exception e) {
+                if (attempt >= maxRetries) {
+                    LOGGER.warn("llm stream call exhausted retries, reason={}", e.getClass().getSimpleName());
+                    return fallback(prompt, startNanos, GuideTokenUsage.empty(), chunkSink, stopped);
+                }
+                LOGGER.warn("llm stream call exception, attempt={}, reason={}", attempt + 1, e.getClass().getSimpleName());
+                sleepBeforeRetry(attempt);
+            }
+        }
+        return fallback(prompt, startNanos, GuideTokenUsage.empty(), chunkSink, stopped);
+    }
+
     private URI chatCompletionsUri() {
         return OpenApiEndpointSupport.uri(baseUrl, "chat/completions");
     }
 
-    private String requestBody(GuideRagPrompt prompt) throws IOException {
+    private String requestBody(GuideRagPrompt prompt, boolean stream) throws IOException {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", chatModel);
-        body.put("stream", false);
+        body.put("stream", stream);
         body.put("temperature", 0.2);
+        if (stream) {
+            body.put("stream_options", Map.of("include_usage", true));
+        }
         body.put("messages", List.of(
                 message("system", prompt.getSystemPrompt()),
                 message("user", prompt.getUserPrompt())
@@ -178,6 +233,67 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
         }
         String content = choices.get(0).path("message").path("content").asText("");
         return GuideLlmResult.of(content, parseUsage(root), elapsedMillis(startNanos), false, chatModel);
+    }
+
+    private GuideLlmResult parseStreamResult(InputStream responseBody,
+                                             long startNanos,
+                                             Consumer<String> chunkSink,
+                                             BooleanSupplier stopped) throws IOException {
+        StringBuilder answer = new StringBuilder();
+        GuideTokenUsage tokenUsage = GuideTokenUsage.empty();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseBody, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (isStopped(stopped)) {
+                    break;
+                }
+                String data = streamData(line);
+                if (!StringUtils.hasText(data)) {
+                    continue;
+                }
+                if ("[DONE]".equals(data)) {
+                    break;
+                }
+                JsonNode root = objectMapper.readTree(data);
+                GuideTokenUsage usage = parseUsage(root);
+                if (usage.getTotalTokens() > 0L) {
+                    tokenUsage = usage;
+                }
+                String chunk = parseStreamContent(root);
+                if (!StringUtils.hasText(chunk)) {
+                    continue;
+                }
+                answer.append(chunk);
+                if (chunkSink != null) {
+                    chunkSink.accept(chunk);
+                }
+            }
+        }
+        return GuideLlmResult.of(answer.toString(), tokenUsage, elapsedMillis(startNanos), false, chatModel);
+    }
+
+    private String streamData(String line) {
+        if (!StringUtils.hasText(line)) {
+            return "";
+        }
+        String trimmed = line.trim();
+        if (trimmed.startsWith("data:")) {
+            return trimmed.substring(5).trim();
+        }
+        return trimmed;
+    }
+
+    private String parseStreamContent(JsonNode root) {
+        JsonNode choices = root.path("choices");
+        if (!choices.isArray() || choices.isEmpty()) {
+            return "";
+        }
+        JsonNode choice = choices.get(0);
+        String content = choice.path("delta").path("content").asText("");
+        if (StringUtils.hasText(content)) {
+            return content;
+        }
+        return choice.path("message").path("content").asText("");
     }
 
     private GuideTokenUsage parseUsage(JsonNode root) {
@@ -228,6 +344,31 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
 
     private GuideLlmResult fallback(GuideRagPrompt prompt, long startNanos, GuideTokenUsage tokenUsage) {
         return GuideLlmResult.of(prompt.getFallbackAnswer(), tokenUsage, elapsedMillis(startNanos), true, chatModel);
+    }
+
+    private GuideLlmResult fallback(GuideRagPrompt prompt,
+                                    long startNanos,
+                                    GuideTokenUsage tokenUsage,
+                                    Consumer<String> chunkSink,
+                                    BooleanSupplier stopped) {
+        GuideLlmResult result = fallback(prompt, startNanos, tokenUsage);
+        emitFallbackChunks(result.getContent(), chunkSink, stopped);
+        return result;
+    }
+
+    private void emitFallbackChunks(String content, Consumer<String> chunkSink, BooleanSupplier stopped) {
+        if (!StringUtils.hasText(content) || chunkSink == null || isStopped(stopped)) {
+            return;
+        }
+        Arrays.stream(content.split("\\R+"))
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+                .takeWhile(segment -> !isStopped(stopped))
+                .forEach(segment -> chunkSink.accept(segment + "\n"));
+    }
+
+    private boolean isStopped(BooleanSupplier stopped) {
+        return stopped != null && stopped.getAsBoolean();
     }
 
     private long elapsedMillis(long startNanos) {

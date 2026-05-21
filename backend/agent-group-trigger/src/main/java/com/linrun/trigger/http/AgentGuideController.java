@@ -1,5 +1,7 @@
 package com.linrun.trigger.http;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.agent.request.GuideStreamRequest;
 import com.linrun.api.agent.response.GuideImageUploadResponse;
 import com.linrun.api.agent.response.GuideStreamEvent;
@@ -16,14 +18,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 导购流式接口。
@@ -33,19 +32,19 @@ import java.util.concurrent.ThreadPoolExecutor;
 @RequestMapping("/api/v1/agent")
 public class AgentGuideController {
 
-    private final ThreadPoolExecutor streamExecutor;
     private final AgentGuideStreamService agentGuideStreamService;
     private final GuideImageUploadService guideImageUploadService;
     private final GuideStreamControlRepository guideStreamControlRepository;
+    private final ObjectMapper objectMapper;
 
-    public AgentGuideController(ThreadPoolExecutor streamExecutor,
-                                AgentGuideStreamService agentGuideStreamService,
+    public AgentGuideController(AgentGuideStreamService agentGuideStreamService,
                                 GuideImageUploadService guideImageUploadService,
-                                GuideStreamControlRepository guideStreamControlRepository) {
-        this.streamExecutor = streamExecutor;
+                                GuideStreamControlRepository guideStreamControlRepository,
+                                ObjectMapper objectMapper) {
         this.agentGuideStreamService = agentGuideStreamService;
         this.guideImageUploadService = guideImageUploadService;
         this.guideStreamControlRepository = guideStreamControlRepository;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping(value = "/guide/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -53,11 +52,21 @@ public class AgentGuideController {
         return Response.success(guideImageUploadService.uploadImage(file), RequestTraceContext.getRequestId());
     }
 
-    @PostMapping(value = "/guide/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter guideStream(@RequestBody GuideStreamRequest request) {
-        SseEmitter emitter = new SseEmitter(60_000L);
-        streamExecutor.submit(() -> doGuideStream(request, emitter));
-        return emitter;
+    @PostMapping(value = "/guide/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
+    public Flux<String> guideStream(@RequestBody GuideStreamRequest request) {
+        GuideStreamRequest safeRequest = request == null ? new GuideStreamRequest() : request;
+        String sessionId = StringUtils.hasText(safeRequest.getSessionId())
+                ? safeRequest.getSessionId()
+                : "S" + System.currentTimeMillis();
+        String requestId = UUID.randomUUID().toString();
+        guideStreamControlRepository.clearStopped(sessionId);
+        return agentGuideStreamService.streamEventFlux(
+                        safeRequest,
+                        sessionId,
+                        requestId,
+                        () -> guideStreamControlRepository.isStopped(sessionId))
+                .map(this::toJson)
+                .doFinally(signalType -> guideStreamControlRepository.clearStopped(sessionId));
     }
 
     @PostMapping("/stop")
@@ -69,48 +78,11 @@ public class AgentGuideController {
         return Response.success(Boolean.TRUE, RequestTraceContext.getRequestId());
     }
 
-    private void doGuideStream(GuideStreamRequest request, SseEmitter emitter) {
-        String sessionId = StringUtils.hasText(request.getSessionId())
-                ? request.getSessionId()
-                : "S" + System.currentTimeMillis();
-        String requestId = UUID.randomUUID().toString();
-        guideStreamControlRepository.clearStopped(sessionId);
-
+    private String toJson(GuideStreamEvent<?> event) {
         try {
-            agentGuideStreamService.streamEvents(
-                    request,
-                    sessionId,
-                    requestId,
-                    event -> {
-                        if (guideStreamControlRepository.isStopped(sessionId)) {
-                            return;
-                        }
-                        try {
-                            send(emitter, event);
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    },
-                    () -> guideStreamControlRepository.isStopped(sessionId));
-            guideStreamControlRepository.clearStopped(sessionId);
-            emitter.complete();
-        } catch (UncheckedIOException e) {
-            emitter.completeWithError(e.getCause());
-        } catch (Exception e) {
-            emitter.completeWithError(e);
-        }
-    }
-
-    private void send(SseEmitter emitter, GuideStreamEvent<?> event) throws IOException {
-        emitter.send(SseEmitter.event().name(event.getEvent()).data(event, MediaType.APPLICATION_JSON));
-        pause();
-    }
-
-    private void pause() {
-        try {
-            Thread.sleep(350L);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            return objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("导购流事件序列化失败", e);
         }
     }
 }

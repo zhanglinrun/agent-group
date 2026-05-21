@@ -13,6 +13,8 @@ import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -81,6 +83,37 @@ class OpenApiGuideLlmClientTest {
             assertEquals(2000L, result.getTokenUsage().getTotalTokens());
             assertEquals(new BigDecimal("0.003000"), result.getTokenUsage().getEstimatedCostYuan());
             assertTrue(result.getLatencyMillis() >= 0);
+        }
+    }
+
+    @Test
+    void shouldStreamOpenApiCompatibleChatCompletions() throws IOException {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        String responseBody = """
+                data: {"choices":[{"delta":{"content":"第一段"}}]}
+
+                data: {"choices":[{"delta":{"content":"第二段"}}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}
+
+                data: [DONE]
+
+                """;
+        try (MockLlmServer server = MockLlmServer.start(new AtomicReference<>(), requestBody, 200, responseBody)) {
+            OpenApiGuideLlmClient client = new OpenApiGuideLlmClient(
+                    server.baseUrl(),
+                    "test-api-key",
+                    "qwen-plus",
+                    HttpClient.newHttpClient(),
+                    new ObjectMapper());
+            List<String> chunks = new ArrayList<>();
+
+            GuideLlmResult result = client.streamWithMetrics(prompt(), chunks::add, () -> false);
+
+            assertEquals(List.of("第一段", "第二段"), chunks);
+            assertEquals("第一段第二段", result.getContent());
+            assertEquals(10L, result.getTokenUsage().getPromptTokens());
+            assertEquals(20L, result.getTokenUsage().getCompletionTokens());
+            assertEquals(30L, result.getTokenUsage().getTotalTokens());
+            assertTrue(requestBody.get().contains("\"stream\":true"));
         }
     }
 

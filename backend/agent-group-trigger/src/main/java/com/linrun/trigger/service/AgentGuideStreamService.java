@@ -25,11 +25,15 @@ import com.linrun.domain.conversation.service.GuideRagAnswerService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -60,6 +64,32 @@ public class AgentGuideStreamService {
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         streamEvents(request, sessionId, requestId, events::add, () -> false);
         return events;
+    }
+
+    public Flux<GuideStreamEvent<?>> streamEventFlux(GuideStreamRequest request,
+                                                     String sessionId,
+                                                     String requestId,
+                                                     BooleanSupplier stopped) {
+        Sinks.Many<GuideStreamEvent<?>> streamSink = Sinks.many().unicast().onBackpressureBuffer();
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        Schedulers.boundedElastic().schedule(() -> {
+            try {
+                streamEvents(
+                        request,
+                        sessionId,
+                        requestId,
+                        event -> streamSink.tryEmitNext(event),
+                        () -> cancelled.get() || (stopped != null && stopped.getAsBoolean()));
+                if (!cancelled.get()) {
+                    streamSink.tryEmitComplete();
+                }
+            } catch (Exception e) {
+                if (!cancelled.get()) {
+                    streamSink.tryEmitError(e);
+                }
+            }
+        });
+        return streamSink.asFlux().doOnCancel(() -> cancelled.set(true));
     }
 
     public void streamEvents(GuideStreamRequest request,
@@ -124,12 +154,19 @@ public class AgentGuideStreamService {
             }
         }
 
-        GuideRagAnswerResult answerResult = guideRagAnswerService.answerWithMetrics(effectiveQuestion, decisionResult);
-        List<String> answerSegments = answerResult.getSegments();
-        for (String answerSegment : answerSegments) {
-            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment))) {
-                return;
-            }
+        AtomicBoolean answerStopped = new AtomicBoolean(false);
+        GuideRagAnswerResult answerResult = guideRagAnswerService.streamAnswerWithMetrics(
+                effectiveQuestion,
+                decisionResult,
+                answerSegment -> {
+                    if (!emit(sink, stopped, sessionId, requestId, sequence,
+                            GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment))) {
+                        answerStopped.set(true);
+                    }
+                },
+                () -> stopped.getAsBoolean() || answerStopped.get());
+        if (answerStopped.get() || stopped.getAsBoolean()) {
+            return;
         }
 
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD, productCard(decisionResult.getProduct()))) {
@@ -140,7 +177,7 @@ public class AgentGuideStreamService {
             return;
         }
         guideConversationService.rememberUserInput(userInput);
-        guideConversationService.rememberAssistantAnswer(sessionId, answerSegments);
+        guideConversationService.rememberAssistantAnswer(sessionId, answerResult.getSegments());
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.USAGE_METRIC,
                 usageMetrics(answerResult, elapsedMillis(startNanos)))) {
             return;

@@ -321,9 +321,10 @@ function runLocalGuideDemo() {
 
 function handleSseBlock(block) {
   const lines = block.split(/\r?\n/);
-  const data = lines
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trim())
+  const dataLines = lines.filter((line) => line.startsWith("data:"));
+  const data = (dataLines.length ? dataLines : lines)
+    .map((line) => line.replace(/^data:\s*/, "").trim())
+    .filter((line) => line && !line.startsWith("event:") && !line.startsWith("id:") && !line.startsWith("retry:"))
     .join("");
 
   if (!data) {
@@ -356,7 +357,7 @@ function handleGuideEvent(event) {
   }
 
   if (event.event === "answer_delta") {
-    appendAnswer(event.data?.content || "");
+    appendAnswerChunk(event.data?.content || "");
     return;
   }
 
@@ -488,6 +489,20 @@ function appendAnswer(text) {
   }
   const prefix = state.answerTarget.textContent ? "\n" : "";
   state.answerTarget.textContent += `${prefix}${text}`;
+  const stream = $("#chatStream");
+  if (stream) {
+    stream.scrollTop = stream.scrollHeight;
+  }
+}
+
+function appendAnswerChunk(text) {
+  if (!state.answerTarget) {
+    state.answerTarget = addMessage("assistant", "AI 导购", "");
+  }
+  if (!state.answerTarget || !text) {
+    return;
+  }
+  state.answerTarget.textContent += text;
   const stream = $("#chatStream");
   if (stream) {
     stream.scrollTop = stream.scrollHeight;

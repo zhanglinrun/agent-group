@@ -4,7 +4,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ConcurrentTaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -28,6 +32,23 @@ public class ThreadPoolConfig {
                 new LinkedBlockingQueue<>(properties.getBlockQueueSize()),
                 Executors.defaultThreadFactory(),
                 rejectedExecutionHandler(properties.getPolicy()));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AsyncTaskExecutor.class)
+    public AsyncTaskExecutor mvcAsyncTaskExecutor(ThreadPoolExecutor threadPoolExecutor) {
+        return new ConcurrentTaskExecutor(threadPoolExecutor);
+    }
+
+    @Bean
+    public WebMvcConfigurer streamAsyncWebMvcConfigurer(AsyncTaskExecutor mvcAsyncTaskExecutor) {
+        return new WebMvcConfigurer() {
+            @Override
+            public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+                configurer.setTaskExecutor(mvcAsyncTaskExecutor);
+                configurer.setDefaultTimeout(60_000L);
+            }
+        };
     }
 
     private RejectedExecutionHandler rejectedExecutionHandler(String policy) {
