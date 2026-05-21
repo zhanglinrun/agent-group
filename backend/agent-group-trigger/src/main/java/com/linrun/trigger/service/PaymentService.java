@@ -29,6 +29,8 @@ import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -113,30 +115,41 @@ public class PaymentService {
             mockPaymentAccessChecker.assertAllowed();
         }
         validateWebhookConsistency(payChannel, webhookResult);
-        if (!paymentWebhookReplayGuard.markFirstSeen(payChannel, webhookResult)) {
-            return buildWebhookIdempotentResponse(webhookResult);
-        }
 
         PaymentWebhookResponse existingResponse = queryExistingWebhookResponse(webhookResult);
         if (existingResponse != null) {
             return existingResponse;
         }
+        if (!paymentWebhookReplayGuard.acquireProcessingLock(payChannel, webhookResult)) {
+            existingResponse = queryExistingWebhookResponse(webhookResult);
+            if (existingResponse != null) {
+                return existingResponse;
+            }
+            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重试");
+        }
 
-        MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
-        callbackRequest.setOrderId(webhookResult.getOrderId());
-        callbackRequest.setOutTradeNo(resolveGatewayTradeNo(webhookResult));
-        callbackRequest.setPayTime(webhookResult.getPayTime() == null ? LocalDateTime.now() : webhookResult.getPayTime());
-        MockPayCallbackResponse callbackResponse = mockPayCallbackService.paySuccess(callbackRequest);
+        boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, webhookResult);
+        try {
+            MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
+            callbackRequest.setOrderId(webhookResult.getOrderId());
+            callbackRequest.setOutTradeNo(resolveGatewayTradeNo(webhookResult));
+            callbackRequest.setPayTime(webhookResult.getPayTime() == null ? LocalDateTime.now() : webhookResult.getPayTime());
+            MockPayCallbackResponse callbackResponse = mockPayCallbackService.paySuccess(callbackRequest);
 
-        tradeStatusFlowService.record(
-                callbackResponse.getOrderId(),
-                TradeStatusFlowService.BIZ_PAY,
-                callbackResponse.getPayOrderId(),
-                TradeStatusFlowService.EVENT_PAYMENT_WEBHOOK_VERIFIED,
-                null,
-                callbackResponse.getPayStatus(),
-                webhookResult.getMessage());
-        return toWebhookResponse(webhookResult, callbackResponse);
+            tradeStatusFlowService.record(
+                    callbackResponse.getOrderId(),
+                    TradeStatusFlowService.BIZ_PAY,
+                    callbackResponse.getPayOrderId(),
+                    TradeStatusFlowService.EVENT_PAYMENT_WEBHOOK_VERIFIED,
+                    null,
+                    callbackResponse.getPayStatus(),
+                    webhookResult.getMessage());
+            return toWebhookResponse(webhookResult, callbackResponse);
+        } finally {
+            if (!releaseAfterCompletion) {
+                paymentWebhookReplayGuard.releaseProcessingLock(payChannel, webhookResult);
+            }
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -261,17 +274,6 @@ public class PaymentService {
         return toWebhookResponse(webhookResult, existingCallbackResponse(tradeOrder, payOrder));
     }
 
-    private PaymentWebhookResponse buildWebhookIdempotentResponse(PaymentWebhookResult webhookResult) {
-        PaymentWebhookResponse response = new PaymentWebhookResponse();
-        response.setOrderId(webhookResult.getOrderId());
-        response.setPayOrderId(webhookResult.getPayOrderId());
-        response.setGatewayTradeNo(webhookResult.getGatewayTradeNo());
-        response.setPayTime(webhookResult.getPayTime());
-        response.setVerified(true);
-        response.setMessage("重复支付回调已忽略");
-        return response;
-    }
-
     private MockPayCallbackResponse existingCallbackResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
         MockPayCallbackResponse response = new MockPayCallbackResponse();
         response.setOrderId(tradeOrder.getOrderId());
@@ -281,6 +283,19 @@ public class PaymentService {
         response.setOutTradeNo(payOrder.getOutTradeNo());
         response.setPayTime(payOrder.getPayTime());
         return response;
+    }
+
+    private boolean registerWebhookProcessingLockRelease(PaymentChannel payChannel, PaymentWebhookResult webhookResult) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return false;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                paymentWebhookReplayGuard.releaseProcessingLock(payChannel, webhookResult);
+            }
+        });
+        return true;
     }
 
     private PaymentRefundCommand toRefundCommand(TradeOrderEntity tradeOrder, PayOrderEntity payOrder,

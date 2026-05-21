@@ -9,6 +9,7 @@ import com.linrun.api.payment.response.PaymentWebhookResponse;
 import com.linrun.api.payment.response.ReconcilePaymentResponse;
 import com.linrun.api.payment.response.RefundPaymentResponse;
 import com.linrun.domain.payment.adapter.PaymentGatewayClient;
+import com.linrun.domain.payment.adapter.PaymentWebhookReplayRepository;
 import com.linrun.domain.payment.model.PaymentCreateCommand;
 import com.linrun.domain.payment.model.PaymentCreateResult;
 import com.linrun.domain.payment.model.PaymentReconcileCommand;
@@ -33,11 +34,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -76,6 +80,45 @@ class PaymentServiceTest {
         assertTrue(response.isVerified());
         assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, fixture.repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatusEnumVO.SUCCESS, fixture.repository.payOrder.getPayStatus());
+        assertEquals("GT10001", response.getGatewayTradeNo());
+    }
+
+    @Test
+    void shouldReleaseWebhookProcessingLockWhenHandlingFailsAndAllowRetry() {
+        FakeReplayRepository replayRepository = new FakeReplayRepository();
+        Fixture fixture = fixture(
+                TradeOrderStatusEnumVO.PAY_WAIT,
+                PayStatusEnumVO.WAIT_PAY,
+                new PaymentWebhookReplayGuard(300L, replayRepository));
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.repository.failNextUpdatePaySuccess = true;
+        fixture.gateway.webhookPayOrderId = "P10001";
+        fixture.gateway.webhookGatewayTradeNo = "GT10001";
+        fixture.gateway.webhookAmount = new BigDecimal("2399.00");
+        fixture.gateway.webhookTradeStatus = "TRADE_SUCCESS";
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+        request.setPayOrderId("P10001");
+        request.setGatewayTradeNo("GT10001");
+        request.setPayAmount(new BigDecimal("2399.00"));
+        request.setTradeStatus("TRADE_SUCCESS");
+        request.setPayTime(LocalDateTime.of(2026, 5, 14, 10, 0));
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.handleWebhook(request));
+
+        assertEquals("TEST_0001", exception.getCode());
+        assertEquals(TradeOrderStatusEnumVO.PAY_WAIT, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.WAIT_PAY, fixture.repository.payOrder.getPayStatus());
+        assertEquals(1, fixture.repository.updatePaySuccessCount);
+        assertTrue(replayRepository.keys.isEmpty());
+
+        PaymentWebhookResponse response = fixture.service.handleWebhook(request);
+
+        assertTrue(response.isVerified());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS, fixture.repository.payOrder.getPayStatus());
+        assertEquals(2, fixture.repository.updatePaySuccessCount);
         assertEquals("GT10001", response.getGatewayTradeNo());
     }
 
@@ -165,6 +208,12 @@ class PaymentServiceTest {
     }
 
     private Fixture fixture(TradeOrderStatusEnumVO orderStatus, PayStatusEnumVO payStatus) {
+        return fixture(orderStatus, payStatus, new PaymentWebhookReplayGuard(300L));
+    }
+
+    private Fixture fixture(TradeOrderStatusEnumVO orderStatus,
+                            PayStatusEnumVO payStatus,
+                            PaymentWebhookReplayGuard replayGuard) {
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(orderStatus, payStatus);
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         TradeStatusFlowService flowService = new TradeStatusFlowService(flowRepository);
@@ -180,7 +229,7 @@ class PaymentServiceTest {
         return new Fixture(
                 new PaymentService(repository, tradeOrderService, callbackService,
                         new MockPaymentAccessChecker(environment), gateway,
-                        new PaymentWebhookReplayGuard(300L), flowService),
+                        replayGuard, flowService),
                 repository,
                 flowRepository,
                 gateway);
@@ -246,6 +295,8 @@ class PaymentServiceTest {
         private final TradeOrderEntity tradeOrder;
         private final PayOrderEntity payOrder;
         private RefundOrderEntity refundOrder;
+        private boolean failNextUpdatePaySuccess;
+        private int updatePaySuccessCount;
 
         private FakeTradeOrderRepository(TradeOrderStatusEnumVO orderStatus, PayStatusEnumVO payStatus) {
             tradeOrder = new TradeOrderEntity();
@@ -275,6 +326,16 @@ class PaymentServiceTest {
 
         @Override
         public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+            updatePaySuccessCount++;
+            if (failNextUpdatePaySuccess) {
+                failNextUpdatePaySuccess = false;
+                this.tradeOrder.setOrderStatus(TradeOrderStatusEnumVO.PAY_WAIT);
+                this.tradeOrder.setPayTime(null);
+                this.payOrder.setPayStatus(PayStatusEnumVO.WAIT_PAY);
+                this.payOrder.setOutTradeNo(null);
+                this.payOrder.setPayTime(null);
+                throw new AppException("TEST_0001", "db update failed");
+            }
             this.tradeOrder.setOrderStatus(tradeOrder.getOrderStatus());
             this.tradeOrder.setPayTime(tradeOrder.getPayTime());
             this.payOrder.setPayStatus(payOrder.getPayStatus());
@@ -314,6 +375,21 @@ class PaymentServiceTest {
         @Override
         public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
             return Optional.of(payOrder);
+        }
+    }
+
+    private static class FakeReplayRepository implements PaymentWebhookReplayRepository {
+
+        private final Set<String> keys = new HashSet<>();
+
+        @Override
+        public boolean acquireProcessingLock(String replayKey, Duration ttl) {
+            return keys.add(replayKey);
+        }
+
+        @Override
+        public void releaseProcessingLock(String replayKey) {
+            keys.remove(replayKey);
         }
     }
 
