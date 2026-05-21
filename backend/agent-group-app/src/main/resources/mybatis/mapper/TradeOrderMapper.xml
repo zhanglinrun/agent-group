@@ -7,6 +7,7 @@
     <resultMap id="TradeOrderMap" type="com.linrun.domain.order.model.entity.TradeOrderEntity">
         <id column="id" property="id"/>
         <result column="order_id" property="orderId"/>
+        <result column="idempotent_key" property="idempotentKey"/>
         <result column="user_id" property="userId"/>
         <result column="goods_id" property="goodsId"/>
         <result column="goods_name" property="goodsName"/>
@@ -47,6 +48,7 @@
     <insert id="insertTradeOrder" parameterType="com.linrun.domain.order.model.entity.TradeOrderEntity">
         insert into trade_order (
           order_id,
+          idempotent_key,
           user_id,
           goods_id,
           goods_name,
@@ -60,6 +62,7 @@
           close_time
         ) values (
           #{orderId},
+          #{idempotentKey},
           #{userId},
           #{goodsId},
           #{goodsName},
@@ -181,6 +184,7 @@
     <select id="queryTradeOrderByOrderId" resultMap="TradeOrderMap">
         select id,
                order_id,
+               idempotent_key,
                user_id,
                goods_id,
                goods_name,
@@ -197,9 +201,30 @@
         limit 1
     </select>
 
+    <select id="queryTradeOrderByIdempotentKey" resultMap="TradeOrderMap">
+        select id,
+               order_id,
+               idempotent_key,
+               user_id,
+               goods_id,
+               goods_name,
+               activity_id,
+               buy_type,
+               origin_amount,
+               pay_amount,
+               order_status,
+               create_time,
+               pay_time,
+               close_time
+        from trade_order
+        where idempotent_key = #{idempotentKey}
+        limit 1
+    </select>
+
     <select id="queryUserTradeOrders" resultMap="TradeOrderMap">
         select id,
                order_id,
+               idempotent_key,
                user_id,
                goods_id,
                goods_name,
@@ -232,6 +257,7 @@
     <select id="queryLatestUnpaidOrder" resultMap="TradeOrderMap">
         select id,
                order_id,
+               idempotent_key,
                user_id,
                goods_id,
                goods_name,

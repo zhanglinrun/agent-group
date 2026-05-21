@@ -20,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -76,16 +77,25 @@ public class AgentGuideController {
         guideStreamControlRepository.clearStopped(sessionId);
 
         try {
-            for (GuideStreamEvent<?> event : agentGuideStreamService.buildEvents(request, sessionId, requestId)) {
-                if (guideStreamControlRepository.isStopped(sessionId)) {
-                    emitter.complete();
-                    guideStreamControlRepository.clearStopped(sessionId);
-                    return;
-                }
-                send(emitter, event);
-            }
+            agentGuideStreamService.streamEvents(
+                    request,
+                    sessionId,
+                    requestId,
+                    event -> {
+                        if (guideStreamControlRepository.isStopped(sessionId)) {
+                            return;
+                        }
+                        try {
+                            send(emitter, event);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    },
+                    () -> guideStreamControlRepository.isStopped(sessionId));
             guideStreamControlRepository.clearStopped(sessionId);
             emitter.complete();
+        } catch (UncheckedIOException e) {
+            emitter.completeWithError(e.getCause());
         } catch (Exception e) {
             emitter.completeWithError(e);
         }

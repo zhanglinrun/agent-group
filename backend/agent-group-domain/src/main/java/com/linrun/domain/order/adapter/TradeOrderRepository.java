@@ -32,6 +32,10 @@ public interface TradeOrderRepository {
 
     Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId);
 
+    default Optional<TradeOrderEntity> queryTradeOrderByIdempotentKey(String idempotentKey) {
+        return Optional.empty();
+    }
+
     default List<TradeOrderEntity> queryUserTradeOrders(String userId, Long lastId, int pageSize) {
         return List.of();
     }

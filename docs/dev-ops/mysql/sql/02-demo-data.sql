@@ -177,12 +177,13 @@ on duplicate key update
   valid_end_time = values(valid_end_time);
 
 insert into trade_order (
-  order_id, user_id, goods_id, goods_name, activity_id, buy_type,
+  order_id, idempotent_key, user_id, goods_id, goods_name, activity_id, buy_type,
   origin_amount, pay_amount, order_status, pay_time
 ) values
-('O-DEMO-DIRECT-001', 'U10001', 'G10001', '轻薄学习平板标准版', null, 'DIRECT', 2399.00, 2399.00, 'PAY_SUCCESS', date_sub(now(), interval 1 hour)),
-('O-DEMO-GROUP-001', 'U10001', 'G10001', '轻薄学习平板标准版', 'A10001', 'GROUP_BUY', 2399.00, 2099.00, 'GROUP_SETTLED', date_sub(now(), interval 30 minute))
+('O-DEMO-DIRECT-001', 'DEMO-DIRECT-001', 'U10001', 'G10001', '轻薄学习平板标准版', null, 'DIRECT', 2399.00, 2399.00, 'PAY_SUCCESS', date_sub(now(), interval 1 hour)),
+('O-DEMO-GROUP-001', 'DEMO-GROUP-LOCK-001', 'U10001', 'G10001', '轻薄学习平板标准版', 'A10001', 'GROUP_BUY', 2399.00, 2099.00, 'GROUP_SETTLED', date_sub(now(), interval 30 minute))
 on duplicate key update
+  idempotent_key = values(idempotent_key),
   user_id = values(user_id),
   goods_id = values(goods_id),
   goods_name = values(goods_name),

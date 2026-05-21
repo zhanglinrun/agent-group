@@ -41,6 +41,7 @@ class DirectBuyOrderServiceTest {
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
+        request.setIdempotentKey("IDEM-10001");
 
         CreateDirectOrderResponse response = service.createDirectOrder(request);
 
@@ -59,6 +60,7 @@ class DirectBuyOrderServiceTest {
 
         assertEquals(response.getOrderId(), tradeOrderRepository.savedTradeOrder.getOrderId());
         assertEquals(response.getPayOrderId(), tradeOrderRepository.savedPayOrder.getPayOrderId());
+        assertEquals("IDEM-10001", response.getIdempotentKey());
         assertEquals(2, flowRepository.flows.size());
         assertEquals(TradeStatusFlowService.EVENT_CREATE_DIRECT_ORDER, flowRepository.flows.get(0).getEventType());
         assertEquals(TradeStatusFlowService.EVENT_CREATE_PAY_ORDER, flowRepository.flows.get(1).getEventType());
@@ -75,6 +77,7 @@ class DirectBuyOrderServiceTest {
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
+        request.setIdempotentKey("IDEM-10002");
         request.setPayChannel("BALANCE_PAY");
 
         service.createDirectOrder(request);
@@ -92,6 +95,7 @@ class DirectBuyOrderServiceTest {
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10099");
+        request.setIdempotentKey("IDEM-10003");
 
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
@@ -108,11 +112,33 @@ class DirectBuyOrderServiceTest {
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setGoodsId("G10001");
+        request.setIdempotentKey("IDEM-10004");
 
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
         assertEquals("0001", exception.getCode());
         assertEquals("用户编号不能为空", exception.getMessage());
+    }
+
+    @Test
+    void shouldReturnExistingOrderForSameIdempotentKey() {
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        DirectBuyOrderService service = new DirectBuyOrderService(
+                new FakeGuideDataRepository(),
+                tradeOrderRepository,
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
+        CreateDirectOrderRequest request = new CreateDirectOrderRequest();
+        request.setUserId("U10001");
+        request.setGoodsId("G10001");
+        request.setIdempotentKey("IDEM-20001");
+
+        CreateDirectOrderResponse first = service.createDirectOrder(request);
+        CreateDirectOrderResponse second = service.createDirectOrder(request);
+
+        assertEquals(first.getOrderId(), second.getOrderId());
+        assertEquals(first.getIdempotentKey(), second.getIdempotentKey());
+        assertEquals(1, tradeOrderRepository.saveCount);
     }
 
     private static class FakeGuideDataRepository implements GuideDataRepository {
@@ -162,11 +188,13 @@ class DirectBuyOrderServiceTest {
 
         private TradeOrderEntity savedTradeOrder;
         private PayOrderEntity savedPayOrder;
+        private int saveCount;
 
         @Override
         public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
+            this.saveCount++;
         }
 
         @Override
@@ -206,6 +234,14 @@ class DirectBuyOrderServiceTest {
         @Override
         public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(savedTradeOrder);
+        }
+
+        @Override
+        public Optional<TradeOrderEntity> queryTradeOrderByIdempotentKey(String idempotentKey) {
+            if (savedTradeOrder != null && idempotentKey.equals(savedTradeOrder.getIdempotentKey())) {
+                return Optional.of(savedTradeOrder);
+            }
+            return Optional.empty();
         }
 
         @Override

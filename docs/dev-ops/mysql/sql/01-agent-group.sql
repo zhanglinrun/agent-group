@@ -200,6 +200,7 @@ create table if not exists knowledge_fragment (
 create table if not exists trade_order (
   id bigint unsigned not null auto_increment comment '自增主键',
   order_id varchar(40) not null comment '订单编号',
+  idempotent_key varchar(128) default null comment '幂等键',
   user_id varchar(64) not null comment '用户编号',
   goods_id varchar(32) not null comment '商品编号',
   goods_name varchar(128) not null comment '商品名称',
@@ -214,6 +215,7 @@ create table if not exists trade_order (
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
   primary key (id),
   unique key uk_order_id (order_id),
+  unique key uk_idempotent_key (idempotent_key),
   key idx_user_status (user_id, order_status),
   key idx_goods_id (goods_id)
 ) engine=InnoDB default charset=utf8mb4 comment='交易订单表';

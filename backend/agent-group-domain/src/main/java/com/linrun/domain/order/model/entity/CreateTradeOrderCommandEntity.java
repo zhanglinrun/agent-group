@@ -9,6 +9,7 @@ public class CreateTradeOrderCommandEntity {
     private String userId;
     private String goodsId;
     private String goodsName;
+    private String idempotentKey;
     private String activityId;
     private TradeBuyTypeEnumVO buyType;
     private BigDecimal originAmount;
@@ -36,6 +37,14 @@ public class CreateTradeOrderCommandEntity {
 
     public void setGoodsName(String goodsName) {
         this.goodsName = goodsName;
+    }
+
+    public String getIdempotentKey() {
+        return idempotentKey;
+    }
+
+    public void setIdempotentKey(String idempotentKey) {
+        this.idempotentKey = idempotentKey;
     }
 
     public String getActivityId() {

@@ -230,6 +230,7 @@ public class GroupBuyLockOrderService {
         command.setUserId(request.getUserId());
         command.setGoodsId(product.getGoodsId());
         command.setGoodsName(StringUtils.hasText(request.getGoodsName()) ? request.getGoodsName() : product.getGoodsName());
+        command.setIdempotentKey(request.getIdempotentKey());
         command.setActivityId(activity.getActivityId());
         command.setBuyType(TradeBuyTypeEnumVO.GROUP_BUY);
         command.setOriginAmount(request.getOriginalAmount() == null ? product.getOriginPrice() : request.getOriginalAmount());

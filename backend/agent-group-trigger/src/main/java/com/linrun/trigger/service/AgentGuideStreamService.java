@@ -6,6 +6,7 @@ import com.linrun.api.agent.response.AnswerDeltaDTO;
 import com.linrun.api.agent.response.ErrorDTO;
 import com.linrun.api.agent.response.GuideStreamEvent;
 import com.linrun.api.agent.response.GuideUsageMetricsDTO;
+import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.ReferenceDeltaDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
@@ -27,6 +28,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -37,22 +40,34 @@ public class AgentGuideStreamService {
     private final GuideConversationService guideConversationService;
     private final GuideImageInputService guideImageInputService;
     private final ToolExecutor toolExecutor;
+    private final OrderStatusToolService orderStatusToolService;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
                                    GuideRagAnswerService guideRagAnswerService,
                                    GuideConversationService guideConversationService,
                                    GuideImageInputService guideImageInputService,
-                                   ToolExecutor toolExecutor) {
+                                   ToolExecutor toolExecutor,
+                                   OrderStatusToolService orderStatusToolService) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
         this.guideConversationService = guideConversationService;
         this.guideImageInputService = guideImageInputService;
         this.toolExecutor = toolExecutor;
+        this.orderStatusToolService = orderStatusToolService;
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
-        long startNanos = System.nanoTime();
         List<GuideStreamEvent<?>> events = new ArrayList<>();
+        streamEvents(request, sessionId, requestId, events::add, () -> false);
+        return events;
+    }
+
+    public void streamEvents(GuideStreamRequest request,
+                             String sessionId,
+                             String requestId,
+                             Consumer<GuideStreamEvent<?>> sink,
+                             BooleanSupplier stopped) {
+        long startNanos = System.nanoTime();
         AtomicInteger sequence = new AtomicInteger(1);
         ToolExecution<String> imageExecution = toolExecutor.execute(
                 "image_parse",
@@ -62,16 +77,23 @@ public class AgentGuideStreamService {
         String imageSummary = imageExecution.getResult();
 
         if (!StringUtils.hasText(request.getQuestion()) && !StringUtils.hasText(imageSummary)) {
-            add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error("0001", "问题不能为空"));
-            return events;
+            emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR, error("0001", "问题不能为空"));
+            return;
         }
 
         GuideUserInput userInput = userInput(request, sessionId, imageSummary);
         String effectiveQuestion = guideConversationService.buildQuestionWithContext(userInput);
 
         if (StringUtils.hasText(imageSummary)) {
-            add(events, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                    toolCall(imageExecution, "已解析图片输入：" + imageSummary));
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
+                    toolCall(imageExecution, "已解析图片输入：" + imageSummary))) {
+                return;
+            }
+        }
+
+        if (orderStatusToolService.isOrderQuery(effectiveQuestion)) {
+            streamOrderQuery(request, sessionId, requestId, sink, stopped, startNanos, sequence, userInput, effectiveQuestion);
+            return;
         }
 
         ToolExecution<GuideDecisionResult> decisionExecution = toolExecutor.execute(
@@ -79,40 +101,51 @@ public class AgentGuideStreamService {
                 "execute",
                 "已识别用户预算、使用场景和购买限制",
                 () -> guideDecisionService.decide(effectiveQuestion));
-        add(events, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                toolCall(decisionExecution, decisionExecution.getMessage()));
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
+                toolCall(decisionExecution, decisionExecution.getMessage()))) {
+            return;
+        }
 
         GuideDecisionResult decisionResult = decisionExecution.getResult();
         if (!decisionExecution.isSuccess()) {
             Exception exception = decisionExecution.getException();
             if (exception instanceof AppException e) {
-                add(events, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
-                return events;
+                emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
+                return;
             }
-            add(events, sessionId, requestId, sequence, GuideEventType.ERROR,
+            emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR,
                     error("DATA_0001", "导购数据源不可用，请先启动本地 Docker 基础设施并初始化数据"));
-            return events;
+            return;
         }
 
         for (GuideReference reference : decisionResult.getReferences()) {
-            add(events, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference));
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference))) {
+                return;
+            }
         }
 
         GuideRagAnswerResult answerResult = guideRagAnswerService.answerWithMetrics(effectiveQuestion, decisionResult);
         List<String> answerSegments = answerResult.getSegments();
         for (String answerSegment : answerSegments) {
-            add(events, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment));
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answerSegment))) {
+                return;
+            }
         }
 
-        add(events, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD, productCard(decisionResult.getProduct()));
-        add(events, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
-                selfCheck(decisionResult.getRecommendationResult()));
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD, productCard(decisionResult.getProduct()))) {
+            return;
+        }
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
+                selfCheck(decisionResult.getRecommendationResult()))) {
+            return;
+        }
         guideConversationService.rememberUserInput(userInput);
         guideConversationService.rememberAssistantAnswer(sessionId, answerSegments);
-        add(events, sessionId, requestId, sequence, GuideEventType.USAGE_METRIC,
-                usageMetrics(answerResult, elapsedMillis(startNanos)));
-        add(events, sessionId, requestId, sequence, GuideEventType.DONE, "done");
-        return events;
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.USAGE_METRIC,
+                usageMetrics(answerResult, elapsedMillis(startNanos)))) {
+            return;
+        }
+        emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.DONE, "done");
     }
 
     private GuideUserInput userInput(GuideStreamRequest request, String sessionId, String imageSummary) {
@@ -125,9 +158,64 @@ public class AgentGuideStreamService {
         return userInput;
     }
 
-    private <T> void add(List<GuideStreamEvent<?>> events, String sessionId, String requestId, AtomicInteger sequence,
-                         GuideEventType eventType, T data) {
-        events.add(GuideStreamEvent.of(eventType.getCode(), sessionId, requestId, sequence.getAndIncrement(), data));
+    private void streamOrderQuery(GuideStreamRequest request,
+                                  String sessionId,
+                                  String requestId,
+                                  Consumer<GuideStreamEvent<?>> sink,
+                                  BooleanSupplier stopped,
+                                  long startNanos,
+                                  AtomicInteger sequence,
+                                  GuideUserInput userInput,
+                                  String effectiveQuestion) {
+        ToolExecution<OrderDeltaDTO> orderExecution = toolExecutor.execute(
+                "order_status",
+                "execute",
+                "已查询订单状态",
+                () -> orderStatusToolService.queryOrderStatusByQuestion(effectiveQuestion, request.getUserId()));
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
+                toolCall(orderExecution, orderExecution.getMessage()))) {
+            return;
+        }
+        if (!orderExecution.isSuccess()) {
+            Exception exception = orderExecution.getException();
+            if (exception instanceof AppException e) {
+                emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
+                return;
+            }
+            emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR,
+                    error("TRADE_0019", "订单查询暂不可用，请稍后重试"));
+            return;
+        }
+
+        OrderDeltaDTO orderDelta = orderExecution.getResult();
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ORDER_DELTA, orderDelta)) {
+            return;
+        }
+        String answer = orderDelta.getMessage();
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ANSWER_DELTA, new AnswerDeltaDTO(answer))) {
+            return;
+        }
+        guideConversationService.rememberUserInput(userInput);
+        guideConversationService.rememberAssistantAnswer(sessionId, List.of(answer));
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.USAGE_METRIC,
+                usageMetricsForToolOnly(elapsedMillis(startNanos)))) {
+            return;
+        }
+        emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.DONE, "done");
+    }
+
+    private <T> boolean emit(Consumer<GuideStreamEvent<?>> sink,
+                             BooleanSupplier stopped,
+                             String sessionId,
+                             String requestId,
+                             AtomicInteger sequence,
+                             GuideEventType eventType,
+                             T data) {
+        if (stopped.getAsBoolean()) {
+            return false;
+        }
+        sink.accept(GuideStreamEvent.of(eventType.getCode(), sessionId, requestId, sequence.getAndIncrement(), data));
+        return !stopped.getAsBoolean();
     }
 
     private ToolCallDTO toolCall(ToolExecution<?> execution, String message) {
@@ -186,6 +274,18 @@ public class AgentGuideStreamService {
         dto.setLlmLatencyMillis(answerResult.getLlmLatencyMillis());
         dto.setTotalLatencyMillis(totalLatencyMillis);
         dto.setFallbackUsed(answerResult.isFallbackUsed());
+        return dto;
+    }
+
+    private GuideUsageMetricsDTO usageMetricsForToolOnly(long totalLatencyMillis) {
+        GuideUsageMetricsDTO dto = new GuideUsageMetricsDTO();
+        dto.setPromptTokens(0L);
+        dto.setCompletionTokens(0L);
+        dto.setTotalTokens(0L);
+        dto.setEstimatedCostYuan(java.math.BigDecimal.ZERO);
+        dto.setLlmLatencyMillis(0L);
+        dto.setTotalLatencyMillis(totalLatencyMillis);
+        dto.setFallbackUsed(false);
         return dto;
     }
 

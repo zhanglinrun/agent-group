@@ -13,6 +13,7 @@ import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -35,6 +36,7 @@ public class DirectBuyOrderService {
         this.tradeStatusFlowService = tradeStatusFlowService;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public CreateDirectOrderResponse createDirectOrder(CreateDirectOrderRequest request) {
         if (request == null) {
             throw new AppException("0001", "下单参数不能为空");
@@ -45,6 +47,18 @@ public class DirectBuyOrderService {
         if (!StringUtils.hasText(request.getGoodsId())) {
             throw new AppException("0001", "商品编号不能为空");
         }
+        if (!StringUtils.hasText(request.getIdempotentKey())) {
+            throw new AppException("0001", "幂等键不能为空");
+        }
+
+        TradeOrderEntity existed = tradeOrderRepository.queryTradeOrderByIdempotentKey(request.getIdempotentKey())
+                .orElse(null);
+        if (existed != null) {
+            validateExistingOrder(existed, request);
+            PayOrderEntity existingPayOrder = tradeOrderRepository.queryPayOrderByOrderId(existed.getOrderId())
+                    .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
+            return toResponse(existed, existingPayOrder);
+        }
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "商品不存在或已下架"));
@@ -53,6 +67,7 @@ public class DirectBuyOrderService {
         command.setUserId(request.getUserId());
         command.setGoodsId(product.getGoodsId());
         command.setGoodsName(product.getGoodsName());
+        command.setIdempotentKey(request.getIdempotentKey());
         command.setBuyType(TradeBuyTypeEnumVO.DIRECT);
         command.setOriginAmount(product.getOriginPrice());
         command.setPayAmount(product.getOriginPrice());
@@ -63,6 +78,14 @@ public class DirectBuyOrderService {
         recordCreateFlow(tradePayOrder);
 
         return toResponse(tradePayOrder);
+    }
+
+    private void validateExistingOrder(TradeOrderEntity existed, CreateDirectOrderRequest request) {
+        if (!request.getUserId().equals(existed.getUserId())
+                || !request.getGoodsId().equals(existed.getGoodsId())
+                || !TradeBuyTypeEnumVO.DIRECT.equals(existed.getBuyType())) {
+            throw new AppException("TRADE_0017", "幂等键已被其他下单请求使用");
+        }
     }
 
     private void recordCreateFlow(TradePayOrderAggregate tradePayOrder) {
@@ -91,12 +114,14 @@ public class DirectBuyOrderService {
     }
 
     private CreateDirectOrderResponse toResponse(TradePayOrderAggregate tradePayOrder) {
-        TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
-        PayOrderEntity payOrder = tradePayOrder.getPayOrder();
+        return toResponse(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+    }
 
+    private CreateDirectOrderResponse toResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
         CreateDirectOrderResponse response = new CreateDirectOrderResponse();
         response.setOrderId(tradeOrder.getOrderId());
         response.setPayOrderId(payOrder.getPayOrderId());
+        response.setIdempotentKey(tradeOrder.getIdempotentKey());
         response.setUserId(tradeOrder.getUserId());
         response.setGoodsId(tradeOrder.getGoodsId());
         response.setGoodsName(tradeOrder.getGoodsName());

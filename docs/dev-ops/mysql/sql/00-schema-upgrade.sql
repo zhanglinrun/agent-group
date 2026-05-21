@@ -2,6 +2,32 @@ use agent_group;
 
 set @sql = (
   select if(count(*) = 0,
+    'alter table trade_order add column idempotent_key varchar(128) default null comment ''幂等键'' after order_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'trade_order'
+    and column_name = 'idempotent_key'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table trade_order add unique key uk_idempotent_key (idempotent_key)',
+    'select 1')
+  from information_schema.statistics
+  where table_schema = database()
+    and table_name = 'trade_order'
+    and index_name = 'uk_idempotent_key'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
     'alter table knowledge_document add column source_type varchar(32) not null default ''INIT_DATA'' comment ''来源类型'' after knowledge_version',
     'select 1')
   from information_schema.columns

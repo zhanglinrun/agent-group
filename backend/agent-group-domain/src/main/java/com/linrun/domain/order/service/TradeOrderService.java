@@ -25,6 +25,7 @@ public class TradeOrderService {
 
         TradeOrderEntity order = new TradeOrderEntity();
         order.setOrderId(nextNo("O"));
+        order.setIdempotentKey(command.getIdempotentKey());
         order.setUserId(command.getUserId());
         order.setGoodsId(command.getGoodsId());
         order.setGoodsName(command.getGoodsName());

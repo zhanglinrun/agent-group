@@ -11,6 +11,7 @@ public class TradeOrderEntity {
 
     private Long id;
     private String orderId;
+    private String idempotentKey;
     private String userId;
     private String goodsId;
     private String goodsName;
@@ -107,6 +108,14 @@ public class TradeOrderEntity {
 
     public void setOrderId(String orderId) {
         this.orderId = orderId;
+    }
+
+    public String getIdempotentKey() {
+        return idempotentKey;
+    }
+
+    public void setIdempotentKey(String idempotentKey) {
+        this.idempotentKey = idempotentKey;
     }
 
     public String getUserId() {

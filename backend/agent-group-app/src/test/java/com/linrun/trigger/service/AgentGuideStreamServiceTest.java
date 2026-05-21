@@ -5,6 +5,7 @@ import com.linrun.api.agent.request.GuideStreamRequest;
 import com.linrun.api.agent.response.ErrorDTO;
 import com.linrun.api.agent.response.GuideStreamEvent;
 import com.linrun.api.agent.response.GuideUsageMetricsDTO;
+import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
@@ -22,6 +23,13 @@ import com.linrun.domain.marketing.service.GroupBuyActivityService;
 import com.linrun.infrastructure.conversation.repository.LocalGuideConversationRepository;
 import com.linrun.domain.prompt.service.PromptTemplateService;
 import com.linrun.infrastructure.prompt.LocalPromptTemplateRepository;
+import com.linrun.domain.order.adapter.TradeOrderRepository;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -139,6 +147,28 @@ class AgentGuideStreamServiceTest {
         assertTrue(repository.getLastQuestion().contains("图片疑似平板商品或商品截图"));
     }
 
+    @Test
+    void shouldQueryOrderStatusForOrderIntent() {
+        AgentGuideStreamService service = streamService(new FakeGuideDataRepository(), new FakeTradeOrderRepository());
+        GuideStreamRequest request = new GuideStreamRequest();
+        request.setUserId("U10001");
+        request.setQuestion("查一下订单 O10001 的支付状态");
+
+        List<GuideStreamEvent<?>> events = service.buildEvents(request, "S40001", "R40001");
+
+        assertEquals(List.of(
+                GuideEventType.TOOL_CALL.getCode(),
+                GuideEventType.ORDER_DELTA.getCode(),
+                GuideEventType.ANSWER_DELTA.getCode(),
+                GuideEventType.USAGE_METRIC.getCode(),
+                GuideEventType.DONE.getCode()
+        ), events.stream().map(GuideStreamEvent::getEvent).toList());
+        OrderDeltaDTO orderDelta = assertInstanceOf(OrderDeltaDTO.class, events.get(1).getData());
+        assertEquals("O10001", orderDelta.getOrderNo());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), orderDelta.getCurrentStatus());
+        assertEquals("已支付", orderDelta.getDisplayStatus());
+    }
+
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
@@ -222,6 +252,11 @@ class AgentGuideStreamServiceTest {
     }
 
     private AgentGuideStreamService streamService(GuideDataRepository guideDataRepository) {
+        return streamService(guideDataRepository, new EmptyTradeOrderRepository());
+    }
+
+    private AgentGuideStreamService streamService(GuideDataRepository guideDataRepository,
+                                                  TradeOrderRepository tradeOrderRepository) {
         return new AgentGuideStreamService(
                 new GuideDecisionService(guideDataRepository, groupBuyService()),
                 new GuideRagAnswerService(
@@ -229,7 +264,76 @@ class AgentGuideStreamServiceTest {
                         prompt -> prompt.getFallbackAnswer()),
                 new GuideConversationService(new LocalGuideConversationRepository()),
                 new GuideImageInputService(),
-                new ToolExecutor());
+                new ToolExecutor(),
+                new OrderStatusToolService(tradeOrderRepository));
+    }
+
+    private static class EmptyTradeOrderRepository extends FakeTradeOrderRepository {
+
+        @Override
+        public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
+            return Optional.empty();
+        }
+    }
+
+    private static class FakeTradeOrderRepository implements TradeOrderRepository {
+
+        @Override
+        public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        }
+
+        @Override
+        public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        }
+
+        @Override
+        public void updateGroupSettledByOrderIds(List<String> orderIds) {
+        }
+
+        @Override
+        public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        }
+
+        @Override
+        public void saveRefundOrder(RefundOrderEntity refundOrder) {
+        }
+
+        @Override
+        public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        }
+
+        @Override
+        public Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
+            TradeOrderEntity order = new TradeOrderEntity();
+            order.setOrderId(orderId);
+            order.setUserId("U10001");
+            order.setGoodsId("G10001");
+            order.setGoodsName("轻薄学习平板标准版");
+            order.setBuyType(TradeBuyTypeEnumVO.DIRECT);
+            order.setOriginAmount(new BigDecimal("2399.00"));
+            order.setPayAmount(new BigDecimal("2399.00"));
+            order.setOrderStatus(TradeOrderStatusEnumVO.PAY_SUCCESS);
+            order.setCreateTime(LocalDateTime.now());
+            return Optional.of(order);
+        }
+
+        @Override
+        public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
+            PayOrderEntity payOrder = PayOrderEntity.waitPay(
+                    "P10001",
+                    orderId,
+                    new BigDecimal("2399.00"),
+                    "MOCK_PAY",
+                    "mock://pay/P10001",
+                    LocalDateTime.now());
+            payOrder.setPayStatus(PayStatusEnumVO.SUCCESS);
+            return Optional.of(payOrder);
+        }
     }
 
     private GroupBuyActivityService groupBuyService() {

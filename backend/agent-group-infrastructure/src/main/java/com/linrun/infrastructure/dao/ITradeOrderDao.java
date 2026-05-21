@@ -39,6 +39,8 @@ public interface ITradeOrderDao {
 
     TradeOrderEntity queryTradeOrderByOrderId(@Param("orderId") String orderId);
 
+    TradeOrderEntity queryTradeOrderByIdempotentKey(@Param("idempotentKey") String idempotentKey);
+
     PayOrderEntity queryPayOrderByOrderId(@Param("orderId") String orderId);
 
     List<TradeOrderEntity> queryUserTradeOrders(@Param("userId") String userId,

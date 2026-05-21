@@ -79,6 +79,11 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    public Optional<TradeOrderEntity> queryTradeOrderByIdempotentKey(String idempotentKey) {
+        return Optional.ofNullable(tradeOrderDao.queryTradeOrderByIdempotentKey(idempotentKey));
+    }
+
+    @Override
     public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
         return Optional.ofNullable(tradeOrderDao.queryPayOrderByOrderId(orderId));
     }

@@ -14,6 +14,7 @@ public class OrderDeltaDTO implements Serializable {
 
     private String orderNo;
     private String tradeType;
+    private String status;
     private String currentStatus;
     private String displayStatus;
     private String message;

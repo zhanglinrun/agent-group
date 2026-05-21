@@ -2,15 +2,13 @@ package com.linrun.trigger.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
 import com.linrun.domain.marketing.service.GroupBuyActivityService;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.RecommendationResult;
 import com.linrun.domain.conversation.service.GuideDecisionService;
-import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.entity.PayOrderEntity;
-import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -24,18 +22,18 @@ public class McpToolService {
 
     private final GuideDecisionService guideDecisionService;
     private final GroupBuyActivityService groupBuyActivityService;
-    private final TradeOrderRepository tradeOrderRepository;
+    private final OrderStatusToolService orderStatusToolService;
     private final ToolExecutor toolExecutor;
     private final ObjectMapper objectMapper;
 
     public McpToolService(GuideDecisionService guideDecisionService,
                           GroupBuyActivityService groupBuyActivityService,
-                          TradeOrderRepository tradeOrderRepository,
+                          OrderStatusToolService orderStatusToolService,
                           ToolExecutor toolExecutor,
                           ObjectMapper objectMapper) {
         this.guideDecisionService = guideDecisionService;
         this.groupBuyActivityService = groupBuyActivityService;
-        this.tradeOrderRepository = tradeOrderRepository;
+        this.orderStatusToolService = orderStatusToolService;
         this.toolExecutor = toolExecutor;
         this.objectMapper = objectMapper;
     }
@@ -127,26 +125,13 @@ public class McpToolService {
     }
 
     private Map<String, Object> orderStatus(String orderId) {
-        if (!StringUtils.hasText(orderId)) {
-            throw new AppException("0001", "订单编号不能为空");
-        }
-        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
-        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId).orElse(null);
+        OrderDeltaDTO orderDelta = orderStatusToolService.queryOrderStatus(orderId, null);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("orderId", tradeOrder.getOrderId());
-        result.put("userId", tradeOrder.getUserId());
-        result.put("goodsId", tradeOrder.getGoodsId());
-        result.put("goodsName", tradeOrder.getGoodsName());
-        result.put("buyType", tradeOrder.getBuyType().name());
-        result.put("orderStatus", tradeOrder.getOrderStatus().name());
-        result.put("payAmount", tradeOrder.getPayAmount());
-        if (payOrder != null) {
-            result.put("payOrderId", payOrder.getPayOrderId());
-            result.put("payChannel", payOrder.getPayChannel());
-            result.put("payStatus", payOrder.getPayStatus().name());
-            result.put("outTradeNo", nullToBlank(payOrder.getOutTradeNo()));
-        }
+        result.put("orderId", orderDelta.getOrderNo());
+        result.put("tradeType", orderDelta.getTradeType());
+        result.put("orderStatus", orderDelta.getCurrentStatus());
+        result.put("displayStatus", orderDelta.getDisplayStatus());
+        result.put("message", orderDelta.getMessage());
         return result;
     }
 

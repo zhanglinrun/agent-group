@@ -151,6 +151,7 @@ public class LegacyMallPayService {
         CreateDirectOrderRequest directRequest = new CreateDirectOrderRequest();
         directRequest.setUserId(request.getUserId());
         directRequest.setGoodsId(request.getProductId());
+        directRequest.setIdempotentKey(resolveIdempotentKey(request));
         directRequest.setPayChannel(resolvePayChannel(request));
         return directRequest;
     }

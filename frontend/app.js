@@ -610,10 +610,12 @@ async function startPurchase(product, mode) {
 }
 
 function saveCheckoutSession(product, mode) {
+  const createdAt = Date.now();
   saveStore("agentGroupCheckout", {
     mode,
     product,
-    createdAt: Date.now()
+    idempotentKey: resolveCheckoutIdempotentKey(product, mode, createdAt),
+    createdAt
   });
 }
 
@@ -682,6 +684,7 @@ function restoreCheckoutOrderState(order) {
 async function submitCheckoutOrder(checkout) {
   const isGroup = checkout.mode === "group";
   const product = checkout.product;
+  checkout.idempotentKey = checkout.idempotentKey || resolveCheckoutIdempotentKey(product, checkout.mode, checkout.createdAt || Date.now());
   setDisabled("#confirmOrderBtn", true);
   setText("#checkoutStatus", isGroup ? "锁单中" : "下单中");
   renderCheckoutSteps(["正在向后端提交订单"], 1);
@@ -689,7 +692,7 @@ async function submitCheckoutOrder(checkout) {
   try {
     const createResult = isGroup
       ? await createGroupOrder(product)
-      : await createDirectOrder(product);
+      : await createDirectOrder(product, checkout.idempotentKey);
     const paymentResult = createResult.payOrderId && createResult.payUrl
       ? null
       : await createGatewayPayment(createResult.orderId);
@@ -841,6 +844,7 @@ function upsertOrderForAdmin(order) {
 
 async function runInlinePurchase(product, mode) {
   const isGroup = mode === "group";
+  const idempotentKey = resolveCheckoutIdempotentKey(product, mode);
   const order = {
     orderNo: "创建中",
     type: isGroup ? "拼团购买" : "直接购买",
@@ -856,7 +860,7 @@ async function runInlinePurchase(product, mode) {
   try {
     const createResult = isGroup
       ? await createGroupOrder(product)
-      : await createDirectOrder(product);
+      : await createDirectOrder(product, idempotentKey);
     order.orderNo = createResult.orderId;
     order.status = createResult.orderStatus || "待支付";
     order.amount = formatPrice(createResult.payAmount || order.amount);
@@ -882,10 +886,11 @@ async function runInlinePurchase(product, mode) {
   }
 }
 
-async function createDirectOrder(product) {
+async function createDirectOrder(product, idempotentKey) {
   return postJson(DIRECT_ORDER_URL, {
     userId: "U10001",
     goodsId: product.id,
+    idempotentKey: idempotentKey || resolveCheckoutIdempotentKey(product, "direct"),
     payChannel: "MOCK_PAY"
   });
 }
@@ -898,6 +903,10 @@ async function createGroupOrder(product) {
     idempotentKey: `WEB-${Date.now()}-${product.id}`,
     payChannel: "MOCK_PAY"
   });
+}
+
+function resolveCheckoutIdempotentKey(product, mode, seed = Date.now()) {
+  return `WEB-${mode || "direct"}-${product.id}-${seed}`;
 }
 
 async function createGatewayPayment(orderId) {
