@@ -1,11 +1,11 @@
 package com.linrun.domain.order.service;
 
-import com.linrun.domain.order.model.CreateTradeOrderCommand;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
-import com.linrun.domain.order.model.TradePayOrder;
+import com.linrun.domain.order.model.entity.CreateTradeOrderCommandEntity;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
+import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -20,10 +20,10 @@ public class TradeOrderService {
 
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    public TradeOrder createOrder(CreateTradeOrderCommand command) {
+    public TradeOrderEntity createOrder(CreateTradeOrderCommandEntity command) {
         validateCreateCommand(command);
 
-        TradeOrder order = new TradeOrder();
+        TradeOrderEntity order = new TradeOrderEntity();
         order.setOrderId(nextNo("O"));
         order.setUserId(command.getUserId());
         order.setGoodsId(command.getGoodsId());
@@ -32,18 +32,18 @@ public class TradeOrderService {
         order.setBuyType(command.getBuyType());
         order.setOriginAmount(command.getOriginAmount());
         order.setPayAmount(command.getPayAmount());
-        order.setOrderStatus(TradeOrderStatus.CREATE);
+        order.setOrderStatus(TradeOrderStatusEnumVO.CREATE);
         order.setCreateTime(LocalDateTime.now());
         return order;
     }
 
-    public TradePayOrder createPayOrder(TradeOrder order, String payChannel) {
+    public TradePayOrderAggregate createPayOrder(TradeOrderEntity order, String payChannel) {
         if (!StringUtils.hasText(payChannel)) {
             throw new AppException("0001", "支付渠道不能为空");
         }
         order.waitPay();
 
-        PayOrder payOrder = PayOrder.waitPay(
+        PayOrderEntity payOrder = PayOrderEntity.waitPay(
                 nextNo("P"),
                 order.getOrderId(),
                 order.getPayAmount(),
@@ -51,13 +51,13 @@ public class TradeOrderService {
                 "mock://" + payChannel + "/" + order.getOrderId(),
                 LocalDateTime.now());
 
-        TradePayOrder result = new TradePayOrder();
+        TradePayOrderAggregate result = new TradePayOrderAggregate();
         result.setTradeOrder(order);
         result.setPayOrder(payOrder);
         return result;
     }
 
-    public void markPaySuccess(TradeOrder order, PayOrder payOrder, String outTradeNo, LocalDateTime payTime) {
+    public void markPaySuccess(TradeOrderEntity order, PayOrderEntity payOrder, String outTradeNo, LocalDateTime payTime) {
         if (!order.getOrderId().equals(payOrder.getOrderId())) {
             throw new AppException("TRADE_0012", "订单和支付单不匹配");
         }
@@ -68,7 +68,7 @@ public class TradeOrderService {
         order.markPaySuccess(payTime);
     }
 
-    public void closeUnpaidOrder(TradeOrder order, PayOrder payOrder, LocalDateTime closeTime) {
+    public void closeUnpaidOrder(TradeOrderEntity order, PayOrderEntity payOrder, LocalDateTime closeTime) {
         if (!order.getOrderId().equals(payOrder.getOrderId())) {
             throw new AppException("TRADE_0012", "订单和支付单不匹配");
         }
@@ -76,7 +76,7 @@ public class TradeOrderService {
         payOrder.close();
     }
 
-    public void refundPaidOrder(TradeOrder order, PayOrder payOrder) {
+    public void refundPaidOrder(TradeOrderEntity order, PayOrderEntity payOrder) {
         if (!order.getOrderId().equals(payOrder.getOrderId())) {
             throw new AppException("TRADE_0012", "订单和支付单不匹配");
         }
@@ -84,7 +84,7 @@ public class TradeOrderService {
         payOrder.refund();
     }
 
-    private void validateCreateCommand(CreateTradeOrderCommand command) {
+    private void validateCreateCommand(CreateTradeOrderCommandEntity command) {
         if (command == null) {
             throw new AppException("0001", "订单参数不能为空");
         }
@@ -100,7 +100,7 @@ public class TradeOrderService {
         if (command.getBuyType() == null) {
             throw new AppException("0001", "购买类型不能为空");
         }
-        if (TradeBuyType.GROUP_BUY.equals(command.getBuyType()) && !StringUtils.hasText(command.getActivityId())) {
+        if (TradeBuyTypeEnumVO.GROUP_BUY.equals(command.getBuyType()) && !StringUtils.hasText(command.getActivityId())) {
             throw new AppException("0001", "拼团订单活动编号不能为空");
         }
         if (notPositive(command.getOriginAmount())) {

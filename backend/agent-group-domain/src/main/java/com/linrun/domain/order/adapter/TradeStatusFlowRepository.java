@@ -1,12 +1,12 @@
 package com.linrun.domain.order.adapter;
 
-import com.linrun.domain.order.model.TradeStatusFlow;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 
 import java.util.List;
 
 public interface TradeStatusFlowRepository {
 
-    void save(TradeStatusFlow flow);
+    void save(TradeStatusFlowEntity flow);
 
-    List<TradeStatusFlow> queryByOrderId(String orderId);
+    List<TradeStatusFlowEntity> queryByOrderId(String orderId);
 }

@@ -1,6 +1,6 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.valobj;
 
-public enum TradeOrderStatus {
+public enum TradeOrderStatusEnumVO {
 
     CREATE,
     PAY_WAIT,

@@ -5,8 +5,8 @@ import com.linrun.api.marketing.response.GroupBuyCompensationResponse;
 import com.linrun.api.payment.request.RefundPaymentRequest;
 import com.linrun.api.payment.response.RefundPaymentResponse;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +39,7 @@ public class TradeRefundService {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = queryTradeOrder(request.getOrderId());
+        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         validateGroupBuyOrder(tradeOrder);
 
         RefundPaymentRequest paymentRequest = new RefundPaymentRequest();
@@ -50,8 +50,8 @@ public class TradeRefundService {
     }
 
     private void releaseGroupBuyIfNeeded(String orderId, String refundReason) {
-        TradeOrder tradeOrder = queryTradeOrder(orderId);
-        if (!TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
+        TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
+        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
             return;
         }
         RefundGroupBuyOrderRequest groupRequest = new RefundGroupBuyOrderRequest();
@@ -60,13 +60,13 @@ public class TradeRefundService {
         groupBuyCompensationService.releaseRefundedOrder(groupRequest);
     }
 
-    private TradeOrder queryTradeOrder(String orderId) {
+    private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 
-    private void validateGroupBuyOrder(TradeOrder tradeOrder) {
-        if (!TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
+    private void validateGroupBuyOrder(TradeOrderEntity tradeOrder) {
+        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
             throw new AppException("TRADE_0008", "非拼团订单不能做拼团补偿");
         }
     }

@@ -7,13 +7,13 @@ import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeStatusFlow;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
@@ -49,9 +49,9 @@ class DirectBuyOrderServiceTest {
         assertEquals("U10001", response.getUserId());
         assertEquals("G10001", response.getGoodsId());
         assertEquals("轻薄学习平板标准版", response.getGoodsName());
-        assertEquals(TradeBuyType.DIRECT.name(), response.getBuyType());
-        assertEquals(TradeOrderStatus.PAY_WAIT.name(), response.getOrderStatus());
-        assertEquals(PayStatus.WAIT_PAY.name(), response.getPayStatus());
+        assertEquals(TradeBuyTypeEnumVO.DIRECT.name(), response.getBuyType());
+        assertEquals(TradeOrderStatusEnumVO.PAY_WAIT.name(), response.getOrderStatus());
+        assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
         assertEquals(new BigDecimal("2399.00"), response.getOriginAmount());
         assertEquals(new BigDecimal("2399.00"), response.getPayAmount());
         assertTrue(response.getPayUrl().contains(response.getOrderId()));
@@ -160,17 +160,17 @@ class DirectBuyOrderServiceTest {
 
     private static class FakeTradeOrderRepository implements TradeOrderRepository {
 
-        private TradeOrder savedTradeOrder;
-        private PayOrder savedPayOrder;
+        private TradeOrderEntity savedTradeOrder;
+        private PayOrderEntity savedPayOrder;
 
         @Override
-        public void save(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
         }
 
         @Override
-        public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
         }
@@ -183,48 +183,48 @@ class DirectBuyOrderServiceTest {
         }
 
         @Override
-        public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
         }
 
         @Override
-        public void saveRefundOrder(RefundOrder refundOrder) {
+        public void saveRefundOrder(RefundOrderEntity refundOrder) {
         }
 
         @Override
-        public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
         }
 
         @Override
-        public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+        public Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId) {
             return Optional.empty();
         }
 
         @Override
-        public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
+        public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(savedTradeOrder);
         }
 
         @Override
-        public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
+        public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
             return Optional.ofNullable(savedPayOrder);
         }
     }
 
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
 
-        private final List<TradeStatusFlow> flows = new java.util.ArrayList<>();
+        private final List<TradeStatusFlowEntity> flows = new java.util.ArrayList<>();
 
         @Override
-        public void save(TradeStatusFlow flow) {
+        public void save(TradeStatusFlowEntity flow) {
             flows.add(flow);
         }
 
         @Override
-        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+        public List<TradeStatusFlowEntity> queryByOrderId(String orderId) {
             return flows.stream()
                     .filter(flow -> orderId.equals(flow.getOrderId()))
                     .toList();

@@ -15,9 +15,9 @@ import com.linrun.api.payment.response.ReconcilePaymentResponse;
 import com.linrun.api.order.request.CreateDirectOrderRequest;
 import com.linrun.api.order.response.CreateDirectOrderResponse;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -52,14 +52,14 @@ public class LegacyMallPayService {
 
     public String createPayOrder(CreatePayRequest request) {
         validateCreatePayRequest(request);
-        TradeBuyType buyType = isGroupBuy(request) ? TradeBuyType.GROUP_BUY : TradeBuyType.DIRECT;
-        TradeOrder existed = tradeOrderRepository.queryLatestUnpaidOrder(
+        TradeBuyTypeEnumVO buyType = isGroupBuy(request) ? TradeBuyTypeEnumVO.GROUP_BUY : TradeBuyTypeEnumVO.DIRECT;
+        TradeOrderEntity existed = tradeOrderRepository.queryLatestUnpaidOrder(
                         request.getUserId(), request.getProductId(), buyType)
                 .orElse(null);
         if (existed != null) {
             return createGatewayPayment(existed.getOrderId(), resolvePayChannel(request)).getPayUrl();
         }
-        if (TradeBuyType.GROUP_BUY.equals(buyType)) {
+        if (TradeBuyTypeEnumVO.GROUP_BUY.equals(buyType)) {
             LockGroupBuyOrderResponse response = groupBuyLockOrderService.lock(toGroupBuyRequest(request));
             return createGatewayPayment(response.getOrderId(), resolvePayChannel(request)).getPayUrl();
         }
@@ -81,7 +81,7 @@ public class LegacyMallPayService {
             throw new AppException("0001", "userId cannot be blank");
         }
         int pageSize = request.getPageSize() == null || request.getPageSize() <= 0 ? 10 : request.getPageSize();
-        List<TradeOrder> orders = tradeOrderRepository.queryUserTradeOrders(
+        List<TradeOrderEntity> orders = tradeOrderRepository.queryUserTradeOrders(
                 request.getUserId(), request.getLastId(), pageSize + 1);
         boolean hasMore = orders.size() > pageSize;
         if (hasMore) {
@@ -119,8 +119,8 @@ public class LegacyMallPayService {
         return response.getMessage();
     }
 
-    private QueryOrderListResponse.OrderInfo toOrderInfo(TradeOrder order) {
-        PayOrder payOrder = tradeOrderRepository.queryPayOrderByOrderId(order.getOrderId()).orElse(null);
+    private QueryOrderListResponse.OrderInfo toOrderInfo(TradeOrderEntity order) {
+        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(order.getOrderId()).orElse(null);
         QueryOrderListResponse.OrderInfo info = new QueryOrderListResponse.OrderInfo();
         info.setId(order.getId());
         info.setUserId(order.getUserId());
@@ -131,7 +131,7 @@ public class LegacyMallPayService {
         info.setTotalAmount(order.getOriginAmount());
         info.setStatus(order.getOrderStatus() == null ? null : order.getOrderStatus().name());
         info.setPayUrl(payOrder == null ? "" : payOrder.getPayUrl());
-        info.setMarketType(TradeBuyType.GROUP_BUY.equals(order.getBuyType()) ? MARKET_TYPE_GROUP_BUY : 0);
+        info.setMarketType(TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType()) ? MARKET_TYPE_GROUP_BUY : 0);
         info.setPayAmount(order.getPayAmount());
         info.setMarketDeductionAmount(order.getOriginAmount() == null || order.getPayAmount() == null
                 ? BigDecimal.ZERO

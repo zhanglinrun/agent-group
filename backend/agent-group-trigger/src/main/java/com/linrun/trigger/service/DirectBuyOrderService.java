@@ -5,11 +5,11 @@ import com.linrun.api.order.response.CreateDirectOrderResponse;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.CreateTradeOrderCommand;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradePayOrder;
+import com.linrun.domain.order.model.entity.CreateTradeOrderCommandEntity;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -49,25 +49,25 @@ public class DirectBuyOrderService {
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "商品不存在或已下架"));
 
-        CreateTradeOrderCommand command = new CreateTradeOrderCommand();
+        CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId(request.getUserId());
         command.setGoodsId(product.getGoodsId());
         command.setGoodsName(product.getGoodsName());
-        command.setBuyType(TradeBuyType.DIRECT);
+        command.setBuyType(TradeBuyTypeEnumVO.DIRECT);
         command.setOriginAmount(product.getOriginPrice());
         command.setPayAmount(product.getOriginPrice());
 
-        TradeOrder tradeOrder = tradeOrderService.createOrder(command);
-        TradePayOrder tradePayOrder = tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
+        TradeOrderEntity tradeOrder = tradeOrderService.createOrder(command);
+        TradePayOrderAggregate tradePayOrder = tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
         tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
         recordCreateFlow(tradePayOrder);
 
         return toResponse(tradePayOrder);
     }
 
-    private void recordCreateFlow(TradePayOrder tradePayOrder) {
-        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
-        PayOrder payOrder = tradePayOrder.getPayOrder();
+    private void recordCreateFlow(TradePayOrderAggregate tradePayOrder) {
+        TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrderEntity payOrder = tradePayOrder.getPayOrder();
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_ORDER,
@@ -90,9 +90,9 @@ public class DirectBuyOrderService {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
     }
 
-    private CreateDirectOrderResponse toResponse(TradePayOrder tradePayOrder) {
-        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
-        PayOrder payOrder = tradePayOrder.getPayOrder();
+    private CreateDirectOrderResponse toResponse(TradePayOrderAggregate tradePayOrder) {
+        TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrderEntity payOrder = tradePayOrder.getPayOrder();
 
         CreateDirectOrderResponse response = new CreateDirectOrderResponse();
         response.setOrderId(tradeOrder.getOrderId());

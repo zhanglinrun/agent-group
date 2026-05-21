@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.order.event;
 
 import com.linrun.domain.order.adapter.TradeEventPublisher;
-import com.linrun.domain.order.model.TradeEventMessage;
+import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,7 +14,7 @@ public class LocalTradeEventPublisher implements TradeEventPublisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalTradeEventPublisher.class);
 
     @Override
-    public void publish(TradeEventMessage message) {
+    public void publish(TradeEventMessageEntity message) {
         if (message != null) {
             LOGGER.debug("trade event local fallback, eventType={}, orderId={}",
                     message.getEventType(), message.getOrderId());

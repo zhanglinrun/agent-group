@@ -21,9 +21,9 @@ import com.linrun.domain.payment.model.PaymentRefundResult;
 import com.linrun.domain.payment.model.PaymentWebhookCommand;
 import com.linrun.domain.payment.model.PaymentWebhookResult;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -62,8 +62,8 @@ public class PaymentService {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = queryTradeOrder(request.getOrderId());
-        PayOrder payOrder = queryPayOrder(request.getOrderId());
+        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+        PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
         String payChannel = resolvePayChannel(request.getPayChannel(), payOrder);
         PaymentCreateResult result = paymentGatewayClient.createPayment(toCreateCommand(
                 tradeOrder,
@@ -118,16 +118,16 @@ public class PaymentService {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = queryTradeOrder(request.getOrderId());
-        PayOrder payOrder = queryPayOrder(request.getOrderId());
-        RefundOrder existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
+        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+        PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
+        RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
         if (existed != null) {
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
         }
 
         PaymentRefundResult gatewayResult = paymentGatewayClient.refund(toRefundCommand(tradeOrder, payOrder, request));
         LocalDateTime refundTime = LocalDateTime.now();
-        RefundOrder refundOrder = RefundOrder.success(
+        RefundOrderEntity refundOrder = RefundOrderEntity.success(
                 gatewayResult.getRefundId(),
                 tradeOrder,
                 payOrder,
@@ -144,8 +144,8 @@ public class PaymentService {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = queryTradeOrder(request.getOrderId());
-        PayOrder payOrder = queryPayOrder(request.getOrderId());
+        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+        PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
         PaymentReconcileResult result = paymentGatewayClient.reconcile(toReconcileCommand(tradeOrder, payOrder, request));
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
@@ -158,8 +158,8 @@ public class PaymentService {
         return toReconcileResponse(tradeOrder, payOrder, request, result);
     }
 
-    private PaymentCreateCommand toCreateCommand(TradeOrder tradeOrder,
-                                                 PayOrder payOrder,
+    private PaymentCreateCommand toCreateCommand(TradeOrderEntity tradeOrder,
+                                                 PayOrderEntity payOrder,
                                                  String payChannel,
                                                  String notifyUrl,
                                                  String returnUrl) {
@@ -186,7 +186,7 @@ public class PaymentService {
         return command;
     }
 
-    private PaymentRefundCommand toRefundCommand(TradeOrder tradeOrder, PayOrder payOrder,
+    private PaymentRefundCommand toRefundCommand(TradeOrderEntity tradeOrder, PayOrderEntity payOrder,
                                                  RefundPaymentRequest request) {
         PaymentRefundCommand command = new PaymentRefundCommand();
         command.setOrderId(tradeOrder.getOrderId());
@@ -198,8 +198,8 @@ public class PaymentService {
         return command;
     }
 
-    private PaymentReconcileCommand toReconcileCommand(TradeOrder tradeOrder,
-                                                       PayOrder payOrder,
+    private PaymentReconcileCommand toReconcileCommand(TradeOrderEntity tradeOrder,
+                                                       PayOrderEntity payOrder,
                                                        ReconcilePaymentRequest request) {
         PaymentReconcileCommand command = new PaymentReconcileCommand();
         command.setOrderId(tradeOrder.getOrderId());
@@ -210,7 +210,7 @@ public class PaymentService {
         return command;
     }
 
-    private CreatePaymentResponse toCreateResponse(PaymentCreateResult result, PayOrder payOrder) {
+    private CreatePaymentResponse toCreateResponse(PaymentCreateResult result, PayOrderEntity payOrder) {
         CreatePaymentResponse response = new CreatePaymentResponse();
         response.setOrderId(result.getOrderId());
         response.setPayOrderId(result.getPayOrderId());
@@ -237,9 +237,9 @@ public class PaymentService {
         return response;
     }
 
-    private RefundPaymentResponse toRefundResponse(TradeOrder tradeOrder,
-                                                   PayOrder payOrder,
-                                                   RefundOrder refundOrder,
+    private RefundPaymentResponse toRefundResponse(TradeOrderEntity tradeOrder,
+                                                   PayOrderEntity payOrder,
+                                                   RefundOrderEntity refundOrder,
                                                    String message) {
         RefundPaymentResponse response = new RefundPaymentResponse();
         response.setOrderId(tradeOrder.getOrderId());
@@ -253,8 +253,8 @@ public class PaymentService {
         return response;
     }
 
-    private ReconcilePaymentResponse toReconcileResponse(TradeOrder tradeOrder,
-                                                         PayOrder payOrder,
+    private ReconcilePaymentResponse toReconcileResponse(TradeOrderEntity tradeOrder,
+                                                         PayOrderEntity payOrder,
                                                          ReconcilePaymentRequest request,
                                                          PaymentReconcileResult result) {
         ReconcilePaymentResponse response = new ReconcilePaymentResponse();
@@ -271,7 +271,7 @@ public class PaymentService {
         return response;
     }
 
-    private void recordRefundFlow(TradeOrder tradeOrder, PayOrder payOrder, RefundOrder refundOrder) {
+    private void recordRefundFlow(TradeOrderEntity tradeOrder, PayOrderEntity payOrder, RefundOrderEntity refundOrder) {
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_ORDER,
@@ -298,17 +298,17 @@ public class PaymentService {
                 "refund success");
     }
 
-    private TradeOrder queryTradeOrder(String orderId) {
+    private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 
-    private PayOrder queryPayOrder(String orderId) {
+    private PayOrderEntity queryPayOrder(String orderId) {
         return tradeOrderRepository.queryPayOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
     }
 
-    private String resolvePayChannel(String requestChannel, PayOrder payOrder) {
+    private String resolvePayChannel(String requestChannel, PayOrderEntity payOrder) {
         String candidate = StringUtils.hasText(requestChannel)
                 ? requestChannel
                 : payOrder == null ? PaymentChannel.MOCK_PAY.name() : payOrder.getPayChannel();

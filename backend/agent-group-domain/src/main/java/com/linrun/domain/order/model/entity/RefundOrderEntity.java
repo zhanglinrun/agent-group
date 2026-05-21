@@ -1,32 +1,34 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.entity;
+
+import com.linrun.domain.order.model.valobj.RefundStatusEnumVO;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class RefundOrder {
+public class RefundOrderEntity {
 
     private String refundId;
     private String orderId;
     private String payOrderId;
     private String userId;
     private BigDecimal refundAmount;
-    private RefundStatus refundStatus;
+    private RefundStatusEnumVO refundStatus;
     private String refundReason;
     private LocalDateTime createTime;
     private LocalDateTime refundTime;
 
-    public static RefundOrder success(String refundId,
-                                      TradeOrder tradeOrder,
-                                      PayOrder payOrder,
+    public static RefundOrderEntity success(String refundId,
+                                      TradeOrderEntity tradeOrder,
+                                      PayOrderEntity payOrder,
                                       String refundReason,
                                       LocalDateTime refundTime) {
-        RefundOrder refundOrder = new RefundOrder();
+        RefundOrderEntity refundOrder = new RefundOrderEntity();
         refundOrder.setRefundId(refundId);
         refundOrder.setOrderId(tradeOrder.getOrderId());
         refundOrder.setPayOrderId(payOrder.getPayOrderId());
         refundOrder.setUserId(tradeOrder.getUserId());
         refundOrder.setRefundAmount(payOrder.getPayAmount());
-        refundOrder.setRefundStatus(RefundStatus.SUCCESS);
+        refundOrder.setRefundStatus(RefundStatusEnumVO.SUCCESS);
         refundOrder.setRefundReason(refundReason);
         refundOrder.setCreateTime(refundTime);
         refundOrder.setRefundTime(refundTime);
@@ -73,11 +75,11 @@ public class RefundOrder {
         this.refundAmount = refundAmount;
     }
 
-    public RefundStatus getRefundStatus() {
+    public RefundStatusEnumVO getRefundStatus() {
         return refundStatus;
     }
 
-    public void setRefundStatus(RefundStatus refundStatus) {
+    public void setRefundStatus(RefundStatusEnumVO refundStatus) {
         this.refundStatus = refundStatus;
     }
 

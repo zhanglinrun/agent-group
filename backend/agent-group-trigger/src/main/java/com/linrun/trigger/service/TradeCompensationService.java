@@ -4,11 +4,11 @@ import com.linrun.api.marketing.request.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.payment.request.RefundPaymentRequest;
 import com.linrun.domain.marketing.adapter.GroupBuyOrderLockRepository;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -69,16 +69,16 @@ public class TradeCompensationService {
 
     @Transactional(rollbackFor = Exception.class)
     public boolean closeUnpaidOrder(String orderId) {
-        TradeOrder tradeOrder = queryTradeOrder(orderId);
-        PayOrder payOrder = queryPayOrder(orderId);
-        if (TradeOrderStatus.CLOSED.equals(tradeOrder.getOrderStatus())) {
+        TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
+        PayOrderEntity payOrder = queryPayOrder(orderId);
+        if (TradeOrderStatusEnumVO.CLOSED.equals(tradeOrder.getOrderStatus())) {
             return true;
         }
-        if (!TradeOrderStatus.CREATE.equals(tradeOrder.getOrderStatus())
-                && !TradeOrderStatus.PAY_WAIT.equals(tradeOrder.getOrderStatus())) {
+        if (!TradeOrderStatusEnumVO.CREATE.equals(tradeOrder.getOrderStatus())
+                && !TradeOrderStatusEnumVO.PAY_WAIT.equals(tradeOrder.getOrderStatus())) {
             return false;
         }
-        if (TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
+        if (TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
             CloseUnpaidGroupBuyOrderRequest request = new CloseUnpaidGroupBuyOrderRequest();
             request.setOrderId(orderId);
             request.setCloseTime(LocalDateTime.now());
@@ -86,8 +86,8 @@ public class TradeCompensationService {
             return true;
         }
 
-        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
-        PayStatus fromPayStatus = payOrder.getPayStatus();
+        TradeOrderStatusEnumVO fromOrderStatus = tradeOrder.getOrderStatus();
+        PayStatusEnumVO fromPayStatus = payOrder.getPayStatus();
         tradeOrderService.closeUnpaidOrder(tradeOrder, payOrder, LocalDateTime.now());
         tradeOrderRepository.updateCloseUnpaid(tradeOrder, payOrder);
         recordDirectCloseFlow(tradeOrder, payOrder, fromOrderStatus, fromPayStatus);
@@ -95,16 +95,16 @@ public class TradeCompensationService {
     }
 
     public boolean refundOrCloseOrder(String userId, String orderId, String refundReason) {
-        TradeOrder tradeOrder = queryTradeOrder(orderId);
+        TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
         if (StringUtils.hasText(userId) && !userId.equals(tradeOrder.getUserId())) {
             return false;
         }
-        if (TradeOrderStatus.REFUNDED.equals(tradeOrder.getOrderStatus())
-                || TradeOrderStatus.CLOSED.equals(tradeOrder.getOrderStatus())) {
+        if (TradeOrderStatusEnumVO.REFUNDED.equals(tradeOrder.getOrderStatus())
+                || TradeOrderStatusEnumVO.CLOSED.equals(tradeOrder.getOrderStatus())) {
             return true;
         }
-        if (TradeOrderStatus.CREATE.equals(tradeOrder.getOrderStatus())
-                || TradeOrderStatus.PAY_WAIT.equals(tradeOrder.getOrderStatus())) {
+        if (TradeOrderStatusEnumVO.CREATE.equals(tradeOrder.getOrderStatus())
+                || TradeOrderStatusEnumVO.PAY_WAIT.equals(tradeOrder.getOrderStatus())) {
             return closeUnpaidOrder(orderId);
         }
 
@@ -115,10 +115,10 @@ public class TradeCompensationService {
         return true;
     }
 
-    private void recordDirectCloseFlow(TradeOrder tradeOrder,
-                                       PayOrder payOrder,
-                                       TradeOrderStatus fromOrderStatus,
-                                       PayStatus fromPayStatus) {
+    private void recordDirectCloseFlow(TradeOrderEntity tradeOrder,
+                                       PayOrderEntity payOrder,
+                                       TradeOrderStatusEnumVO fromOrderStatus,
+                                       PayStatusEnumVO fromPayStatus) {
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_ORDER,
@@ -137,12 +137,12 @@ public class TradeCompensationService {
                 "direct pay order closed");
     }
 
-    private TradeOrder queryTradeOrder(String orderId) {
+    private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
     }
 
-    private PayOrder queryPayOrder(String orderId) {
+    private PayOrderEntity queryPayOrder(String orderId) {
         return tradeOrderRepository.queryPayOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0014", "pay order not found"));
     }

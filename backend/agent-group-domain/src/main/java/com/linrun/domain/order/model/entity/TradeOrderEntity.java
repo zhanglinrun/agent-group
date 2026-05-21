@@ -1,11 +1,13 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.entity;
 
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.types.exception.AppException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class TradeOrder {
+public class TradeOrderEntity {
 
     private Long id;
     private String orderId;
@@ -13,82 +15,82 @@ public class TradeOrder {
     private String goodsId;
     private String goodsName;
     private String activityId;
-    private TradeBuyType buyType;
+    private TradeBuyTypeEnumVO buyType;
     private BigDecimal originAmount;
     private BigDecimal payAmount;
-    private TradeOrderStatus orderStatus;
+    private TradeOrderStatusEnumVO orderStatus;
     private LocalDateTime createTime;
     private LocalDateTime payTime;
     private LocalDateTime closeTime;
 
     public void waitPay() {
-        if (TradeOrderStatus.PAY_WAIT.equals(orderStatus)) {
+        if (TradeOrderStatusEnumVO.PAY_WAIT.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.CREATE.equals(orderStatus)) {
+        if (!TradeOrderStatusEnumVO.CREATE.equals(orderStatus)) {
             throw new AppException("TRADE_0006", "当前订单状态不能创建支付单");
         }
-        this.orderStatus = TradeOrderStatus.PAY_WAIT;
+        this.orderStatus = TradeOrderStatusEnumVO.PAY_WAIT;
     }
 
     public void markPaySuccess(LocalDateTime payTime) {
-        if (TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)
-                || TradeOrderStatus.GROUP_SETTLED.equals(orderStatus)
-                || TradeOrderStatus.DEAL_DONE.equals(orderStatus)) {
+        if (TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
+                || TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)
+                || TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.PAY_WAIT.equals(orderStatus)) {
+        if (!TradeOrderStatusEnumVO.PAY_WAIT.equals(orderStatus)) {
             throw new AppException("TRADE_0007", "当前订单状态不能改为支付成功");
         }
         this.payTime = payTime;
-        this.orderStatus = TradeOrderStatus.PAY_SUCCESS;
+        this.orderStatus = TradeOrderStatusEnumVO.PAY_SUCCESS;
     }
 
     public void markGroupSettled() {
-        if (!TradeBuyType.GROUP_BUY.equals(buyType)) {
+        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(buyType)) {
             throw new AppException("TRADE_0008", "非拼团订单不能做拼团结算");
         }
-        if (TradeOrderStatus.GROUP_SETTLED.equals(orderStatus)) {
+        if (TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)) {
+        if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)) {
             throw new AppException("TRADE_0009", "当前订单状态不能做拼团结算");
         }
-        this.orderStatus = TradeOrderStatus.GROUP_SETTLED;
+        this.orderStatus = TradeOrderStatusEnumVO.GROUP_SETTLED;
     }
 
     public void markDealDone() {
-        if (TradeOrderStatus.DEAL_DONE.equals(orderStatus)) {
+        if (TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)
-                && !TradeOrderStatus.GROUP_SETTLED.equals(orderStatus)) {
+        if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)) {
             throw new AppException("TRADE_0010", "当前订单状态不能完成交易");
         }
-        this.orderStatus = TradeOrderStatus.DEAL_DONE;
+        this.orderStatus = TradeOrderStatusEnumVO.DEAL_DONE;
     }
 
     public void close(LocalDateTime closeTime) {
-        if (TradeOrderStatus.CLOSED.equals(orderStatus)) {
+        if (TradeOrderStatusEnumVO.CLOSED.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.CREATE.equals(orderStatus) && !TradeOrderStatus.PAY_WAIT.equals(orderStatus)) {
+        if (!TradeOrderStatusEnumVO.CREATE.equals(orderStatus) && !TradeOrderStatusEnumVO.PAY_WAIT.equals(orderStatus)) {
             throw new AppException("TRADE_0011", "当前订单状态不能关闭");
         }
         this.closeTime = closeTime;
-        this.orderStatus = TradeOrderStatus.CLOSED;
+        this.orderStatus = TradeOrderStatusEnumVO.CLOSED;
     }
 
     public void refund() {
-        if (TradeOrderStatus.REFUNDED.equals(orderStatus)) {
+        if (TradeOrderStatusEnumVO.REFUNDED.equals(orderStatus)) {
             return;
         }
-        if (!TradeOrderStatus.PAY_SUCCESS.equals(orderStatus)
-                && !TradeOrderStatus.GROUP_SETTLED.equals(orderStatus)
-                && !TradeOrderStatus.DEAL_DONE.equals(orderStatus)) {
+        if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
             throw new AppException("TRADE_0015", "当前订单状态不能退款");
         }
-        this.orderStatus = TradeOrderStatus.REFUNDED;
+        this.orderStatus = TradeOrderStatusEnumVO.REFUNDED;
     }
 
     public Long getId() {
@@ -139,11 +141,11 @@ public class TradeOrder {
         this.activityId = activityId;
     }
 
-    public TradeBuyType getBuyType() {
+    public TradeBuyTypeEnumVO getBuyType() {
         return buyType;
     }
 
-    public void setBuyType(TradeBuyType buyType) {
+    public void setBuyType(TradeBuyTypeEnumVO buyType) {
         this.buyType = buyType;
     }
 
@@ -163,11 +165,11 @@ public class TradeOrder {
         this.payAmount = payAmount;
     }
 
-    public TradeOrderStatus getOrderStatus() {
+    public TradeOrderStatusEnumVO getOrderStatus() {
         return orderStatus;
     }
 
-    public void setOrderStatus(TradeOrderStatus orderStatus) {
+    public void setOrderStatus(TradeOrderStatusEnumVO orderStatus) {
         this.orderStatus = orderStatus;
     }
 

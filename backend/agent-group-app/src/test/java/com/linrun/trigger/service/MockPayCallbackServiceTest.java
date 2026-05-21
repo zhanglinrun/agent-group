@@ -9,13 +9,13 @@ import com.linrun.domain.marketing.model.GroupBuySettlementResult;
 import com.linrun.domain.marketing.model.GroupBuyTeam;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeStatusFlow;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
@@ -44,12 +44,12 @@ class MockPayCallbackServiceTest {
 
         assertEquals("O10001", response.getOrderId());
         assertEquals("P10001", response.getPayOrderId());
-        assertEquals(TradeOrderStatus.PAY_SUCCESS.name(), response.getOrderStatus());
-        assertEquals(PayStatus.SUCCESS.name(), response.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), response.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getPayStatus());
         assertEquals("T10001", response.getOutTradeNo());
         assertEquals(PAY_TIME, response.getPayTime());
-        assertEquals(TradeOrderStatus.PAY_SUCCESS, repository.tradeOrder.getOrderStatus());
-        assertEquals(PayStatus.SUCCESS, repository.payOrder.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS, repository.payOrder.getPayStatus());
         assertEquals(1, repository.updateCount);
         assertEquals(2, flowRepository.flows.size());
         assertEquals(TradeStatusFlowService.EVENT_PAY_SUCCESS, flowRepository.flows.get(0).getEventType());
@@ -58,8 +58,8 @@ class MockPayCallbackServiceTest {
 
     @Test
     void shouldHandleRepeatedCallbackIdempotently() {
-        TradeOrder tradeOrder = waitPayOrder();
-        PayOrder payOrder = waitPay();
+        TradeOrderEntity tradeOrder = waitPayOrder();
+        PayOrderEntity payOrder = waitPay();
         tradeOrder.markPaySuccess(PAY_TIME);
         payOrder.markSuccess("T10001", PAY_TIME);
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(tradeOrder, payOrder);
@@ -68,8 +68,8 @@ class MockPayCallbackServiceTest {
 
         MockPayCallbackResponse response = service.paySuccess(request("O10001", "T10002", PAY_TIME.plusMinutes(1)));
 
-        assertEquals(TradeOrderStatus.PAY_SUCCESS.name(), response.getOrderStatus());
-        assertEquals(PayStatus.SUCCESS.name(), response.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), response.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getPayStatus());
         assertEquals("T10001", response.getOutTradeNo());
         assertEquals(PAY_TIME, response.getPayTime());
         assertEquals(1, repository.updateCount);
@@ -120,45 +120,45 @@ class MockPayCallbackServiceTest {
                 tradeStatusFlowService);
     }
 
-    private TradeOrder waitPayOrder() {
-        TradeOrder order = new TradeOrder();
+    private TradeOrderEntity waitPayOrder() {
+        TradeOrderEntity order = new TradeOrderEntity();
         order.setOrderId("O10001");
         order.setUserId("U10001");
         order.setGoodsId("G10001");
         order.setGoodsName("轻薄学习平板标准版");
-        order.setBuyType(TradeBuyType.DIRECT);
+        order.setBuyType(TradeBuyTypeEnumVO.DIRECT);
         order.setOriginAmount(new BigDecimal("2399.00"));
         order.setPayAmount(new BigDecimal("2399.00"));
-        order.setOrderStatus(TradeOrderStatus.PAY_WAIT);
+        order.setOrderStatus(TradeOrderStatusEnumVO.PAY_WAIT);
         order.setCreateTime(CREATE_TIME);
         return order;
     }
 
-    private PayOrder waitPay() {
-        return PayOrder.waitPay("P10001", "O10001", new BigDecimal("2399.00"),
+    private PayOrderEntity waitPay() {
+        return PayOrderEntity.waitPay("P10001", "O10001", new BigDecimal("2399.00"),
                 "MOCK_PAY", "mock://MOCK_PAY/O10001", CREATE_TIME);
     }
 
     private static class FakeTradeOrderRepository implements TradeOrderRepository {
 
-        private TradeOrder tradeOrder;
-        private PayOrder payOrder;
-        private RefundOrder refundOrder;
+        private TradeOrderEntity tradeOrder;
+        private PayOrderEntity payOrder;
+        private RefundOrderEntity refundOrder;
         private int updateCount;
 
-        private FakeTradeOrderRepository(TradeOrder tradeOrder, PayOrder payOrder) {
+        private FakeTradeOrderRepository(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder = tradeOrder;
             this.payOrder = payOrder;
         }
 
         @Override
-        public void save(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder = tradeOrder;
             this.payOrder = payOrder;
         }
 
         @Override
-        public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder = tradeOrder;
             this.payOrder = payOrder;
             this.updateCount++;
@@ -172,34 +172,34 @@ class MockPayCallbackServiceTest {
         }
 
         @Override
-        public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder = tradeOrder;
             this.payOrder = payOrder;
         }
 
         @Override
-        public void saveRefundOrder(RefundOrder refundOrder) {
+        public void saveRefundOrder(RefundOrderEntity refundOrder) {
             this.refundOrder = refundOrder;
         }
 
         @Override
-        public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder = tradeOrder;
             this.payOrder = payOrder;
         }
 
         @Override
-        public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+        public Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId) {
             return Optional.ofNullable(refundOrder);
         }
 
         @Override
-        public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
+        public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(tradeOrder);
         }
 
         @Override
-        public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
+        public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
             return Optional.ofNullable(payOrder);
         }
     }
@@ -254,15 +254,15 @@ class MockPayCallbackServiceTest {
 
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
 
-        private final List<TradeStatusFlow> flows = new java.util.ArrayList<>();
+        private final List<TradeStatusFlowEntity> flows = new java.util.ArrayList<>();
 
         @Override
-        public void save(TradeStatusFlow flow) {
+        public void save(TradeStatusFlowEntity flow) {
             flows.add(flow);
         }
 
         @Override
-        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+        public List<TradeStatusFlowEntity> queryByOrderId(String orderId) {
             return flows.stream()
                     .filter(flow -> orderId.equals(flow.getOrderId()))
                     .toList();

@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.order.event;
 
-import com.linrun.domain.order.model.TradeEventMessage;
+import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -14,7 +14,7 @@ public class RabbitTradeEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(RabbitTradeEventListener.class);
 
     @RabbitListener(queues = RabbitTradeEventConfiguration.TRADE_EVENT_QUEUE)
-    public void consume(TradeEventMessage message) {
+    public void consume(TradeEventMessageEntity message) {
         if (message != null) {
             LOGGER.info("trade event consumed, eventId={}, routingKey={}, eventType={}, orderId={}, bizId={}",
                     message.getFlowId(),

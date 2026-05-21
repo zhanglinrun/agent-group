@@ -8,7 +8,7 @@ import com.linrun.domain.marketing.model.GroupBuyTeam;
 import com.linrun.domain.notify.adapter.NotifyTaskRepository;
 import com.linrun.domain.notify.model.NotifyTask;
 import com.linrun.domain.order.adapter.TradeEventPublisher;
-import com.linrun.domain.order.model.TradeEventMessage;
+import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -139,7 +139,7 @@ public class NotifyTaskService {
     }
 
     private void dispatchMq(NotifyTask task) {
-        TradeEventMessage message = new TradeEventMessage();
+        TradeEventMessageEntity message = new TradeEventMessageEntity();
         message.setFlowId(task.getUuid());
         message.setOrderId(task.getTeamId());
         message.setBizType("NOTIFY");

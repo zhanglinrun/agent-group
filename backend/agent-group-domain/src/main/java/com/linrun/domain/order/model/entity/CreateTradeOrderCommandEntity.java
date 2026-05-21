@@ -1,14 +1,16 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.entity;
+
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
 
 import java.math.BigDecimal;
 
-public class CreateTradeOrderCommand {
+public class CreateTradeOrderCommandEntity {
 
     private String userId;
     private String goodsId;
     private String goodsName;
     private String activityId;
-    private TradeBuyType buyType;
+    private TradeBuyTypeEnumVO buyType;
     private BigDecimal originAmount;
     private BigDecimal payAmount;
 
@@ -44,11 +46,11 @@ public class CreateTradeOrderCommand {
         this.activityId = activityId;
     }
 
-    public TradeBuyType getBuyType() {
+    public TradeBuyTypeEnumVO getBuyType() {
         return buyType;
     }
 
-    public void setBuyType(TradeBuyType buyType) {
+    public void setBuyType(TradeBuyTypeEnumVO buyType) {
         this.buyType = buyType;
     }
 

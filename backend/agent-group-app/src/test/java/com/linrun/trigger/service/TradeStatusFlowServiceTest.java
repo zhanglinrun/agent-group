@@ -2,8 +2,8 @@ package com.linrun.trigger.service;
 
 import com.linrun.domain.order.adapter.TradeEventPublisher;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.order.model.TradeEventMessage;
-import com.linrun.domain.order.model.TradeStatusFlow;
+import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -36,15 +36,15 @@ class TradeStatusFlowServiceTest {
 
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
 
-        private final List<TradeStatusFlow> flows = new ArrayList<>();
+        private final List<TradeStatusFlowEntity> flows = new ArrayList<>();
 
         @Override
-        public void save(TradeStatusFlow flow) {
+        public void save(TradeStatusFlowEntity flow) {
             flows.add(flow);
         }
 
         @Override
-        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+        public List<TradeStatusFlowEntity> queryByOrderId(String orderId) {
             return flows.stream()
                     .filter(flow -> flow.getOrderId().equals(orderId))
                     .toList();
@@ -53,10 +53,10 @@ class TradeStatusFlowServiceTest {
 
     private static class FakeTradeEventPublisher implements TradeEventPublisher {
 
-        private final List<TradeEventMessage> messages = new ArrayList<>();
+        private final List<TradeEventMessageEntity> messages = new ArrayList<>();
 
         @Override
-        public void publish(TradeEventMessage message) {
+        public void publish(TradeEventMessageEntity message) {
             messages.add(message);
         }
     }

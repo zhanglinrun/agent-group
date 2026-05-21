@@ -34,13 +34,13 @@ import com.linrun.domain.payment.model.PaymentWebhookCommand;
 import com.linrun.domain.payment.model.PaymentWebhookResult;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeStatusFlow;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
@@ -85,10 +85,10 @@ class GroupBuyLockOrderServiceTest {
         assertFalse(response.isRepeated());
         assertTrue(response.getOrderId().startsWith("O"));
         assertTrue(response.getPayOrderId().startsWith("P"));
-        assertEquals(TradeOrderStatus.PAY_WAIT.name(), response.getOrderStatus());
-        assertEquals(PayStatus.WAIT_PAY.name(), response.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_WAIT.name(), response.getOrderStatus());
+        assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
         assertTrue(response.getPayUrl().contains(response.getOrderId()));
-        assertEquals(TradeBuyType.GROUP_BUY, tradeOrderRepository.savedTradeOrder.getBuyType());
+        assertEquals(TradeBuyTypeEnumVO.GROUP_BUY, tradeOrderRepository.savedTradeOrder.getBuyType());
         assertEquals("A10001", tradeOrderRepository.savedTradeOrder.getActivityId());
         assertEquals(new BigDecimal("2399.00"), tradeOrderRepository.savedTradeOrder.getOriginAmount());
         assertEquals(new BigDecimal("2099.00"), tradeOrderRepository.savedTradeOrder.getPayAmount());
@@ -165,10 +165,10 @@ class GroupBuyLockOrderServiceTest {
 
         assertEquals(lockResponse.getOrderId(), callbackResponse.getOrderId());
         assertEquals(lockResponse.getPayOrderId(), callbackResponse.getPayOrderId());
-        assertEquals(TradeOrderStatus.PAY_SUCCESS.name(), callbackResponse.getOrderStatus());
-        assertEquals(PayStatus.SUCCESS.name(), callbackResponse.getPayStatus());
-        assertEquals(TradeOrderStatus.PAY_SUCCESS, tradeOrderRepository.savedTradeOrder.getOrderStatus());
-        assertEquals(PayStatus.SUCCESS, tradeOrderRepository.savedPayOrder.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), callbackResponse.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS.name(), callbackResponse.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, tradeOrderRepository.savedTradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS, tradeOrderRepository.savedPayOrder.getPayStatus());
         assertEquals(GroupBuyLockStatus.PAID, lockRepository.locks.get("IDEM_10006").getLockStatus());
         assertEquals(1, lockRepository.teams.get(lockResponse.getTeamId()).getCompleteCount());
         assertTrue(flowRepository.flows.stream()
@@ -191,12 +191,12 @@ class GroupBuyLockOrderServiceTest {
         callbackService.paySuccess(callback(second.getOrderId(), "T20002"));
         MockPayCallbackResponse thirdCallback = callbackService.paySuccess(callback(third.getOrderId(), "T20003"));
 
-        assertEquals(TradeOrderStatus.GROUP_SETTLED.name(), thirdCallback.getOrderStatus());
+        assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED.name(), thirdCallback.getOrderStatus());
         assertEquals(GroupBuyTeamStatus.SUCCESS, lockRepository.teams.get(first.getTeamId()).getTeamStatus());
         assertEquals(3, lockRepository.teams.get(first.getTeamId()).getCompleteCount());
-        assertEquals(TradeOrderStatus.GROUP_SETTLED, tradeOrderRepository.tradeOrders.get(first.getOrderId()).getOrderStatus());
-        assertEquals(TradeOrderStatus.GROUP_SETTLED, tradeOrderRepository.tradeOrders.get(second.getOrderId()).getOrderStatus());
-        assertEquals(TradeOrderStatus.GROUP_SETTLED, tradeOrderRepository.tradeOrders.get(third.getOrderId()).getOrderStatus());
+        assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED, tradeOrderRepository.tradeOrders.get(first.getOrderId()).getOrderStatus());
+        assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED, tradeOrderRepository.tradeOrders.get(second.getOrderId()).getOrderStatus());
+        assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED, tradeOrderRepository.tradeOrders.get(third.getOrderId()).getOrderStatus());
         assertTrue(flowRepository.flows.stream()
                 .anyMatch(flow -> TradeStatusFlowService.EVENT_GROUP_SETTLED.equals(flow.getEventType())));
     }
@@ -215,13 +215,13 @@ class GroupBuyLockOrderServiceTest {
         GroupBuyCompensationResponse response = compensationService.closeUnpaid(closeRequest);
 
         assertEquals(lockResponse.getOrderId(), response.getOrderId());
-        assertEquals(TradeOrderStatus.CLOSED.name(), response.getOrderStatus());
-        assertEquals(PayStatus.CLOSED.name(), response.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.CLOSED.name(), response.getOrderStatus());
+        assertEquals(PayStatusEnumVO.CLOSED.name(), response.getPayStatus());
         assertEquals(GroupBuyLockStatus.RELEASED.name(), response.getLockStatus());
         assertEquals(0, response.getLockedCount());
         assertEquals(0, response.getCompleteCount());
-        assertEquals(TradeOrderStatus.CLOSED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
-        assertEquals(PayStatus.CLOSED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.CLOSED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatusEnumVO.CLOSED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
         assertTrue(flowRepository.flows.stream()
                 .anyMatch(flow -> TradeStatusFlowService.EVENT_RELEASE_LOCK.equals(flow.getEventType())));
     }
@@ -245,14 +245,14 @@ class GroupBuyLockOrderServiceTest {
         GroupBuyCompensationResponse response = tradeRefundService.refundGroupBuy(refundRequest);
 
         assertTrue(response.getRefundId().startsWith("R"));
-        assertEquals(TradeOrderStatus.REFUNDED.name(), response.getOrderStatus());
-        assertEquals(PayStatus.REFUNDED.name(), response.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.REFUNDED.name(), response.getOrderStatus());
+        assertEquals(PayStatusEnumVO.REFUNDED.name(), response.getPayStatus());
         assertEquals(GroupBuyLockStatus.RELEASED.name(), response.getLockStatus());
         assertEquals(new BigDecimal("2099.00"), response.getRefundAmount());
         assertEquals(0, response.getLockedCount());
         assertEquals(0, response.getCompleteCount());
-        assertEquals(TradeOrderStatus.REFUNDED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
-        assertEquals(PayStatus.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.REFUNDED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatusEnumVO.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
         assertTrue(flowRepository.flows.stream()
                 .anyMatch(flow -> TradeStatusFlowService.EVENT_REFUND_SUCCESS.equals(flow.getEventType())));
         assertEquals("拼团超时未成团", tradeOrderRepository.refundOrders.get(lockResponse.getOrderId()).getRefundReason());
@@ -329,8 +329,8 @@ class GroupBuyLockOrderServiceTest {
         int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(LocalDateTime.now(), 50);
 
         assertEquals(1, refundCount);
-        assertEquals(TradeOrderStatus.REFUNDED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
-        assertEquals(PayStatus.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.REFUNDED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatusEnumVO.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
         assertEquals(GroupBuyLockStatus.RELEASED, orderLock.getLockStatus());
         assertTrue(tradeOrderRepository.refundOrders.containsKey(lockResponse.getOrderId()));
     }
@@ -769,14 +769,14 @@ class GroupBuyLockOrderServiceTest {
 
     private static class FakeTradeOrderRepository implements TradeOrderRepository {
 
-        private TradeOrder savedTradeOrder;
-        private PayOrder savedPayOrder;
-        private final Map<String, TradeOrder> tradeOrders = new HashMap<>();
-        private final Map<String, PayOrder> payOrders = new HashMap<>();
-        private final Map<String, RefundOrder> refundOrders = new HashMap<>();
+        private TradeOrderEntity savedTradeOrder;
+        private PayOrderEntity savedPayOrder;
+        private final Map<String, TradeOrderEntity> tradeOrders = new HashMap<>();
+        private final Map<String, PayOrderEntity> payOrders = new HashMap<>();
+        private final Map<String, RefundOrderEntity> refundOrders = new HashMap<>();
 
         @Override
-        public void save(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
             this.tradeOrders.put(tradeOrder.getOrderId(), tradeOrder);
@@ -784,7 +784,7 @@ class GroupBuyLockOrderServiceTest {
         }
 
         @Override
-        public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
             this.tradeOrders.put(tradeOrder.getOrderId(), tradeOrder);
@@ -795,12 +795,12 @@ class GroupBuyLockOrderServiceTest {
         public void updateGroupSettledByOrderIds(List<String> orderIds) {
             orderIds.stream()
                     .map(tradeOrders::get)
-                    .filter(tradeOrder -> tradeOrder != null && TradeOrderStatus.PAY_SUCCESS.equals(tradeOrder.getOrderStatus()))
-                    .forEach(TradeOrder::markGroupSettled);
+                    .filter(tradeOrder -> tradeOrder != null && TradeOrderStatusEnumVO.PAY_SUCCESS.equals(tradeOrder.getOrderStatus()))
+                    .forEach(TradeOrderEntity::markGroupSettled);
         }
 
         @Override
-        public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
             this.tradeOrders.put(tradeOrder.getOrderId(), tradeOrder);
@@ -808,12 +808,12 @@ class GroupBuyLockOrderServiceTest {
         }
 
         @Override
-        public void saveRefundOrder(RefundOrder refundOrder) {
+        public void saveRefundOrder(RefundOrderEntity refundOrder) {
             this.refundOrders.put(refundOrder.getOrderId(), refundOrder);
         }
 
         @Override
-        public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.savedTradeOrder = tradeOrder;
             this.savedPayOrder = payOrder;
             this.tradeOrders.put(tradeOrder.getOrderId(), tradeOrder);
@@ -821,32 +821,32 @@ class GroupBuyLockOrderServiceTest {
         }
 
         @Override
-        public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+        public Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId) {
             return Optional.ofNullable(refundOrders.get(orderId));
         }
 
         @Override
-        public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
+        public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
             return Optional.ofNullable(tradeOrders.get(orderId));
         }
 
         @Override
-        public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
+        public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
             return Optional.ofNullable(payOrders.get(orderId));
         }
     }
 
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
 
-        private final List<TradeStatusFlow> flows = new java.util.ArrayList<>();
+        private final List<TradeStatusFlowEntity> flows = new java.util.ArrayList<>();
 
         @Override
-        public void save(TradeStatusFlow flow) {
+        public void save(TradeStatusFlowEntity flow) {
             flows.add(flow);
         }
 
         @Override
-        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+        public List<TradeStatusFlowEntity> queryByOrderId(String orderId) {
             return flows.stream()
                     .filter(flow -> orderId.equals(flow.getOrderId()))
                     .toList();

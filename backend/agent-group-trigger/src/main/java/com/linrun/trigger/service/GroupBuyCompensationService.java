@@ -9,12 +9,12 @@ import com.linrun.domain.marketing.adapter.GroupBuyTeamStockRepository;
 import com.linrun.domain.marketing.model.GroupBuyLockStatus;
 import com.linrun.domain.marketing.model.GroupBuySettlementResult;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -70,12 +70,12 @@ public class GroupBuyCompensationService {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = queryTradeOrder(request.getOrderId());
-        PayOrder payOrder = queryPayOrder(request.getOrderId());
+        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+        PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
         validateGroupBuyOrder(tradeOrder);
 
-        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
-        PayStatus fromPayStatus = payOrder.getPayStatus();
+        TradeOrderStatusEnumVO fromOrderStatus = tradeOrder.getOrderStatus();
+        PayStatusEnumVO fromPayStatus = payOrder.getPayStatus();
         LocalDateTime closeTime = request.getCloseTime() == null ? LocalDateTime.now() : request.getCloseTime();
         tradeOrderService.closeUnpaidOrder(tradeOrder, payOrder, closeTime);
         tradeOrderRepository.updateCloseUnpaid(tradeOrder, payOrder);
@@ -102,22 +102,22 @@ public class GroupBuyCompensationService {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = queryTradeOrder(request.getOrderId());
-        PayOrder payOrder = queryPayOrder(request.getOrderId());
+        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+        PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
         validateGroupBuyOrder(tradeOrder);
 
-        RefundOrder refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId())
+        RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0015", "refund order not found"));
         GroupBuySettlementResult releaseResult = releasePaidGroupBuyOrder(tradeOrder.getOrderId());
         recordRefundReleaseFlow(tradeOrder, releaseResult);
         return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundOrder.getRefundTime());
     }
 
-    private void recordCloseFlow(TradeOrder tradeOrder,
-                                 PayOrder payOrder,
+    private void recordCloseFlow(TradeOrderEntity tradeOrder,
+                                 PayOrderEntity payOrder,
                                  GroupBuySettlementResult releaseResult,
-                                 TradeOrderStatus fromOrderStatus,
-                                 PayStatus fromPayStatus) {
+                                 TradeOrderStatusEnumVO fromOrderStatus,
+                                 PayStatusEnumVO fromPayStatus) {
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_ORDER,
@@ -159,7 +159,7 @@ public class GroupBuyCompensationService {
         return releaseResult;
     }
 
-    private void recordRefundReleaseFlow(TradeOrder tradeOrder,
+    private void recordRefundReleaseFlow(TradeOrderEntity tradeOrder,
                                          GroupBuySettlementResult releaseResult) {
         if (!isNewPaidRelease(releaseResult)) {
             return;
@@ -179,8 +179,8 @@ public class GroupBuyCompensationService {
                 && GroupBuyLockStatus.RELEASED.equals(releaseResult.getOrderLock().getLockStatus());
     }
 
-    private void validateGroupBuyOrder(TradeOrder tradeOrder) {
-        if (!TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
+    private void validateGroupBuyOrder(TradeOrderEntity tradeOrder) {
+        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
             throw new AppException("TRADE_0008", "非拼团订单不能做拼团补偿");
         }
     }
@@ -193,19 +193,19 @@ public class GroupBuyCompensationService {
                 releaseResult.getTeam().getValidEndTime());
     }
 
-    private TradeOrder queryTradeOrder(String orderId) {
+    private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 
-    private PayOrder queryPayOrder(String orderId) {
+    private PayOrderEntity queryPayOrder(String orderId) {
         return tradeOrderRepository.queryPayOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
     }
 
-    private GroupBuyCompensationResponse toResponse(TradeOrder tradeOrder,
-                                                    PayOrder payOrder,
-                                                    RefundOrder refundOrder,
+    private GroupBuyCompensationResponse toResponse(TradeOrderEntity tradeOrder,
+                                                    PayOrderEntity payOrder,
+                                                    RefundOrderEntity refundOrder,
                                                    GroupBuySettlementResult releaseResult,
                                                    LocalDateTime finishTime) {
         GroupBuyCompensationResponse response = new GroupBuyCompensationResponse();

@@ -1,8 +1,8 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.entity;
 
 import java.time.LocalDateTime;
 
-public class TradeStatusFlow {
+public class TradeStatusFlowEntity {
 
     private String flowId;
     private String orderId;
@@ -14,7 +14,7 @@ public class TradeStatusFlow {
     private String remark;
     private LocalDateTime createTime;
 
-    public static TradeStatusFlow record(String flowId,
+    public static TradeStatusFlowEntity record(String flowId,
                                          String orderId,
                                          String bizType,
                                          String bizId,
@@ -23,7 +23,7 @@ public class TradeStatusFlow {
                                          String toStatus,
                                          String remark,
                                          LocalDateTime createTime) {
-        TradeStatusFlow flow = new TradeStatusFlow();
+        TradeStatusFlowEntity flow = new TradeStatusFlowEntity();
         flow.setFlowId(flowId);
         flow.setOrderId(orderId);
         flow.setBizType(bizType);

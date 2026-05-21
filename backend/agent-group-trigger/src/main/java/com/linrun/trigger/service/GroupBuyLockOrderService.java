@@ -14,11 +14,11 @@ import com.linrun.domain.marketing.model.GroupBuyTeam;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.CreateTradeOrderCommand;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradePayOrder;
+import com.linrun.domain.order.model.entity.CreateTradeOrderCommandEntity;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,7 +97,7 @@ public class GroupBuyLockOrderService {
         if (repeatedLock != null) {
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
                     .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
-            TradePayOrder tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
+            TradePayOrderAggregate tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
             return toResponse(new GroupBuyLockResult(repeatedLock, team, true), tradePayOrder);
         }
 
@@ -120,7 +120,7 @@ public class GroupBuyLockOrderService {
                 activity,
                 now);
         orderLock.setLockAmount(payAmount);
-        TradePayOrder tradePayOrder = createTradePayOrder(request, product, activity, payAmount);
+        TradePayOrderAggregate tradePayOrder = createTradePayOrder(request, product, activity, payAmount);
         orderLock.setOrderId(tradePayOrder.getTradeOrder().getOrderId());
 
         if (!StringUtils.hasText(request.getTeamId())) {
@@ -155,9 +155,9 @@ public class GroupBuyLockOrderService {
         }
     }
 
-    private void recordLockFlow(GroupBuyOrderLock orderLock, TradePayOrder tradePayOrder) {
-        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
-        PayOrder payOrder = tradePayOrder.getPayOrder();
+    private void recordLockFlow(GroupBuyOrderLock orderLock, TradePayOrderAggregate tradePayOrder) {
+        TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrderEntity payOrder = tradePayOrder.getPayOrder();
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_GROUP,
@@ -222,20 +222,20 @@ public class GroupBuyLockOrderService {
         }
     }
 
-    private TradePayOrder createTradePayOrder(LockGroupBuyOrderRequest request,
+    private TradePayOrderAggregate createTradePayOrder(LockGroupBuyOrderRequest request,
                                               GuideProduct product,
                                               GroupBuyActivity activity,
                                               BigDecimal payAmount) {
-        CreateTradeOrderCommand command = new CreateTradeOrderCommand();
+        CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId(request.getUserId());
         command.setGoodsId(product.getGoodsId());
         command.setGoodsName(StringUtils.hasText(request.getGoodsName()) ? request.getGoodsName() : product.getGoodsName());
         command.setActivityId(activity.getActivityId());
-        command.setBuyType(TradeBuyType.GROUP_BUY);
+        command.setBuyType(TradeBuyTypeEnumVO.GROUP_BUY);
         command.setOriginAmount(request.getOriginalAmount() == null ? product.getOriginPrice() : request.getOriginalAmount());
         command.setPayAmount(payAmount);
 
-        TradeOrder tradeOrder = tradeOrderService.createOrder(command);
+        TradeOrderEntity tradeOrder = tradeOrderService.createOrder(command);
         return tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
     }
 
@@ -249,16 +249,16 @@ public class GroupBuyLockOrderService {
         return BigDecimal.ZERO;
     }
 
-    private TradePayOrder queryTradePayOrder(String orderId) {
+    private TradePayOrderAggregate queryTradePayOrder(String orderId) {
         if (!StringUtils.hasText(orderId)) {
             throw new AppException("GROUP_0010", "拼团锁单未关联交易订单");
         }
-        TradeOrder tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
-        PayOrder payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
+        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
-        TradePayOrder tradePayOrder = new TradePayOrder();
+        TradePayOrderAggregate tradePayOrder = new TradePayOrderAggregate();
         tradePayOrder.setTradeOrder(tradeOrder);
         tradePayOrder.setPayOrder(payOrder);
         return tradePayOrder;
@@ -268,11 +268,11 @@ public class GroupBuyLockOrderService {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
     }
 
-    private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result, TradePayOrder tradePayOrder) {
+    private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result, TradePayOrderAggregate tradePayOrder) {
         GroupBuyOrderLock orderLock = result.getOrderLock();
         GroupBuyTeam team = result.getTeam();
-        TradeOrder tradeOrder = tradePayOrder.getTradeOrder();
-        PayOrder payOrder = tradePayOrder.getPayOrder();
+        TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
+        PayOrderEntity payOrder = tradePayOrder.getPayOrder();
 
         LockGroupBuyOrderResponse response = new LockGroupBuyOrderResponse();
         response.setLockId(orderLock.getLockId());

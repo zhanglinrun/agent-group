@@ -19,13 +19,13 @@ import com.linrun.domain.payment.model.PaymentWebhookCommand;
 import com.linrun.domain.payment.model.PaymentWebhookResult;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
-import com.linrun.domain.order.model.TradeStatusFlow;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import com.linrun.domain.order.service.TradeOrderService;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ class PaymentServiceTest {
 
     @Test
     void shouldCreateGatewayPayment() {
-        Fixture fixture = fixture(TradeOrderStatus.PAY_WAIT, PayStatus.WAIT_PAY);
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
         CreatePaymentRequest request = new CreatePaymentRequest();
         request.setOrderId("O10001");
         request.setPayChannel("MOCK_PAY");
@@ -59,7 +59,7 @@ class PaymentServiceTest {
 
     @Test
     void shouldVerifyWebhookAndMarkPaySuccess() {
-        Fixture fixture = fixture(TradeOrderStatus.PAY_WAIT, PayStatus.WAIT_PAY);
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
         PaymentWebhookRequest request = new PaymentWebhookRequest();
         request.setPayChannel("MOCK_PAY");
         request.setOrderId("O10001");
@@ -70,14 +70,14 @@ class PaymentServiceTest {
         PaymentWebhookResponse response = fixture.service.handleWebhook(request);
 
         assertTrue(response.isVerified());
-        assertEquals(TradeOrderStatus.PAY_SUCCESS, fixture.repository.tradeOrder.getOrderStatus());
-        assertEquals(PayStatus.SUCCESS, fixture.repository.payOrder.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS, fixture.repository.payOrder.getPayStatus());
         assertEquals("GT10001", response.getGatewayTradeNo());
     }
 
     @Test
     void shouldRefundPaidOrderWithGateway() {
-        Fixture fixture = fixture(TradeOrderStatus.PAY_SUCCESS, PayStatus.SUCCESS);
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
         fixture.repository.payOrder.setOutTradeNo("GT10001");
         RefundPaymentRequest request = new RefundPaymentRequest();
         request.setOrderId("O10001");
@@ -85,15 +85,15 @@ class PaymentServiceTest {
 
         RefundPaymentResponse response = fixture.service.refund(request);
 
-        assertEquals(TradeOrderStatus.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
-        assertEquals(PayStatus.REFUNDED, fixture.repository.payOrder.getPayStatus());
+        assertEquals(TradeOrderStatusEnumVO.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.REFUNDED, fixture.repository.payOrder.getPayStatus());
         assertNotNull(response.getRefundId());
         assertEquals("用户申请退款", fixture.repository.refundOrder.getRefundReason());
     }
 
     @Test
     void shouldReconcileLocalPaymentStatus() {
-        Fixture fixture = fixture(TradeOrderStatus.PAY_SUCCESS, PayStatus.SUCCESS);
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
         fixture.repository.payOrder.setOutTradeNo("GT10001");
         ReconcilePaymentRequest request = new ReconcilePaymentRequest();
         request.setOrderId("O10001");
@@ -103,10 +103,10 @@ class PaymentServiceTest {
 
         assertTrue(response.isMatched());
         assertEquals("GT10001", response.getGatewayTradeNo());
-        assertEquals(PayStatus.SUCCESS.name(), response.getLocalPayStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getLocalPayStatus());
     }
 
-    private Fixture fixture(TradeOrderStatus orderStatus, PayStatus payStatus) {
+    private Fixture fixture(TradeOrderStatusEnumVO orderStatus, PayStatusEnumVO payStatus) {
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(orderStatus, payStatus);
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         TradeStatusFlowService flowService = new TradeStatusFlowService(flowRepository);
@@ -173,23 +173,23 @@ class PaymentServiceTest {
 
     private static class FakeTradeOrderRepository implements TradeOrderRepository {
 
-        private final TradeOrder tradeOrder;
-        private final PayOrder payOrder;
-        private RefundOrder refundOrder;
+        private final TradeOrderEntity tradeOrder;
+        private final PayOrderEntity payOrder;
+        private RefundOrderEntity refundOrder;
 
-        private FakeTradeOrderRepository(TradeOrderStatus orderStatus, PayStatus payStatus) {
-            tradeOrder = new TradeOrder();
+        private FakeTradeOrderRepository(TradeOrderStatusEnumVO orderStatus, PayStatusEnumVO payStatus) {
+            tradeOrder = new TradeOrderEntity();
             tradeOrder.setOrderId("O10001");
             tradeOrder.setUserId("U10001");
             tradeOrder.setGoodsId("G10001");
             tradeOrder.setGoodsName("轻薄学习平板标准版");
-            tradeOrder.setBuyType(TradeBuyType.DIRECT);
+            tradeOrder.setBuyType(TradeBuyTypeEnumVO.DIRECT);
             tradeOrder.setOriginAmount(new BigDecimal("2399.00"));
             tradeOrder.setPayAmount(new BigDecimal("2399.00"));
             tradeOrder.setOrderStatus(orderStatus);
             tradeOrder.setCreateTime(LocalDateTime.now());
 
-            payOrder = PayOrder.waitPay(
+            payOrder = PayOrderEntity.waitPay(
                     "P10001",
                     "O10001",
                     new BigDecimal("2399.00"),
@@ -200,11 +200,11 @@ class PaymentServiceTest {
         }
 
         @Override
-        public void save(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
         }
 
         @Override
-        public void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder.setOrderStatus(tradeOrder.getOrderStatus());
             this.tradeOrder.setPayTime(tradeOrder.getPayTime());
             this.payOrder.setPayStatus(payOrder.getPayStatus());
@@ -217,47 +217,47 @@ class PaymentServiceTest {
         }
 
         @Override
-        public void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
         }
 
         @Override
-        public void saveRefundOrder(RefundOrder refundOrder) {
+        public void saveRefundOrder(RefundOrderEntity refundOrder) {
             this.refundOrder = refundOrder;
         }
 
         @Override
-        public void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder) {
+        public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
             this.tradeOrder.setOrderStatus(tradeOrder.getOrderStatus());
             this.payOrder.setPayStatus(payOrder.getPayStatus());
         }
 
         @Override
-        public Optional<RefundOrder> queryRefundOrderByOrderId(String orderId) {
+        public Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId) {
             return Optional.ofNullable(refundOrder);
         }
 
         @Override
-        public Optional<TradeOrder> queryTradeOrderByOrderId(String orderId) {
+        public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
             return Optional.of(tradeOrder);
         }
 
         @Override
-        public Optional<PayOrder> queryPayOrderByOrderId(String orderId) {
+        public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
             return Optional.of(payOrder);
         }
     }
 
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
 
-        private final List<TradeStatusFlow> flows = new ArrayList<>();
+        private final List<TradeStatusFlowEntity> flows = new ArrayList<>();
 
         @Override
-        public void save(TradeStatusFlow flow) {
+        public void save(TradeStatusFlowEntity flow) {
             flows.add(flow);
         }
 
         @Override
-        public List<TradeStatusFlow> queryByOrderId(String orderId) {
+        public List<TradeStatusFlowEntity> queryByOrderId(String orderId) {
             return flows.stream()
                     .filter(flow -> flow.getOrderId().equals(orderId))
                     .toList();

@@ -6,9 +6,9 @@ import com.linrun.domain.marketing.model.GroupBuyLockStatus;
 import com.linrun.domain.marketing.model.GroupBuySettlementResult;
 import com.linrun.domain.marketing.model.GroupBuyTeamStatus;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -48,8 +48,8 @@ public class GroupBuySettlementService {
         this(groupBuyOrderLockRepository, groupBuyStockRepository, tradeOrderRepository, tradeStatusFlowService, null);
     }
 
-    public void settlePaySuccess(TradeOrder tradeOrder) {
-        if (!TradeBuyType.GROUP_BUY.equals(tradeOrder.getBuyType())) {
+    public void settlePaySuccess(TradeOrderEntity tradeOrder) {
+        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
             return;
         }
 
@@ -89,8 +89,8 @@ public class GroupBuySettlementService {
                 TradeStatusFlowService.BIZ_ORDER,
                 orderId,
                 TradeStatusFlowService.EVENT_GROUP_SETTLED,
-                TradeOrderStatus.PAY_SUCCESS,
-                TradeOrderStatus.GROUP_SETTLED,
+                TradeOrderStatusEnumVO.PAY_SUCCESS,
+                TradeOrderStatusEnumVO.GROUP_SETTLED,
                 "order group settled"));
         if (notifyTaskService != null) {
             notifyTaskService.createGroupSettlementTask(settlementResult.getTeam(), orderIds);

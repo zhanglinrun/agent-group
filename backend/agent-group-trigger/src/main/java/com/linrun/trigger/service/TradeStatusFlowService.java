@@ -3,8 +3,8 @@ package com.linrun.trigger.service;
 import com.linrun.api.order.response.TradeStatusFlowDTO;
 import com.linrun.domain.order.adapter.TradeEventPublisher;
 import com.linrun.domain.order.adapter.TradeStatusFlowRepository;
-import com.linrun.domain.order.model.TradeEventMessage;
-import com.linrun.domain.order.model.TradeStatusFlow;
+import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
+import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -75,7 +75,7 @@ public class TradeStatusFlowService {
             return;
         }
 
-        TradeStatusFlow flow = TradeStatusFlow.record(
+        TradeStatusFlowEntity flow = TradeStatusFlowEntity.record(
                 nextFlowId(),
                 orderId,
                 bizType,
@@ -86,7 +86,7 @@ public class TradeStatusFlowService {
                 remark == null ? "" : remark,
                 LocalDateTime.now());
         tradeStatusFlowRepository.save(flow);
-        tradeEventPublisher.publish(TradeEventMessage.fromFlow(flow));
+        tradeEventPublisher.publish(TradeEventMessageEntity.fromFlow(flow));
     }
 
     public List<TradeStatusFlowDTO> queryByOrderId(String orderId) {
@@ -98,7 +98,7 @@ public class TradeStatusFlowService {
                 .toList();
     }
 
-    private TradeStatusFlowDTO toDTO(TradeStatusFlow flow) {
+    private TradeStatusFlowDTO toDTO(TradeStatusFlowEntity flow) {
         TradeStatusFlowDTO dto = new TradeStatusFlowDTO();
         dto.setFlowId(flow.getFlowId());
         dto.setOrderId(flow.getOrderId());

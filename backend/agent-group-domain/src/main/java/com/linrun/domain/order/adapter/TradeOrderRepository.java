@@ -1,9 +1,9 @@
 package com.linrun.domain.order.adapter;
 
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,28 +11,28 @@ import java.util.Optional;
 
 public interface TradeOrderRepository {
 
-    void save(TradeOrder tradeOrder, PayOrder payOrder);
+    void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);
 
-    void updatePaySuccess(TradeOrder tradeOrder, PayOrder payOrder);
+    void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);
 
     void updateGroupSettledByOrderIds(List<String> orderIds);
 
-    void updateCloseUnpaid(TradeOrder tradeOrder, PayOrder payOrder);
+    void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);
 
-    void saveRefundOrder(RefundOrder refundOrder);
+    void saveRefundOrder(RefundOrderEntity refundOrder);
 
-    void updateRefunded(TradeOrder tradeOrder, PayOrder payOrder);
+    void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);
 
-    default void updateDealDone(TradeOrder tradeOrder) {
+    default void updateDealDone(TradeOrderEntity tradeOrder) {
     }
 
-    Optional<RefundOrder> queryRefundOrderByOrderId(String orderId);
+    Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId);
 
-    Optional<TradeOrder> queryTradeOrderByOrderId(String orderId);
+    Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId);
 
-    Optional<PayOrder> queryPayOrderByOrderId(String orderId);
+    Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId);
 
-    default List<TradeOrder> queryUserTradeOrders(String userId, Long lastId, int pageSize) {
+    default List<TradeOrderEntity> queryUserTradeOrders(String userId, Long lastId, int pageSize) {
         return List.of();
     }
 
@@ -40,7 +40,7 @@ public interface TradeOrderRepository {
         return List.of();
     }
 
-    default Optional<TradeOrder> queryLatestUnpaidOrder(String userId, String goodsId, TradeBuyType buyType) {
+    default Optional<TradeOrderEntity> queryLatestUnpaidOrder(String userId, String goodsId, TradeBuyTypeEnumVO buyType) {
         return Optional.empty();
     }
 }

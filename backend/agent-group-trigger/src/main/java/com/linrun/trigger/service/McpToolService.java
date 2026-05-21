@@ -9,8 +9,8 @@ import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.RecommendationResult;
 import com.linrun.domain.conversation.service.GuideDecisionService;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -130,9 +130,9 @@ public class McpToolService {
         if (!StringUtils.hasText(orderId)) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        TradeOrder tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
-        PayOrder payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId).orElse(null);
+        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId).orElse(null);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("orderId", tradeOrder.getOrderId());
         result.put("userId", tradeOrder.getUserId());

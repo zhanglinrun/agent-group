@@ -1,65 +1,66 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.entity;
 
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
 import com.linrun.types.exception.AppException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class PayOrder {
+public class PayOrderEntity {
 
     private String payOrderId;
     private String orderId;
     private String payChannel;
     private BigDecimal payAmount;
-    private PayStatus payStatus;
+    private PayStatusEnumVO payStatus;
     private String payUrl;
     private String outTradeNo;
     private LocalDateTime createTime;
     private LocalDateTime payTime;
 
-    public static PayOrder waitPay(String payOrderId, String orderId, BigDecimal payAmount, String payChannel,
+    public static PayOrderEntity waitPay(String payOrderId, String orderId, BigDecimal payAmount, String payChannel,
                                    String payUrl, LocalDateTime now) {
-        PayOrder payOrder = new PayOrder();
+        PayOrderEntity payOrder = new PayOrderEntity();
         payOrder.setPayOrderId(payOrderId);
         payOrder.setOrderId(orderId);
         payOrder.setPayAmount(payAmount);
         payOrder.setPayChannel(payChannel);
         payOrder.setPayUrl(payUrl);
-        payOrder.setPayStatus(PayStatus.WAIT_PAY);
+        payOrder.setPayStatus(PayStatusEnumVO.WAIT_PAY);
         payOrder.setCreateTime(now);
         return payOrder;
     }
 
     public void markSuccess(String outTradeNo, LocalDateTime payTime) {
-        if (PayStatus.SUCCESS.equals(payStatus)) {
+        if (PayStatusEnumVO.SUCCESS.equals(payStatus)) {
             return;
         }
-        if (!PayStatus.WAIT_PAY.equals(payStatus)) {
+        if (!PayStatusEnumVO.WAIT_PAY.equals(payStatus)) {
             throw new AppException("TRADE_0003", "当前支付单状态不能改为支付成功");
         }
         this.outTradeNo = outTradeNo;
         this.payTime = payTime;
-        this.payStatus = PayStatus.SUCCESS;
+        this.payStatus = PayStatusEnumVO.SUCCESS;
     }
 
     public void close() {
-        if (PayStatus.SUCCESS.equals(payStatus)) {
+        if (PayStatusEnumVO.SUCCESS.equals(payStatus)) {
             throw new AppException("TRADE_0004", "支付成功的支付单不能关闭");
         }
-        if (PayStatus.REFUNDED.equals(payStatus)) {
+        if (PayStatusEnumVO.REFUNDED.equals(payStatus)) {
             throw new AppException("TRADE_0005", "已退款的支付单不能关闭");
         }
-        this.payStatus = PayStatus.CLOSED;
+        this.payStatus = PayStatusEnumVO.CLOSED;
     }
 
     public void refund() {
-        if (PayStatus.REFUNDED.equals(payStatus)) {
+        if (PayStatusEnumVO.REFUNDED.equals(payStatus)) {
             return;
         }
-        if (!PayStatus.SUCCESS.equals(payStatus)) {
+        if (!PayStatusEnumVO.SUCCESS.equals(payStatus)) {
             throw new AppException("TRADE_0016", "当前支付单状态不能退款");
         }
-        this.payStatus = PayStatus.REFUNDED;
+        this.payStatus = PayStatusEnumVO.REFUNDED;
     }
 
     public String getPayOrderId() {
@@ -94,11 +95,11 @@ public class PayOrder {
         this.payAmount = payAmount;
     }
 
-    public PayStatus getPayStatus() {
+    public PayStatusEnumVO getPayStatus() {
         return payStatus;
     }
 
-    public void setPayStatus(PayStatus payStatus) {
+    public void setPayStatus(PayStatusEnumVO payStatus) {
         this.payStatus = payStatus;
     }
 

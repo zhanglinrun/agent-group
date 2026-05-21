@@ -1,9 +1,9 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.RefundOrder;
-import com.linrun.domain.order.model.TradeBuyType;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -13,42 +13,42 @@ import java.util.List;
 @Mapper
 public interface ITradeOrderDao {
 
-    void insertTradeOrder(TradeOrder tradeOrder);
+    void insertTradeOrder(TradeOrderEntity tradeOrder);
 
-    void insertPayOrder(PayOrder payOrder);
+    void insertPayOrder(PayOrderEntity payOrder);
 
-    int updateTradeOrderPaySuccess(TradeOrder tradeOrder);
+    int updateTradeOrderPaySuccess(TradeOrderEntity tradeOrder);
 
-    int updatePayOrderSuccess(PayOrder payOrder);
+    int updatePayOrderSuccess(PayOrderEntity payOrder);
 
     int updateGroupSettledByOrderIds(@Param("orderIds") List<String> orderIds);
 
-    int updateTradeOrderClosed(TradeOrder tradeOrder);
+    int updateTradeOrderClosed(TradeOrderEntity tradeOrder);
 
-    int updatePayOrderClosed(PayOrder payOrder);
+    int updatePayOrderClosed(PayOrderEntity payOrder);
 
-    void insertRefundOrder(RefundOrder refundOrder);
+    void insertRefundOrder(RefundOrderEntity refundOrder);
 
-    int updateTradeOrderRefunded(TradeOrder tradeOrder);
+    int updateTradeOrderRefunded(TradeOrderEntity tradeOrder);
 
-    int updatePayOrderRefunded(PayOrder payOrder);
+    int updatePayOrderRefunded(PayOrderEntity payOrder);
 
-    int updateTradeOrderDealDone(TradeOrder tradeOrder);
+    int updateTradeOrderDealDone(TradeOrderEntity tradeOrder);
 
-    RefundOrder queryRefundOrderByOrderId(@Param("orderId") String orderId);
+    RefundOrderEntity queryRefundOrderByOrderId(@Param("orderId") String orderId);
 
-    TradeOrder queryTradeOrderByOrderId(@Param("orderId") String orderId);
+    TradeOrderEntity queryTradeOrderByOrderId(@Param("orderId") String orderId);
 
-    PayOrder queryPayOrderByOrderId(@Param("orderId") String orderId);
+    PayOrderEntity queryPayOrderByOrderId(@Param("orderId") String orderId);
 
-    List<TradeOrder> queryUserTradeOrders(@Param("userId") String userId,
+    List<TradeOrderEntity> queryUserTradeOrders(@Param("userId") String userId,
                                           @Param("lastId") Long lastId,
                                           @Param("pageSize") int pageSize);
 
     List<String> queryTimeoutPayWaitOrderIds(@Param("deadline") LocalDateTime deadline,
                                              @Param("limit") int limit);
 
-    TradeOrder queryLatestUnpaidOrder(@Param("userId") String userId,
+    TradeOrderEntity queryLatestUnpaidOrder(@Param("userId") String userId,
                                       @Param("goodsId") String goodsId,
-                                      @Param("buyType") TradeBuyType buyType);
+                                      @Param("buyType") TradeBuyTypeEnumVO buyType);
 }

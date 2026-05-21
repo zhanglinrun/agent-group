@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.order.event;
 
 import com.linrun.domain.order.adapter.TradeEventPublisher;
-import com.linrun.domain.order.model.TradeEventMessage;
+import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -21,7 +21,7 @@ public class RabbitTradeEventPublisher implements TradeEventPublisher {
     }
 
     @Override
-    public void publish(TradeEventMessage message) {
+    public void publish(TradeEventMessageEntity message) {
         if (message == null) {
             return;
         }
@@ -40,7 +40,7 @@ public class RabbitTradeEventPublisher implements TradeEventPublisher {
                 });
     }
 
-    private String routingKey(TradeEventMessage message) {
+    private String routingKey(TradeEventMessageEntity message) {
         if (StringUtils.hasText(message.getRoutingKey())) {
             return message.getRoutingKey();
         }

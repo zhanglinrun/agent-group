@@ -3,10 +3,10 @@ package com.linrun.trigger.service;
 import com.linrun.api.order.request.MockPayCallbackRequest;
 import com.linrun.api.order.response.MockPayCallbackResponse;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.PayOrder;
-import com.linrun.domain.order.model.PayStatus;
-import com.linrun.domain.order.model.TradeOrder;
-import com.linrun.domain.order.model.TradeOrderStatus;
+import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
@@ -45,13 +45,13 @@ public class MockPayCallbackService {
             throw new AppException("0001", "外部交易单号不能为空");
         }
 
-        TradeOrder tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(request.getOrderId())
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(request.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
-        PayOrder payOrder = tradeOrderRepository.queryPayOrderByOrderId(request.getOrderId())
+        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(request.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
-        TradeOrderStatus fromOrderStatus = tradeOrder.getOrderStatus();
-        PayStatus fromPayStatus = payOrder.getPayStatus();
+        TradeOrderStatusEnumVO fromOrderStatus = tradeOrder.getOrderStatus();
+        PayStatusEnumVO fromPayStatus = payOrder.getPayStatus();
         LocalDateTime payTime = request.getPayTime() == null ? LocalDateTime.now() : request.getPayTime();
         tradeOrderService.markPaySuccess(tradeOrder, payOrder, request.getOutTradeNo(), payTime);
         tradeOrderRepository.updatePaySuccess(tradeOrder, payOrder);
@@ -61,10 +61,10 @@ public class MockPayCallbackService {
         return toResponse(tradeOrder, payOrder);
     }
 
-    private void recordPaySuccessFlow(TradeOrder tradeOrder,
-                                      PayOrder payOrder,
-                                      TradeOrderStatus fromOrderStatus,
-                                      PayStatus fromPayStatus) {
+    private void recordPaySuccessFlow(TradeOrderEntity tradeOrder,
+                                      PayOrderEntity payOrder,
+                                      TradeOrderStatusEnumVO fromOrderStatus,
+                                      PayStatusEnumVO fromPayStatus) {
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
                 TradeStatusFlowService.BIZ_ORDER,
@@ -83,7 +83,7 @@ public class MockPayCallbackService {
                 "pay success");
     }
 
-    private MockPayCallbackResponse toResponse(TradeOrder tradeOrder, PayOrder payOrder) {
+    private MockPayCallbackResponse toResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
         MockPayCallbackResponse response = new MockPayCallbackResponse();
         response.setOrderId(tradeOrder.getOrderId());
         response.setPayOrderId(payOrder.getPayOrderId());

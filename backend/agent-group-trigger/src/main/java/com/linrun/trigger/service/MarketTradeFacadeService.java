@@ -23,7 +23,7 @@ import com.linrun.domain.marketing.service.GroupBuyMarketTrialService;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.TradeOrder;
+import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -90,7 +90,7 @@ public class MarketTradeFacadeService {
             throw new AppException("0001", "outTradeNo cannot be blank");
         }
         String orderId = resolveOrderId(request.getOutTradeNo());
-        TradeOrder tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
 
         MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();

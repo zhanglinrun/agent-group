@@ -1,9 +1,9 @@
-package com.linrun.domain.order.model;
+package com.linrun.domain.order.model.entity;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-public class TradeEventMessage implements Serializable {
+public class TradeEventMessageEntity implements Serializable {
 
     private String flowId;
     private String orderId;
@@ -16,8 +16,8 @@ public class TradeEventMessage implements Serializable {
     private String remark;
     private LocalDateTime createTime;
 
-    public static TradeEventMessage fromFlow(TradeStatusFlow flow) {
-        TradeEventMessage message = new TradeEventMessage();
+    public static TradeEventMessageEntity fromFlow(TradeStatusFlowEntity flow) {
+        TradeEventMessageEntity message = new TradeEventMessageEntity();
         message.setFlowId(flow.getFlowId());
         message.setOrderId(flow.getOrderId());
         message.setBizType(flow.getBizType());
