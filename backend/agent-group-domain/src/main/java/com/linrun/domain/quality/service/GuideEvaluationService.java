@@ -6,11 +6,14 @@ import com.linrun.domain.quality.model.GuideEvaluationCase;
 import com.linrun.domain.quality.model.GuideEvaluationFeedback;
 import com.linrun.domain.quality.model.GuideEvaluationItemResult;
 import com.linrun.domain.quality.model.GuideEvaluationReport;
+import com.linrun.domain.conversation.model.AgentPlan;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideRagAnswerResult;
 import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.conversation.model.GuideTokenUsage;
+import com.linrun.domain.conversation.service.AgentPlannerService;
+import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.conversation.service.GuideDecisionService;
 import com.linrun.domain.conversation.service.GuideRagAnswerService;
 import org.springframework.stereotype.Service;
@@ -32,15 +35,18 @@ public class GuideEvaluationService {
 
     private final GuideEvaluationCaseRepository guideEvaluationCaseRepository;
     private final GuideEvaluationReportRepository guideEvaluationReportRepository;
+    private final AgentPlannerService agentPlannerService;
     private final GuideDecisionService guideDecisionService;
     private final GuideRagAnswerService guideRagAnswerService;
 
     public GuideEvaluationService(GuideEvaluationCaseRepository guideEvaluationCaseRepository,
                                   GuideEvaluationReportRepository guideEvaluationReportRepository,
+                                  AgentPlannerService agentPlannerService,
                                   GuideDecisionService guideDecisionService,
                                   GuideRagAnswerService guideRagAnswerService) {
         this.guideEvaluationCaseRepository = guideEvaluationCaseRepository;
         this.guideEvaluationReportRepository = guideEvaluationReportRepository;
+        this.agentPlannerService = agentPlannerService;
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
     }
@@ -53,13 +59,16 @@ public class GuideEvaluationService {
 
         GuideEvaluationReport report = new GuideEvaluationReport();
         report.setBatchNo("EVAL" + LocalDateTime.now().format(BATCH_FORMATTER));
-        report.setPromptVersion("guide-v1.0/self-check-v1.0");
+        report.setPromptVersion("guide-v1.1/tool-plan-v1.0/self-check-v1.0");
         report.setKnowledgeVersion("v1");
         report.setTotalCount(items.size());
         report.setRetrievalHitRate(rate(items, GuideEvaluationItemResult::isReferencePassed));
         report.setAnswerAccuracyRate(rate(items, GuideEvaluationItemResult::isAnswerPassed));
         report.setRecommendationReasonableRate(rate(items, GuideEvaluationItemResult::isRecommendationPassed));
         report.setContextConsistencyRate(rate(items, GuideEvaluationItemResult::isContextPassed));
+        report.setToolCallAccuracyRate(rate(items, GuideEvaluationItemResult::isToolCallPassed));
+        report.setToolArgumentAccuracyRate(rate(items, GuideEvaluationItemResult::isToolArgumentPassed));
+        report.setToolResultReferenceRate(rate(items, GuideEvaluationItemResult::isToolResultReferencePassed));
         report.setAverageLatencyMillis(averageLatencyMillis(items));
         report.setP99LatencyMillis(percentileLatencyMillis(items, 0.99D));
         report.setTotalPromptTokens(sum(items, GuideEvaluationItemResult::getPromptTokens));
@@ -102,6 +111,11 @@ public class GuideEvaluationService {
         long startNanos = System.nanoTime();
         GuideEvaluationItemResult item = baseItem(evaluationCase);
         try {
+            AgentPlan agentPlan = agentPlannerService.plan(evaluationCase.getQuestion());
+            item.setActualToolNames(String.join(",", agentPlan.toolNames()));
+            item.setToolCallPassed(toolCallPassed(agentPlan, evaluationCase));
+            item.setToolArgumentPassed(toolArgumentPassed(agentPlan));
+
             GuideDecisionResult decisionResult = guideDecisionService.decide(evaluationCase.getQuestion());
             GuideRagAnswerResult answerResult = guideRagAnswerService.answerWithMetrics(evaluationCase.getQuestion(), decisionResult);
             List<String> answerSegments = answerResult.getSegments();
@@ -121,6 +135,7 @@ public class GuideEvaluationService {
                     && decisionResult.getRecommendationResult().isPassedSelfCheck());
             item.setContextPassed(!evaluationCase.isContextRequired()
                     || containsAny(evaluationCase.getQuestion(), "刚才", "上一轮", "继续", "那", "这个"));
+            item.setToolResultReferencePassed(toolResultReferencePassed(agentPlan, item, answerText));
             item.setScore(score(item));
             item.setSuggestion(suggestion(item));
             return item;
@@ -175,17 +190,30 @@ public class GuideEvaluationService {
     }
 
     private int score(GuideEvaluationItemResult item) {
-        int score = 0;
-        score += item.isReferencePassed() ? 25 : 0;
-        score += item.isAnswerPassed() ? 25 : 0;
-        score += item.isRecommendationPassed() ? 25 : 0;
-        score += item.isContextPassed() ? 25 : 0;
-        return score;
+        List<Boolean> checks = List.of(
+                item.isReferencePassed(),
+                item.isAnswerPassed(),
+                item.isRecommendationPassed(),
+                item.isContextPassed(),
+                item.isToolCallPassed(),
+                item.isToolArgumentPassed(),
+                item.isToolResultReferencePassed());
+        long passed = checks.stream().filter(Boolean::booleanValue).count();
+        return (int) Math.round(passed * 100D / checks.size());
     }
 
     private String suggestion(GuideEvaluationItemResult item) {
         if (item.getScore() == 100) {
             return "通过";
+        }
+        if (!item.isToolCallPassed()) {
+            return "检查工具规划规则，确保问题能选择正确工具。";
+        }
+        if (!item.isToolArgumentPassed()) {
+            return "检查工具参数抽取和占位参数回填。";
+        }
+        if (!item.isToolResultReferencePassed()) {
+            return "检查回答是否引用工具结果，避免工具查了但答案没用。";
         }
         if (!item.isReferencePassed()) {
             return "补充知识片段关键词或优化检索召回。";
@@ -248,13 +276,57 @@ public class GuideEvaluationService {
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 
+    private boolean toolCallPassed(AgentPlan agentPlan, GuideEvaluationCase evaluationCase) {
+        List<String> actualToolNames = agentPlan.toolNames();
+        List<String> expectedToolNames = evaluationCase.getExpectedToolNames();
+        if (expectedToolNames == null || expectedToolNames.isEmpty()) {
+            return !actualToolNames.isEmpty();
+        }
+        return actualToolNames.containsAll(expectedToolNames);
+    }
+
+    private boolean toolArgumentPassed(AgentPlan agentPlan) {
+        return agentPlan.getTools().stream().allMatch(tool -> {
+            if (AgentToolRegistry.KNOWLEDGE_SEARCH.equals(tool.getName())
+                    || AgentToolRegistry.GUIDE_RECOMMEND.equals(tool.getName())
+                    || AgentToolRegistry.ORDER_STATUS.equals(tool.getName())) {
+                return StringUtils.hasText(tool.getArguments().get("question"));
+            }
+            if (AgentToolRegistry.GROUP_TRIAL.equals(tool.getName())) {
+                return StringUtils.hasText(tool.getArguments().get("goodsId"));
+            }
+            return false;
+        });
+    }
+
+    private boolean toolResultReferencePassed(AgentPlan agentPlan, GuideEvaluationItemResult item, String answerText) {
+        if (agentPlan.hasTool(AgentToolRegistry.ORDER_STATUS)) {
+            return item.isToolArgumentPassed();
+        }
+        if (agentPlan.hasTool(AgentToolRegistry.KNOWLEDGE_SEARCH) && !item.isReferencePassed()) {
+            return false;
+        }
+        if (agentPlan.hasTool(AgentToolRegistry.GROUP_TRIAL)
+                && !containsAny(answerText, "拼团价", "成团", "2099", "2899", "剩余")) {
+            return false;
+        }
+        return true;
+    }
+
     private List<GuideEvaluationFeedback> buildFeedbacks(List<GuideEvaluationItemResult> items) {
         List<GuideEvaluationFeedback> feedbacks = new java.util.ArrayList<>();
         long referenceFailed = items.stream().filter(item -> !item.isReferencePassed()).count();
         long answerFailed = items.stream().filter(item -> !item.isAnswerPassed()).count();
         long recommendationFailed = items.stream().filter(item -> !item.isRecommendationPassed()).count();
         long contextFailed = items.stream().filter(item -> !item.isContextPassed()).count();
+        long toolFailed = items.stream().filter(item -> !item.isToolCallPassed()
+                || !item.isToolArgumentPassed()
+                || !item.isToolResultReferencePassed()).count();
 
+        if (toolFailed > 0) {
+            feedbacks.add(new GuideEvaluationFeedback("TOOL", "HIGH",
+                    "有" + toolFailed + "个用例工具规划、参数或结果引用未通过，优先检查工具白名单和回答约束。"));
+        }
         if (referenceFailed > 0) {
             feedbacks.add(new GuideEvaluationFeedback("KNOWLEDGE", "HIGH",
                     "有" + referenceFailed + "个用例检索依据未命中，优先补充商品详情、营销规则或售后政策片段。"));

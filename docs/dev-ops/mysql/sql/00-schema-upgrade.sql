@@ -131,6 +131,9 @@ create table if not exists guide_evaluation_report (
   answer_accuracy_rate decimal(5, 2) not null comment '回答准确率',
   recommendation_reasonable_rate decimal(5, 2) not null comment '推荐合理率',
   context_consistency_rate decimal(5, 2) not null comment '多轮一致率',
+  tool_call_accuracy_rate decimal(5, 2) not null default 0.00 comment '工具调用正确率',
+  tool_argument_accuracy_rate decimal(5, 2) not null default 0.00 comment '工具参数正确率',
+  tool_result_reference_rate decimal(5, 2) not null default 0.00 comment '工具结果引用率',
   average_latency_millis bigint not null default 0 comment '平均耗时',
   p99_latency_millis bigint not null default 0 comment 'P99 耗时',
   total_prompt_tokens bigint not null default 0 comment '提示词 token 数',
@@ -160,6 +163,10 @@ create table if not exists guide_evaluation_item (
   answer_passed tinyint not null default 0 comment '回答是否通过',
   recommendation_passed tinyint not null default 0 comment '推荐是否通过',
   context_passed tinyint not null default 0 comment '上下文是否通过',
+  actual_tool_names varchar(256) not null default '' comment '实际工具调用',
+  tool_call_passed tinyint not null default 0 comment '工具调用是否通过',
+  tool_argument_passed tinyint not null default 0 comment '工具参数是否通过',
+  tool_result_reference_passed tinyint not null default 0 comment '工具结果引用是否通过',
   latency_millis bigint not null default 0 comment '总耗时',
   llm_latency_millis bigint not null default 0 comment '模型耗时',
   prompt_tokens bigint not null default 0 comment '提示词 token 数',
@@ -185,6 +192,98 @@ create table if not exists guide_evaluation_feedback (
   primary key (id),
   key idx_batch_priority (batch_no, priority)
 ) engine=InnoDB default charset=utf8mb4 comment='导购评测反馈表';
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_report add column tool_call_accuracy_rate decimal(5, 2) not null default 0.00 comment ''工具调用正确率'' after context_consistency_rate',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_report'
+    and column_name = 'tool_call_accuracy_rate'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_report add column tool_argument_accuracy_rate decimal(5, 2) not null default 0.00 comment ''工具参数正确率'' after tool_call_accuracy_rate',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_report'
+    and column_name = 'tool_argument_accuracy_rate'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_report add column tool_result_reference_rate decimal(5, 2) not null default 0.00 comment ''工具结果引用率'' after tool_argument_accuracy_rate',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_report'
+    and column_name = 'tool_result_reference_rate'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_item add column actual_tool_names varchar(256) not null default '''' comment ''实际工具调用'' after context_passed',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_item'
+    and column_name = 'actual_tool_names'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_item add column tool_call_passed tinyint not null default 0 comment ''工具调用是否通过'' after actual_tool_names',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_item'
+    and column_name = 'tool_call_passed'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_item add column tool_argument_passed tinyint not null default 0 comment ''工具参数是否通过'' after tool_call_passed',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_item'
+    and column_name = 'tool_argument_passed'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table guide_evaluation_item add column tool_result_reference_passed tinyint not null default 0 comment ''工具结果引用是否通过'' after tool_argument_passed',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'guide_evaluation_item'
+    and column_name = 'tool_result_reference_passed'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
 -- agent group dcc, crowd tags and notify task extension
 create table if not exists dynamic_config (
   id bigint unsigned not null auto_increment comment 'auto id',

@@ -6,6 +6,7 @@
     "expectedIntentType": "PRODUCT_COMPARE",
     "expectedGoodsId": "G10001",
     "contextRequired": false,
+    "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "requiredReferenceKeywords": ["学习", "网课", "论文"],
     "requiredAnswerKeywords": ["标准版", "拼团价", "2099"]
   },
@@ -16,6 +17,7 @@
     "expectedIntentType": "AFTER_SALE",
     "expectedGoodsId": "G10001",
     "contextRequired": false,
+    "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "requiredReferenceKeywords": ["退款", "未成团"],
     "requiredAnswerKeywords": ["退款", "不会重复扣款"]
   },
@@ -26,6 +28,7 @@
     "expectedIntentType": "PRODUCT_RECOMMEND",
     "expectedGoodsId": "G10002",
     "contextRequired": false,
+    "expectedToolNames": ["knowledge_search", "guide_recommend"],
     "requiredReferenceKeywords": ["剪视频", "绘图"],
     "requiredAnswerKeywords": ["高配", "创作"]
   },
@@ -36,6 +39,7 @@
     "expectedIntentType": "PRODUCT_RECOMMEND",
     "expectedGoodsId": "G10001",
     "contextRequired": true,
+    "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "requiredReferenceKeywords": ["拼团价"],
     "requiredAnswerKeywords": ["拼团", "2099"]
   },
@@ -46,6 +50,7 @@
     "expectedIntentType": "GROUP_RULE",
     "expectedGoodsId": "G10001",
     "contextRequired": false,
+    "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "requiredReferenceKeywords": ["直接购买", "拼团购买"],
     "requiredAnswerKeywords": ["原价", "拼团价"]
   },
@@ -56,6 +61,7 @@
     "expectedIntentType": "AFTER_SALE",
     "expectedGoodsId": "G10001",
     "contextRequired": true,
+    "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "requiredReferenceKeywords": ["未成团", "退款"],
     "requiredAnswerKeywords": ["退款"]
   }

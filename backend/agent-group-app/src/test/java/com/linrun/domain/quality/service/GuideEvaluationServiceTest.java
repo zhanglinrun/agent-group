@@ -11,6 +11,8 @@ import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.conversation.service.GuideDecisionService;
 import com.linrun.domain.conversation.service.GuideRagAnswerService;
 import com.linrun.domain.conversation.service.GuideRagPromptBuilder;
+import com.linrun.domain.conversation.service.AgentPlannerService;
+import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.marketing.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.marketing.model.GroupBuyActivity;
 import com.linrun.domain.marketing.service.GroupBuyActivityService;
@@ -32,10 +34,13 @@ class GuideEvaluationServiceTest {
     @Test
     void shouldRunBatchAndCalculateQualityMetrics() {
         FakeGuideEvaluationReportRepository reportRepository = new FakeGuideEvaluationReportRepository();
+        GuideDecisionService guideDecisionService = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
+        AgentToolRegistry agentToolRegistry = new AgentToolRegistry();
         GuideEvaluationService service = new GuideEvaluationService(
                 new FakeGuideEvaluationCaseRepository(),
                 reportRepository,
-                new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService()),
+                new AgentPlannerService(guideDecisionService, agentToolRegistry),
+                guideDecisionService,
                 new GuideRagAnswerService(
                         new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
                         prompt -> prompt.getFallbackAnswer()));
@@ -47,6 +52,9 @@ class GuideEvaluationServiceTest {
         assertEquals(new BigDecimal("100.00"), report.getAnswerAccuracyRate());
         assertEquals(new BigDecimal("100.00"), report.getRecommendationReasonableRate());
         assertEquals(new BigDecimal("100.00"), report.getContextConsistencyRate());
+        assertEquals(new BigDecimal("100.00"), report.getToolCallAccuracyRate());
+        assertEquals(new BigDecimal("100.00"), report.getToolArgumentAccuracyRate());
+        assertEquals(new BigDecimal("100.00"), report.getToolResultReferenceRate());
         assertTrue(report.getAverageLatencyMillis() >= 0);
         assertTrue(report.getP99LatencyMillis() >= 0);
         assertEquals(0L, report.getTotalTokens());
@@ -68,10 +76,13 @@ class GuideEvaluationServiceTest {
         baseline.setContextConsistencyRate(new BigDecimal("100.00"));
         reportRepository.save(baseline);
 
+        GuideDecisionService guideDecisionService = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
+        AgentToolRegistry agentToolRegistry = new AgentToolRegistry();
         GuideEvaluationService service = new GuideEvaluationService(
                 new FakeGuideEvaluationCaseRepository(),
                 reportRepository,
-                new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService()),
+                new AgentPlannerService(guideDecisionService, agentToolRegistry),
+                guideDecisionService,
                 new GuideRagAnswerService(
                         new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
                         prompt -> prompt.getFallbackAnswer()));

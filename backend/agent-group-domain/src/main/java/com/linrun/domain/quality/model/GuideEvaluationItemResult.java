@@ -11,6 +11,10 @@ public class GuideEvaluationItemResult {
     private boolean answerPassed;
     private boolean recommendationPassed;
     private boolean contextPassed;
+    private String actualToolNames = "";
+    private boolean toolCallPassed;
+    private boolean toolArgumentPassed;
+    private boolean toolResultReferencePassed;
     private long latencyMillis;
     private long llmLatencyMillis;
     private long promptTokens;
@@ -91,6 +95,38 @@ public class GuideEvaluationItemResult {
 
     public void setContextPassed(boolean contextPassed) {
         this.contextPassed = contextPassed;
+    }
+
+    public String getActualToolNames() {
+        return actualToolNames;
+    }
+
+    public void setActualToolNames(String actualToolNames) {
+        this.actualToolNames = actualToolNames == null ? "" : actualToolNames;
+    }
+
+    public boolean isToolCallPassed() {
+        return toolCallPassed;
+    }
+
+    public void setToolCallPassed(boolean toolCallPassed) {
+        this.toolCallPassed = toolCallPassed;
+    }
+
+    public boolean isToolArgumentPassed() {
+        return toolArgumentPassed;
+    }
+
+    public void setToolArgumentPassed(boolean toolArgumentPassed) {
+        this.toolArgumentPassed = toolArgumentPassed;
+    }
+
+    public boolean isToolResultReferencePassed() {
+        return toolResultReferencePassed;
+    }
+
+    public void setToolResultReferencePassed(boolean toolResultReferencePassed) {
+        this.toolResultReferencePassed = toolResultReferencePassed;
     }
 
     public long getLatencyMillis() {

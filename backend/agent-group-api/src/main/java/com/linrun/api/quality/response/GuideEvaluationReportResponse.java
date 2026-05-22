@@ -18,6 +18,9 @@ public class GuideEvaluationReportResponse implements Serializable {
     private BigDecimal answerAccuracyRate;
     private BigDecimal recommendationReasonableRate;
     private BigDecimal contextConsistencyRate;
+    private BigDecimal toolCallAccuracyRate;
+    private BigDecimal toolArgumentAccuracyRate;
+    private BigDecimal toolResultReferenceRate;
     private Long averageLatencyMillis;
     private Long p99LatencyMillis;
     private Long totalPromptTokens;

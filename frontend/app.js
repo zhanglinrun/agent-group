@@ -348,6 +348,12 @@ function handleGuideEvent(event) {
     return;
   }
 
+  if (event.event === "tool_plan") {
+    const tools = (event.data?.tools || []).map((tool) => tool.name).join(" → ");
+    addToolEvent(`工具计划：${tools || "已生成"}`);
+    return;
+  }
+
   if (event.event === "reference_delta") {
     renderReference({
       title: `${event.data?.documentType || "知识片段"} ${event.data?.fragmentId || ""}`.trim(),
@@ -1069,12 +1075,14 @@ function renderEvalRows() {
   }
   root.innerHTML = "";
   state.evalCases.forEach((item) => {
-    const needReview = [item.recall, item.answer, item.recommend, item.context].includes("待复核");
+    const needReview = [item.recall, item.answer, item.recommend, item.context, item.tool].includes("待复核");
     const lines = [
       `检索命中：${item.recall}`,
       `回答准确：${item.answer}`,
       `推荐结果：${item.recommend}`,
       `多轮一致：${item.context || "通过"}`,
+      `工具调用：${item.tool || "通过"}`,
+      `实际工具：${item.actualToolNames || "-"}`,
       `建议：${item.suggestion || "通过"}`
     ];
     if (item.latency) {
@@ -1162,6 +1170,9 @@ function renderEvaluationReport(report) {
   setText("#metricAccuracy", `${formatRate(report.answerAccuracyRate)}%`);
   setText("#metricRecommend", `${formatRate(report.recommendationReasonableRate)}%`);
   setText("#metricContext", `${formatRate(report.contextConsistencyRate)}%`);
+  setText("#metricToolCall", `${formatRate(report.toolCallAccuracyRate)}%`);
+  setText("#metricToolArgument", `${formatRate(report.toolArgumentAccuracyRate)}%`);
+  setText("#metricToolReference", `${formatRate(report.toolResultReferenceRate)}%`);
   setText("#metricLatency", `${formatLatency(report.averageLatencyMillis)}`);
   setText("#metricP99Latency", `${formatLatency(report.p99LatencyMillis)}`);
   setText("#metricTokens", formatInteger(report.totalTokens));
@@ -1172,6 +1183,8 @@ function renderEvaluationReport(report) {
     answer: item.answerPassed ? "通过" : "待复核",
     recommend: item.recommendationPassed ? "通过" : "待复核",
     context: item.contextPassed ? "通过" : "待复核",
+    tool: item.toolCallPassed && item.toolArgumentPassed && item.toolResultReferencePassed ? "通过" : "待复核",
+    actualToolNames: item.actualToolNames,
     latency: formatLatency(item.latencyMillis),
     llmLatency: formatLatency(item.llmLatencyMillis),
     tokens: formatInteger(item.totalTokens),
@@ -1198,6 +1211,7 @@ function feedbackTargetName(targetType) {
     PROMPT: "提示词",
     RECOMMENDATION: "推荐策略",
     CONTEXT: "多轮上下文",
+    TOOL: "工具调用",
     QUALITY: "质量基线"
   };
   return names[targetType] || targetType || "质量闭环";
@@ -1208,15 +1222,18 @@ function runLocalEval() {
   setText("#metricAccuracy", "82%");
   setText("#metricRecommend", "84%");
   setText("#metricContext", "88%");
+  setText("#metricToolCall", "92%");
+  setText("#metricToolArgument", "90%");
+  setText("#metricToolReference", "88%");
   setText("#metricLatency", "420 ms");
   setText("#metricP99Latency", "445 ms");
   setText("#metricTokens", "6,200");
   setText("#metricCost", "¥0.000000");
   state.evalCases = [
-    { name: "学生预算导购", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "390 ms", suggestion: "通过" },
-    { name: "拼团退款规则", recall: "通过", answer: "通过", recommend: "不适用", context: "通过", latency: "410 ms", suggestion: "通过" },
-    { name: "标准版和高配版对比", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "435 ms", suggestion: "通过" },
-    { name: "多轮追问预算限制", recall: "通过", answer: "通过", recommend: "通过", context: "通过", latency: "445 ms", suggestion: "通过" }
+    { name: "学生预算导购", recall: "通过", answer: "通过", recommend: "通过", context: "通过", tool: "通过", actualToolNames: "knowledge_search,guide_recommend,group_trial", latency: "390 ms", suggestion: "通过" },
+    { name: "拼团退款规则", recall: "通过", answer: "通过", recommend: "不适用", context: "通过", tool: "通过", actualToolNames: "knowledge_search,guide_recommend,group_trial", latency: "410 ms", suggestion: "通过" },
+    { name: "标准版和高配版对比", recall: "通过", answer: "通过", recommend: "通过", context: "通过", tool: "通过", actualToolNames: "knowledge_search,guide_recommend,group_trial", latency: "435 ms", suggestion: "通过" },
+    { name: "多轮追问预算限制", recall: "通过", answer: "通过", recommend: "通过", context: "通过", tool: "通过", actualToolNames: "knowledge_search,guide_recommend,group_trial", latency: "445 ms", suggestion: "通过" }
   ];
   saveStore("agentGroupEvalCases", state.evalCases);
   renderEvalRows();

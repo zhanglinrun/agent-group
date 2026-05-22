@@ -14,6 +14,7 @@ public enum GuideEventType {
 
     ANSWER_DELTA("answer_delta"),
     REFERENCE_DELTA("reference_delta"),
+    TOOL_PLAN("tool_plan"),
     TOOL_CALL("tool_call"),
     PRODUCT_CARD("product_card"),
     ORDER_DELTA("order_delta"),

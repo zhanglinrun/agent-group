@@ -14,6 +14,9 @@ public class GuideEvaluationReport {
     private BigDecimal answerAccuracyRate;
     private BigDecimal recommendationReasonableRate;
     private BigDecimal contextConsistencyRate;
+    private BigDecimal toolCallAccuracyRate;
+    private BigDecimal toolArgumentAccuracyRate;
+    private BigDecimal toolResultReferenceRate;
     private long averageLatencyMillis;
     private long p99LatencyMillis;
     private long totalPromptTokens;
@@ -90,6 +93,30 @@ public class GuideEvaluationReport {
 
     public void setContextConsistencyRate(BigDecimal contextConsistencyRate) {
         this.contextConsistencyRate = contextConsistencyRate;
+    }
+
+    public BigDecimal getToolCallAccuracyRate() {
+        return toolCallAccuracyRate;
+    }
+
+    public void setToolCallAccuracyRate(BigDecimal toolCallAccuracyRate) {
+        this.toolCallAccuracyRate = toolCallAccuracyRate;
+    }
+
+    public BigDecimal getToolArgumentAccuracyRate() {
+        return toolArgumentAccuracyRate;
+    }
+
+    public void setToolArgumentAccuracyRate(BigDecimal toolArgumentAccuracyRate) {
+        this.toolArgumentAccuracyRate = toolArgumentAccuracyRate;
+    }
+
+    public BigDecimal getToolResultReferenceRate() {
+        return toolResultReferenceRate;
+    }
+
+    public void setToolResultReferenceRate(BigDecimal toolResultReferenceRate) {
+        this.toolResultReferenceRate = toolResultReferenceRate;
     }
 
     public long getAverageLatencyMillis() {

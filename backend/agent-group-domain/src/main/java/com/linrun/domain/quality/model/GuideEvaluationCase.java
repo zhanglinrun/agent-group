@@ -15,6 +15,7 @@ public class GuideEvaluationCase {
     private boolean contextRequired;
     private List<String> requiredReferenceKeywords = new ArrayList<>();
     private List<String> requiredAnswerKeywords = new ArrayList<>();
+    private List<String> expectedToolNames = new ArrayList<>();
 
     public String getCaseId() {
         return caseId;
@@ -78,5 +79,13 @@ public class GuideEvaluationCase {
 
     public void setRequiredAnswerKeywords(List<String> requiredAnswerKeywords) {
         this.requiredAnswerKeywords = requiredAnswerKeywords;
+    }
+
+    public List<String> getExpectedToolNames() {
+        return expectedToolNames;
+    }
+
+    public void setExpectedToolNames(List<String> expectedToolNames) {
+        this.expectedToolNames = expectedToolNames == null ? new ArrayList<>() : new ArrayList<>(expectedToolNames);
     }
 }

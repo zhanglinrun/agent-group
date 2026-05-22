@@ -36,6 +36,9 @@ public class GuideEvaluationTriggerService {
         response.setAnswerAccuracyRate(report.getAnswerAccuracyRate());
         response.setRecommendationReasonableRate(report.getRecommendationReasonableRate());
         response.setContextConsistencyRate(report.getContextConsistencyRate());
+        response.setToolCallAccuracyRate(report.getToolCallAccuracyRate());
+        response.setToolArgumentAccuracyRate(report.getToolArgumentAccuracyRate());
+        response.setToolResultReferenceRate(report.getToolResultReferenceRate());
         response.setAverageLatencyMillis(report.getAverageLatencyMillis());
         response.setP99LatencyMillis(report.getP99LatencyMillis());
         response.setTotalPromptTokens(report.getTotalPromptTokens());
@@ -71,6 +74,10 @@ public class GuideEvaluationTriggerService {
         dto.setAnswerPassed(itemResult.isAnswerPassed());
         dto.setRecommendationPassed(itemResult.isRecommendationPassed());
         dto.setContextPassed(itemResult.isContextPassed());
+        dto.setActualToolNames(itemResult.getActualToolNames());
+        dto.setToolCallPassed(itemResult.isToolCallPassed());
+        dto.setToolArgumentPassed(itemResult.isToolArgumentPassed());
+        dto.setToolResultReferencePassed(itemResult.isToolResultReferencePassed());
         dto.setLatencyMillis(itemResult.getLatencyMillis());
         dto.setLlmLatencyMillis(itemResult.getLlmLatencyMillis());
         dto.setPromptTokens(itemResult.getPromptTokens());

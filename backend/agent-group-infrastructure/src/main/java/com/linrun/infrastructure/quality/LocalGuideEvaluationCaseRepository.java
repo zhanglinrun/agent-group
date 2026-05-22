@@ -2,6 +2,7 @@ package com.linrun.infrastructure.quality;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.quality.adapter.GuideEvaluationCaseRepository;
 import com.linrun.domain.quality.model.GuideEvaluationCase;
 import com.linrun.domain.conversation.model.GuideIntentType;
@@ -127,6 +128,29 @@ public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRe
         evaluationCase.setContextRequired(contextRequired);
         evaluationCase.setRequiredReferenceKeywords(referenceKeywords);
         evaluationCase.setRequiredAnswerKeywords(answerKeywords);
+        evaluationCase.setExpectedToolNames(expectedToolNames(question, expectedIntentType));
         return evaluationCase;
+    }
+
+    private List<String> expectedToolNames(String question, GuideIntentType intentType) {
+        if (GuideIntentType.ORDER_QUERY.equals(intentType)) {
+            return List.of(AgentToolRegistry.ORDER_STATUS);
+        }
+        if (needsGroupTrial(question, intentType)) {
+            return List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL);
+        }
+        return List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND);
+    }
+
+    private boolean needsGroupTrial(String question, GuideIntentType intentType) {
+        String normalized = question == null ? "" : question.toLowerCase();
+        return GuideIntentType.GROUP_RULE.equals(intentType)
+                || normalized.contains("预算")
+                || normalized.contains("价格")
+                || normalized.contains("拼团")
+                || normalized.contains("成团")
+                || normalized.contains("直接买")
+                || normalized.contains("划算")
+                || normalized.contains("省");
     }
 }

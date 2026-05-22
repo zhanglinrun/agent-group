@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
 import com.linrun.domain.marketing.service.GroupBuyActivityService;
+import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.RecommendationResult;
+import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.conversation.service.GuideDecisionService;
+import com.linrun.domain.conversation.service.KnowledgeSearchToolService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -21,17 +24,20 @@ import java.util.Map;
 public class McpToolService {
 
     private final GuideDecisionService guideDecisionService;
+    private final KnowledgeSearchToolService knowledgeSearchToolService;
     private final GroupBuyActivityService groupBuyActivityService;
     private final OrderStatusToolService orderStatusToolService;
     private final ToolExecutor toolExecutor;
     private final ObjectMapper objectMapper;
 
     public McpToolService(GuideDecisionService guideDecisionService,
+                          KnowledgeSearchToolService knowledgeSearchToolService,
                           GroupBuyActivityService groupBuyActivityService,
                           OrderStatusToolService orderStatusToolService,
                           ToolExecutor toolExecutor,
                           ObjectMapper objectMapper) {
         this.guideDecisionService = guideDecisionService;
+        this.knowledgeSearchToolService = knowledgeSearchToolService;
         this.groupBuyActivityService = groupBuyActivityService;
         this.orderStatusToolService = orderStatusToolService;
         this.toolExecutor = toolExecutor;
@@ -40,12 +46,18 @@ public class McpToolService {
 
     public List<Map<String, Object>> listTools() {
         return List.of(
-                tool("guide_recommend", "根据用户问题返回导购推荐、商品卡片和推荐依据",
+                tool(AgentToolRegistry.KNOWLEDGE_SEARCH, "根据用户问题检索知识库片段",
                         Map.of("question", stringSchema("用户问题"))),
-                tool("group_trial", "根据商品编号返回拼团活动试算结果",
+                tool(AgentToolRegistry.GUIDE_RECOMMEND, "根据用户问题返回导购推荐、商品卡片和推荐依据",
+                        Map.of("question", stringSchema("用户问题"))),
+                tool(AgentToolRegistry.GROUP_TRIAL, "根据商品编号返回拼团活动试算结果",
                         Map.of("goodsId", stringSchema("商品编号"))),
-                tool("order_status", "根据订单编号返回交易订单和支付单状态",
-                        Map.of("orderId", stringSchema("订单编号"))));
+                tool(AgentToolRegistry.ORDER_STATUS, "根据订单编号返回交易订单和支付单状态",
+                        Map.of(
+                                "orderId", stringSchema("订单编号"),
+                                "question", stringSchema("用户原始订单问题"),
+                                "userId", stringSchema("用户编号")),
+                        List.of()));
     }
 
     public Map<String, Object> callTool(String name, Map<String, Object> arguments) {
@@ -62,11 +74,26 @@ public class McpToolService {
 
     private Map<String, Object> executeTool(String name, Map<String, Object> arguments) {
         return switch (name) {
-            case "guide_recommend" -> guideRecommend(text(arguments.get("question")));
-            case "group_trial" -> groupTrial(text(arguments.get("goodsId")));
-            case "order_status" -> orderStatus(text(arguments.get("orderId")));
+            case AgentToolRegistry.KNOWLEDGE_SEARCH -> knowledgeSearch(text(arguments.get("question")));
+            case AgentToolRegistry.GUIDE_RECOMMEND -> guideRecommend(text(arguments.get("question")));
+            case AgentToolRegistry.GROUP_TRIAL -> groupTrial(text(arguments.get("goodsId")));
+            case AgentToolRegistry.ORDER_STATUS -> orderStatus(
+                    text(arguments.get("orderId")),
+                    text(arguments.get("question")),
+                    text(arguments.get("userId")));
             default -> throw new AppException("MCP_0001", "未知工具：" + name);
         };
+    }
+
+    private Map<String, Object> knowledgeSearch(String question) {
+        if (!StringUtils.hasText(question)) {
+            throw new AppException("0001", "用户问题不能为空");
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("references", knowledgeSearchToolService.search(question).stream()
+                .map(this::reference)
+                .toList());
+        return result;
     }
 
     private Map<String, Object> guideRecommend(String question) {
@@ -107,6 +134,18 @@ public class McpToolService {
         return result;
     }
 
+    private Map<String, Object> reference(GuideReference reference) {
+        Map<String, Object> referenceMap = new LinkedHashMap<>();
+        referenceMap.put("fragmentId", reference.getFragmentId());
+        referenceMap.put("documentId", reference.getDocumentId());
+        referenceMap.put("goodsId", reference.getGoodsId());
+        referenceMap.put("documentType", reference.getDocumentType());
+        referenceMap.put("knowledgeVersion", reference.getKnowledgeVersion());
+        referenceMap.put("content", reference.getContent());
+        referenceMap.put("rank", reference.getRank());
+        return referenceMap;
+    }
+
     private Map<String, Object> groupTrial(String goodsId) {
         if (!StringUtils.hasText(goodsId)) {
             throw new AppException("0001", "商品编号不能为空");
@@ -124,8 +163,10 @@ public class McpToolService {
         return result;
     }
 
-    private Map<String, Object> orderStatus(String orderId) {
-        OrderDeltaDTO orderDelta = orderStatusToolService.queryOrderStatus(orderId, null);
+    private Map<String, Object> orderStatus(String orderId, String question, String userId) {
+        OrderDeltaDTO orderDelta = StringUtils.hasText(orderId)
+                ? orderStatusToolService.queryOrderStatus(orderId, StringUtils.hasText(userId) ? userId : null)
+                : orderStatusToolService.queryOrderStatusByQuestion(question, StringUtils.hasText(userId) ? userId : null);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("orderId", orderDelta.getOrderNo());
         result.put("tradeType", orderDelta.getTradeType());
@@ -136,10 +177,17 @@ public class McpToolService {
     }
 
     private Map<String, Object> tool(String name, String description, Map<String, Object> properties) {
+        return tool(name, description, properties, properties.keySet().stream().toList());
+    }
+
+    private Map<String, Object> tool(String name,
+                                     String description,
+                                     Map<String, Object> properties,
+                                     List<String> requiredArguments) {
         Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
         schema.put("properties", properties);
-        schema.put("required", properties.keySet().stream().toList());
+        schema.put("required", requiredArguments == null ? List.of() : requiredArguments);
         Map<String, Object> tool = new LinkedHashMap<>();
         tool.put("name", name);
         tool.put("description", description);

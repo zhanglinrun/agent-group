@@ -13,6 +13,9 @@
         <result column="answer_accuracy_rate" property="answerAccuracyRate"/>
         <result column="recommendation_reasonable_rate" property="recommendationReasonableRate"/>
         <result column="context_consistency_rate" property="contextConsistencyRate"/>
+        <result column="tool_call_accuracy_rate" property="toolCallAccuracyRate"/>
+        <result column="tool_argument_accuracy_rate" property="toolArgumentAccuracyRate"/>
+        <result column="tool_result_reference_rate" property="toolResultReferenceRate"/>
         <result column="average_latency_millis" property="averageLatencyMillis"/>
         <result column="p99_latency_millis" property="p99LatencyMillis"/>
         <result column="total_prompt_tokens" property="totalPromptTokens"/>
@@ -36,6 +39,10 @@
         <result column="answer_passed" property="answerPassed"/>
         <result column="recommendation_passed" property="recommendationPassed"/>
         <result column="context_passed" property="contextPassed"/>
+        <result column="actual_tool_names" property="actualToolNames"/>
+        <result column="tool_call_passed" property="toolCallPassed"/>
+        <result column="tool_argument_passed" property="toolArgumentPassed"/>
+        <result column="tool_result_reference_passed" property="toolResultReferencePassed"/>
         <result column="latency_millis" property="latencyMillis"/>
         <result column="llm_latency_millis" property="llmLatencyMillis"/>
         <result column="prompt_tokens" property="promptTokens"/>
@@ -63,6 +70,9 @@
           answer_accuracy_rate,
           recommendation_reasonable_rate,
           context_consistency_rate,
+          tool_call_accuracy_rate,
+          tool_argument_accuracy_rate,
+          tool_result_reference_rate,
           average_latency_millis,
           p99_latency_millis,
           total_prompt_tokens,
@@ -83,6 +93,9 @@
           #{answerAccuracyRate},
           #{recommendationReasonableRate},
           #{contextConsistencyRate},
+          #{toolCallAccuracyRate},
+          #{toolArgumentAccuracyRate},
+          #{toolResultReferenceRate},
           #{averageLatencyMillis},
           #{p99LatencyMillis},
           #{totalPromptTokens},
@@ -109,6 +122,10 @@
           answer_passed,
           recommendation_passed,
           context_passed,
+          actual_tool_names,
+          tool_call_passed,
+          tool_argument_passed,
+          tool_result_reference_passed,
           latency_millis,
           llm_latency_millis,
           prompt_tokens,
@@ -131,6 +148,10 @@
           #{item.answerPassed},
           #{item.recommendationPassed},
           #{item.contextPassed},
+          #{item.actualToolNames},
+          #{item.toolCallPassed},
+          #{item.toolArgumentPassed},
+          #{item.toolResultReferencePassed},
           #{item.latencyMillis},
           #{item.llmLatencyMillis},
           #{item.promptTokens},
@@ -170,6 +191,9 @@
                answer_accuracy_rate,
                recommendation_reasonable_rate,
                context_consistency_rate,
+               tool_call_accuracy_rate,
+               tool_argument_accuracy_rate,
+               tool_result_reference_rate,
                average_latency_millis,
                p99_latency_millis,
                total_prompt_tokens,
@@ -196,6 +220,10 @@
                answer_passed,
                recommendation_passed,
                context_passed,
+               actual_tool_names,
+               tool_call_passed,
+               tool_argument_passed,
+               tool_result_reference_passed,
                latency_millis,
                llm_latency_millis,
                prompt_tokens,

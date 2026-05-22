@@ -17,6 +17,9 @@ import com.linrun.domain.conversation.service.GuideDecisionService;
 import com.linrun.domain.conversation.service.GuideImageInputService;
 import com.linrun.domain.conversation.service.GuideRagAnswerService;
 import com.linrun.domain.conversation.service.GuideRagPromptBuilder;
+import com.linrun.domain.conversation.service.AgentPlannerService;
+import com.linrun.domain.conversation.service.AgentToolRegistry;
+import com.linrun.domain.conversation.service.KnowledgeSearchToolService;
 import com.linrun.domain.marketing.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.marketing.model.GroupBuyActivity;
 import com.linrun.domain.marketing.service.GroupBuyActivityService;
@@ -52,9 +55,12 @@ class AgentGuideStreamServiceTest {
         List<GuideStreamEvent<?>> events = service.buildEvents(request, "S10001", "R10001");
 
         assertEquals(List.of(
+                GuideEventType.TOOL_PLAN.getCode(),
                 GuideEventType.TOOL_CALL.getCode(),
                 GuideEventType.REFERENCE_DELTA.getCode(),
                 GuideEventType.REFERENCE_DELTA.getCode(),
+                GuideEventType.TOOL_CALL.getCode(),
+                GuideEventType.TOOL_CALL.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
@@ -64,15 +70,16 @@ class AgentGuideStreamServiceTest {
                 GuideEventType.USAGE_METRIC.getCode(),
                 GuideEventType.DONE.getCode()
         ), events.stream().map(GuideStreamEvent::getEvent).toList());
-        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), events.stream().map(GuideStreamEvent::getSequence).toList());
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14),
+                events.stream().map(GuideStreamEvent::getSequence).toList());
 
-        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(7).getData());
+        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(10).getData());
         assertEquals("G10001", productCard.getGoodsId());
         assertEquals("轻薄学习平板标准版", productCard.getGoodsName());
         assertEquals(new BigDecimal("2099.00"), productCard.getGroupPrice());
-        SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(8).getData());
+        SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(11).getData());
         assertEquals(Boolean.TRUE, selfCheck.getPassed());
-        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(9).getData());
+        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(12).getData());
         assertTrue(usageMetrics.getTotalLatencyMillis() >= 0);
         assertEquals("推荐商品、价格、规格和推荐理由完整", selfCheck.getMessage());
     }
@@ -100,10 +107,11 @@ class AgentGuideStreamServiceTest {
 
         List<GuideStreamEvent<?>> events = service.buildEvents(request, "S10001", "R10001");
 
-        assertEquals(2, events.size());
-        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(0).getEvent());
-        assertEquals(GuideEventType.ERROR.getCode(), events.get(1).getEvent());
-        ErrorDTO error = assertInstanceOf(ErrorDTO.class, events.get(1).getData());
+        assertEquals(3, events.size());
+        assertEquals(GuideEventType.TOOL_PLAN.getCode(), events.get(0).getEvent());
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(1).getEvent());
+        assertEquals(GuideEventType.ERROR.getCode(), events.get(2).getEvent());
+        ErrorDTO error = assertInstanceOf(ErrorDTO.class, events.get(2).getData());
         assertEquals("DATA_0001", error.getCode());
         assertTrue(error.getMessage().contains("导购数据源不可用"));
     }
@@ -142,7 +150,8 @@ class AgentGuideStreamServiceTest {
         List<GuideStreamEvent<?>> events = service.buildEvents(request, "S30001", "R30001");
 
         assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(0).getEvent());
-        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(1).getEvent());
+        assertEquals(GuideEventType.TOOL_PLAN.getCode(), events.get(1).getEvent());
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(2).getEvent());
         assertTrue(repository.getLastQuestion().contains("请根据图片帮我判断商品是否适合购买"));
         assertTrue(repository.getLastQuestion().contains("图片疑似平板商品或商品截图"));
     }
@@ -157,13 +166,14 @@ class AgentGuideStreamServiceTest {
         List<GuideStreamEvent<?>> events = service.buildEvents(request, "S40001", "R40001");
 
         assertEquals(List.of(
+                GuideEventType.TOOL_PLAN.getCode(),
                 GuideEventType.TOOL_CALL.getCode(),
                 GuideEventType.ORDER_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.USAGE_METRIC.getCode(),
                 GuideEventType.DONE.getCode()
         ), events.stream().map(GuideStreamEvent::getEvent).toList());
-        OrderDeltaDTO orderDelta = assertInstanceOf(OrderDeltaDTO.class, events.get(1).getData());
+        OrderDeltaDTO orderDelta = assertInstanceOf(OrderDeltaDTO.class, events.get(2).getData());
         assertEquals("O10001", orderDelta.getOrderNo());
         assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), orderDelta.getCurrentStatus());
         assertEquals("已支付", orderDelta.getDisplayStatus());
@@ -257,13 +267,19 @@ class AgentGuideStreamServiceTest {
 
     private AgentGuideStreamService streamService(GuideDataRepository guideDataRepository,
                                                   TradeOrderRepository tradeOrderRepository) {
+        GroupBuyActivityService groupBuyActivityService = groupBuyService();
+        GuideDecisionService guideDecisionService = new GuideDecisionService(guideDataRepository, groupBuyActivityService);
+        AgentToolRegistry agentToolRegistry = new AgentToolRegistry();
         return new AgentGuideStreamService(
-                new GuideDecisionService(guideDataRepository, groupBuyService()),
+                guideDecisionService,
                 new GuideRagAnswerService(
                         new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
                         prompt -> prompt.getFallbackAnswer()),
                 new GuideConversationService(new LocalGuideConversationRepository()),
                 new GuideImageInputService(),
+                new AgentPlannerService(guideDecisionService, agentToolRegistry),
+                new KnowledgeSearchToolService(guideDataRepository),
+                groupBuyActivityService,
                 new ToolExecutor(),
                 new OrderStatusToolService(tradeOrderRepository));
     }

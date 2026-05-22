@@ -11,6 +11,7 @@ import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.ReferenceDeltaDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
+import com.linrun.domain.conversation.model.AgentPlan;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideRagAnswerResult;
@@ -18,10 +19,15 @@ import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.conversation.model.GuideTokenUsage;
 import com.linrun.domain.conversation.model.GuideUserInput;
 import com.linrun.domain.conversation.model.RecommendationResult;
+import com.linrun.domain.conversation.service.AgentPlannerService;
+import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.conversation.service.GuideConversationService;
 import com.linrun.domain.conversation.service.GuideDecisionService;
 import com.linrun.domain.conversation.service.GuideImageInputService;
 import com.linrun.domain.conversation.service.GuideRagAnswerService;
+import com.linrun.domain.conversation.service.KnowledgeSearchToolService;
+import com.linrun.domain.marketing.model.GroupBuyTrialResult;
+import com.linrun.domain.marketing.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -43,6 +49,9 @@ public class AgentGuideStreamService {
     private final GuideRagAnswerService guideRagAnswerService;
     private final GuideConversationService guideConversationService;
     private final GuideImageInputService guideImageInputService;
+    private final AgentPlannerService agentPlannerService;
+    private final KnowledgeSearchToolService knowledgeSearchToolService;
+    private final GroupBuyActivityService groupBuyActivityService;
     private final ToolExecutor toolExecutor;
     private final OrderStatusToolService orderStatusToolService;
 
@@ -50,12 +59,18 @@ public class AgentGuideStreamService {
                                    GuideRagAnswerService guideRagAnswerService,
                                    GuideConversationService guideConversationService,
                                    GuideImageInputService guideImageInputService,
+                                   AgentPlannerService agentPlannerService,
+                                   KnowledgeSearchToolService knowledgeSearchToolService,
+                                   GroupBuyActivityService groupBuyActivityService,
                                    ToolExecutor toolExecutor,
                                    OrderStatusToolService orderStatusToolService) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
         this.guideConversationService = guideConversationService;
         this.guideImageInputService = guideImageInputService;
+        this.agentPlannerService = agentPlannerService;
+        this.knowledgeSearchToolService = knowledgeSearchToolService;
+        this.groupBuyActivityService = groupBuyActivityService;
         this.toolExecutor = toolExecutor;
         this.orderStatusToolService = orderStatusToolService;
     }
@@ -121,15 +136,60 @@ public class AgentGuideStreamService {
             }
         }
 
-        if (orderStatusToolService.isOrderQuery(effectiveQuestion)) {
+        ToolExecution<AgentPlan> planExecution = toolExecutor.execute(
+                "agent_plan",
+                "plan",
+                "已生成工具调用计划",
+                () -> agentPlannerService.plan(effectiveQuestion));
+        if (!planExecution.isSuccess()) {
+            Exception exception = planExecution.getException();
+            if (exception instanceof AppException e) {
+                emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR, error(e.getCode(), e.getMessage()));
+                return;
+            }
+            emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR,
+                    error("AGENT_0004", "工具计划生成失败，请稍后重试"));
+            return;
+        }
+
+        AgentPlan agentPlan = planExecution.getResult();
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_PLAN, agentPlan)) {
+            return;
+        }
+
+        if (agentPlan.hasTool(AgentToolRegistry.ORDER_STATUS) || orderStatusToolService.isOrderQuery(effectiveQuestion)) {
             streamOrderQuery(request, sessionId, requestId, sink, stopped, startNanos, sequence, userInput, effectiveQuestion);
             return;
         }
 
+        List<GuideReference> searchedReferences = List.of();
+        if (agentPlan.hasTool(AgentToolRegistry.KNOWLEDGE_SEARCH)) {
+            ToolExecution<List<GuideReference>> knowledgeExecution = toolExecutor.execute(
+                    AgentToolRegistry.KNOWLEDGE_SEARCH,
+                    "execute",
+                    "已检索知识库片段",
+                    () -> knowledgeSearchToolService.search(effectiveQuestion));
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
+                    toolCall(knowledgeExecution, knowledgeSearchMessage(knowledgeExecution)))) {
+                return;
+            }
+            if (!knowledgeExecution.isSuccess()) {
+                emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.ERROR,
+                        error("DATA_0001", "导购数据源不可用，请先启动本地 Docker 基础设施并初始化数据"));
+                return;
+            }
+            searchedReferences = knowledgeExecution.getResult() == null ? List.of() : knowledgeExecution.getResult();
+            for (GuideReference reference : searchedReferences) {
+                if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference))) {
+                    return;
+                }
+            }
+        }
+
         ToolExecution<GuideDecisionResult> decisionExecution = toolExecutor.execute(
-                "intent_recognize",
+                AgentToolRegistry.GUIDE_RECOMMEND,
                 "execute",
-                "已识别用户预算、使用场景和购买限制",
+                "已完成商品推荐、候选排序和决策自检",
                 () -> guideDecisionService.decide(effectiveQuestion));
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
                 toolCall(decisionExecution, decisionExecution.getMessage()))) {
@@ -148,8 +208,24 @@ public class AgentGuideStreamService {
             return;
         }
 
-        for (GuideReference reference : decisionResult.getReferences()) {
-            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference))) {
+        if (searchedReferences.isEmpty()) {
+            for (GuideReference reference : decisionResult.getReferences()) {
+                if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference))) {
+                    return;
+                }
+            }
+        }
+
+        if (agentPlan.hasTool(AgentToolRegistry.GROUP_TRIAL)
+                && decisionResult.getProduct() != null
+                && StringUtils.hasText(decisionResult.getProduct().getGoodsId())) {
+            ToolExecution<GroupBuyTrialResult> groupTrialExecution = toolExecutor.execute(
+                    AgentToolRegistry.GROUP_TRIAL,
+                    "execute",
+                    "已完成拼团试算",
+                    () -> groupBuyActivityService.trial(decisionResult.getProduct().getGoodsId()));
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
+                    toolCall(groupTrialExecution, groupTrialMessage(groupTrialExecution)))) {
                 return;
             }
         }
@@ -263,6 +339,26 @@ public class AgentGuideStreamService {
         dto.setMessage(message);
         dto.setLatencyMillis(execution.getLatencyMillis());
         return dto;
+    }
+
+    private String knowledgeSearchMessage(ToolExecution<List<GuideReference>> execution) {
+        if (!execution.isSuccess()) {
+            return "知识库检索失败";
+        }
+        int count = execution.getResult() == null ? 0 : execution.getResult().size();
+        return "已检索知识库片段 " + count + " 条";
+    }
+
+    private String groupTrialMessage(ToolExecution<GroupBuyTrialResult> execution) {
+        if (!execution.isSuccess() || execution.getResult() == null) {
+            return "拼团试算失败，已保留原推荐结果";
+        }
+        GroupBuyTrialResult result = execution.getResult();
+        if (result.isAvailable()) {
+            return "已完成拼团试算：拼团价 " + result.getGroupPrice()
+                    + "，" + result.getTeamSize() + " 人成团";
+        }
+        return "已完成拼团试算：" + result.getMessage();
     }
 
     private ReferenceDeltaDTO reference(GuideReference reference) {

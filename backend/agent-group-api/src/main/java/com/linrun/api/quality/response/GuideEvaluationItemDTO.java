@@ -17,6 +17,10 @@ public class GuideEvaluationItemDTO implements Serializable {
     private Boolean answerPassed;
     private Boolean recommendationPassed;
     private Boolean contextPassed;
+    private String actualToolNames;
+    private Boolean toolCallPassed;
+    private Boolean toolArgumentPassed;
+    private Boolean toolResultReferencePassed;
     private Long latencyMillis;
     private Long llmLatencyMillis;
     private Long promptTokens;
