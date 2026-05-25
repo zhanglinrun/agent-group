@@ -85,4 +85,4 @@ $env:AGENT_GROUP_MYSQL_URL="jdbc:mysql://127.0.0.1:13316/agent_group?useUnicode=
 
 ## 当前接入状态
 
-当前导购流式接口已经通过 MyBatis 从 MySQL 读取商品卡片和知识片段。上传知识文档时会写入 `MinIO`（对象存储）、解析文本、切片、生成向量，并优先写入 `pgvector`（向量检索）。如果真实向量库不可用，开发环境会回退到本地向量检索，方便演示不断链。`Redis`（缓存数据库）已用于会话和停止生成状态，`Prometheus`（指标采集工具）和 `Grafana`（指标看板工具）用于基础监控。
+当前导购流式接口已经通过 MyBatis 从 MySQL 读取商品卡片和知识片段。上传知识文档时会写入 `MinIO`（对象存储）、解析文本、切片、生成向量，并优先通过 `Spring AI VectorStore`（向量存储接口）写入 `pgvector`（向量检索）。如果 `Spring AI`（Spring 人工智能框架）或真实向量库不可用，开发环境会回退到原有 OpenAPI 客户端和本地向量检索，方便演示不断链。`Redis`（缓存数据库）已用于会话和停止生成状态，`Prometheus`（指标采集工具）和 `Grafana`（指标看板工具）用于基础监控。

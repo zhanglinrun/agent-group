@@ -33,6 +33,6 @@ public class KnowledgeVectorService {
             throw new AppException("0001", "question cannot be blank");
         }
         int safeLimit = limit <= 0 ? 3 : limit;
-        return knowledgeVectorRepository.searchSimilar(knowledgeEmbeddingClient.embed(question), safeLimit);
+        return knowledgeVectorRepository.searchSimilar(question, knowledgeEmbeddingClient.embed(question), safeLimit);
     }
 }

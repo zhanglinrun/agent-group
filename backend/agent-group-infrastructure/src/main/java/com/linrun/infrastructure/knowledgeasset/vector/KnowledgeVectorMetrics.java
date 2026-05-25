@@ -23,25 +23,25 @@ public class KnowledgeVectorMetrics {
         this.meterRegistry = meterRegistry;
     }
 
-    static KnowledgeVectorMetrics noop() {
+    public static KnowledgeVectorMetrics noop() {
         return new KnowledgeVectorMetrics((MeterRegistry) null);
     }
 
-    void recordPgvectorSave(boolean success, long latencyMillis) {
+    public void recordPgvectorSave(boolean success, long latencyMillis) {
         increment("agent_group_vector_pgvector_save_total", "status", status(success));
         recordTimer("agent_group_vector_pgvector_save_latency", latencyMillis);
     }
 
-    void recordPgvectorSearch(boolean success, long latencyMillis) {
+    public void recordPgvectorSearch(boolean success, long latencyMillis) {
         increment("agent_group_vector_pgvector_search_total", "status", status(success));
         recordTimer("agent_group_vector_pgvector_search_latency", latencyMillis);
     }
 
-    void recordLocalFallback(String reason) {
+    public void recordLocalFallback(String reason) {
         increment("agent_group_vector_local_fallback_total", "reason", reason);
     }
 
-    void recordEmbeddingFallback(String reason) {
+    public void recordEmbeddingFallback(String reason) {
         increment("agent_group_embedding_fallback_total", "reason", reason);
     }
 

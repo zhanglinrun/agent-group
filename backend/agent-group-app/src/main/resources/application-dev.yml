@@ -74,6 +74,9 @@ agent:
     stream:
       timeout-millis: 60000
       mock-delay-millis: 350
+    spring-ai:
+      enabled: ${AGENT_GROUP_SPRING_AI_ENABLED:true}
+      vector-store-enabled: ${AGENT_GROUP_SPRING_AI_VECTOR_STORE_ENABLED:true}
     rabbit:
       enabled: ${AGENT_GROUP_RABBIT_ENABLED:true}
     redis:

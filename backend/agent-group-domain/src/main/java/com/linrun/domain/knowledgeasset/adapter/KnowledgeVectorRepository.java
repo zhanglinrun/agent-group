@@ -9,4 +9,8 @@ public interface KnowledgeVectorRepository {
     void saveEmbedding(KnowledgeFragment fragment, List<Double> embedding);
 
     List<KnowledgeFragment> searchSimilar(List<Double> queryEmbedding, int limit);
+
+    default List<KnowledgeFragment> searchSimilar(String question, List<Double> queryEmbedding, int limit) {
+        return searchSimilar(queryEmbedding, limit);
+    }
 }
