@@ -20,6 +20,16 @@ class AgentPlannerServiceTest {
         AgentPlan plan = service.plan("预算 2500 以内买学习平板，想知道能不能拼团");
 
         assertTrue(service.hasRuntimePlaceholder(plan));
+        assertEquals("group-trial-v1", plan.getTools().stream()
+                .filter(tool -> AgentToolRegistry.GROUP_TRIAL.equals(tool.getName()))
+                .findFirst()
+                .orElseThrow()
+                .getToolVersion());
+        assertEquals("HIGH", plan.getTools().stream()
+                .filter(tool -> AgentToolRegistry.GROUP_TRIAL.equals(tool.getName()))
+                .findFirst()
+                .orElseThrow()
+                .getRiskLevel());
 
         GuideProduct product = new GuideProduct();
         product.setGoodsId("G10001");

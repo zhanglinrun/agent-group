@@ -7,6 +7,9 @@ public class ToolExecution<T> {
     private final String status;
     private final String message;
     private final long latencyMillis;
+    private final String toolCallId;
+    private final int retryCount;
+    private final String resultDigest;
     private final T result;
     private final Exception exception;
 
@@ -15,6 +18,9 @@ public class ToolExecution<T> {
                           String status,
                           String message,
                           long latencyMillis,
+                          String toolCallId,
+                          int retryCount,
+                          String resultDigest,
                           T result,
                           Exception exception) {
         this.toolName = toolName;
@@ -22,18 +28,45 @@ public class ToolExecution<T> {
         this.status = status;
         this.message = message;
         this.latencyMillis = latencyMillis;
+        this.toolCallId = toolCallId;
+        this.retryCount = retryCount;
+        this.resultDigest = resultDigest;
         this.result = result;
         this.exception = exception;
     }
 
     public static <T> ToolExecution<T> success(String toolName, String action, String message,
                                                long latencyMillis, T result) {
-        return new ToolExecution<>(toolName, action, "success", message, latencyMillis, result, null);
+        return success(toolName, action, message, latencyMillis, result, "", 0, "");
+    }
+
+    public static <T> ToolExecution<T> success(String toolName,
+                                               String action,
+                                               String message,
+                                               long latencyMillis,
+                                               T result,
+                                               String toolCallId,
+                                               int retryCount,
+                                               String resultDigest) {
+        return new ToolExecution<>(toolName, action, "success", message, latencyMillis,
+                toolCallId, retryCount, resultDigest, result, null);
     }
 
     public static <T> ToolExecution<T> failure(String toolName, String action, String message,
                                                long latencyMillis, Exception exception) {
-        return new ToolExecution<>(toolName, action, "failed", message, latencyMillis, null, exception);
+        return failure(toolName, action, message, latencyMillis, exception, "", 0, "");
+    }
+
+    public static <T> ToolExecution<T> failure(String toolName,
+                                               String action,
+                                               String message,
+                                               long latencyMillis,
+                                               Exception exception,
+                                               String toolCallId,
+                                               int retryCount,
+                                               String resultDigest) {
+        return new ToolExecution<>(toolName, action, "failed", message, latencyMillis,
+                toolCallId, retryCount, resultDigest, null, exception);
     }
 
     public boolean isSuccess() {
@@ -58,6 +91,18 @@ public class ToolExecution<T> {
 
     public long getLatencyMillis() {
         return latencyMillis;
+    }
+
+    public String getToolCallId() {
+        return toolCallId;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public String getResultDigest() {
+        return resultDigest;
     }
 
     public T getResult() {

@@ -3,6 +3,8 @@ package com.linrun.trigger.service;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,5 +37,24 @@ class ToolExecutorTest {
                 .tag("tool", "knowledge_search")
                 .timer()
                 .count());
+        assertTrue(success.getToolCallId().startsWith("knowledge_search-"));
+        assertEquals("done", success.getResultDigest());
+    }
+
+    @Test
+    void shouldRetryToolExecutionWhenConfigured() {
+        ToolExecutor executor = new ToolExecutor();
+        AtomicInteger attempts = new AtomicInteger();
+
+        ToolExecution<String> execution = executor.execute("knowledge_search", "execute", "ok", 1, () -> {
+            if (attempts.incrementAndGet() == 1) {
+                throw new IllegalStateException("temporary");
+            }
+            return "done";
+        });
+
+        assertTrue(execution.isSuccess());
+        assertEquals(2, attempts.get());
+        assertEquals(1, execution.getRetryCount());
     }
 }

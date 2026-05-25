@@ -32,6 +32,9 @@ import java.util.stream.Collectors;
 public class GuideEvaluationService {
 
     private static final DateTimeFormatter BATCH_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+    private static final BigDecimal TOOL_CALL_GATE = new BigDecimal("95.00");
+    private static final BigDecimal TOOL_RESULT_REFERENCE_GATE = new BigDecimal("90.00");
+    private static final BigDecimal ANSWER_ACCURACY_GATE = new BigDecimal("85.00");
 
     private final GuideEvaluationCaseRepository guideEvaluationCaseRepository;
     private final GuideEvaluationReportRepository guideEvaluationReportRepository;
@@ -77,7 +80,7 @@ public class GuideEvaluationService {
         report.setEstimatedCostYuan(totalEstimatedCostYuan(items));
         report.setItems(items);
         fillBaselineDelta(report);
-        report.setFeedbacks(buildFeedbacks(items));
+        report.setFeedbacks(buildFeedbacks(report, items));
         guideEvaluationReportRepository.save(report);
         return report;
     }
@@ -330,7 +333,7 @@ public class GuideEvaluationService {
         return true;
     }
 
-    private List<GuideEvaluationFeedback> buildFeedbacks(List<GuideEvaluationItemResult> items) {
+    private List<GuideEvaluationFeedback> buildFeedbacks(GuideEvaluationReport report, List<GuideEvaluationItemResult> items) {
         List<GuideEvaluationFeedback> feedbacks = new java.util.ArrayList<>();
         long referenceFailed = items.stream().filter(item -> !item.isReferencePassed()).count();
         long answerFailed = items.stream().filter(item -> !item.isAnswerPassed()).count();
@@ -360,10 +363,24 @@ public class GuideEvaluationService {
             feedbacks.add(new GuideEvaluationFeedback("CONTEXT", "MEDIUM",
                     "有" + contextFailed + "个多轮用例上下文不一致，建议补充最近对话摘要和追问指代消解。"));
         }
+        if (gateFailed(report)) {
+            feedbacks.add(new GuideEvaluationFeedback("REGRESSION_GATE", "HIGH",
+                    "本批次未达到回归门禁：工具调用正确率需不低于95%，工具结果引用率需不低于90%，回答准确率需不低于85%。"));
+        }
         if (feedbacks.isEmpty()) {
             feedbacks.add(new GuideEvaluationFeedback("QUALITY", "LOW",
                     "本批次评测全部通过，保留当前提示词和知识版本，继续扩展更复杂的真实导购用例。"));
         }
         return feedbacks;
+    }
+
+    private boolean gateFailed(GuideEvaluationReport report) {
+        return below(report.getToolCallAccuracyRate(), TOOL_CALL_GATE)
+                || below(report.getToolResultReferenceRate(), TOOL_RESULT_REFERENCE_GATE)
+                || below(report.getAnswerAccuracyRate(), ANSWER_ACCURACY_GATE);
+    }
+
+    private boolean below(BigDecimal value, BigDecimal gate) {
+        return zero(value).compareTo(gate) < 0;
     }
 }

@@ -12,6 +12,7 @@ import com.linrun.api.agent.response.ReferenceDeltaDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.conversation.model.AgentPlan;
+import com.linrun.domain.conversation.model.AgentToolDefinition;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideRagAnswerResult;
@@ -37,8 +38,10 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -52,6 +55,7 @@ public class AgentGuideStreamService {
     private final GuideConversationService guideConversationService;
     private final GuideImageInputService guideImageInputService;
     private final AgentPlannerService agentPlannerService;
+    private final AgentToolRegistry agentToolRegistry;
     private final KnowledgeSearchToolService knowledgeSearchToolService;
     private final GroupBuyActivityService groupBuyActivityService;
     private final ToolExecutor toolExecutor;
@@ -68,7 +72,7 @@ public class AgentGuideStreamService {
                                    ToolExecutor toolExecutor,
                                    OrderStatusToolService orderStatusToolService) {
         this(guideDecisionService, guideRagAnswerService, guideConversationService, guideImageInputService,
-                agentPlannerService, knowledgeSearchToolService, groupBuyActivityService, toolExecutor,
+                agentPlannerService, new AgentToolRegistry(), knowledgeSearchToolService, groupBuyActivityService, toolExecutor,
                 orderStatusToolService, AgentObservabilityMetrics.noop());
     }
 
@@ -78,6 +82,7 @@ public class AgentGuideStreamService {
                                    GuideConversationService guideConversationService,
                                    GuideImageInputService guideImageInputService,
                                    AgentPlannerService agentPlannerService,
+                                   AgentToolRegistry agentToolRegistry,
                                    KnowledgeSearchToolService knowledgeSearchToolService,
                                    GroupBuyActivityService groupBuyActivityService,
                                    ToolExecutor toolExecutor,
@@ -88,6 +93,7 @@ public class AgentGuideStreamService {
         this.guideConversationService = guideConversationService;
         this.guideImageInputService = guideImageInputService;
         this.agentPlannerService = agentPlannerService;
+        this.agentToolRegistry = agentToolRegistry == null ? new AgentToolRegistry() : agentToolRegistry;
         this.knowledgeSearchToolService = knowledgeSearchToolService;
         this.groupBuyActivityService = groupBuyActivityService;
         this.toolExecutor = toolExecutor;
@@ -186,7 +192,7 @@ public class AgentGuideStreamService {
         List<GuideReference> searchedReferences = List.of();
         if (agentPlan.hasTool(AgentToolRegistry.KNOWLEDGE_SEARCH)) {
             ToolExecution<List<GuideReference>> knowledgeExecution = toolExecutor.execute(
-                    AgentToolRegistry.KNOWLEDGE_SEARCH,
+                    agentToolRegistry.requireDefinition(AgentToolRegistry.KNOWLEDGE_SEARCH),
                     "execute",
                     "已检索知识库片段",
                     () -> knowledgeSearchToolService.search(effectiveQuestion));
@@ -209,7 +215,7 @@ public class AgentGuideStreamService {
         }
 
         ToolExecution<GuideDecisionResult> decisionExecution = toolExecutor.execute(
-                AgentToolRegistry.GUIDE_RECOMMEND,
+                agentToolRegistry.requireDefinition(AgentToolRegistry.GUIDE_RECOMMEND),
                 "execute",
                 "已完成商品推荐、候选排序和决策自检",
                 () -> guideDecisionService.decide(effectiveQuestion));
@@ -244,7 +250,7 @@ public class AgentGuideStreamService {
                 && decisionResult.getProduct() != null
                 && StringUtils.hasText(decisionResult.getProduct().getGoodsId())) {
             ToolExecution<GroupBuyTrialResult> groupTrialExecution = toolExecutor.execute(
-                    AgentToolRegistry.GROUP_TRIAL,
+                    agentToolRegistry.requireDefinition(AgentToolRegistry.GROUP_TRIAL),
                     "execute",
                     "已完成拼团试算",
                     () -> groupBuyActivityService.trial(decisionResult.getProduct().getGoodsId()));
@@ -306,7 +312,7 @@ public class AgentGuideStreamService {
                                   GuideUserInput userInput,
                                   String effectiveQuestion) {
         ToolExecution<OrderDeltaDTO> orderExecution = toolExecutor.execute(
-                "order_status",
+                agentToolRegistry.requireDefinition(AgentToolRegistry.ORDER_STATUS),
                 "execute",
                 "已查询订单状态",
                 () -> orderStatusToolService.queryOrderStatusByQuestion(effectiveQuestion, request.getUserId()));
@@ -368,7 +374,40 @@ public class AgentGuideStreamService {
         dto.setMessage(message);
         dto.setArguments(arguments);
         dto.setLatencyMillis(execution.getLatencyMillis());
+        dto.setToolCallId(execution.getToolCallId());
+        dto.setRetryCount(execution.getRetryCount());
+        dto.setResultDigest(execution.getResultDigest());
+        dto.setCitationIds(citationIds(execution));
+        agentToolRegistry.findDefinition(execution.getToolName())
+                .ifPresent(definition -> fillToolDefinition(dto, definition));
         return dto;
+    }
+
+    private void fillToolDefinition(ToolCallDTO dto, AgentToolDefinition definition) {
+        dto.setToolVersion(definition.getVersion());
+        dto.setRiskLevel(definition.getRiskLevel());
+        dto.setResultCitationRequired(definition.isResultCitationRequired());
+    }
+
+    private List<String> citationIds(ToolExecution<?> execution) {
+        Object result = execution.getResult();
+        if (result instanceof GuideDecisionResult decisionResult) {
+            return decisionResult.getReferences().stream()
+                    .map(GuideReference::getFragmentId)
+                    .filter(Objects::nonNull)
+                    .filter(StringUtils::hasText)
+                    .toList();
+        }
+        if (!(result instanceof Collection<?> collection)) {
+            return List.of();
+        }
+        return collection.stream()
+                .filter(GuideReference.class::isInstance)
+                .map(GuideReference.class::cast)
+                .map(GuideReference::getFragmentId)
+                .filter(Objects::nonNull)
+                .filter(StringUtils::hasText)
+                .toList();
     }
 
     private String knowledgeSearchMessage(ToolExecution<List<GuideReference>> execution) {

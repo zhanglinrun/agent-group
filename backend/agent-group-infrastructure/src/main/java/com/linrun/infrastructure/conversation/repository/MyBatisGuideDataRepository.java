@@ -12,7 +12,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,14 +50,14 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
 
     @Override
     public List<GuideReference> queryReferences(String question, int limit) {
-        List<GuideReference> vectorReferences = queryVectorReferences(question, limit);
-        if (!vectorReferences.isEmpty()) {
-            return vectorReferences;
-        }
+        int safeLimit = Math.max(1, limit);
+        List<String> keywords = knowledgeKeywordService.extractKeywords(question);
+        List<GuideReference> vectorReferences = queryVectorReferences(question, safeLimit * 2);
         if (!keywordFallbackEnabled) {
-            return List.of();
+            return rerank(question, keywords, vectorReferences, List.of(), safeLimit);
         }
-        return guideDataDao.queryReferences(knowledgeKeywordService.extractKeywords(question), limit);
+        List<GuideReference> keywordReferences = guideDataDao.queryReferences(keywords, safeLimit * 2);
+        return rerank(question, keywords, vectorReferences, keywordReferences, safeLimit);
     }
 
     @Override
@@ -109,6 +112,97 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         }
     }
 
+    private List<GuideReference> rerank(String question,
+                                        List<String> keywords,
+                                        List<GuideReference> vectorReferences,
+                                        List<GuideReference> keywordReferences,
+                                        int limit) {
+        Map<String, RankedReference> rankedReferences = new LinkedHashMap<>();
+        addRankedReferences(rankedReferences, question, keywords, vectorReferences, 100, 8);
+        addRankedReferences(rankedReferences, question, keywords, keywordReferences, 80, 6);
+        AtomicInteger rank = new AtomicInteger(1);
+        return rankedReferences.values().stream()
+                .sorted(Comparator.comparingInt(RankedReference::score).reversed())
+                .limit(limit)
+                .map(RankedReference::reference)
+                .peek(reference -> reference.setRank(rank.getAndIncrement()))
+                .toList();
+    }
+
+    private void addRankedReferences(Map<String, RankedReference> rankedReferences,
+                                     String question,
+                                     List<String> keywords,
+                                     List<GuideReference> references,
+                                     int baseScore,
+                                     int rankPenalty) {
+        if (references == null || references.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < references.size(); i++) {
+            GuideReference reference = references.get(i);
+            if (reference == null) {
+                continue;
+            }
+            String key = referenceKey(reference);
+            int score = baseScore - (i * rankPenalty) + relevanceScore(question, keywords, reference);
+            rankedReferences.merge(key, new RankedReference(reference, score),
+                    (left, right) -> left.score() >= right.score() ? left : right);
+        }
+    }
+
+    private int relevanceScore(String question, List<String> keywords, GuideReference reference) {
+        String content = safe(reference.getContent()).toLowerCase();
+        String documentType = safe(reference.getDocumentType()).toLowerCase();
+        String goodsId = safe(reference.getGoodsId()).toLowerCase();
+        String normalizedQuestion = safe(question).toLowerCase();
+        int score = 0;
+        for (String keyword : keywords == null ? List.<String>of() : keywords) {
+            String normalizedKeyword = safe(keyword).toLowerCase();
+            if (normalizedKeyword.isBlank()) {
+                continue;
+            }
+            if (content.contains(normalizedKeyword)) {
+                score += 12;
+            }
+            if (documentType.contains(normalizedKeyword)) {
+                score += 6;
+            }
+        }
+        if (!goodsId.isBlank() && normalizedQuestion.contains(goodsId)) {
+            score += 20;
+        }
+        if (containsAny(normalizedQuestion, "退款", "退货", "售后") && containsAny(documentType + content, "售后", "退款", "退货")) {
+            score += 15;
+        }
+        if (containsAny(normalizedQuestion, "拼团", "成团", "团购", "优惠") && containsAny(documentType + content, "拼团", "成团", "优惠")) {
+            score += 15;
+        }
+        return score;
+    }
+
+    private String referenceKey(GuideReference reference) {
+        if (reference == null) {
+            return "";
+        }
+        if (reference.getFragmentId() != null && !reference.getFragmentId().isBlank()) {
+            return reference.getFragmentId();
+        }
+        return safe(reference.getDocumentId()) + "|" + safe(reference.getContent());
+    }
+
+    private boolean containsAny(String source, String... keywords) {
+        for (String keyword : keywords) {
+            if (source.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
     private GuideReference toGuideReference(KnowledgeFragment fragment, int rank) {
         GuideReference reference = new GuideReference();
         reference.setFragmentId(fragment.getFragmentId());
@@ -119,5 +213,8 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         reference.setContent(fragment.getContent());
         reference.setRank(rank);
         return reference;
+    }
+
+    private record RankedReference(GuideReference reference, int score) {
     }
 }

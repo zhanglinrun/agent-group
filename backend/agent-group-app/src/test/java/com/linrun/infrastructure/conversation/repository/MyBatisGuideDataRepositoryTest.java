@@ -27,13 +27,13 @@ class MyBatisGuideDataRepositoryTest {
 
         repository.queryReferences("我想了解拼团退款规则", 3);
 
-        assertEquals(3, guideDataDao.limit);
+        assertEquals(6, guideDataDao.limit);
         assertTrue(guideDataDao.keywords.contains("拼团"));
         assertTrue(guideDataDao.keywords.contains("退款"));
     }
 
     @Test
-    void shouldPreferVectorReferencesWhenAvailable() {
+    void shouldFuseVectorAndKeywordReferences() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
         FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository(List.of(fragment("KF90001")));
         MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
@@ -45,7 +45,24 @@ class MyBatisGuideDataRepositoryTest {
 
         assertEquals(1, references.size());
         assertEquals("KF90001", references.get(0).getFragmentId());
-        assertEquals(0, guideDataDao.queryCount);
+        assertEquals(1, guideDataDao.queryCount);
+    }
+
+    @Test
+    void shouldRerankKeywordHitWhenBusinessTermMatchesBetter() {
+        FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
+        guideDataDao.references = List.of(reference("KF90002", "售后政策", "拼团失败后会自动退款，退款会原路返回。"));
+        FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository(
+                List.of(fragment("KF90001", "标准版适合学生写论文和看网课")));
+        MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
+                guideDataDao,
+                new KnowledgeKeywordService(),
+                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository));
+
+        List<GuideReference> references = repository.queryReferences("拼团失败能退款吗", 3);
+
+        assertEquals("KF90002", references.get(0).getFragmentId());
+        assertEquals(1, references.get(0).getRank());
     }
 
     @Test
@@ -69,13 +86,14 @@ class MyBatisGuideDataRepositoryTest {
         private List<String> keywords;
         private int limit;
         private int queryCount;
+        private List<GuideReference> references = List.of();
 
         @Override
         public List<GuideReference> queryReferences(List<String> keywords, int limit) {
             this.keywords = keywords;
             this.limit = limit;
             this.queryCount++;
-            return List.of();
+            return references;
         }
 
         @Override
@@ -100,14 +118,29 @@ class MyBatisGuideDataRepositoryTest {
     }
 
     private KnowledgeFragment fragment(String fragmentId) {
+        return fragment(fragmentId, "标准版适合学生写论文和看网课");
+    }
+
+    private KnowledgeFragment fragment(String fragmentId, String content) {
         KnowledgeFragment fragment = new KnowledgeFragment();
         fragment.setFragmentId(fragmentId);
         fragment.setDocumentId("DOC90001");
         fragment.setGoodsId("G10001");
         fragment.setDocumentType("商品详情");
         fragment.setKnowledgeVersion("v1");
-        fragment.setContent("标准版适合学生写论文和看网课");
+        fragment.setContent(content);
         return fragment;
+    }
+
+    private GuideReference reference(String fragmentId, String documentType, String content) {
+        GuideReference reference = new GuideReference();
+        reference.setFragmentId(fragmentId);
+        reference.setDocumentId("DOC90002");
+        reference.setGoodsId("G10001");
+        reference.setDocumentType(documentType);
+        reference.setKnowledgeVersion("v1");
+        reference.setContent(content);
+        return reference;
     }
 
     private static class FakeKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient {

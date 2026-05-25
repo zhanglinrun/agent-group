@@ -8,6 +8,9 @@ public class AgentToolCall {
     private String name;
     private Map<String, String> arguments = new LinkedHashMap<>();
     private String reason;
+    private String toolVersion;
+    private String riskLevel;
+    private Boolean resultCitationRequired;
 
     public AgentToolCall() {
     }
@@ -44,5 +47,29 @@ public class AgentToolCall {
 
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    public String getToolVersion() {
+        return toolVersion;
+    }
+
+    public void setToolVersion(String toolVersion) {
+        this.toolVersion = toolVersion;
+    }
+
+    public String getRiskLevel() {
+        return riskLevel;
+    }
+
+    public void setRiskLevel(String riskLevel) {
+        this.riskLevel = riskLevel;
+    }
+
+    public Boolean getResultCitationRequired() {
+        return resultCitationRequired;
+    }
+
+    public void setResultCitationRequired(Boolean resultCitationRequired) {
+        this.resultCitationRequired = resultCitationRequired;
     }
 }

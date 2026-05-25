@@ -81,9 +81,18 @@ class AgentGuideStreamServiceTest {
         assertEquals(Boolean.TRUE, selfCheck.getPassed());
         GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(12).getData());
         assertTrue(usageMetrics.getTotalLatencyMillis() >= 0);
+        ToolCallDTO knowledgeTool = assertInstanceOf(ToolCallDTO.class, events.get(1).getData());
+        assertEquals("knowledge-search-v1", knowledgeTool.getToolVersion());
+        assertEquals("MEDIUM", knowledgeTool.getRiskLevel());
+        assertEquals(Boolean.TRUE, knowledgeTool.getResultCitationRequired());
+        assertEquals(List.of("KF10001", "KF10002"), knowledgeTool.getCitationIds());
+        assertTrue(knowledgeTool.getToolCallId().startsWith("knowledge_search-"));
         ToolCallDTO groupTrialTool = assertInstanceOf(ToolCallDTO.class, events.get(5).getData());
         assertEquals("group_trial", groupTrialTool.getToolName());
         assertEquals("G10001", groupTrialTool.getArguments().get("goodsId"));
+        assertEquals("group-trial-v1", groupTrialTool.getToolVersion());
+        assertEquals("HIGH", groupTrialTool.getRiskLevel());
+        assertEquals(0, groupTrialTool.getRetryCount());
         assertEquals("推荐商品、价格、规格和推荐理由完整", selfCheck.getMessage());
     }
 

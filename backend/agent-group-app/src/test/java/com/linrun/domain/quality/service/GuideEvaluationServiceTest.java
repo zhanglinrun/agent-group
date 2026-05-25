@@ -97,8 +97,40 @@ class GuideEvaluationServiceTest {
         assertEquals(report.getBatchNo(), service.queryLatestReport().getBatchNo());
     }
 
+    @Test
+    void shouldAddRegressionGateFeedbackWhenCoreMetricIsLow() {
+        FakeGuideEvaluationReportRepository reportRepository = new FakeGuideEvaluationReportRepository();
+        GuideDecisionService guideDecisionService = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
+        AgentToolRegistry agentToolRegistry = new AgentToolRegistry();
+        GuideEvaluationService service = new GuideEvaluationService(
+                () -> List.of(failingEvaluationCase()),
+                reportRepository,
+                new AgentPlannerService(guideDecisionService, agentToolRegistry),
+                guideDecisionService,
+                new GuideRagAnswerService(
+                        new GuideRagPromptBuilder(new PromptTemplateService(new LocalPromptTemplateRepository())),
+                        prompt -> prompt.getFallbackAnswer()));
+
+        GuideEvaluationReport report = service.runBatch();
+
+        assertTrue(report.getFeedbacks().stream()
+                .anyMatch(feedback -> "REGRESSION_GATE".equals(feedback.getTargetType())));
+    }
+
     private static GroupBuyActivityService groupBuyService() {
         return new GroupBuyActivityService(new ActiveGroupBuyActivityRepository());
+    }
+
+    private static GuideEvaluationCase failingEvaluationCase() {
+        GuideEvaluationCase evaluationCase = new GuideEvaluationCase();
+        evaluationCase.setCaseId("EV90001");
+        evaluationCase.setCaseName("错误答案门禁");
+        evaluationCase.setQuestion("我是学生，预算有限，想买适合看网课的平板");
+        evaluationCase.setExpectedIntentType(GuideIntentType.PRODUCT_RECOMMEND);
+        evaluationCase.setExpectedGoodsId("G10001");
+        evaluationCase.setRequiredReferenceKeywords(List.of("不存在的依据"));
+        evaluationCase.setRequiredAnswerKeywords(List.of("不存在的答案"));
+        return evaluationCase;
     }
 
     private static class FakeGuideEvaluationCaseRepository implements GuideEvaluationCaseRepository {
