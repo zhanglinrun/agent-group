@@ -2,7 +2,9 @@ package com.linrun.trigger.service;
 
 import com.linrun.api.order.request.CreateDirectOrderRequest;
 import com.linrun.api.order.response.CreateDirectOrderResponse;
+import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
@@ -19,6 +21,7 @@ import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,10 +40,12 @@ class DirectBuyOrderServiceTest {
                 new FakeGuideDataRepository(),
                 tradeOrderRepository,
                 new TradeOrderService(),
-                new TradeStatusFlowService(flowRepository));
+                new TradeStatusFlowService(flowRepository),
+                new FakeGuideDecisionSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
         request.setIdempotentKey("IDEM-10001");
 
         CreateDirectOrderResponse response = service.createDirectOrder(request);
@@ -73,10 +78,12 @@ class DirectBuyOrderServiceTest {
                 new FakeGuideDataRepository(),
                 tradeOrderRepository,
                 new TradeOrderService(),
-                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
         request.setIdempotentKey("IDEM-10002");
         request.setPayChannel("BALANCE_PAY");
 
@@ -91,10 +98,12 @@ class DirectBuyOrderServiceTest {
                 new EmptyGuideDataRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
-                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10099");
+        request.setDecisionId("D10099");
         request.setIdempotentKey("IDEM-10003");
 
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
@@ -109,9 +118,11 @@ class DirectBuyOrderServiceTest {
                 new FakeGuideDataRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
-                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
         request.setIdempotentKey("IDEM-10004");
 
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
@@ -121,16 +132,78 @@ class DirectBuyOrderServiceTest {
     }
 
     @Test
+    void shouldRejectOrderWithoutDecisionId() {
+        DirectBuyOrderService service = new DirectBuyOrderService(
+                new FakeGuideDataRepository(),
+                new FakeTradeOrderRepository(),
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository());
+        CreateDirectOrderRequest request = new CreateDirectOrderRequest();
+        request.setUserId("U10001");
+        request.setGoodsId("G10001");
+        request.setIdempotentKey("IDEM-10005");
+
+        AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
+
+        assertEquals("GUIDE_0005", exception.getCode());
+    }
+
+    @Test
+    void shouldRejectExpiredDecisionSnapshot() {
+        DirectBuyOrderService service = new DirectBuyOrderService(
+                new FakeGuideDataRepository(),
+                new FakeTradeOrderRepository(),
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                        "U10001", "G10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
+                        LocalDateTime.now().minusMinutes(1))));
+        CreateDirectOrderRequest request = new CreateDirectOrderRequest();
+        request.setUserId("U10001");
+        request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
+        request.setIdempotentKey("IDEM-10006");
+
+        AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
+
+        assertEquals("GUIDE_0008", exception.getCode());
+    }
+
+    @Test
+    void shouldRejectChangedDirectPrice() {
+        DirectBuyOrderService service = new DirectBuyOrderService(
+                new FakeGuideDataRepository(),
+                new FakeTradeOrderRepository(),
+                new TradeOrderService(),
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                        "U10001", "G10001", new BigDecimal("2299.00"), new BigDecimal("2099.00"),
+                        LocalDateTime.now().plusMinutes(10))));
+        CreateDirectOrderRequest request = new CreateDirectOrderRequest();
+        request.setUserId("U10001");
+        request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
+        request.setIdempotentKey("IDEM-10007");
+
+        AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
+
+        assertEquals("GUIDE_0010", exception.getCode());
+    }
+
+    @Test
     void shouldReturnExistingOrderForSameIdempotentKey() {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         DirectBuyOrderService service = new DirectBuyOrderService(
                 new FakeGuideDataRepository(),
                 tradeOrderRepository,
                 new TradeOrderService(),
-                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
         request.setIdempotentKey("IDEM-20001");
 
         CreateDirectOrderResponse first = service.createDirectOrder(request);
@@ -139,6 +212,21 @@ class DirectBuyOrderServiceTest {
         assertEquals(first.getOrderId(), second.getOrderId());
         assertEquals(first.getIdempotentKey(), second.getIdempotentKey());
         assertEquals(1, tradeOrderRepository.saveCount);
+    }
+
+    private static GuideDecisionSnapshot decisionSnapshot(String userId,
+                                                          String goodsId,
+                                                          BigDecimal originAmount,
+                                                          BigDecimal groupAmount,
+                                                          LocalDateTime quoteExpireTime) {
+        GuideDecisionSnapshot snapshot = new GuideDecisionSnapshot();
+        snapshot.setDecisionId("D10001");
+        snapshot.setUserId(userId);
+        snapshot.setGoodsId(goodsId);
+        snapshot.setOriginAmount(originAmount);
+        snapshot.setGroupAmount(groupAmount);
+        snapshot.setQuoteExpireTime(quoteExpireTime);
+        return snapshot;
     }
 
     private static class FakeGuideDataRepository implements GuideDataRepository {
@@ -181,6 +269,30 @@ class DirectBuyOrderServiceTest {
         @Override
         public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             return Optional.empty();
+        }
+    }
+
+    private static class FakeGuideDecisionSnapshotRepository implements GuideDecisionSnapshotRepository {
+
+        private final GuideDecisionSnapshot snapshot;
+
+        private FakeGuideDecisionSnapshotRepository() {
+            this(decisionSnapshot(
+                    "U10001", "G10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
+                    LocalDateTime.now().plusMinutes(10)));
+        }
+
+        private FakeGuideDecisionSnapshotRepository(GuideDecisionSnapshot snapshot) {
+            this.snapshot = snapshot;
+        }
+
+        @Override
+        public void save(GuideDecisionSnapshot snapshot) {
+        }
+
+        @Override
+        public Optional<GuideDecisionSnapshot> queryByDecisionId(String decisionId) {
+            return Optional.ofNullable(snapshot);
         }
     }
 

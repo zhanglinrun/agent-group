@@ -28,7 +28,7 @@ docker compose -f docker-compose-environment.yml up -d
 启动基础设施后，在项目根目录打开一个新的终端运行后端：
 
 ```powershell
-$env:AGENT_GROUP_EVALUATE_CASE_FILE="N:\java_project\agent-group\docs\sample-knowledge\evaluation-cases.json"
+$env:AGENT_GROUP_EVALUATE_CASE_FILE="E:\javaproject\agent-group\docs\sample-knowledge\evaluation-cases.json"
 cd backend
 mvn -pl agent-group-app -am spring-boot:run
 ```
@@ -41,8 +41,8 @@ mvn -pl agent-group-app -am spring-boot:run
 建议按这个顺序演示：
 
 1. 用户端点击“运行示例”，观察流式回答、检索依据和商品卡片。
-2. 点击商品卡片里的“拼团购买”，观察锁单、创建支付单、模拟支付回调和订单状态流水。
-3. 进入运营端点击“执行评测”，观察检索命中率、回答准确率、推荐合理率、多轮一致性和平均耗时。
+2. 点击商品卡片里的“拼团购买”，观察导购决策编号校验、锁单、创建支付单、支付回调演示和订单状态流水。
+3. 进入运营端点击“执行评测”，观察 50 条用例下的检索命中率、回答准确率、推荐合理率、多轮一致性和平均耗时。
 4. 上传 `docs/sample-knowledge` 里的样本文档，验证文档入库、切片和向量检索闭环。
 5. 打开 `Grafana`（指标看板工具）的 `Agent Group 运行观测` 看板，观察工具调用速率、工具平均耗时、导购端到端耗时和回退次数。
 

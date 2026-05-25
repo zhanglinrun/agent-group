@@ -380,6 +380,28 @@ create table if not exists notify_task (
   key idx_status_time (notify_status, update_time)
 ) engine=InnoDB default charset=utf8mb4 comment='notify task';
 
+create table if not exists guide_decision_snapshot (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  decision_id varchar(40) not null comment '导购决策编号',
+  session_id varchar(64) not null default '' comment '会话编号',
+  request_id varchar(64) not null default '' comment '请求编号',
+  user_id varchar(64) not null default '' comment '用户编号',
+  question varchar(1024) not null default '' comment '用户问题',
+  goods_id varchar(32) not null comment '商品编号',
+  goods_name varchar(128) not null default '' comment '商品名称',
+  activity_id varchar(32) not null default '' comment '活动编号',
+  origin_amount decimal(10, 2) not null comment '导购原价',
+  group_amount decimal(10, 2) not null comment '导购拼团价',
+  reference_ids varchar(256) not null default '' comment '引用知识片段',
+  tool_names varchar(256) not null default '' comment '工具调用列表',
+  quote_expire_time datetime not null comment '报价过期时间',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_decision_id (decision_id),
+  key idx_user_time (user_id, create_time),
+  key idx_quote_expire_time (quote_expire_time)
+) engine=InnoDB default charset=utf8mb4 comment='导购决策快照表';
+
 create table if not exists guide_evaluation_report (
   id bigint unsigned not null auto_increment comment '自增主键',
   batch_no varchar(40) not null comment '评测批次编号',
@@ -492,7 +514,11 @@ insert into guide_goods (
   recommend_reason, not_suitable_for, enabled, sort_order
 ) values
 ('G10001', '轻薄学习平板标准版', '', 2399.00, '10.9 英寸屏幕，128GB 存储，支持手写笔', '7 天无理由退货，1 年质保', '预算有限、学习和网课场景下性价比更高', '长期剪视频或运行大型应用的用户', 1, 10),
-('G10002', '高配创作平板', '', 3299.00, '12.1 英寸高刷屏，256GB 存储，适合多任务', '7 天无理由退货，1 年质保', '适合剪视频、绘图和大型应用，但预算压力更大', '只做笔记和看网课且预算有限的用户', 1, 20)
+('G10002', '高配创作平板', '', 3299.00, '12.1 英寸高刷屏，256GB 存储，适合多任务', '7 天无理由退货，1 年质保', '适合剪视频、绘图和大型应用，但预算压力更大', '只做笔记和看网课且预算有限的用户', 1, 20),
+('G10003', '通勤办公二合一平板', '', 3699.00, '11.5 英寸护眼屏，256GB 存储，磁吸键盘套装，适合文档编辑和会议记录', '7 天无理由退货，1 年质保；键盘套装单独保修 6 个月', '适合研究生论文写作、轻办公和通勤携带，输入效率高于普通学习平板', '重度游戏、专业视频剪辑和预算低于 2500 元的用户', 1, 30),
+('G10004', '游戏影音高刷平板', '', 2999.00, '12 英寸高刷屏，四扬声器，散热增强，适合影音娱乐和中大型游戏', '7 天无理由退货，1 年质保；人为进液和摔损不在质保范围', '适合高刷屏、影音和游戏诉求，性能强于标准版，价格低于创作平板', '主要写论文、网课和课堂笔记的预算敏感用户', 1, 40),
+('G10005', '儿童学习护眼平板', '', 1899.00, '10.4 英寸护眼屏，家长管控，学习内容分级，适合儿童学习', '7 天无理由退货，1 年质保；学习内容权益按激活规则处理', '适合家长为儿童学习、网课和阅读购买，价格低且管控能力完整', '大学生论文写作、专业绘图和大型应用用户', 1, 50),
+('G10006', '手写笔记套装平板', '', 2699.00, '11 英寸屏幕，标配手写笔和类纸膜，适合课堂笔记、资料批注和考研复习', '7 天无理由退货，1 年质保；手写笔耗材不参与无理由退货', '适合笔记、批注和复习场景，配件一次配齐，长期学习成本更可控', '剪视频、绘图渲染和重度游戏用户', 1, 60)
 on duplicate key update
   goods_name = values(goods_name),
   image_url = values(image_url),
@@ -510,7 +536,11 @@ insert into group_activity (
   tag_id, tag_scope, enabled
 ) values
 ('A10001', 'G10001', 2099.00, 3, '学习平板标准版拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
-('A10002', 'G10002', 2899.00, 5, '高配创作平板拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1)
+('A10002', 'G10002', 2899.00, 5, '高配创作平板拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1),
+('A10003', 'G10003', 3299.00, 3, '通勤办公套装拼团', 'D10002', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
+('A10004', 'G10004', 2599.00, 4, '游戏影音平板拼团', 'D10002', 0, 1, 4, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
+('A10005', 'G10005', 1699.00, 2, '儿童护眼平板拼团', 'D10001', 0, 2, 2, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 10 day), null, null, 1),
+('A10006', 'G10006', 2399.00, 3, '手写笔记套装拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1)
 on duplicate key update
   goods_id = values(goods_id),
   group_price = values(group_price),
@@ -547,7 +577,11 @@ insert into sku (
   source, channel, goods_id, goods_name, original_price
 ) values
 ('s01', 'c01', 'G10001', '学习平板标准版', 2399.00),
-('s01', 'c01', 'G10002', '高配创作平板', 3299.00)
+('s01', 'c01', 'G10002', '高配创作平板', 3299.00),
+('s01', 'c01', 'G10003', '通勤办公二合一平板', 3699.00),
+('s01', 'c01', 'G10004', '游戏影音高刷平板', 2999.00),
+('s01', 'c01', 'G10005', '儿童学习护眼平板', 1899.00),
+('s01', 'c01', 'G10006', '手写笔记套装平板', 2699.00)
 on duplicate key update
   source = values(source),
   channel = values(channel),
@@ -558,7 +592,11 @@ insert into sc_sku_activity (
   source, channel, activity_id, goods_id
 ) values
 ('s01', 'c01', 'A10001', 'G10001'),
-('s01', 'c01', 'A10002', 'G10002')
+('s01', 'c01', 'A10002', 'G10002'),
+('s01', 'c01', 'A10003', 'G10003'),
+('s01', 'c01', 'A10004', 'G10004'),
+('s01', 'c01', 'A10005', 'G10005'),
+('s01', 'c01', 'A10006', 'G10006')
 on duplicate key update
   activity_id = values(activity_id);
 
@@ -566,7 +604,11 @@ insert into group_buy_stock (
   activity_id, goods_id, total_stock, available_stock, locked_stock, paid_stock
 ) values
 ('A10001', 'G10001', 100, 100, 0, 0),
-('A10002', 'G10002', 100, 100, 0, 0)
+('A10002', 'G10002', 100, 100, 0, 0),
+('A10003', 'G10003', 80, 80, 0, 0),
+('A10004', 'G10004', 60, 60, 0, 0),
+('A10005', 'G10005', 120, 120, 0, 0),
+('A10006', 'G10006', 100, 100, 0, 0)
 on duplicate key update
   goods_id = values(goods_id),
   total_stock = values(total_stock),
@@ -577,7 +619,8 @@ insert into knowledge_document (
 ) values
 ('DOC10001', '学习平板商品详情说明', '商品详情', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
 ('DOC10002', '学习平板拼团活动规则', '营销规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10003', '学习平板售后政策', '售后政策', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
+('DOC10003', '学习平板售后政策', '售后政策', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10005', '多商品导购规则说明', '导购规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
 on duplicate key update
   document_name = values(document_name),
   document_type = values(document_type),
@@ -592,7 +635,12 @@ insert into knowledge_fragment (
 ) values
 ('KF10001', 'DOC10001', 'G10001', '商品详情', 'v1', '轻薄学习平板标准版适合写论文、看网课和日常笔记。', 1, 'ENABLED', 1),
 ('KF10002', 'DOC10002', 'G10001', '营销规则', 'v1', '标准版支持 3 人拼团，拼团价比原价低 300 元。', 2, 'ENABLED', 1),
-('KF10003', 'DOC10003', 'G10001', '售后政策', 'v1', '拼团商品成团后支持 7 天无理由退货，未成团时系统自动退款。', 3, 'ENABLED', 1)
+('KF10003', 'DOC10003', 'G10001', '售后政策', 'v1', '拼团商品成团后支持 7 天无理由退货，未成团时系统自动退款。', 3, 'ENABLED', 1),
+('KF10011', 'DOC10005', 'G10003', '导购规则', 'v1', '通勤办公二合一平板适合论文写作、会议记录和文档编辑，标配键盘套装，拼团价 3299 元。', 11, 'ENABLED', 1),
+('KF10012', 'DOC10005', 'G10004', '导购规则', 'v1', '游戏影音高刷平板适合高刷屏、影音和中大型游戏，拼团价 2599 元，不优先推荐给只看网课的预算敏感学生。', 12, 'ENABLED', 1),
+('KF10013', 'DOC10005', 'G10005', '导购规则', 'v1', '儿童学习护眼平板适合儿童网课、阅读和家长管控，拼团价 1699 元，不适合大学生论文和专业绘图。', 13, 'ENABLED', 1),
+('KF10014', 'DOC10005', 'G10006', '导购规则', 'v1', '手写笔记套装平板适合课堂笔记、资料批注和考研复习，拼团价 2399 元，手写笔耗材不参与无理由退货。', 14, 'ENABLED', 1),
+('KF10015', 'DOC10005', 'G10001', '导购规则', 'v1', '导购回答生成下单入口前必须生成导购决策编号，订单金额要和导购快照、商品卡片、支付单保持一致。', 15, 'ENABLED', 1)
 on duplicate key update
   document_id = values(document_id),
   goods_id = values(goods_id),

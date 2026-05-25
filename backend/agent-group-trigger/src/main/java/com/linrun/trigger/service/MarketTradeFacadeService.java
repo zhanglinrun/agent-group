@@ -155,6 +155,7 @@ public class MarketTradeFacadeService {
         LockGroupBuyOrderRequest groupRequest = new LockGroupBuyOrderRequest();
         groupRequest.setUserId(request.getUserId());
         groupRequest.setGoodsId(request.getGoodsId());
+        groupRequest.setDecisionId(request.getDecisionId());
         groupRequest.setActivityId(request.getActivityId());
         groupRequest.setTeamId(request.getTeamId());
         groupRequest.setIdempotentKey(resolveIdempotentKey(request));

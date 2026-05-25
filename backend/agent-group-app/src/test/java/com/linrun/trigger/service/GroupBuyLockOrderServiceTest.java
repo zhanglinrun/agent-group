@@ -42,6 +42,8 @@ import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
+import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
+import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
@@ -177,6 +179,53 @@ class GroupBuyLockOrderServiceTest {
                 () -> LockGroupBuyOrderRequest.class.getDeclaredField("originalAmount"));
         assertThrows(NoSuchFieldException.class,
                 () -> LockGroupBuyOrderRequest.class.getDeclaredField("payAmount"));
+    }
+
+    @Test
+    void shouldRejectLockWithoutDecisionId() {
+        GroupBuyLockOrderService service = service(new FakeGroupBuyOrderLockRepository(), new FakeTradeOrderRepository());
+        LockGroupBuyOrderRequest request = request(null, "IDEM_DECISION_10001");
+        request.setDecisionId("");
+
+        AppException exception = assertThrows(AppException.class, () -> service.lock(request));
+
+        assertEquals("GUIDE_0005", exception.getCode());
+    }
+
+    @Test
+    void shouldRejectLockWhenDecisionActivityMismatches() {
+        GroupBuyLockOrderService service = service(
+                new FakeGroupBuyOrderLockRepository(),
+                GroupBuyStockRepository.noop(),
+                GroupBuyTeamStockRepository.noop(),
+                new FakeTradeOrderRepository(),
+                new FakeTradeStatusFlowRepository(),
+                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                        "U10001", "G10001", "A20001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
+                        LocalDateTime.now().plusMinutes(10))));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> service.lock(request(null, "IDEM_DECISION_10002")));
+
+        assertEquals("GUIDE_0011", exception.getCode());
+    }
+
+    @Test
+    void shouldRejectLockWhenGroupPriceChanged() {
+        GroupBuyLockOrderService service = service(
+                new FakeGroupBuyOrderLockRepository(),
+                GroupBuyStockRepository.noop(),
+                GroupBuyTeamStockRepository.noop(),
+                new FakeTradeOrderRepository(),
+                new FakeTradeStatusFlowRepository(),
+                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                        "U10001", "G10001", "A10001", new BigDecimal("2399.00"), new BigDecimal("1999.00"),
+                        LocalDateTime.now().plusMinutes(10))));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> service.lock(request(null, "IDEM_DECISION_10003")));
+
+        assertEquals("GUIDE_0010", exception.getCode());
     }
 
     @Test
@@ -394,9 +443,12 @@ class GroupBuyLockOrderServiceTest {
                 new FakeGuideDataRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", LocalDateTime.now().minusHours(1))),
                 new FakeGroupBuyOrderLockRepository(),
+                GroupBuyStockRepository.noop(),
+                GroupBuyTeamStockRepository.noop(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
-                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()));
+                new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
+                new FakeGuideDecisionSnapshotRepository());
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.lock(request(null, "IDEM_10005")));
@@ -429,6 +481,16 @@ class GroupBuyLockOrderServiceTest {
                                              GroupBuyTeamStockRepository teamStockRepository,
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository) {
+        return service(lockRepository, stockRepository, teamStockRepository, tradeOrderRepository, flowRepository,
+                new FakeGuideDecisionSnapshotRepository());
+    }
+
+    private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
+                                             GroupBuyStockRepository stockRepository,
+                                             GroupBuyTeamStockRepository teamStockRepository,
+                                             FakeTradeOrderRepository tradeOrderRepository,
+                                             FakeTradeStatusFlowRepository flowRepository,
+                                             GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
         return new GroupBuyLockOrderService(
                 new FakeGuideDataRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", END_TIME)),
@@ -437,13 +499,15 @@ class GroupBuyLockOrderServiceTest {
                 teamStockRepository,
                 tradeOrderRepository,
                 new TradeOrderService(),
-                new TradeStatusFlowService(flowRepository));
+                new TradeStatusFlowService(flowRepository),
+                guideDecisionSnapshotRepository);
     }
 
     private LockGroupBuyOrderRequest request(String teamId, String idempotentKey) {
         LockGroupBuyOrderRequest request = new LockGroupBuyOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
+        request.setDecisionId("D10001");
         request.setActivityId("A10001");
         request.setTeamId(teamId);
         request.setIdempotentKey(idempotentKey);
@@ -553,6 +617,23 @@ class GroupBuyLockOrderServiceTest {
         return team;
     }
 
+    private static GuideDecisionSnapshot decisionSnapshot(String userId,
+                                                          String goodsId,
+                                                          String activityId,
+                                                          BigDecimal originAmount,
+                                                          BigDecimal groupAmount,
+                                                          LocalDateTime quoteExpireTime) {
+        GuideDecisionSnapshot snapshot = new GuideDecisionSnapshot();
+        snapshot.setDecisionId("D10001");
+        snapshot.setUserId(userId);
+        snapshot.setGoodsId(goodsId);
+        snapshot.setActivityId(activityId);
+        snapshot.setOriginAmount(originAmount);
+        snapshot.setGroupAmount(groupAmount);
+        snapshot.setQuoteExpireTime(quoteExpireTime);
+        return snapshot;
+    }
+
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
@@ -592,6 +673,30 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public Optional<GroupBuyActivity> queryByActivityId(String activityId) {
             return Optional.of(activity);
+        }
+    }
+
+    private static class FakeGuideDecisionSnapshotRepository implements GuideDecisionSnapshotRepository {
+
+        private final GuideDecisionSnapshot snapshot;
+
+        private FakeGuideDecisionSnapshotRepository() {
+            this(decisionSnapshot(
+                    "U10001", "G10001", "A10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
+                    LocalDateTime.now().plusMinutes(10)));
+        }
+
+        private FakeGuideDecisionSnapshotRepository(GuideDecisionSnapshot snapshot) {
+            this.snapshot = snapshot;
+        }
+
+        @Override
+        public void save(GuideDecisionSnapshot snapshot) {
+        }
+
+        @Override
+        public Optional<GuideDecisionSnapshot> queryByDecisionId(String decisionId) {
+            return Optional.ofNullable(snapshot);
         }
     }
 

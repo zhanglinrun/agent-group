@@ -9,6 +9,7 @@ public class LockGroupBuyOrderRequest implements Serializable {
 
     private String userId;
     private String goodsId;
+    private String decisionId;
     private String activityId;
     private String teamId;
     private String idempotentKey;

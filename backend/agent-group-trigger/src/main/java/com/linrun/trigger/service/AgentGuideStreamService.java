@@ -13,6 +13,7 @@ import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.conversation.model.AgentPlan;
 import com.linrun.domain.conversation.model.AgentToolDefinition;
+import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideRagAnswerResult;
@@ -20,6 +21,7 @@ import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.conversation.model.GuideTokenUsage;
 import com.linrun.domain.conversation.model.GuideUserInput;
 import com.linrun.domain.conversation.model.RecommendationResult;
+import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.conversation.service.AgentPlannerService;
 import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.conversation.service.GuideConversationService;
@@ -60,6 +62,7 @@ public class AgentGuideStreamService {
     private final GroupBuyActivityService groupBuyActivityService;
     private final ToolExecutor toolExecutor;
     private final OrderStatusToolService orderStatusToolService;
+    private final GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
     private final AgentObservabilityMetrics metrics;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
@@ -73,7 +76,23 @@ public class AgentGuideStreamService {
                                    OrderStatusToolService orderStatusToolService) {
         this(guideDecisionService, guideRagAnswerService, guideConversationService, guideImageInputService,
                 agentPlannerService, new AgentToolRegistry(), knowledgeSearchToolService, groupBuyActivityService, toolExecutor,
-                orderStatusToolService, AgentObservabilityMetrics.noop());
+                orderStatusToolService, GuideDecisionSnapshotRepository.noop(), AgentObservabilityMetrics.noop());
+    }
+
+    public AgentGuideStreamService(GuideDecisionService guideDecisionService,
+                                   GuideRagAnswerService guideRagAnswerService,
+                                   GuideConversationService guideConversationService,
+                                   GuideImageInputService guideImageInputService,
+                                   AgentPlannerService agentPlannerService,
+                                   AgentToolRegistry agentToolRegistry,
+                                   KnowledgeSearchToolService knowledgeSearchToolService,
+                                   GroupBuyActivityService groupBuyActivityService,
+                                   ToolExecutor toolExecutor,
+                                   OrderStatusToolService orderStatusToolService,
+                                   AgentObservabilityMetrics metrics) {
+        this(guideDecisionService, guideRagAnswerService, guideConversationService, guideImageInputService,
+                agentPlannerService, agentToolRegistry, knowledgeSearchToolService, groupBuyActivityService,
+                toolExecutor, orderStatusToolService, GuideDecisionSnapshotRepository.noop(), metrics);
     }
 
     @Autowired
@@ -87,6 +106,7 @@ public class AgentGuideStreamService {
                                    GroupBuyActivityService groupBuyActivityService,
                                    ToolExecutor toolExecutor,
                                    OrderStatusToolService orderStatusToolService,
+                                   GuideDecisionSnapshotRepository guideDecisionSnapshotRepository,
                                    AgentObservabilityMetrics metrics) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
@@ -98,6 +118,9 @@ public class AgentGuideStreamService {
         this.groupBuyActivityService = groupBuyActivityService;
         this.toolExecutor = toolExecutor;
         this.orderStatusToolService = orderStatusToolService;
+        this.guideDecisionSnapshotRepository = guideDecisionSnapshotRepository == null
+                ? GuideDecisionSnapshotRepository.noop()
+                : guideDecisionSnapshotRepository;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
     }
 
@@ -276,7 +299,18 @@ public class AgentGuideStreamService {
             return;
         }
 
-        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD, productCard(decisionResult.getProduct()))) {
+        GuideDecisionSnapshot decisionSnapshot = GuideDecisionSnapshot.capture(
+                sessionId,
+                requestId,
+                request.getUserId(),
+                effectiveQuestion,
+                decisionResult,
+                searchedReferences.isEmpty() ? decisionResult.getReferences() : searchedReferences,
+                agentPlan);
+        guideDecisionSnapshotRepository.save(decisionSnapshot);
+
+        if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.PRODUCT_CARD,
+                productCard(decisionResult.getProduct(), decisionSnapshot))) {
             return;
         }
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
@@ -442,8 +476,10 @@ public class AgentGuideStreamService {
         return dto;
     }
 
-    private ProductCardDTO productCard(GuideProduct product) {
+    private ProductCardDTO productCard(GuideProduct product, GuideDecisionSnapshot decisionSnapshot) {
         ProductCardDTO dto = new ProductCardDTO();
+        dto.setDecisionId(decisionSnapshot.getDecisionId());
+        dto.setQuoteExpireTime(decisionSnapshot.getQuoteExpireTime());
         dto.setGoodsId(product.getGoodsId());
         dto.setGoodsName(product.getGoodsName());
         dto.setImageUrl(product.getImageUrl());

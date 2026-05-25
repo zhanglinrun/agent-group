@@ -11,7 +11,9 @@ import com.linrun.domain.marketing.model.GroupBuyActivityStatus;
 import com.linrun.domain.marketing.model.GroupBuyLockResult;
 import com.linrun.domain.marketing.model.GroupBuyOrderLock;
 import com.linrun.domain.marketing.model.GroupBuyTeam;
+import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.entity.CreateTradeOrderCommandEntity;
@@ -45,6 +47,7 @@ public class GroupBuyLockOrderService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
+    private final GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -69,7 +72,6 @@ public class GroupBuyLockOrderService {
                 tradeOrderRepository, tradeOrderService, tradeStatusFlowService);
     }
 
-    @Autowired
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
@@ -78,6 +80,21 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService) {
+        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                GuideDecisionSnapshotRepository.noop());
+    }
+
+    @Autowired
+    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+                                    GroupBuyActivityRepository groupBuyActivityRepository,
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    GroupBuyStockRepository groupBuyStockRepository,
+                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
+                                    TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    TradeStatusFlowService tradeStatusFlowService,
+                                    GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
@@ -86,6 +103,9 @@ public class GroupBuyLockOrderService {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
+        this.guideDecisionSnapshotRepository = guideDecisionSnapshotRepository == null
+                ? GuideDecisionSnapshotRepository.noop()
+                : guideDecisionSnapshotRepository;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -99,7 +119,7 @@ public class GroupBuyLockOrderService {
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
                     .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
             TradePayOrderAggregate tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
-            return toResponse(new GroupBuyLockResult(repeatedLock, team, true), tradePayOrder);
+            return toResponse(new GroupBuyLockResult(repeatedLock, team, true), tradePayOrder, request.getDecisionId());
         }
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
@@ -110,6 +130,7 @@ public class GroupBuyLockOrderService {
         LocalDateTime now = LocalDateTime.now();
         validateActivity(request, activity, now);
         validateTakeLimit(request, activity);
+        validateDecisionSnapshot(request, product, activity, now);
 
         String teamId = StringUtils.hasText(request.getTeamId()) ? request.getTeamId() : nextNo("T");
         BigDecimal payAmount = resolvePayAmount(activity);
@@ -131,7 +152,7 @@ public class GroupBuyLockOrderService {
             GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockNewTeam(team, orderLock);
             tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
             recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
-            return toResponse(lockResult, tradePayOrder);
+            return toResponse(lockResult, tradePayOrder, request.getDecisionId());
         }
 
         GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(teamId)
@@ -148,7 +169,7 @@ public class GroupBuyLockOrderService {
             GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockExistingTeam(orderLock);
             tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
             recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
-            return toResponse(lockResult, tradePayOrder);
+            return toResponse(lockResult, tradePayOrder, request.getDecisionId());
         } catch (RuntimeException e) {
             groupBuyTeamStockRepository.recoverTeamStock(
                     activity.getActivityId(), teamId, orderLock.getOrderId(), team.getValidEndTime());
@@ -201,6 +222,9 @@ public class GroupBuyLockOrderService {
         if (!StringUtils.hasText(request.getIdempotentKey())) {
             throw new AppException("0001", "幂等键不能为空");
         }
+        if (!StringUtils.hasText(request.getDecisionId())) {
+            throw new AppException("GUIDE_0005", "导购决策编号不能为空，请先完成导购推荐后再下单");
+        }
     }
 
     private void validateActivity(LockGroupBuyOrderRequest request, GroupBuyActivity activity, LocalDateTime now) {
@@ -220,6 +244,30 @@ public class GroupBuyLockOrderService {
         int count = groupBuyOrderLockRepository.countUserActivityLocks(request.getUserId(), activity.getActivityId());
         if (count >= takeLimitCount) {
             throw new AppException("GROUP_0017", "user group buy take limit reached");
+        }
+    }
+
+    private void validateDecisionSnapshot(LockGroupBuyOrderRequest request,
+                                          GuideProduct product,
+                                          GroupBuyActivity activity,
+                                          LocalDateTime now) {
+        GuideDecisionSnapshot snapshot = guideDecisionSnapshotRepository.queryByDecisionId(request.getDecisionId())
+                .orElseThrow(() -> new AppException("GUIDE_0006", "导购决策不存在或已过期，请重新发起导购"));
+        if (snapshot.isExpired(now)) {
+            throw new AppException("GUIDE_0008", "导购报价已过期，请重新发起导购");
+        }
+        if (StringUtils.hasText(snapshot.getUserId()) && !request.getUserId().equals(snapshot.getUserId())) {
+            throw new AppException("GUIDE_0007", "导购决策不属于当前用户");
+        }
+        if (!request.getGoodsId().equals(snapshot.getGoodsId())) {
+            throw new AppException("GUIDE_0009", "下单商品和导购决策不一致");
+        }
+        if (StringUtils.hasText(snapshot.getActivityId()) && !request.getActivityId().equals(snapshot.getActivityId())) {
+            throw new AppException("GUIDE_0011", "下单活动和导购决策不一致");
+        }
+        if (compareAmount(snapshot.getOriginAmount(), product.getOriginPrice()) != 0
+                || compareAmount(snapshot.getGroupAmount(), activity.getGroupPrice()) != 0) {
+            throw new AppException("GUIDE_0010", "商品价格已变化，请重新发起导购");
         }
     }
 
@@ -275,7 +323,16 @@ public class GroupBuyLockOrderService {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
     }
 
-    private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result, TradePayOrderAggregate tradePayOrder) {
+    private int compareAmount(BigDecimal left, BigDecimal right) {
+        if (left == null || right == null) {
+            return left == right ? 0 : -1;
+        }
+        return left.compareTo(right);
+    }
+
+    private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result,
+                                                 TradePayOrderAggregate tradePayOrder,
+                                                 String decisionId) {
         GroupBuyOrderLock orderLock = result.getOrderLock();
         GroupBuyTeam team = result.getTeam();
         TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
@@ -283,6 +340,7 @@ public class GroupBuyLockOrderService {
 
         LockGroupBuyOrderResponse response = new LockGroupBuyOrderResponse();
         response.setLockId(orderLock.getLockId());
+        response.setDecisionId(decisionId);
         response.setUserId(orderLock.getUserId());
         response.setGoodsId(orderLock.getGoodsId());
         response.setActivityId(orderLock.getActivityId());

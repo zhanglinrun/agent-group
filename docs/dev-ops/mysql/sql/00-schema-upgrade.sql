@@ -121,6 +121,28 @@ from group_activity
 on duplicate key update
   goods_id = values(goods_id);
 
+create table if not exists guide_decision_snapshot (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  decision_id varchar(40) not null comment '导购决策编号',
+  session_id varchar(64) not null default '' comment '会话编号',
+  request_id varchar(64) not null default '' comment '请求编号',
+  user_id varchar(64) not null default '' comment '用户编号',
+  question varchar(1024) not null default '' comment '用户问题',
+  goods_id varchar(32) not null comment '商品编号',
+  goods_name varchar(128) not null default '' comment '商品名称',
+  activity_id varchar(32) not null default '' comment '活动编号',
+  origin_amount decimal(10, 2) not null comment '导购原价',
+  group_amount decimal(10, 2) not null comment '导购拼团价',
+  reference_ids varchar(256) not null default '' comment '引用知识片段',
+  tool_names varchar(256) not null default '' comment '工具调用列表',
+  quote_expire_time datetime not null comment '报价过期时间',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_decision_id (decision_id),
+  key idx_user_time (user_id, create_time),
+  key idx_quote_expire_time (quote_expire_time)
+) engine=InnoDB default charset=utf8mb4 comment='导购决策快照表';
+
 create table if not exists guide_evaluation_report (
   id bigint unsigned not null auto_increment comment '自增主键',
   batch_no varchar(40) not null comment '评测批次编号',

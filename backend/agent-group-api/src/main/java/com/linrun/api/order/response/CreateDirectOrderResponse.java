@@ -12,6 +12,7 @@ public class CreateDirectOrderResponse implements Serializable {
     private String orderId;
     private String payOrderId;
     private String idempotentKey;
+    private String decisionId;
     private String userId;
     private String goodsId;
     private String goodsName;

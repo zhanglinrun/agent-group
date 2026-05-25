@@ -9,6 +9,7 @@ public class CreatePayRequest implements Serializable {
 
     private String userId;
     private String productId;
+    private String decisionId;
     private String teamId;
     private Integer marketType;
     private String activityId;

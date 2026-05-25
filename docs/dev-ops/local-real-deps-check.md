@@ -3,7 +3,7 @@
 ## 启动依赖
 
 ```powershell
-cd N:\java_project\agent-group\docs\dev-ops
+cd E:\javaproject\agent-group\docs\dev-ops
 docker compose -f docker-compose-environment.yml up -d
 ```
 
@@ -35,7 +35,7 @@ $env:AGENT_GROUP_ADMIN_PASSWORD="admin_dev"
 ## 启动后端
 
 ```powershell
-cd N:\java_project\agent-group\backend
+cd E:\javaproject\agent-group\backend
 mvn -pl agent-group-app -am spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
@@ -44,8 +44,8 @@ mvn -pl agent-group-app -am spring-boot:run -Dspring-boot.run.profiles=dev
 打开：
 
 ```text
-N:\java_project\agent-group\frontend\index.html
-N:\java_project\agent-group\frontend\admin.html
+E:\javaproject\agent-group\frontend\index.html
+E:\javaproject\agent-group\frontend\admin.html
 ```
 
 建议先在用户端上传 `docs\sample-knowledge`（样本知识资料）下的三份文档，再提问：
@@ -64,8 +64,8 @@ docker exec agent-group-mysql sh -c "mysql --default-character-set=utf8mb4 -uroo
 
 - 文档上传后，提示已进入对象存储和向量化。
 - 回答区出现流式回答。
-- 右侧出现知识依据和商品卡片。
-- 点击直接购买或拼团购买后，购买状态时间线会更新。
+- 右侧出现知识依据、商品卡片和导购决策编号。
+- 点击直接购买或拼团购买后，购买状态时间线会更新，订单金额来自后端校验后的商品和活动数据。
 
 ## 监控验收
 

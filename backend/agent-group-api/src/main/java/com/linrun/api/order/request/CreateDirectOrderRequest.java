@@ -9,6 +9,7 @@ public class CreateDirectOrderRequest implements Serializable {
 
     private String userId;
     private String goodsId;
+    private String decisionId;
     private String idempotentKey;
     private String payChannel;
 }

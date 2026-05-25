@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IGuideDecisionSnapshotDao">
+
+    <resultMap id="GuideDecisionSnapshotMap" type="com.linrun.domain.conversation.model.GuideDecisionSnapshot">
+        <id column="decision_id" property="decisionId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="request_id" property="requestId"/>
+        <result column="user_id" property="userId"/>
+        <result column="question" property="question"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="goods_name" property="goodsName"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="origin_amount" property="originAmount"/>
+        <result column="group_amount" property="groupAmount"/>
+        <result column="reference_ids" property="referenceIds"/>
+        <result column="tool_names" property="toolNames"/>
+        <result column="quote_expire_time" property="quoteExpireTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.linrun.domain.conversation.model.GuideDecisionSnapshot">
+        insert into guide_decision_snapshot (
+          decision_id,
+          session_id,
+          request_id,
+          user_id,
+          question,
+          goods_id,
+          goods_name,
+          activity_id,
+          origin_amount,
+          group_amount,
+          reference_ids,
+          tool_names,
+          quote_expire_time,
+          create_time
+        ) values (
+          #{decisionId},
+          #{sessionId},
+          #{requestId},
+          #{userId},
+          #{question},
+          #{goodsId},
+          #{goodsName},
+          #{activityId},
+          #{originAmount},
+          #{groupAmount},
+          #{referenceIds},
+          #{toolNames},
+          #{quoteExpireTime},
+          #{createTime}
+        )
+    </insert>
+
+    <select id="queryByDecisionId" resultMap="GuideDecisionSnapshotMap">
+        select decision_id,
+               session_id,
+               request_id,
+               user_id,
+               question,
+               goods_id,
+               goods_name,
+               activity_id,
+               origin_amount,
+               group_amount,
+               reference_ids,
+               tool_names,
+               quote_expire_time,
+               create_time
+        from guide_decision_snapshot
+        where decision_id = #{decisionId}
+        limit 1
+    </select>
+</mapper>

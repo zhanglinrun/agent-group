@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 @Data
 public class ProductCardDTO implements Serializable {
 
+    private String decisionId;
+    private java.time.LocalDateTime quoteExpireTime;
     private String goodsId;
     private String goodsName;
     private String imageUrl;

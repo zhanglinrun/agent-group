@@ -74,6 +74,7 @@ class AgentGuideStreamServiceTest {
                 events.stream().map(GuideStreamEvent::getSequence).toList());
 
         ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(10).getData());
+        assertTrue(productCard.getDecisionId().startsWith("D"));
         assertEquals("G10001", productCard.getGoodsId());
         assertEquals("轻薄学习平板标准版", productCard.getGoodsName());
         assertEquals(new BigDecimal("2099.00"), productCard.getGroupPrice());

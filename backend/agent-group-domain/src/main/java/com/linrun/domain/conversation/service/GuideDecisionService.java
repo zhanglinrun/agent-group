@@ -70,8 +70,8 @@ public class GuideDecisionService {
         intent.setGroupBuyConcerned(containsAny(normalized, "拼团", "成团", "团购"));
         intent.setAfterSaleConcerned(containsAny(normalized, "售后", "退货", "退款", "质保", "保修"));
         intent.setCompareConcerned(containsAny(normalized, "对比", "比较", "哪款", "区别", "更合适"));
-        intent.setPerformanceSensitive(containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作"));
-        intent.setPortabilitySensitive(containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂"));
+        intent.setPerformanceSensitive(containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作", "游戏", "影音"));
+        intent.setPortabilitySensitive(containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂", "会议", "键盘"));
         intent.setUserIdentity(containsAny(normalized, "学生", "大学生", "研究生") ? "学生" : "普通用户");
         intent.setUsageScenarios(recognizeScenarios(normalized));
         intent.setIntentType(resolveIntentType(intent, normalized));
@@ -80,7 +80,7 @@ public class GuideDecisionService {
 
     private List<String> recognizeScenarios(String normalized) {
         List<String> scenarios = new ArrayList<>();
-        if (containsAny(normalized, "论文", "文档", "办公")) {
+        if (containsAny(normalized, "论文", "文档", "办公", "会议", "键盘")) {
             scenarios.add("文档写作");
         }
         if (containsAny(normalized, "网课", "学习", "课堂")) {
@@ -91,6 +91,12 @@ public class GuideDecisionService {
         }
         if (containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用")) {
             scenarios.add("创作应用");
+        }
+        if (containsAny(normalized, "游戏", "高刷", "影音", "追剧")) {
+            scenarios.add("游戏影音");
+        }
+        if (containsAny(normalized, "儿童", "小孩", "家长", "护眼", "管控")) {
+            scenarios.add("儿童学习");
         }
         if (containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂")) {
             scenarios.add("便携学习");
@@ -218,7 +224,7 @@ public class GuideDecisionService {
             score += 18;
         }
         if (requirement.isPerformanceSensitive()) {
-            score += containsAny(text, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作") ? 34 : -12;
+            score += containsAny(text, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作", "游戏", "影音") ? 34 : -12;
             score += containsAny(nullToBlank(product.getNotSuitableFor()), "剪视频", "绘图", "大型应用") ? -42 : 0;
         }
         if (requirement.isPortabilitySensitive()) {
@@ -235,7 +241,7 @@ public class GuideDecisionService {
 
     private int scenarioMatchScore(String scenario, String text) {
         if ("文档写作".equals(scenario)) {
-            return containsAny(text, "论文", "文档", "办公", "轻办公") ? 18 : 0;
+            return containsAny(text, "论文", "文档", "办公", "轻办公", "会议", "键盘") ? 18 : 0;
         }
         if ("网课学习".equals(scenario)) {
             return containsAny(text, "网课", "学习", "课堂") ? 18 : 0;
@@ -245,6 +251,12 @@ public class GuideDecisionService {
         }
         if ("创作应用".equals(scenario)) {
             return containsAny(text, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "多任务") ? 28 : -10;
+        }
+        if ("游戏影音".equals(scenario)) {
+            return containsAny(text, "游戏", "影音", "高刷", "扬声器", "散热") ? 30 : -8;
+        }
+        if ("儿童学习".equals(scenario)) {
+            return containsAny(text, "儿童", "家长", "护眼", "管控", "阅读") ? 32 : -12;
         }
         if ("便携学习".equals(scenario)) {
             return containsAny(text, "轻薄", "便携", "10.9", "学习") ? 12 : 0;

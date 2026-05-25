@@ -151,6 +151,7 @@ public class LegacyMallPayService {
         CreateDirectOrderRequest directRequest = new CreateDirectOrderRequest();
         directRequest.setUserId(request.getUserId());
         directRequest.setGoodsId(request.getProductId());
+        directRequest.setDecisionId(request.getDecisionId());
         directRequest.setIdempotentKey(resolveIdempotentKey(request));
         directRequest.setPayChannel(resolvePayChannel(request));
         return directRequest;
@@ -160,6 +161,7 @@ public class LegacyMallPayService {
         LockGroupBuyOrderRequest groupRequest = new LockGroupBuyOrderRequest();
         groupRequest.setUserId(request.getUserId());
         groupRequest.setGoodsId(request.getProductId());
+        groupRequest.setDecisionId(request.getDecisionId());
         groupRequest.setActivityId(request.getActivityId());
         groupRequest.setTeamId(request.getTeamId());
         groupRequest.setPayChannel(resolvePayChannel(request));

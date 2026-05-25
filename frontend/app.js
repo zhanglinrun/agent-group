@@ -8,6 +8,7 @@ const sampleProducts = [
     afterSale: "7 天无理由退货，1 年质保",
     reason: "学习、写论文、看网课场景下够用，拼团价低，长期使用成本更稳。",
     notSuitable: "长期剪视频或运行大型应用的用户",
+    decisionId: "",
     activityId: "A10001",
     teamSize: 3,
     leftTime: "29 分钟"
@@ -21,6 +22,7 @@ const sampleProducts = [
     afterSale: "7 天无理由退货，1 年质保",
     reason: "性能更强，适合剪视频、绘图和多任务，但对学生轻办公预算压力更大。",
     notSuitable: "只做笔记和看网课且预算有限的用户",
+    decisionId: "",
     activityId: "A10002",
     teamSize: 5,
     leftTime: "18 分钟"
@@ -407,6 +409,8 @@ function mapProductCard(data) {
     afterSale: data?.afterSalePolicy || "",
     reason: data?.recommendReason || "符合本轮导购需求。",
     notSuitable: data?.notSuitableFor || "暂无",
+    decisionId: data?.decisionId || "",
+    quoteExpireTime: data?.quoteExpireTime || "",
     activityId: data?.activityId || "",
     teamSize: data?.teamSize || 1,
     leftTime: formatRemainingTime(data?.remainingSeconds)
@@ -647,6 +651,11 @@ function renderProduct(product) {
 }
 
 async function startPurchase(product, mode) {
+  if (!product.decisionId) {
+    setText("#tradeState", "需要后端决策");
+    pushTradeStep("请先连接后端完成一次真实导购，系统会生成导购决策编号后才能下单。", "warn");
+    return;
+  }
   saveCheckoutSession(product, mode);
   window.location.href = `./checkout.html?mode=${encodeURIComponent(mode)}&goodsId=${encodeURIComponent(product.id)}`;
 }
@@ -670,7 +679,7 @@ function initCheckout() {
     restoreCheckoutOrderState(checkout.order);
     return;
   }
-  renderCheckoutSteps(["确认商品和购买方式", "提交订单", "创建支付单", "模拟支付", "查看订单流水"], 0);
+  renderCheckoutSteps(["确认商品和购买方式", "提交订单", "创建支付单", "支付回调演示", "查看订单流水"], 0);
 }
 
 function resolveCheckoutSession() {
@@ -705,7 +714,8 @@ function renderCheckoutProduct(checkout) {
   setText("#checkoutOrigin", `原价 ￥${product.originPrice}`);
   setText("#checkoutGroup", `拼团价 ￥${product.groupPrice}`);
   setText("#checkoutTeam", isGroup ? `${product.teamSize || 1} 人成团 · ${product.leftTime || "活动进行中"}` : "直接购买无需等待成团");
-  setText("#checkoutStatus", "待提交");
+  setText("#checkoutStatus", product.decisionId ? "待提交" : "缺少导购决策");
+  setDisabled("#confirmOrderBtn", !product.decisionId);
   setDisabled("#mockPayBtn", true);
   setDisabled("#refreshFlowBtn", true);
 }
@@ -733,7 +743,7 @@ async function submitCheckoutOrder(checkout) {
 
   try {
     const createResult = isGroup
-      ? await createGroupOrder(product)
+      ? await createGroupOrder(product, checkout.idempotentKey)
       : await createDirectOrder(product, checkout.idempotentKey);
     const paymentResult = createResult.payOrderId && createResult.payUrl
       ? null
@@ -745,7 +755,7 @@ async function submitCheckoutOrder(checkout) {
     renderCheckoutSteps([
       isGroup ? "拼团锁单成功" : "直接购买订单创建成功",
       "支付网关单已创建",
-      "等待用户模拟支付"
+      "等待支付回调演示"
     ], 2);
     setText("#checkoutStatus", "待支付");
     setDisabled("#mockPayBtn", false);
@@ -776,7 +786,7 @@ async function simulateCheckoutPay(checkout) {
     });
     renderCheckoutOrder(checkout.order);
     setText("#checkoutStatus", checkout.order.orderStatus);
-    renderCheckoutSteps(["模拟支付回调成功", "订单和支付单状态已推进"], 3);
+    renderCheckoutSteps(["支付回调验签成功", "订单和支付单状态已推进"], 3);
     await refreshCheckoutFlow(checkout);
   } catch (error) {
     setDisabled("#mockPayBtn", false);
@@ -828,6 +838,7 @@ function normalizeCheckoutOrder(checkout, createResult, paymentResult) {
     orderStatus: createResult.orderStatus || "PAY_WAIT",
     payStatus: createResult.payStatus || "WAIT_PAY",
     payUrl: paymentResult?.payUrl || createResult.payUrl || "",
+    decisionId: createResult.decisionId || product.decisionId || "",
     teamId: createResult.teamId || "",
     teamStatus: createResult.teamStatus || "",
     lockStatus: createResult.lockStatus || "",
@@ -885,6 +896,11 @@ function upsertOrderForAdmin(order) {
 }
 
 async function runInlinePurchase(product, mode) {
+  if (!product.decisionId) {
+    setText("#tradeState", "需要后端决策");
+    pushTradeStep("当前商品缺少导购决策编号，请先完成后端导购流式推荐。", "warn");
+    return;
+  }
   const isGroup = mode === "group";
   const idempotentKey = resolveCheckoutIdempotentKey(product, mode);
   const order = {
@@ -901,7 +917,7 @@ async function runInlinePurchase(product, mode) {
 
   try {
     const createResult = isGroup
-      ? await createGroupOrder(product)
+      ? await createGroupOrder(product, idempotentKey)
       : await createDirectOrder(product, idempotentKey);
     order.orderNo = createResult.orderId;
     order.status = createResult.orderStatus || "待支付";
@@ -932,17 +948,19 @@ async function createDirectOrder(product, idempotentKey) {
   return postJson(DIRECT_ORDER_URL, {
     userId: "U10001",
     goodsId: product.id,
+    decisionId: product.decisionId || "",
     idempotentKey: idempotentKey || resolveCheckoutIdempotentKey(product, "direct"),
     payChannel: "MOCK_PAY"
   });
 }
 
-async function createGroupOrder(product) {
+async function createGroupOrder(product, idempotentKey) {
   return postJson(GROUP_LOCK_URL, {
     userId: "U10001",
     goodsId: product.id,
+    decisionId: product.decisionId || "",
     activityId: product.activityId || "A10001",
-    idempotentKey: `WEB-${Date.now()}-${product.id}`,
+    idempotentKey: idempotentKey || resolveCheckoutIdempotentKey(product, "group"),
     payChannel: "MOCK_PAY"
   });
 }

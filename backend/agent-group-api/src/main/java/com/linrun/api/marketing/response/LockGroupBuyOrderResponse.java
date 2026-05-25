@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class LockGroupBuyOrderResponse implements Serializable {
 
     private String lockId;
+    private String decisionId;
     private String userId;
     private String goodsId;
     private String activityId;

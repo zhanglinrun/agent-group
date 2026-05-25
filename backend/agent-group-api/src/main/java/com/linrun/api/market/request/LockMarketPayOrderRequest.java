@@ -8,6 +8,7 @@ import java.io.Serializable;
 public class LockMarketPayOrderRequest implements Serializable {
 
     private String userId;
+    private String decisionId;
     private String teamId;
     private String activityId;
     private String goodsId;
