@@ -112,11 +112,12 @@ public class GuideEvaluationService {
         GuideEvaluationItemResult item = baseItem(evaluationCase);
         try {
             AgentPlan agentPlan = agentPlannerService.plan(evaluationCase.getQuestion());
+            GuideDecisionResult decisionResult = guideDecisionService.decide(evaluationCase.getQuestion());
+            agentPlannerService.fillRuntimeArguments(agentPlan, decisionResult);
             item.setActualToolNames(String.join(",", agentPlan.toolNames()));
             item.setToolCallPassed(toolCallPassed(agentPlan, evaluationCase));
             item.setToolArgumentPassed(toolArgumentPassed(agentPlan));
 
-            GuideDecisionResult decisionResult = guideDecisionService.decide(evaluationCase.getQuestion());
             GuideRagAnswerResult answerResult = guideRagAnswerService.answerWithMetrics(evaluationCase.getQuestion(), decisionResult);
             List<String> answerSegments = answerResult.getSegments();
             String referenceText = decisionResult.getReferences().stream()
@@ -129,7 +130,8 @@ public class GuideEvaluationService {
             item.setActualGoodsId(product == null ? "" : product.getGoodsId());
             item.setReferencePassed(containsAll(referenceText, evaluationCase.getRequiredReferenceKeywords()));
             item.setAnswerPassed(decisionResult.getIntent().getIntentType().equals(evaluationCase.getExpectedIntentType())
-                    && containsAll(answerText, evaluationCase.getRequiredAnswerKeywords()));
+                    && containsAll(answerText, evaluationCase.getRequiredAnswerKeywords())
+                    && containsNone(answerText, evaluationCase.getForbiddenAnswerKeywords()));
             item.setRecommendationPassed(product != null
                     && evaluationCase.getExpectedGoodsId().equals(product.getGoodsId())
                     && decisionResult.getRecommendationResult().isPassedSelfCheck());
@@ -183,6 +185,14 @@ public class GuideEvaluationService {
             }
         }
         return false;
+    }
+
+    private boolean containsNone(String source, List<String> keywords) {
+        if (keywords == null || keywords.isEmpty()) {
+            return true;
+        }
+        String normalized = normalize(source);
+        return keywords.stream().noneMatch(keyword -> normalized.contains(normalize(keyword)));
     }
 
     private String normalize(String source) {
@@ -278,6 +288,10 @@ public class GuideEvaluationService {
 
     private boolean toolCallPassed(AgentPlan agentPlan, GuideEvaluationCase evaluationCase) {
         List<String> actualToolNames = agentPlan.toolNames();
+        List<String> expectedToolOrder = evaluationCase.getExpectedToolOrder();
+        if (expectedToolOrder != null && !expectedToolOrder.isEmpty()) {
+            return actualToolNames.equals(expectedToolOrder);
+        }
         List<String> expectedToolNames = evaluationCase.getExpectedToolNames();
         if (expectedToolNames == null || expectedToolNames.isEmpty()) {
             return !actualToolNames.isEmpty();
@@ -286,6 +300,9 @@ public class GuideEvaluationService {
     }
 
     private boolean toolArgumentPassed(AgentPlan agentPlan) {
+        if (agentPlannerService.hasRuntimePlaceholder(agentPlan)) {
+            return false;
+        }
         return agentPlan.getTools().stream().allMatch(tool -> {
             if (AgentToolRegistry.KNOWLEDGE_SEARCH.equals(tool.getName())
                     || AgentToolRegistry.GUIDE_RECOMMEND.equals(tool.getName())

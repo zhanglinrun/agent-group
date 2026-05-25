@@ -10,7 +10,7 @@
 
 网页端上传后，后端会保存到 `MinIO`（对象存储），解析文本，切分知识片段，并写入 `pgvector`（向量库）。如果没有配置大模型密钥，会自动使用本地兜底向量和回答。
 
-评测用例样本在 `evaluation-cases.json`（评测用例配置），可以通过环境变量指定：
+评测用例样本在 `evaluation-cases.json`（评测用例配置），当前覆盖 30 个导购、拼团、售后、订单和多轮追问场景。用例里包含期望工具顺序、期望关键词和禁答关键词，可以通过环境变量指定：
 
 ```powershell
 $env:AGENT_GROUP_EVALUATE_CASE_FILE="N:\java_project\agent-group\docs\sample-knowledge\evaluation-cases.json"

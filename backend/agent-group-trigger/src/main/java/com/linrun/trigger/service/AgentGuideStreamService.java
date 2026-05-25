@@ -29,6 +29,7 @@ import com.linrun.domain.conversation.service.KnowledgeSearchToolService;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
 import com.linrun.domain.marketing.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
@@ -37,6 +38,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,6 +56,7 @@ public class AgentGuideStreamService {
     private final GroupBuyActivityService groupBuyActivityService;
     private final ToolExecutor toolExecutor;
     private final OrderStatusToolService orderStatusToolService;
+    private final AgentObservabilityMetrics metrics;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
                                    GuideRagAnswerService guideRagAnswerService,
@@ -64,6 +67,22 @@ public class AgentGuideStreamService {
                                    GroupBuyActivityService groupBuyActivityService,
                                    ToolExecutor toolExecutor,
                                    OrderStatusToolService orderStatusToolService) {
+        this(guideDecisionService, guideRagAnswerService, guideConversationService, guideImageInputService,
+                agentPlannerService, knowledgeSearchToolService, groupBuyActivityService, toolExecutor,
+                orderStatusToolService, AgentObservabilityMetrics.noop());
+    }
+
+    @Autowired
+    public AgentGuideStreamService(GuideDecisionService guideDecisionService,
+                                   GuideRagAnswerService guideRagAnswerService,
+                                   GuideConversationService guideConversationService,
+                                   GuideImageInputService guideImageInputService,
+                                   AgentPlannerService agentPlannerService,
+                                   KnowledgeSearchToolService knowledgeSearchToolService,
+                                   GroupBuyActivityService groupBuyActivityService,
+                                   ToolExecutor toolExecutor,
+                                   OrderStatusToolService orderStatusToolService,
+                                   AgentObservabilityMetrics metrics) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
         this.guideConversationService = guideConversationService;
@@ -73,6 +92,7 @@ public class AgentGuideStreamService {
         this.groupBuyActivityService = groupBuyActivityService;
         this.toolExecutor = toolExecutor;
         this.orderStatusToolService = orderStatusToolService;
+        this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
@@ -131,7 +151,8 @@ public class AgentGuideStreamService {
 
         if (StringUtils.hasText(imageSummary)) {
             if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                    toolCall(imageExecution, "已解析图片输入：" + imageSummary))) {
+                    toolCall(imageExecution, "已解析图片输入：" + imageSummary,
+                            Map.of("imageUrl", nullToBlank(request.getImageUrl()))))) {
                 return;
             }
         }
@@ -170,7 +191,8 @@ public class AgentGuideStreamService {
                     "已检索知识库片段",
                     () -> knowledgeSearchToolService.search(effectiveQuestion));
             if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                    toolCall(knowledgeExecution, knowledgeSearchMessage(knowledgeExecution)))) {
+                    toolCall(knowledgeExecution, knowledgeSearchMessage(knowledgeExecution),
+                            Map.of("question", effectiveQuestion, "limit", "3")))) {
                 return;
             }
             if (!knowledgeExecution.isSuccess()) {
@@ -192,7 +214,8 @@ public class AgentGuideStreamService {
                 "已完成商品推荐、候选排序和决策自检",
                 () -> guideDecisionService.decide(effectiveQuestion));
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                toolCall(decisionExecution, decisionExecution.getMessage()))) {
+                toolCall(decisionExecution, decisionExecution.getMessage(),
+                        Map.of("question", effectiveQuestion)))) {
             return;
         }
 
@@ -207,6 +230,7 @@ public class AgentGuideStreamService {
                     error("DATA_0001", "导购数据源不可用，请先启动本地 Docker 基础设施并初始化数据"));
             return;
         }
+        agentPlannerService.fillRuntimeArguments(agentPlan, decisionResult);
 
         if (searchedReferences.isEmpty()) {
             for (GuideReference reference : decisionResult.getReferences()) {
@@ -225,7 +249,8 @@ public class AgentGuideStreamService {
                     "已完成拼团试算",
                     () -> groupBuyActivityService.trial(decisionResult.getProduct().getGoodsId()));
             if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                    toolCall(groupTrialExecution, groupTrialMessage(groupTrialExecution)))) {
+                    toolCall(groupTrialExecution, groupTrialMessage(groupTrialExecution),
+                            Map.of("goodsId", decisionResult.getProduct().getGoodsId())))) {
                 return;
             }
         }
@@ -286,7 +311,7 @@ public class AgentGuideStreamService {
                 "已查询订单状态",
                 () -> orderStatusToolService.queryOrderStatusByQuestion(effectiveQuestion, request.getUserId()));
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
-                toolCall(orderExecution, orderExecution.getMessage()))) {
+                toolCall(orderExecution, orderExecution.getMessage(), Map.of("queryMode", "question")))) {
             return;
         }
         if (!orderExecution.isSuccess()) {
@@ -332,11 +357,16 @@ public class AgentGuideStreamService {
     }
 
     private ToolCallDTO toolCall(ToolExecution<?> execution, String message) {
+        return toolCall(execution, message, Map.of());
+    }
+
+    private ToolCallDTO toolCall(ToolExecution<?> execution, String message, Map<String, String> arguments) {
         ToolCallDTO dto = new ToolCallDTO();
         dto.setToolName(execution.getToolName());
         dto.setAction(execution.getAction());
         dto.setStatus(execution.getStatus());
         dto.setMessage(message);
+        dto.setArguments(arguments);
         dto.setLatencyMillis(execution.getLatencyMillis());
         return dto;
     }
@@ -355,7 +385,7 @@ public class AgentGuideStreamService {
         }
         GroupBuyTrialResult result = execution.getResult();
         if (result.isAvailable()) {
-            return "已完成拼团试算：拼团价 " + result.getGroupPrice()
+            return "已完成拼团试算：商品 " + result.getGoodsId() + " 拼团价 " + result.getGroupPrice()
                     + "，" + result.getTeamSize() + " 人成团";
         }
         return "已完成拼团试算：" + result.getMessage();
@@ -407,6 +437,8 @@ public class AgentGuideStreamService {
         dto.setLlmLatencyMillis(answerResult.getLlmLatencyMillis());
         dto.setTotalLatencyMillis(totalLatencyMillis);
         dto.setFallbackUsed(answerResult.isFallbackUsed());
+        metrics.recordGuideUsage(answerResult.getLlmLatencyMillis(), totalLatencyMillis,
+                tokenUsage.getTotalTokens(), tokenUsage.getEstimatedCostYuan(), answerResult.isFallbackUsed());
         return dto;
     }
 
@@ -419,6 +451,7 @@ public class AgentGuideStreamService {
         dto.setLlmLatencyMillis(0L);
         dto.setTotalLatencyMillis(totalLatencyMillis);
         dto.setFallbackUsed(false);
+        metrics.recordGuideUsage(0L, totalLatencyMillis, 0L, java.math.BigDecimal.ZERO, false);
         return dto;
     }
 
@@ -431,5 +464,9 @@ public class AgentGuideStreamService {
         dto.setCode(code);
         dto.setMessage(message);
         return dto;
+    }
+
+    private String nullToBlank(String value) {
+        return value == null ? "" : value;
     }
 }

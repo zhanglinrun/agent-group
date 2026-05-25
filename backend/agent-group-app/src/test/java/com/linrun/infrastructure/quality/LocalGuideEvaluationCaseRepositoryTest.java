@@ -17,15 +17,16 @@ class LocalGuideEvaluationCaseRepositoryTest {
     Path tempDir;
 
     @Test
-    void shouldProvideTwentyOneTypicalGuideEvaluationCases() {
+    void shouldProvideThirtyTypicalGuideEvaluationCases() {
         LocalGuideEvaluationCaseRepository repository = new LocalGuideEvaluationCaseRepository();
 
         List<GuideEvaluationCase> cases = repository.queryEnabledCases();
 
-        assertEquals(21, cases.size());
+        assertEquals(30, cases.size());
         assertTrue(cases.stream().anyMatch(GuideEvaluationCase::isContextRequired));
-        assertTrue(cases.stream().anyMatch(evaluationCase -> "EV10021".equals(evaluationCase.getCaseId())));
+        assertTrue(cases.stream().anyMatch(evaluationCase -> "EV10030".equals(evaluationCase.getCaseId())));
         assertTrue(cases.stream().allMatch(evaluationCase -> "G10001".equals(evaluationCase.getExpectedGoodsId())));
+        assertTrue(cases.stream().allMatch(evaluationCase -> !evaluationCase.getExpectedToolOrder().isEmpty()));
     }
 
     @Test

@@ -15,7 +15,10 @@ public class GuideEvaluationCase {
     private boolean contextRequired;
     private List<String> requiredReferenceKeywords = new ArrayList<>();
     private List<String> requiredAnswerKeywords = new ArrayList<>();
+    private List<String> forbiddenAnswerKeywords = new ArrayList<>();
     private List<String> expectedToolNames = new ArrayList<>();
+    private List<String> expectedToolOrder = new ArrayList<>();
+    private List<String> scenarioTags = new ArrayList<>();
 
     public String getCaseId() {
         return caseId;
@@ -70,7 +73,7 @@ public class GuideEvaluationCase {
     }
 
     public void setRequiredReferenceKeywords(List<String> requiredReferenceKeywords) {
-        this.requiredReferenceKeywords = requiredReferenceKeywords;
+        this.requiredReferenceKeywords = requiredReferenceKeywords == null ? new ArrayList<>() : new ArrayList<>(requiredReferenceKeywords);
     }
 
     public List<String> getRequiredAnswerKeywords() {
@@ -78,7 +81,15 @@ public class GuideEvaluationCase {
     }
 
     public void setRequiredAnswerKeywords(List<String> requiredAnswerKeywords) {
-        this.requiredAnswerKeywords = requiredAnswerKeywords;
+        this.requiredAnswerKeywords = requiredAnswerKeywords == null ? new ArrayList<>() : new ArrayList<>(requiredAnswerKeywords);
+    }
+
+    public List<String> getForbiddenAnswerKeywords() {
+        return forbiddenAnswerKeywords;
+    }
+
+    public void setForbiddenAnswerKeywords(List<String> forbiddenAnswerKeywords) {
+        this.forbiddenAnswerKeywords = forbiddenAnswerKeywords == null ? new ArrayList<>() : new ArrayList<>(forbiddenAnswerKeywords);
     }
 
     public List<String> getExpectedToolNames() {
@@ -87,5 +98,21 @@ public class GuideEvaluationCase {
 
     public void setExpectedToolNames(List<String> expectedToolNames) {
         this.expectedToolNames = expectedToolNames == null ? new ArrayList<>() : new ArrayList<>(expectedToolNames);
+    }
+
+    public List<String> getExpectedToolOrder() {
+        return expectedToolOrder;
+    }
+
+    public void setExpectedToolOrder(List<String> expectedToolOrder) {
+        this.expectedToolOrder = expectedToolOrder == null ? new ArrayList<>() : new ArrayList<>(expectedToolOrder);
+    }
+
+    public List<String> getScenarioTags() {
+        return scenarioTags;
+    }
+
+    public void setScenarioTags(List<String> scenarioTags) {
+        this.scenarioTags = scenarioTags == null ? new ArrayList<>() : new ArrayList<>(scenarioTags);
     }
 }

@@ -2,6 +2,7 @@ package com.linrun.domain.conversation.service;
 
 import com.linrun.domain.conversation.model.AgentPlan;
 import com.linrun.domain.conversation.model.AgentToolCall;
+import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideIntent;
 import com.linrun.domain.conversation.model.GuideIntentType;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ import java.util.regex.Pattern;
 @Service
 public class AgentPlannerService {
 
-    private static final String RECOMMENDED_GOODS_ID = "${recommendedGoodsId}";
+    public static final String RECOMMENDED_GOODS_ID_PLACEHOLDER = "${recommendedGoodsId}";
     private static final Pattern ORDER_ID_PATTERN = Pattern.compile("[OP]\\d{4,}");
 
     private final GuideDecisionService guideDecisionService;
@@ -54,10 +55,32 @@ public class AgentPlannerService {
                 "结合用户预算、场景和知识片段完成商品排序。"));
         if (shouldTrialGroup(question, intent)) {
             tools.add(AgentToolCall.of(AgentToolRegistry.GROUP_TRIAL,
-                    arguments("goodsId", RECOMMENDED_GOODS_ID),
+                    arguments("goodsId", RECOMMENDED_GOODS_ID_PLACEHOLDER),
                     "涉及价格或拼团时，必须用后端活动服务试算真实拼团信息。"));
         }
         return tools;
+    }
+
+    public AgentPlan fillRuntimeArguments(AgentPlan plan, GuideDecisionResult decisionResult) {
+        if (plan == null || decisionResult == null || decisionResult.getProduct() == null
+                || !StringUtils.hasText(decisionResult.getProduct().getGoodsId())) {
+            return plan;
+        }
+        for (AgentToolCall tool : plan.getTools()) {
+            if (AgentToolRegistry.GROUP_TRIAL.equals(tool.getName())
+                    && RECOMMENDED_GOODS_ID_PLACEHOLDER.equals(tool.getArguments().get("goodsId"))) {
+                tool.getArguments().put("goodsId", decisionResult.getProduct().getGoodsId());
+            }
+        }
+        return plan;
+    }
+
+    public boolean hasRuntimePlaceholder(AgentPlan plan) {
+        if (plan == null) {
+            return false;
+        }
+        return plan.getTools().stream()
+                .anyMatch(tool -> tool.getArguments().containsValue(RECOMMENDED_GOODS_ID_PLACEHOLDER));
     }
 
     private boolean shouldTrialGroup(String question, GuideIntent intent) {

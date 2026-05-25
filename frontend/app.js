@@ -344,7 +344,8 @@ function handleGuideEvent(event) {
   }
 
   if (event.event === "tool_call") {
-    addToolEvent(event.data?.message || "后端正在执行导购步骤");
+    const args = formatToolArguments(event.data?.arguments);
+    addToolEvent(`${event.data?.message || "后端正在执行导购步骤"}${args ? `（${args}）` : ""}`);
     return;
   }
 
@@ -499,6 +500,26 @@ function appendAnswer(text) {
   if (stream) {
     stream.scrollTop = stream.scrollHeight;
   }
+}
+
+function formatToolArguments(argumentsMap) {
+  if (!argumentsMap || typeof argumentsMap !== "object") {
+    return "";
+  }
+  return Object.entries(argumentsMap)
+    .filter(([key, value]) => key && value && String(value).length <= 32)
+    .map(([key, value]) => `${toolArgumentLabel(key)}: ${value}`)
+    .join("，");
+}
+
+function toolArgumentLabel(key) {
+  const labels = {
+    goodsId: "商品编号",
+    limit: "检索条数",
+    imageUrl: "图片",
+    queryMode: "查询方式"
+  };
+  return labels[key] || key;
 }
 
 function appendAnswerChunk(text) {

@@ -1,0 +1,197 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (tool, status) (rate(agent_group_tool_call_total[5m]))",
+          "legendFormat": "{{tool}} / {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "工具调用速率",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (tool) (rate(agent_group_tool_call_latency_sum[5m])) / sum by (tool) (rate(agent_group_tool_call_latency_count[5m])) * 1000",
+          "legendFormat": "{{tool}}",
+          "refId": "A"
+        }
+      ],
+      "title": "工具平均耗时",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(agent_group_guide_llm_latency_sum[5m]) / rate(agent_group_guide_llm_latency_count[5m]) * 1000",
+          "legendFormat": "llm",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(agent_group_guide_total_latency_sum[5m]) / rate(agent_group_guide_total_latency_count[5m]) * 1000",
+          "legendFormat": "total",
+          "refId": "B"
+        }
+      ],
+      "title": "导购端到端耗时",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(agent_group_vector_local_fallback_total[5m]))",
+          "legendFormat": "vector fallback",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(agent_group_embedding_fallback_total[5m]))",
+          "legendFormat": "embedding fallback",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(agent_group_guide_fallback_total[5m]))",
+          "legendFormat": "guide fallback",
+          "refId": "C"
+        }
+      ],
+      "title": "回退次数",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": [
+    "agent-group",
+    "agent"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Agent Group 运行观测",
+  "uid": "agent-group-agent-observability",
+  "version": 1,
+  "weekStart": ""
+}

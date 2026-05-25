@@ -81,6 +81,9 @@ class AgentGuideStreamServiceTest {
         assertEquals(Boolean.TRUE, selfCheck.getPassed());
         GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(12).getData());
         assertTrue(usageMetrics.getTotalLatencyMillis() >= 0);
+        ToolCallDTO groupTrialTool = assertInstanceOf(ToolCallDTO.class, events.get(5).getData());
+        assertEquals("group_trial", groupTrialTool.getToolName());
+        assertEquals("G10001", groupTrialTool.getArguments().get("goodsId"));
         assertEquals("推荐商品、价格、规格和推荐理由完整", selfCheck.getMessage());
     }
 

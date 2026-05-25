@@ -89,7 +89,25 @@ public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRe
                 evaluationCase("EV10020", "订单查询意图", "我想查订单和支付状态",
                         GuideIntentType.ORDER_QUERY, false, List.of("商品"), List.of("商品")),
                 evaluationCase("EV10021", "拼团失败追问", "刚才那个拼团失败后会怎么处理？",
-                        GuideIntentType.AFTER_SALE, true, List.of("未成团", "退款"), List.of("退款"))
+                        GuideIntentType.AFTER_SALE, true, List.of("未成团", "退款"), List.of("退款")),
+                evaluationCase("EV10022", "预算上限导购", "预算 2500 以内，主要写论文和看网课，推荐哪款",
+                        GuideIntentType.PRODUCT_COMPARE, false, List.of("论文", "网课"), List.of("2099")),
+                evaluationCase("EV10023", "直接价拼团价一致性", "标准版直接买和拼团买分别多少钱",
+                        GuideIntentType.GROUP_RULE, false, List.of("原价", "拼团价"), List.of("2399", "2099")),
+                evaluationCase("EV10024", "支付不等于成团", "支付成功是不是就一定成团了",
+                        GuideIntentType.GROUP_RULE, false, List.of("支付成功", "成团"), List.of("成团")),
+                evaluationCase("EV10025", "幂等锁单规则", "我重复点拼团购买会不会占两个名额",
+                        GuideIntentType.GROUP_RULE, false, List.of("幂等", "重复"), List.of("不重复")),
+                evaluationCase("EV10026", "高配创作推荐", "预算够，主要绘图和剪视频，应该买哪款",
+                        GuideIntentType.PRODUCT_COMPARE, false, List.of("高配", "剪视频"), List.of("高配")),
+                evaluationCase("EV10027", "高配拼团信息", "高配创作平板拼团要几个人，价格是多少",
+                        GuideIntentType.GROUP_RULE, false, List.of("高配", "5 人"), List.of("2899")),
+                evaluationCase("EV10028", "活动不可用兜底", "如果活动过期或者队伍满了还能生成拼团入口吗",
+                        GuideIntentType.GROUP_RULE, false, List.of("过期", "队伍已满"), List.of("不能")),
+                evaluationCase("EV10029", "退货质保组合", "不合适退货和质量保修分别怎么算",
+                        GuideIntentType.AFTER_SALE, false, List.of("7 天", "1 年"), List.of("7 天", "1 年")),
+                evaluationCase("EV10030", "订单状态防编造", "查一下订单 O10001 现在是不是已成团",
+                        GuideIntentType.ORDER_QUERY, false, List.of(), List.of("订单"))
         );
     }
 
@@ -128,7 +146,10 @@ public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRe
         evaluationCase.setContextRequired(contextRequired);
         evaluationCase.setRequiredReferenceKeywords(referenceKeywords);
         evaluationCase.setRequiredAnswerKeywords(answerKeywords);
-        evaluationCase.setExpectedToolNames(expectedToolNames(question, expectedIntentType));
+        List<String> toolNames = expectedToolNames(question, expectedIntentType);
+        evaluationCase.setExpectedToolNames(toolNames);
+        evaluationCase.setExpectedToolOrder(toolNames);
+        evaluationCase.setScenarioTags(List.of(expectedIntentType.name()));
         return evaluationCase;
     }
 
