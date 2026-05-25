@@ -1,9 +1,9 @@
 package com.linrun.trigger.service;
 
 import com.linrun.domain.conversation.model.AgentToolDefinition;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -14,13 +14,13 @@ import java.util.function.Supplier;
 public class ToolExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolExecutor.class);
-    private final AgentObservabilityMetrics metrics;
+    @Resource
+    private AgentObservabilityMetrics metrics;
 
     public ToolExecutor() {
         this(AgentObservabilityMetrics.noop());
     }
 
-    @Autowired
     public ToolExecutor(AgentObservabilityMetrics metrics) {
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
     }

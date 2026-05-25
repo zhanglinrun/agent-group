@@ -7,7 +7,6 @@ import com.linrun.domain.quality.adapter.GuideEvaluationCaseRepository;
 import com.linrun.domain.quality.model.GuideEvaluationCase;
 import com.linrun.domain.conversation.model.GuideIntentType;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -21,14 +20,14 @@ import java.util.List;
 public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRepository {
 
     private static final String GOODS_ID = "G10001";
-    private final ObjectMapper objectMapper;
-    private final String caseFile;
+    private ObjectMapper objectMapper;
+    @Value("${agent.group.evaluate.case-file:}")
+    private String caseFile;
 
     public LocalGuideEvaluationCaseRepository() {
         this(new ObjectMapper(), "");
     }
 
-    @Autowired
     public LocalGuideEvaluationCaseRepository(@Value("${agent.group.evaluate.case-file:}") String caseFile) {
         this(new ObjectMapper(), caseFile);
     }

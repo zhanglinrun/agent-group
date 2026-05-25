@@ -3,9 +3,10 @@ package com.linrun.infrastructure.knowledgeasset.vector;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragmentStatus;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -27,17 +28,26 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
     private static final Logger LOGGER = LoggerFactory.getLogger(LocalKnowledgeVectorRepository.class);
 
     private final Map<String, VectorRecord> vectorRecords = new ConcurrentHashMap<>();
-    private final String jdbcUrl;
-    private final String username;
-    private final String password;
-    private final boolean localFallbackEnabled;
-    private final KnowledgeVectorMetrics metrics;
+    @Value("${agent.group.vector.host:}")
+    private String host;
+    @Value("${agent.group.vector.port:15432}")
+    private int port = 15432;
+    @Value("${agent.group.vector.database:}")
+    private String database;
+    @Value("${agent.group.vector.username:}")
+    private String username;
+    @Value("${agent.group.vector.password:}")
+    private String password;
+    @Value("${agent.group.vector.local-fallback-enabled:true}")
+    private boolean localFallbackEnabled = true;
+    @Resource
+    private KnowledgeVectorMetrics metrics = KnowledgeVectorMetrics.noop();
+    private String jdbcUrl = "";
 
     public LocalKnowledgeVectorRepository() {
         this("", "", "", true, KnowledgeVectorMetrics.noop());
     }
 
-    @Autowired
     public LocalKnowledgeVectorRepository(@Value("${agent.group.vector.host:}") String host,
                                           @Value("${agent.group.vector.port:15432}") int port,
                                           @Value("${agent.group.vector.database:}") String database,
@@ -72,6 +82,13 @@ public class LocalKnowledgeVectorRepository implements KnowledgeVectorRepository
         this.password = password;
         this.localFallbackEnabled = localFallbackEnabled;
         this.metrics = metrics == null ? KnowledgeVectorMetrics.noop() : metrics;
+    }
+
+    @PostConstruct
+    private void initJdbcUrl() {
+        if (!StringUtils.hasText(jdbcUrl) && StringUtils.hasText(host) && StringUtils.hasText(database)) {
+            jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + database;
+        }
     }
 
     @Override

@@ -477,15 +477,15 @@
   },
   {
     "caseId": "SAMPLE-EV-035",
-    "caseName": "决策快照下单",
-    "question": "为什么下单前需要导购决策编号？",
+    "caseName": "导购报价凭证下单",
+    "question": "为什么下单前需要导购报价凭证和决策编号？",
     "expectedIntentType": "GROUP_RULE",
     "expectedGoodsId": "G10001",
     "contextRequired": false,
     "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "expectedToolOrder": ["knowledge_search", "guide_recommend", "group_trial"],
     "scenarioTags": ["交易", "一致性"],
-    "requiredReferenceKeywords": ["导购决策编号", "订单金额"],
+    "requiredReferenceKeywords": ["导购报价凭证", "导购决策编号", "订单金额"],
     "requiredAnswerKeywords": ["一致", "重新校验"],
     "forbiddenAnswerKeywords": ["可以不校验"]
   },
@@ -499,7 +499,7 @@
     "expectedToolNames": ["knowledge_search", "guide_recommend", "group_trial"],
     "expectedToolOrder": ["knowledge_search", "guide_recommend", "group_trial"],
     "scenarioTags": ["交易", "报价"],
-    "requiredReferenceKeywords": ["导购快照", "活动"],
+    "requiredReferenceKeywords": ["导购报价凭证", "活动"],
     "requiredAnswerKeywords": ["过期", "重新"],
     "forbiddenAnswerKeywords": ["永远有效"]
   },

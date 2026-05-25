@@ -3,9 +3,9 @@ package com.linrun.infrastructure.conversation.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.conversation.adapter.GuideConversationRepository;
 import com.linrun.domain.conversation.model.GuideConversationMessage;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,12 +23,16 @@ public class RedisGuideConversationRepository implements GuideConversationReposi
     private static final int MAX_SESSION_MESSAGES = 20;
     private static final Duration SESSION_TTL = Duration.ofHours(6);
 
-    private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
-    private final LocalGuideConversationRepository fallbackRepository;
-    private final String keyPrefix;
+    @Resource(name = "stringRedisTemplate")
+    private StringRedisTemplate redisTemplate;
+    private ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private LocalGuideConversationRepository fallbackRepository = new LocalGuideConversationRepository();
+    @Value("${agent.group.redis.key-prefix:agent-group}")
+    private String keyPrefix = "agent-group";
 
-    @Autowired
+    public RedisGuideConversationRepository() {
+    }
+
     public RedisGuideConversationRepository(StringRedisTemplate redisTemplate,
                                             @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
         this(redisTemplate, new ObjectMapper().findAndRegisterModules(), new LocalGuideConversationRepository(),

@@ -16,7 +16,7 @@ import com.linrun.domain.knowledgeasset.service.KnowledgeDocumentParser;
 import com.linrun.domain.knowledgeasset.service.KnowledgeDocumentService;
 import com.linrun.domain.knowledgeasset.service.KnowledgeVectorService;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,12 +45,18 @@ public class KnowledgeDocumentUploadService {
             "text/plain",
             "text/markdown");
 
-    private final KnowledgeDocumentService knowledgeDocumentService;
-    private final KnowledgeDocumentParser knowledgeDocumentParser;
-    private final KnowledgeDocumentRepository knowledgeDocumentRepository;
-    private final KnowledgeVectorService knowledgeVectorService;
-    private final KnowledgeObjectStorageClient knowledgeObjectStorageClient;
-    private final KnowledgeDocumentTextExtractor knowledgeDocumentTextExtractor;
+    @Resource
+    private KnowledgeDocumentService knowledgeDocumentService;
+    @Resource
+    private KnowledgeDocumentParser knowledgeDocumentParser;
+    @Resource
+    private KnowledgeDocumentRepository knowledgeDocumentRepository;
+    @Resource
+    private KnowledgeVectorService knowledgeVectorService;
+    @Resource
+    private KnowledgeObjectStorageClient knowledgeObjectStorageClient;
+    @Resource
+    private KnowledgeDocumentTextExtractor knowledgeDocumentTextExtractor;
 
     @Value("${agent.group.upload.allowed-extensions:md,txt,pdf,docx}")
     private String allowedExtensions = "md,txt,pdf,docx";
@@ -58,7 +64,9 @@ public class KnowledgeDocumentUploadService {
     @Value("${agent.group.upload.max-file-size-bytes:10485760}")
     private long maxFileSizeBytes = 10 * 1024 * 1024L;
 
-    @Autowired
+    public KnowledgeDocumentUploadService() {
+    }
+
     public KnowledgeDocumentUploadService(KnowledgeDocumentService knowledgeDocumentService,
                                           KnowledgeDocumentParser knowledgeDocumentParser,
                                           KnowledgeDocumentRepository knowledgeDocumentRepository,

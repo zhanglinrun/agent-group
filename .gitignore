@@ -45,6 +45,4 @@ logs/
 .DS_Store
 doc/design/
 
-!doc/design/11_导购接口契约.md
-!doc/design/12_基础设施容器方案.md
-!doc/design/13_统一异常和日志.md
+study

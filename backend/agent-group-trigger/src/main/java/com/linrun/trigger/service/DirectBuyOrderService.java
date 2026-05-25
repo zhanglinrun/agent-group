@@ -14,7 +14,7 @@ import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -27,11 +27,19 @@ public class DirectBuyOrderService {
 
     private static final String DEFAULT_PAY_CHANNEL = "MOCK_PAY";
 
-    private final GuideDataRepository guideDataRepository;
-    private final TradeOrderRepository tradeOrderRepository;
-    private final TradeOrderService tradeOrderService;
-    private final TradeStatusFlowService tradeStatusFlowService;
-    private final GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
+    @Resource
+    private GuideDataRepository guideDataRepository;
+    @Resource
+    private TradeOrderRepository tradeOrderRepository;
+    @Resource
+    private TradeOrderService tradeOrderService;
+    @Resource
+    private TradeStatusFlowService tradeStatusFlowService;
+    @Resource
+    private GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
+
+    public DirectBuyOrderService() {
+    }
 
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
                                  TradeOrderRepository tradeOrderRepository,
@@ -41,7 +49,6 @@ public class DirectBuyOrderService {
                 GuideDecisionSnapshotRepository.noop());
     }
 
-    @Autowired
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,

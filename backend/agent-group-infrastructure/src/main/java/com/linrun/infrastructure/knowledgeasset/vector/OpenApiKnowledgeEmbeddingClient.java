@@ -4,9 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeEmbeddingClient;
 import com.linrun.infrastructure.llm.OpenApiEndpointSupport;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -27,17 +28,27 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenApiKnowledgeEmbeddingClient.class);
 
-    private final String baseUrl;
-    private final String apiKey;
-    private final String embeddingModel;
-    private final int dimension;
-    private final Duration timeout;
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
-    private final LocalKnowledgeEmbeddingClient fallbackClient;
-    private final KnowledgeVectorMetrics metrics;
+    @Value("${agent.group.llm.base-url:}")
+    private String baseUrl;
+    @Value("${agent.group.llm.api-key:}")
+    private String apiKey;
+    @Value("${agent.group.llm.embedding-model:text-embedding-v4}")
+    private String embeddingModel;
+    @Value("${agent.group.vector.dimension:1024}")
+    private int dimension = 1024;
+    @Value("${agent.group.llm.timeout-seconds:20}")
+    private long timeoutSeconds = 20L;
+    private Duration timeout = Duration.ofSeconds(20);
+    private HttpClient httpClient = HttpClient.newHttpClient();
+    private ObjectMapper objectMapper = new ObjectMapper();
+    @Resource
+    private LocalKnowledgeEmbeddingClient fallbackClient;
+    @Resource
+    private KnowledgeVectorMetrics metrics = KnowledgeVectorMetrics.noop();
 
-    @Autowired
+    public OpenApiKnowledgeEmbeddingClient() {
+    }
+
     public OpenApiKnowledgeEmbeddingClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                            @Value("${agent.group.llm.api-key:}") String apiKey,
                                            @Value("${agent.group.llm.embedding-model:text-embedding-v4}") String embeddingModel,
@@ -89,6 +100,12 @@ public class OpenApiKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient
         this.objectMapper = objectMapper;
         this.fallbackClient = fallbackClient;
         this.metrics = metrics == null ? KnowledgeVectorMetrics.noop() : metrics;
+    }
+
+    @PostConstruct
+    private void initTimeout() {
+        this.timeout = Duration.ofSeconds(Math.max(1L, timeoutSeconds));
+        this.dimension = Math.max(16, dimension);
     }
 
     @Override

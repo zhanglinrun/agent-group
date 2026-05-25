@@ -23,7 +23,7 @@ import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,15 +39,27 @@ public class GroupBuyLockOrderService {
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final String DEFAULT_PAY_CHANNEL = "MOCK_PAY";
 
-    private final GuideDataRepository guideDataRepository;
-    private final GroupBuyActivityRepository groupBuyActivityRepository;
-    private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
-    private final GroupBuyStockRepository groupBuyStockRepository;
-    private final GroupBuyTeamStockRepository groupBuyTeamStockRepository;
-    private final TradeOrderRepository tradeOrderRepository;
-    private final TradeOrderService tradeOrderService;
-    private final TradeStatusFlowService tradeStatusFlowService;
-    private final GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
+    @Resource
+    private GuideDataRepository guideDataRepository;
+    @Resource
+    private GroupBuyActivityRepository groupBuyActivityRepository;
+    @Resource
+    private GroupBuyOrderLockRepository groupBuyOrderLockRepository;
+    @Resource
+    private GroupBuyStockRepository groupBuyStockRepository;
+    @Resource
+    private GroupBuyTeamStockRepository groupBuyTeamStockRepository;
+    @Resource
+    private TradeOrderRepository tradeOrderRepository;
+    @Resource
+    private TradeOrderService tradeOrderService;
+    @Resource
+    private TradeStatusFlowService tradeStatusFlowService;
+    @Resource
+    private GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
+
+    public GroupBuyLockOrderService() {
+    }
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -85,7 +97,6 @@ public class GroupBuyLockOrderService {
                 GuideDecisionSnapshotRepository.noop());
     }
 
-    @Autowired
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,

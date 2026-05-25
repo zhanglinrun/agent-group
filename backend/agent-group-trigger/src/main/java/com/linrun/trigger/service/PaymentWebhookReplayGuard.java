@@ -4,7 +4,7 @@ import com.linrun.domain.payment.adapter.PaymentWebhookReplayRepository;
 import com.linrun.domain.payment.model.PaymentChannel;
 import com.linrun.domain.payment.model.PaymentWebhookResult;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,16 +17,20 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class PaymentWebhookReplayGuard {
 
-    private final long replayWindowSeconds;
-    private final PaymentWebhookReplayRepository replayRepository;
+    @Value("${agent.group.payment.webhook.replay-window-seconds:300}")
+    private long replayWindowSeconds = 300L;
+    @Resource
+    private PaymentWebhookReplayRepository replayRepository;
     private final Map<String, LocalDateTime> processingEvents = new ConcurrentHashMap<>();
+
+    public PaymentWebhookReplayGuard() {
+    }
 
     public PaymentWebhookReplayGuard(long replayWindowSeconds) {
         this.replayWindowSeconds = replayWindowSeconds;
         this.replayRepository = null;
     }
 
-    @Autowired
     public PaymentWebhookReplayGuard(
             @Value("${agent.group.payment.webhook.replay-window-seconds:300}") long replayWindowSeconds,
             PaymentWebhookReplayRepository replayRepository) {

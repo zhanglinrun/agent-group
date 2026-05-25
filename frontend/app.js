@@ -653,7 +653,7 @@ function renderProduct(product) {
 async function startPurchase(product, mode) {
   if (!product.decisionId) {
     setText("#tradeState", "需要后端决策");
-    pushTradeStep("请先连接后端完成一次真实导购，系统会生成导购决策编号后才能下单。", "warn");
+    pushTradeStep("请先连接后端完成一次真实导购，系统会生成导购报价凭证后才能下单。", "warn");
     return;
   }
   saveCheckoutSession(product, mode);
@@ -714,7 +714,7 @@ function renderCheckoutProduct(checkout) {
   setText("#checkoutOrigin", `原价 ￥${product.originPrice}`);
   setText("#checkoutGroup", `拼团价 ￥${product.groupPrice}`);
   setText("#checkoutTeam", isGroup ? `${product.teamSize || 1} 人成团 · ${product.leftTime || "活动进行中"}` : "直接购买无需等待成团");
-  setText("#checkoutStatus", product.decisionId ? "待提交" : "缺少导购决策");
+  setText("#checkoutStatus", product.decisionId ? "待提交" : "缺少报价凭证");
   setDisabled("#confirmOrderBtn", !product.decisionId);
   setDisabled("#mockPayBtn", true);
   setDisabled("#refreshFlowBtn", true);
@@ -898,7 +898,7 @@ function upsertOrderForAdmin(order) {
 async function runInlinePurchase(product, mode) {
   if (!product.decisionId) {
     setText("#tradeState", "需要后端决策");
-    pushTradeStep("当前商品缺少导购决策编号，请先完成后端导购流式推荐。", "warn");
+    pushTradeStep("当前商品缺少导购报价凭证，请先完成后端导购流式推荐。", "warn");
     return;
   }
   const isGroup = mode === "group";

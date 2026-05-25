@@ -3,9 +3,9 @@ package com.linrun.infrastructure.llm;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.conversation.adapter.GuideImageRecognitionClient;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -27,14 +27,21 @@ public class OpenApiGuideImageRecognitionClient implements GuideImageRecognition
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenApiGuideImageRecognitionClient.class);
 
-    private final String baseUrl;
-    private final String apiKey;
-    private final String visionModel;
-    private final Duration timeout;
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
+    @Value("${agent.group.llm.base-url:}")
+    private String baseUrl;
+    @Value("${agent.group.llm.api-key:}")
+    private String apiKey;
+    @Value("${agent.group.llm.vision-model:qwen3-vl-plus}")
+    private String visionModel;
+    @Value("${agent.group.llm.timeout-seconds:20}")
+    private long timeoutSeconds = 20L;
+    private Duration timeout = Duration.ofSeconds(20);
+    private HttpClient httpClient = HttpClient.newHttpClient();
+    private ObjectMapper objectMapper = new ObjectMapper();
 
-    @Autowired
+    public OpenApiGuideImageRecognitionClient() {
+    }
+
     public OpenApiGuideImageRecognitionClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                               @Value("${agent.group.llm.api-key:}") String apiKey,
                                               @Value("${agent.group.llm.vision-model:qwen3-vl-plus}") String visionModel,
@@ -55,6 +62,11 @@ public class OpenApiGuideImageRecognitionClient implements GuideImageRecognition
         this.timeout = timeout;
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    private void initTimeout() {
+        this.timeout = Duration.ofSeconds(Math.max(1L, timeoutSeconds));
     }
 
     @Override

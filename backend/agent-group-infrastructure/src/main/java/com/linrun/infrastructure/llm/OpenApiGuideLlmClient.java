@@ -6,9 +6,9 @@ import com.linrun.domain.conversation.adapter.GuideLlmClient;
 import com.linrun.domain.conversation.model.GuideLlmResult;
 import com.linrun.domain.conversation.model.GuideRagPrompt;
 import com.linrun.domain.conversation.model.GuideTokenUsage;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -39,19 +39,30 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenApiGuideLlmClient.class);
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(20);
 
-    private final String baseUrl;
-    private final String apiKey;
-    private final String chatModel;
-    private final Duration timeout;
-    private final int maxRetries;
-    private final long minIntervalMillis;
-    private final BigDecimal promptTokenPriceYuanPer1k;
-    private final BigDecimal completionTokenPriceYuanPer1k;
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
+    @Value("${agent.group.llm.base-url:}")
+    private String baseUrl;
+    @Value("${agent.group.llm.api-key:}")
+    private String apiKey;
+    @Value("${agent.group.llm.chat-model:qwen-plus}")
+    private String chatModel;
+    @Value("${agent.group.llm.timeout-seconds:20}")
+    private long timeoutSeconds = 20L;
+    @Value("${agent.group.llm.max-retries:2}")
+    private int maxRetries = 2;
+    @Value("${agent.group.llm.min-interval-millis:200}")
+    private long minIntervalMillis = 200L;
+    @Value("${agent.group.llm.prompt-token-price-yuan-per-1k:0}")
+    private BigDecimal promptTokenPriceYuanPer1k = BigDecimal.ZERO;
+    @Value("${agent.group.llm.completion-token-price-yuan-per-1k:0}")
+    private BigDecimal completionTokenPriceYuanPer1k = BigDecimal.ZERO;
+    private Duration timeout = DEFAULT_TIMEOUT;
+    private HttpClient httpClient = HttpClient.newHttpClient();
+    private ObjectMapper objectMapper = new ObjectMapper();
     private final AtomicLong lastCallMillis = new AtomicLong(0L);
 
-    @Autowired
+    public OpenApiGuideLlmClient() {
+    }
+
     public OpenApiGuideLlmClient(@Value("${agent.group.llm.base-url:}") String baseUrl,
                                  @Value("${agent.group.llm.api-key:}") String apiKey,
                                  @Value("${agent.group.llm.chat-model:qwen-plus}") String chatModel,
@@ -103,6 +114,15 @@ public class OpenApiGuideLlmClient implements GuideLlmClient {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
         this.timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
+        this.maxRetries = Math.max(0, maxRetries);
+        this.minIntervalMillis = Math.max(0L, minIntervalMillis);
+        this.promptTokenPriceYuanPer1k = nonNegative(promptTokenPriceYuanPer1k);
+        this.completionTokenPriceYuanPer1k = nonNegative(completionTokenPriceYuanPer1k);
+    }
+
+    @PostConstruct
+    private void initRuntimeConfig() {
+        this.timeout = Duration.ofSeconds(Math.max(1L, timeoutSeconds));
         this.maxRetries = Math.max(0, maxRetries);
         this.minIntervalMillis = Math.max(0L, minIntervalMillis);
         this.promptTokenPriceYuanPer1k = nonNegative(promptTokenPriceYuanPer1k);

@@ -1,7 +1,7 @@
 package com.linrun.domain.conversation.service;
 
 import com.linrun.domain.conversation.adapter.GuideImageRecognitionClient;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -12,13 +12,13 @@ import java.util.Locale;
 @Service
 public class GuideImageInputService {
 
-    private final List<GuideImageRecognitionClient> recognitionClients;
+    @Resource
+    private List<GuideImageRecognitionClient> recognitionClients = List.of();
 
     public GuideImageInputService() {
         this(List.of());
     }
 
-    @Autowired
     public GuideImageInputService(List<GuideImageRecognitionClient> recognitionClients) {
         this.recognitionClients = recognitionClients == null ? List.of() : recognitionClients;
     }

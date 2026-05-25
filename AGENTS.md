@@ -51,43 +51,32 @@
 
 项目还需要建设端到端评测闭环，围绕回答准确率、知识检索精度、多轮对话一致性和推荐合理性做定量评估，再反向优化 `Prompt`（提示词）策略和知识库内容。
 
-## 参考项目
-本仓库参考三个本地项目的能力，但不是简单合并代码：
-
-- `N:\java_project\xiaoxiongagent`（小熊智能体项目）：参考智能体、文件上传、知识库、流式回答、多模态解析等能力。
-- `N:\java_project\s-pay-mall-ddd-market`（支付商城项目）：参考商品下单、支付回调、订单查询、退款处理等交易链路。
-- `N:\java_project\group-buy-market`（拼团参考项目）：参考拼团试算、锁单、成团结算、退款补偿和活动规则。
-
-## 当前已有内容
-- `doc/design`（设计文档目录）：已有项目说明、需求说明、原型流程、技术方案、测试验收、最小闭环说明等文档。
-- `frontend`（前端目录）：已有用户端导购页、运营端页面、商品卡片、交易时间线和评测面板静态示例。
-- `backend`（后端目录）：已有多模块骨架、运行入口、接口对象和导购流式接口示例。
+## 当前技术定位
+- 项目当前定位为：`Java`（后端语言）后端工程能力 + `Spring AI`（Spring 人工智能框架）应用落地项目。
+- 大模型主链路优先使用 `Spring AI ChatClient`（聊天客户端）、`EmbeddingModel`（向量模型接口）和 `VectorStore`（向量存储接口）。
+- 原有手写 `OpenAPI`（开放接口）客户端保留为回退链路，避免没有模型密钥或向量库不可用时演示中断。
+- 知识入库优先走 `Spring AI VectorStore`（向量存储接口）写入 `pgvector`（向量库），同时保留本地向量回退。
+- 项目亮点不要写成“技术栈很多”，优先表达为“模型不直接决定价格、库存、订单状态，高风险信息必须来自后端工具和交易系统”。
 
 ## 项目结构
-根目录按前后端分开组织：
+- `backend`（后端目录）：`Maven`（构建工具）多模块工程。
+- `frontend`（前端目录）：用户端导购页、运营端页面和演示交互。
+- `docs`（文档目录）：运行环境、样例知识库、监控和项目复盘材料。
 
-- `backend`（后端目录）：后端 `Maven`（构建工具）多模块工程，父级 `pom.xml`（项目配置文件）聚合后端模块。
-- `frontend`（前端目录）：用户端导购页、运营端页面和后续复杂交互。
-- `doc/design`（设计文档目录）：设计文档。
-
-`backend`（后端目录）下包含以下模块：
-
+后端模块职责：
 - `agent-group-api`（接口模块）：接口契约和对外模型。
-- `agent-group-app`（应用模块）：应用编排、流程组织和运行入口。
-- `agent-group-domain`（领域模块）：导购、商品、知识库、拼团、交易和评测等核心业务逻辑。
-- `agent-group-infrastructure`（基础设施模块）：数据库、外部服务、向量库和大模型接口等技术适配。
-- `agent-group-trigger`（入口模块）：网页接口、任务、消息等入口适配。
-- `agent-group-types`（通用模块）：通用枚举、常量、数据对象和值对象。
-
-新增后端测试放在 `backend`（后端目录）下对应模块的 `src/test/java`（测试代码目录）。
+- `agent-group-app`（应用模块）：启动入口、配置和测试承载。
+- `agent-group-domain`（领域模块）：导购、知识库、拼团、交易、评测等核心业务逻辑。
+- `agent-group-infrastructure`（基础设施模块）：数据库、缓存、消息、对象存储、`Spring AI`（Spring 人工智能框架）和大模型适配。
+- `agent-group-trigger`（入口模块）：网页接口、任务、消息监听和流式输出。
+- `agent-group-types`（通用模块）：通用响应、异常和枚举。
 
 ## 构建与测试
-- `cd backend && mvn clean compile`（编译全部后端模块）。
-- `cd backend && mvn test`（运行全部后端测试）。
-- `cd backend && mvn clean package`（打包全部后端模块）。
-- `cd backend && mvn -pl agent-group-domain -am test`（只测试指定模块及其依赖）。
-
-父级配置目标版本为 `Java 21`（二十一版 Java），本地构建时请使用对应 `JDK`（Java 开发工具包）。
+- 默认后端验证命令：`cd backend && mvn -pl agent-group-app -am test`（测试应用模块及依赖模块）。
+- 全量编译命令：`cd backend && mvn clean compile`（编译全部后端模块）。
+- 全量测试命令：`cd backend && mvn test`（运行全部后端测试）。
+- 打包命令：`cd backend && mvn clean package`（打包全部后端模块）。
+- 父级配置目标版本为 `Java 21`（二十一版 Java），本地构建时使用对应 `JDK`（Java 开发工具包）。
 
 ## 编码规范
 - Java 类名使用 `PascalCase`（大驼峰命名）。

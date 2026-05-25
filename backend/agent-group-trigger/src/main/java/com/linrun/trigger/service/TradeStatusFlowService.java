@@ -7,7 +7,7 @@ import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import com.linrun.domain.order.model.entity.TradeEventOutboxEntity;
 import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -43,10 +43,14 @@ public class TradeStatusFlowService {
 
     private static final DateTimeFormatter FLOW_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    private final TradeStatusFlowRepository tradeStatusFlowRepository;
-    private final TradeEventOutboxRepository tradeEventOutboxRepository;
+    @Resource
+    private TradeStatusFlowRepository tradeStatusFlowRepository;
+    @Resource
+    private TradeEventOutboxRepository tradeEventOutboxRepository;
 
-    @Autowired
+    public TradeStatusFlowService() {
+    }
+
     public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository,
                                   TradeEventOutboxRepository tradeEventOutboxRepository) {
         this.tradeStatusFlowRepository = tradeStatusFlowRepository;
