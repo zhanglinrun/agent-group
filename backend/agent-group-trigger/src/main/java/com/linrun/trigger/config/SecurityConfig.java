@@ -12,6 +12,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.util.StringUtils;
@@ -63,16 +65,22 @@ public class SecurityConfig {
             @Value("${agent.group.security.admin-username:admin}") String adminUsername,
             @Value("${agent.group.security.admin-password:admin_dev}") String adminPassword,
             @Value("${agent.group.security.operator-username:operator}") String operatorUsername,
-            @Value("${agent.group.security.operator-password:operator_dev}") String operatorPassword) {
+            @Value("${agent.group.security.operator-password:operator_dev}") String operatorPassword,
+            PasswordEncoder passwordEncoder) {
         UserDetails admin = User.withUsername(safe(adminUsername, "admin"))
-                .password("{noop}" + safe(adminPassword, "admin_dev"))
+                .password(passwordEncoder.encode(safe(adminPassword, "admin_dev")))
                 .roles("ADMIN", "OPERATOR")
                 .build();
         UserDetails operator = User.withUsername(safe(operatorUsername, "operator"))
-                .password("{noop}" + safe(operatorPassword, "operator_dev"))
+                .password(passwordEncoder.encode(safe(operatorPassword, "operator_dev")))
                 .roles("OPERATOR")
                 .build();
         return new InMemoryUserDetailsManager(admin, operator);
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
     private String safe(String value, String fallback) {

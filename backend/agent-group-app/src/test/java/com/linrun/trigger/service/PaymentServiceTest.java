@@ -31,7 +31,6 @@ import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.env.MockEnvironment;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -218,8 +217,6 @@ class PaymentServiceTest {
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         TradeStatusFlowService flowService = new TradeStatusFlowService(flowRepository);
         TradeOrderService tradeOrderService = new TradeOrderService();
-        MockEnvironment environment = new MockEnvironment();
-        environment.setActiveProfiles("dev");
         MockPayCallbackService callbackService = new MockPayCallbackService(
                 repository,
                 tradeOrderService,
@@ -228,7 +225,7 @@ class PaymentServiceTest {
         FakePaymentGatewayClient gateway = new FakePaymentGatewayClient();
         return new Fixture(
                 new PaymentService(repository, tradeOrderService, callbackService,
-                        new MockPaymentAccessChecker(environment), gateway,
+                        new MockPaymentAccessChecker(true), gateway,
                         replayGuard, flowService),
                 repository,
                 flowRepository,

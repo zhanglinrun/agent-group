@@ -4,7 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -13,13 +13,10 @@ import java.time.Duration;
 @Component
 public class AgentObservabilityMetrics {
 
-    @Resource
-    private MeterRegistry meterRegistry;
+    private final MeterRegistry meterRegistry;
 
-    public AgentObservabilityMetrics() {
-    }
-
-    AgentObservabilityMetrics(MeterRegistry meterRegistry) {
+    @Autowired
+    public AgentObservabilityMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
     }
 

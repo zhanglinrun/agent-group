@@ -56,15 +56,18 @@ const defaultEvalCases = [
   { name: "标准版和高配版对比", recall: "Top 3", answer: "待复核", recommend: "通过" }
 ];
 
-const GUIDE_STREAM_URL = "http://localhost:8080/api/v1/agent/guide/stream";
-const GUIDE_STOP_URL = "http://localhost:8080/api/v1/agent/stop";
-const GUIDE_EVALUATION_URL = "http://localhost:8080/api/v1/evaluate/guide/run";
-const KNOWLEDGE_UPLOAD_FILE_URL = "http://localhost:8080/api/v1/knowledge/document/upload-file";
-const DIRECT_ORDER_URL = "http://localhost:8080/api/v1/trade/order/direct";
-const GROUP_LOCK_URL = "http://localhost:8080/api/v1/group/trade/lock";
-const PAYMENT_CREATE_URL = "http://localhost:8080/api/v1/payment/create";
-const PAYMENT_WEBHOOK_URL = "http://localhost:8080/api/v1/payment/webhook";
-const STATUS_FLOW_URL = "http://localhost:8080/api/v1/trade/order/status-flow";
+const API_BASE = (window.AGENT_GROUP_API_BASE || "http://localhost:8080").replace(/\/$/, "");
+const DEMO_USER_ID = window.AGENT_GROUP_DEMO_USER_ID || "U10001";
+const apiUrl = (path) => `${API_BASE}${path}`;
+const GUIDE_STREAM_URL = apiUrl("/api/v1/agent/guide/stream");
+const GUIDE_STOP_URL = apiUrl("/api/v1/agent/stop");
+const GUIDE_EVALUATION_URL = apiUrl("/api/v1/evaluate/guide/run");
+const KNOWLEDGE_UPLOAD_FILE_URL = apiUrl("/api/v1/knowledge/document/upload-file");
+const DIRECT_ORDER_URL = apiUrl("/api/v1/trade/order/direct");
+const GROUP_LOCK_URL = apiUrl("/api/v1/group/trade/lock");
+const PAYMENT_CREATE_URL = apiUrl("/api/v1/payment/create");
+const PAYMENT_WEBHOOK_URL = apiUrl("/api/v1/payment/webhook");
+const STATUS_FLOW_URL = apiUrl("/api/v1/trade/order/status-flow");
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 
 const state = {
@@ -261,7 +264,7 @@ async function requestGuideStream(message, imageUrl, imageName) {
     },
     body: JSON.stringify({
       sessionId: getSessionId(),
-      userId: "U10001",
+      userId: DEMO_USER_ID,
       question: message,
       imageUrl: imageUrl || "",
       imageName: imageName || ""
@@ -946,7 +949,7 @@ async function runInlinePurchase(product, mode) {
 
 async function createDirectOrder(product, idempotentKey) {
   return postJson(DIRECT_ORDER_URL, {
-    userId: "U10001",
+    userId: DEMO_USER_ID,
     goodsId: product.id,
     decisionId: product.decisionId || "",
     idempotentKey: idempotentKey || resolveCheckoutIdempotentKey(product, "direct"),
@@ -956,7 +959,7 @@ async function createDirectOrder(product, idempotentKey) {
 
 async function createGroupOrder(product, idempotentKey) {
   return postJson(GROUP_LOCK_URL, {
-    userId: "U10001",
+    userId: DEMO_USER_ID,
     goodsId: product.id,
     decisionId: product.decisionId || "",
     activityId: product.activityId || "A10001",
@@ -1183,7 +1186,7 @@ function adminAuthHeaders() {
 }
 
 function getAdminAuth() {
-  let auth = loadStore(ADMIN_AUTH_KEY, "");
+  let auth = loadSession(ADMIN_AUTH_KEY, "");
   if (auth) {
     return auth;
   }
@@ -1191,12 +1194,12 @@ function getAdminAuth() {
   if (!username) {
     return "";
   }
-  const password = window.prompt("运营密码", "operator_dev");
+  const password = window.prompt("运营密码", "");
   if (!password) {
     return "";
   }
   auth = window.btoa(`${username}:${password}`);
-  saveStore(ADMIN_AUTH_KEY, auth);
+  saveSession(ADMIN_AUTH_KEY, auth);
   return auth;
 }
 
@@ -1317,6 +1320,23 @@ function saveStore(key, value) {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // 本地演示失败不影响页面主流程。
+  }
+}
+
+function loadSession(key, fallback) {
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveSession(key, value) {
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // 会话级认证信息保存失败时，下一次操作重新输入即可。
   }
 }
 

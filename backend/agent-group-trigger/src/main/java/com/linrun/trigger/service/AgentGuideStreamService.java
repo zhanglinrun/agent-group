@@ -32,7 +32,7 @@ import com.linrun.domain.conversation.service.KnowledgeSearchToolService;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
 import com.linrun.domain.marketing.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
-import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
@@ -52,33 +52,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class AgentGuideStreamService {
 
-    @Resource
-    private GuideDecisionService guideDecisionService;
-    @Resource
-    private GuideRagAnswerService guideRagAnswerService;
-    @Resource
-    private GuideConversationService guideConversationService;
-    @Resource
-    private GuideImageInputService guideImageInputService;
-    @Resource
-    private AgentPlannerService agentPlannerService;
-    @Resource
-    private AgentToolRegistry agentToolRegistry;
-    @Resource
-    private KnowledgeSearchToolService knowledgeSearchToolService;
-    @Resource
-    private GroupBuyActivityService groupBuyActivityService;
-    @Resource
-    private ToolExecutor toolExecutor;
-    @Resource
-    private OrderStatusToolService orderStatusToolService;
-    @Resource
-    private GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
-    @Resource
-    private AgentObservabilityMetrics metrics;
-
-    public AgentGuideStreamService() {
-    }
+    private final GuideDecisionService guideDecisionService;
+    private final GuideRagAnswerService guideRagAnswerService;
+    private final GuideConversationService guideConversationService;
+    private final GuideImageInputService guideImageInputService;
+    private final AgentPlannerService agentPlannerService;
+    private final AgentToolRegistry agentToolRegistry;
+    private final KnowledgeSearchToolService knowledgeSearchToolService;
+    private final GroupBuyActivityService groupBuyActivityService;
+    private final ToolExecutor toolExecutor;
+    private final OrderStatusToolService orderStatusToolService;
+    private final GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
+    private final AgentObservabilityMetrics metrics;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
                                    GuideRagAnswerService guideRagAnswerService,
@@ -110,6 +95,7 @@ public class AgentGuideStreamService {
                 toolExecutor, orderStatusToolService, GuideDecisionSnapshotRepository.noop(), metrics);
     }
 
+    @Autowired
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
                                    GuideRagAnswerService guideRagAnswerService,
                                    GuideConversationService guideConversationService,

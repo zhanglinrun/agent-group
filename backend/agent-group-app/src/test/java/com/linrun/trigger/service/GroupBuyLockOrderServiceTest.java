@@ -47,7 +47,6 @@ import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.env.MockEnvironment;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -382,13 +381,11 @@ class GroupBuyLockOrderServiceTest {
         MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService groupCompensationService = compensationService(
                 lockRepository, tradeOrderRepository, flowRepository);
-        MockEnvironment environment = new MockEnvironment();
-        environment.setActiveProfiles("dev");
         PaymentService paymentService = new PaymentService(
                 tradeOrderRepository,
                 new TradeOrderService(),
                 callbackService,
-                new MockPaymentAccessChecker(environment),
+                new MockPaymentAccessChecker(true),
                 new FakePaymentGatewayClient(),
                 new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
@@ -557,17 +554,11 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 callbackService,
-                new MockPaymentAccessChecker(devEnvironment()),
+                new MockPaymentAccessChecker(true),
                 new FakePaymentGatewayClient(),
                 new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
         return new TradeRefundService(tradeOrderRepository, paymentService, compensationService);
-    }
-
-    private MockEnvironment devEnvironment() {
-        MockEnvironment environment = new MockEnvironment();
-        environment.setActiveProfiles("dev");
-        return environment;
     }
 
     private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,

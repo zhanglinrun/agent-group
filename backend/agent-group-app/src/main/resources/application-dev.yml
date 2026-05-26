@@ -131,6 +131,7 @@ agent:
       admin-password: ${AGENT_GROUP_ADMIN_PASSWORD:admin_dev}
       operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
       operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
+      mock-payment-enabled: ${AGENT_GROUP_MOCK_PAYMENT_ENABLED:true}
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:

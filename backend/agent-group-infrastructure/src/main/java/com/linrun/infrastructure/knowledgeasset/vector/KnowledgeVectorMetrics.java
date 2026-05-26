@@ -3,7 +3,7 @@ package com.linrun.infrastructure.knowledgeasset.vector;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -11,13 +11,10 @@ import java.time.Duration;
 @Component
 public class KnowledgeVectorMetrics {
 
-    @Resource
-    private MeterRegistry meterRegistry;
+    private final MeterRegistry meterRegistry;
 
-    public KnowledgeVectorMetrics() {
-    }
-
-    KnowledgeVectorMetrics(MeterRegistry meterRegistry) {
+    @Autowired
+    public KnowledgeVectorMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
     }
 

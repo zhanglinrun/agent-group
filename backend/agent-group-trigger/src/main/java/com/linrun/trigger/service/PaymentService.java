@@ -26,6 +26,7 @@ import com.linrun.domain.order.model.entity.RefundOrderEntity;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
+import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +50,7 @@ public class PaymentService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final MockPayCallbackService mockPayCallbackService;
-    private final com.linrun.trigger.config.MockPaymentAccessChecker mockPaymentAccessChecker;
+    private final MockPaymentAccessChecker mockPaymentAccessChecker;
     private final PaymentGatewayClient paymentGatewayClient;
     private final PaymentWebhookReplayGuard paymentWebhookReplayGuard;
     private final TradeStatusFlowService tradeStatusFlowService;
@@ -57,7 +58,7 @@ public class PaymentService {
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
                           MockPayCallbackService mockPayCallbackService,
-                          com.linrun.trigger.config.MockPaymentAccessChecker mockPaymentAccessChecker,
+                          MockPaymentAccessChecker mockPaymentAccessChecker,
                           PaymentGatewayClient paymentGatewayClient,
                           PaymentWebhookReplayGuard paymentWebhookReplayGuard,
                           TradeStatusFlowService tradeStatusFlowService) {

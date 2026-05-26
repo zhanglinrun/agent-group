@@ -7,7 +7,7 @@ import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.domain.knowledgeasset.service.KnowledgeKeywordService;
 import com.linrun.domain.knowledgeasset.service.KnowledgeVectorService;
 import com.linrun.infrastructure.dao.IGuideDataDao;
-import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -22,21 +22,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Repository
 public class MyBatisGuideDataRepository implements GuideDataRepository {
 
-    @Resource
-    private IGuideDataDao guideDataDao;
-    @Resource
-    private KnowledgeKeywordService knowledgeKeywordService;
-    @Resource
-    private KnowledgeVectorService knowledgeVectorService;
-    @Value("${agent.group.vector.keyword-fallback-enabled:true}")
-    private boolean keywordFallbackEnabled = true;
+    private final IGuideDataDao guideDataDao;
+    private final KnowledgeKeywordService knowledgeKeywordService;
+    private final KnowledgeVectorService knowledgeVectorService;
+    private final boolean keywordFallbackEnabled;
 
-    public MyBatisGuideDataRepository() {
-    }
-
+    @Autowired
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
-                                      KnowledgeKeywordService knowledgeKeywordService,
-                                      KnowledgeVectorService knowledgeVectorService,
+                                       KnowledgeKeywordService knowledgeKeywordService,
+                                       KnowledgeVectorService knowledgeVectorService,
                                       @Value("${agent.group.vector.keyword-fallback-enabled:true}") boolean keywordFallbackEnabled) {
         this.guideDataDao = guideDataDao;
         this.knowledgeKeywordService = knowledgeKeywordService;

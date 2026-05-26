@@ -4,7 +4,6 @@ import com.linrun.api.order.request.CreateDirectOrderRequest;
 import com.linrun.api.order.response.CreateDirectOrderResponse;
 import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.entity.CreateTradeOrderCommandEntity;
@@ -14,12 +13,11 @@ import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
-import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -27,26 +25,18 @@ public class DirectBuyOrderService {
 
     private static final String DEFAULT_PAY_CHANNEL = "MOCK_PAY";
 
-    @Resource
-    private GuideDataRepository guideDataRepository;
-    @Resource
-    private TradeOrderRepository tradeOrderRepository;
-    @Resource
-    private TradeOrderService tradeOrderService;
-    @Resource
-    private TradeStatusFlowService tradeStatusFlowService;
-    @Resource
-    private GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
-
-    public DirectBuyOrderService() {
-    }
+    private final GuideDataRepository guideDataRepository;
+    private final TradeOrderRepository tradeOrderRepository;
+    private final TradeOrderService tradeOrderService;
+    private final TradeStatusFlowService tradeStatusFlowService;
+    private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
 
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService) {
         this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                GuideDecisionSnapshotRepository.noop());
+                new GuideDecisionSnapshotValidator(GuideDecisionSnapshotRepository.noop()));
     }
 
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
@@ -54,13 +44,21 @@ public class DirectBuyOrderService {
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
                                  GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
+        this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository));
+    }
+
+    @Autowired
+    public DirectBuyOrderService(GuideDataRepository guideDataRepository,
+                                 TradeOrderRepository tradeOrderRepository,
+                                 TradeOrderService tradeOrderService,
+                                 TradeStatusFlowService tradeStatusFlowService,
+                                 GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
         this.guideDataRepository = guideDataRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
-        this.guideDecisionSnapshotRepository = guideDecisionSnapshotRepository == null
-                ? GuideDecisionSnapshotRepository.noop()
-                : guideDecisionSnapshotRepository;
+        this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -92,7 +90,12 @@ public class DirectBuyOrderService {
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "商品不存在或已下架"));
-        validateDecisionSnapshot(request, product);
+        guideDecisionSnapshotValidator.validateDirect(
+                request.getDecisionId(),
+                request.getUserId(),
+                request.getGoodsId(),
+                product.getOriginPrice(),
+                LocalDateTime.now());
 
         CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId(request.getUserId());
@@ -109,31 +112,6 @@ public class DirectBuyOrderService {
         recordCreateFlow(tradePayOrder);
 
         return toResponse(tradePayOrder, request.getDecisionId());
-    }
-
-    private GuideDecisionSnapshot validateDecisionSnapshot(CreateDirectOrderRequest request, GuideProduct product) {
-        GuideDecisionSnapshot snapshot = guideDecisionSnapshotRepository.queryByDecisionId(request.getDecisionId())
-                .orElseThrow(() -> new AppException("GUIDE_0006", "导购决策不存在或已过期，请重新发起导购"));
-        if (snapshot.isExpired(LocalDateTime.now())) {
-            throw new AppException("GUIDE_0008", "导购报价已过期，请重新发起导购");
-        }
-        if (StringUtils.hasText(snapshot.getUserId()) && !request.getUserId().equals(snapshot.getUserId())) {
-            throw new AppException("GUIDE_0007", "导购决策不属于当前用户");
-        }
-        if (!request.getGoodsId().equals(snapshot.getGoodsId())) {
-            throw new AppException("GUIDE_0009", "下单商品和导购决策不一致");
-        }
-        if (compareAmount(snapshot.getOriginAmount(), product.getOriginPrice()) != 0) {
-            throw new AppException("GUIDE_0010", "商品价格已变化，请重新发起导购");
-        }
-        return snapshot;
-    }
-
-    private int compareAmount(BigDecimal left, BigDecimal right) {
-        if (left == null || right == null) {
-            return left == right ? 0 : -1;
-        }
-        return left.compareTo(right);
     }
 
     private void validateExistingOrder(TradeOrderEntity existed, CreateDirectOrderRequest request) {
