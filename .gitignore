@@ -40,6 +40,8 @@ frontend/dist/
 .env.*
 !.env.example
 logs/
+docs/performance/jmeter/results/
+docs/performance/jmeter/reports/
 
 ### Mac OS ###
 .DS_Store

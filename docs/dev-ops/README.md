@@ -46,6 +46,15 @@ mvn -pl agent-group-app -am spring-boot:run
 4. 上传 `docs/sample-knowledge` 里的样本文档，验证文档入库、切片和向量检索闭环。
 5. 打开 `Grafana`（指标看板工具）的“基于 `Spring AI`（Spring 人工智能框架）的电商 `Agent`（智能体）导购与拼团交易系统运行观测”看板，观察工具调用速率、工具平均耗时、导购端到端耗时和回退次数。
 
+## 压测与故障演练
+
+项目已经补充 `JMeter`（压测工具）压测计划和报告模板：
+
+- `docs/performance/jmeter/README.md`（压测运行说明）
+- `docs/performance/load-test-report.md`（压测报告）
+- `docs/reliability/failure-drill-report.md`（故障演练报告）
+- `docs/validation/real-run-report.md`（真实调用效果报告）
+
 如果容器数据卷已经存在，`docker-entrypoint-initdb.d`（数据库初始化目录）下的脚本不会自动重复执行。需要刷新演示数据时，可以手动导入：
 
 ```bash

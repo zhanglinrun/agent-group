@@ -28,6 +28,7 @@ import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -54,6 +55,7 @@ public class PaymentService {
     private final PaymentGatewayClient paymentGatewayClient;
     private final PaymentWebhookReplayGuard paymentWebhookReplayGuard;
     private final TradeStatusFlowService tradeStatusFlowService;
+    private final AgentObservabilityMetrics metrics;
 
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
@@ -62,6 +64,20 @@ public class PaymentService {
                           PaymentGatewayClient paymentGatewayClient,
                           PaymentWebhookReplayGuard paymentWebhookReplayGuard,
                           TradeStatusFlowService tradeStatusFlowService) {
+        this(tradeOrderRepository, tradeOrderService, mockPayCallbackService, mockPaymentAccessChecker,
+                paymentGatewayClient, paymentWebhookReplayGuard, tradeStatusFlowService,
+                AgentObservabilityMetrics.noop());
+    }
+
+    @Autowired
+    public PaymentService(TradeOrderRepository tradeOrderRepository,
+                          TradeOrderService tradeOrderService,
+                          MockPayCallbackService mockPayCallbackService,
+                          MockPaymentAccessChecker mockPaymentAccessChecker,
+                          PaymentGatewayClient paymentGatewayClient,
+                          PaymentWebhookReplayGuard paymentWebhookReplayGuard,
+                          TradeStatusFlowService tradeStatusFlowService,
+                          AgentObservabilityMetrics metrics) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.mockPayCallbackService = mockPayCallbackService;
@@ -69,6 +85,7 @@ public class PaymentService {
         this.paymentGatewayClient = paymentGatewayClient;
         this.paymentWebhookReplayGuard = paymentWebhookReplayGuard;
         this.tradeStatusFlowService = tradeStatusFlowService;
+        this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
     }
 
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {
@@ -101,6 +118,7 @@ public class PaymentService {
 
     @Transactional(rollbackFor = Exception.class)
     public PaymentWebhookResponse handleWebhook(PaymentWebhookRequest request) {
+        long startNanos = System.nanoTime();
         if (request == null) {
             throw new AppException("0001", "支付回调参数不能为空");
         }
@@ -119,13 +137,16 @@ public class PaymentService {
 
         PaymentWebhookResponse existingResponse = queryExistingWebhookResponse(webhookResult);
         if (existingResponse != null) {
+            metrics.recordPaymentWebhook(payChannel.name(), "duplicate_completed", elapsedMillis(startNanos));
             return existingResponse;
         }
         if (!paymentWebhookReplayGuard.acquireProcessingLock(payChannel, webhookResult)) {
             existingResponse = queryExistingWebhookResponse(webhookResult);
             if (existingResponse != null) {
+                metrics.recordPaymentWebhook(payChannel.name(), "duplicate_completed", elapsedMillis(startNanos));
                 return existingResponse;
             }
+            metrics.recordPaymentWebhook(payChannel.name(), "processing_conflict", elapsedMillis(startNanos));
             throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重试");
         }
 
@@ -145,6 +166,7 @@ public class PaymentService {
                     null,
                     callbackResponse.getPayStatus(),
                     webhookResult.getMessage());
+            metrics.recordPaymentWebhook(payChannel.name(), "success", elapsedMillis(startNanos));
             return toWebhookResponse(webhookResult, callbackResponse);
         } finally {
             if (!releaseAfterCompletion) {
@@ -455,5 +477,9 @@ public class PaymentService {
 
     private String resolveRefundReason(RefundPaymentRequest request) {
         return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退款";
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }

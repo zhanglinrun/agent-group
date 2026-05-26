@@ -47,6 +47,7 @@ public class GroupBuyLockOrderService {
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
+    private final AgentObservabilityMetrics metrics;
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -98,7 +99,6 @@ public class GroupBuyLockOrderService {
                 new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository));
     }
 
-    @Autowired
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
@@ -108,6 +108,22 @@ public class GroupBuyLockOrderService {
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
                                     GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
+        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                guideDecisionSnapshotValidator, AgentObservabilityMetrics.noop());
+    }
+
+    @Autowired
+    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+                                    GroupBuyActivityRepository groupBuyActivityRepository,
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    GroupBuyStockRepository groupBuyStockRepository,
+                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
+                                    TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    TradeStatusFlowService tradeStatusFlowService,
+                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                    AgentObservabilityMetrics metrics) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
@@ -117,10 +133,25 @@ public class GroupBuyLockOrderService {
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
+        this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public LockGroupBuyOrderResponse lock(LockGroupBuyOrderRequest request) {
+        long startNanos = System.nanoTime();
+        try {
+            LockGroupBuyOrderResponse response = doLock(request);
+            metrics.recordGroupBuyLock(activityTag(request),
+                    response.isRepeated() ? "repeated" : "success",
+                    elapsedMillis(startNanos));
+            return response;
+        } catch (RuntimeException e) {
+            metrics.recordGroupBuyLock(activityTag(request), failureStatus(e), elapsedMillis(startNanos));
+            throw e;
+        }
+    }
+
+    private LockGroupBuyOrderResponse doLock(LockGroupBuyOrderRequest request) {
         validate(request);
 
         GroupBuyOrderLock repeatedLock = groupBuyOrderLockRepository.queryLockByIdempotentKey(request.getIdempotentKey())
@@ -352,5 +383,23 @@ public class GroupBuyLockOrderService {
         String timePart = LocalDateTime.now().format(ORDER_TIME_FORMATTER);
         String randomPart = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         return prefix + timePart + randomPart;
+    }
+
+    private String activityTag(LockGroupBuyOrderRequest request) {
+        if (request == null || !StringUtils.hasText(request.getActivityId())) {
+            return "unknown";
+        }
+        return request.getActivityId();
+    }
+
+    private String failureStatus(RuntimeException exception) {
+        if (exception instanceof AppException appException && StringUtils.hasText(appException.getCode())) {
+            return appException.getCode();
+        }
+        return exception == null ? "failed" : exception.getClass().getSimpleName();
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }

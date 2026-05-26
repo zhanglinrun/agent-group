@@ -71,6 +71,38 @@ public class AgentObservabilityMetrics {
         }
     }
 
+    void recordPaymentWebhook(String payChannel, String status, long latencyMillis) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("agent_group_payment_webhook_total")
+                .tag("channel", normalizeTag(payChannel))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .increment();
+        Timer.builder("agent_group_payment_webhook_latency")
+                .tag("channel", normalizeTag(payChannel))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .record(Duration.ofMillis(Math.max(0L, latencyMillis)));
+    }
+
+    void recordGroupBuyLock(String activityId, String status, long latencyMillis) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("agent_group_group_buy_lock_total")
+                .tag("activity", normalizeTag(activityId))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .increment();
+        Timer.builder("agent_group_group_buy_lock_latency")
+                .tag("activity", normalizeTag(activityId))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .record(Duration.ofMillis(Math.max(0L, latencyMillis)));
+    }
+
     private String normalizeTag(String value) {
         return value == null || value.isBlank() ? "unknown" : value;
     }
