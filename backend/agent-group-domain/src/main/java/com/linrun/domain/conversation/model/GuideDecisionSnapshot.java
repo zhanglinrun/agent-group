@@ -43,12 +43,17 @@ public class GuideDecisionSnapshot {
         snapshot.setRequestId(requestId);
         snapshot.setUserId(userId);
         snapshot.setQuestion(question);
+        snapshot.setGoodsId("");
+        snapshot.setGoodsName("");
+        snapshot.setActivityId("");
+        snapshot.setOriginAmount(BigDecimal.ZERO);
+        snapshot.setGroupAmount(BigDecimal.ZERO);
         if (product != null) {
-            snapshot.setGoodsId(product.getGoodsId());
-            snapshot.setGoodsName(product.getGoodsName());
-            snapshot.setActivityId(product.getActivityId());
-            snapshot.setOriginAmount(product.getOriginPrice());
-            snapshot.setGroupAmount(product.getGroupPrice());
+            snapshot.setGoodsId(safeText(product.getGoodsId()));
+            snapshot.setGoodsName(safeText(product.getGoodsName()));
+            snapshot.setActivityId(safeText(product.getActivityId()));
+            snapshot.setOriginAmount(safeAmount(product.getOriginPrice()));
+            snapshot.setGroupAmount(safeAmount(product.getGroupPrice()));
         }
         snapshot.setReferenceIds(joinReferenceIds(references));
         snapshot.setToolNames(joinToolNames(agentPlan));
@@ -87,6 +92,14 @@ public class GuideDecisionSnapshot {
                 .filter(StringUtils::hasText)
                 .reduce((left, right) -> left + "," + right)
                 .orElse("");
+    }
+
+    private static String safeText(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static BigDecimal safeAmount(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     public String getDecisionId() {

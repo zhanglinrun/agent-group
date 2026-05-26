@@ -3,14 +3,13 @@ package com.linrun.infrastructure.springai;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragmentStatus;
-import com.linrun.infrastructure.knowledgeasset.vector.LocalKnowledgeVectorRepository;
 import com.linrun.infrastructure.knowledgeasset.vector.KnowledgeVectorMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -18,67 +17,58 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
-@Primary
 @Repository
 public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorRepository {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SpringAiKnowledgeVectorRepository.class);
 
-    private final SpringAiModelFactory modelFactory;
-    private final LocalKnowledgeVectorRepository fallbackRepository;
+    private final ObjectProvider<VectorStore> vectorStoreProvider;
     private final KnowledgeVectorMetrics metrics;
 
-    public SpringAiKnowledgeVectorRepository(SpringAiModelFactory modelFactory,
-                                             LocalKnowledgeVectorRepository fallbackRepository,
+    public SpringAiKnowledgeVectorRepository(ObjectProvider<VectorStore> vectorStoreProvider,
                                              KnowledgeVectorMetrics metrics) {
-        this.modelFactory = modelFactory;
-        this.fallbackRepository = fallbackRepository;
+        this.vectorStoreProvider = vectorStoreProvider;
         this.metrics = metrics == null ? KnowledgeVectorMetrics.noop() : metrics;
     }
 
     @Override
-    public void saveEmbedding(KnowledgeFragment fragment, List<Double> embedding) {
-        boolean springAiSaved = false;
-        Optional<VectorStore> vectorStore = modelFactory.vectorStore();
-        if (vectorStore.isPresent() && fragment != null && StringUtils.hasText(fragment.getContent())) {
-            try {
-                vectorStore.get().add(List.of(document(fragment)));
-                springAiSaved = true;
-            } catch (Exception e) {
-                LOGGER.warn("spring ai vector save fallback, fragmentId={}, reason={}",
-                        fragment.getFragmentId(), e.getClass().getSimpleName());
-                metrics.recordLocalFallback("spring_ai_vector_save_failed");
-            }
+    public void saveFragment(KnowledgeFragment fragment) {
+        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
+        if (vectorStore == null || fragment == null || !StringUtils.hasText(fragment.getContent())) {
+            metrics.recordVectorIssue("spring_ai_vector_not_available");
+            return;
         }
-        fallbackRepository.saveEmbedding(fragment, embedding);
-        if (!springAiSaved && vectorStore.isEmpty()) {
-            metrics.recordLocalFallback("spring_ai_vector_not_configured");
-        }
-    }
-
-    @Override
-    public List<KnowledgeFragment> searchSimilar(List<Double> queryEmbedding, int limit) {
-        return fallbackRepository.searchSimilar(queryEmbedding, limit);
-    }
-
-    @Override
-    public List<KnowledgeFragment> searchSimilar(String question, List<Double> queryEmbedding, int limit) {
-        Optional<VectorStore> vectorStore = modelFactory.vectorStore();
-        if (vectorStore.isEmpty() || !StringUtils.hasText(question)) {
-            metrics.recordLocalFallback("spring_ai_vector_not_configured");
-            return fallbackRepository.searchSimilar(queryEmbedding, limit);
-        }
+        long startNanos = System.nanoTime();
         try {
-            List<Document> documents = vectorStore.get().similaritySearch(SearchRequest.builder()
+            vectorStore.add(List.of(document(fragment)));
+            metrics.recordPgvectorSave(true, elapsedMillis(startNanos));
+        } catch (Exception e) {
+            LOGGER.warn("spring ai vector save failed, fragmentId={}, reason={}",
+                    fragment.getFragmentId(), e.getClass().getSimpleName());
+            metrics.recordPgvectorSave(false, elapsedMillis(startNanos));
+            metrics.recordVectorIssue("spring_ai_vector_save_failed");
+        }
+    }
+
+    @Override
+    public List<KnowledgeFragment> searchSimilar(String question, int limit) {
+        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
+        if (vectorStore == null || !StringUtils.hasText(question)) {
+            metrics.recordVectorIssue("spring_ai_vector_not_available");
+            return List.of();
+        }
+        long startNanos = System.nanoTime();
+        try {
+            List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder()
                     .query(question)
                     .topK(Math.max(1, limit))
                     .similarityThresholdAll()
                     .build());
+            metrics.recordPgvectorSearch(true, elapsedMillis(startNanos));
             if (documents == null || documents.isEmpty()) {
-                metrics.recordLocalFallback("spring_ai_vector_empty");
-                return fallbackRepository.searchSimilar(queryEmbedding, limit);
+                metrics.recordVectorIssue("spring_ai_vector_empty");
+                return List.of();
             }
             List<KnowledgeFragment> fragments = new ArrayList<>(documents.size());
             int rank = 1;
@@ -87,9 +77,10 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
             }
             return fragments;
         } catch (Exception e) {
-            LOGGER.warn("spring ai vector search fallback, reason={}", e.getClass().getSimpleName());
-            metrics.recordLocalFallback(e.getClass().getSimpleName());
-            return fallbackRepository.searchSimilar(queryEmbedding, limit);
+            LOGGER.warn("spring ai vector search failed, reason={}", e.getClass().getSimpleName());
+            metrics.recordPgvectorSearch(false, elapsedMillis(startNanos));
+            metrics.recordVectorIssue(e.getClass().getSimpleName());
+            return List.of();
         }
     }
 
@@ -130,5 +121,9 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }

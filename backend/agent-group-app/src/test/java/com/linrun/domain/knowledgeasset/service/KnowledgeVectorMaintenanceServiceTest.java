@@ -1,7 +1,6 @@
 package com.linrun.domain.knowledgeasset.service;
 
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeDocumentRepository;
-import com.linrun.domain.knowledgeasset.adapter.KnowledgeEmbeddingClient;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledgeasset.model.KnowledgeDocument;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
@@ -64,7 +63,7 @@ class KnowledgeVectorMaintenanceServiceTest {
                                                       FakeKnowledgeVectorRepository vectorRepository) {
         return new KnowledgeVectorMaintenanceService(
                 documentRepository,
-                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository));
+                new KnowledgeVectorService(vectorRepository));
     }
 
     private static class FakeKnowledgeDocumentRepository implements KnowledgeDocumentRepository {
@@ -110,34 +109,24 @@ class KnowledgeVectorMaintenanceServiceTest {
         }
     }
 
-    private static class FakeKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient {
-
-        @Override
-        public List<Double> embed(String content) {
-            if (content.contains("退款") || content.contains("拼团")) {
-                return List.of(0.0d, 1.0d);
-            }
-            return List.of(1.0d, 0.0d);
-        }
-    }
-
     private static class FakeKnowledgeVectorRepository implements KnowledgeVectorRepository {
 
         private final List<KnowledgeFragment> savedFragments = new ArrayList<>();
-        private final List<List<Double>> savedEmbeddings = new ArrayList<>();
 
         @Override
-        public void saveEmbedding(KnowledgeFragment fragment, List<Double> embedding) {
+        public void saveFragment(KnowledgeFragment fragment) {
             savedFragments.add(fragment);
-            savedEmbeddings.add(embedding);
         }
 
         @Override
-        public List<KnowledgeFragment> searchSimilar(List<Double> queryEmbedding, int limit) {
+        public List<KnowledgeFragment> searchSimilar(String question, int limit) {
             List<KnowledgeFragment> result = new ArrayList<>();
-            for (int i = 0; i < savedFragments.size() && result.size() < limit; i++) {
-                if (savedEmbeddings.get(i).equals(queryEmbedding)) {
-                    result.add(savedFragments.get(i));
+            for (KnowledgeFragment fragment : savedFragments) {
+                if (result.size() >= limit) {
+                    break;
+                }
+                if (fragment.getContent().contains("退款") || fragment.getContent().contains("拼团")) {
+                    result.add(fragment);
                 }
             }
             return result;

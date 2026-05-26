@@ -35,12 +35,8 @@ public class KnowledgeVectorMetrics {
         recordTimer("agent_group_vector_pgvector_search_latency", latencyMillis);
     }
 
-    public void recordLocalFallback(String reason) {
-        increment("agent_group_vector_local_fallback_total", "reason", reason);
-    }
-
-    public void recordEmbeddingFallback(String reason) {
-        increment("agent_group_embedding_fallback_total", "reason", reason);
+    public void recordVectorIssue(String reason) {
+        increment("agent_group_vector_issue_total", "reason", reason);
     }
 
     private void increment(String name, String tagName, String tagValue) {

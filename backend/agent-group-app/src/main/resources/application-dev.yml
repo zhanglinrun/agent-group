@@ -12,6 +12,32 @@ spring:
   mvc:
     async:
       request-timeout: 60000
+  ai:
+    openai:
+      base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+      api-key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:not-configured}}
+      chat:
+        completions-path: /chat/completions
+        options:
+          model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.6-plus}
+          temperature: 0.2
+          stream-usage: true
+      embedding:
+        embeddings-path: /embeddings
+        metadata-mode: EMBED
+        options:
+          model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v3}
+          dimensions: ${AGENT_GROUP_VECTOR_DIMENSION:1024}
+          encoding-format: float
+    vectorstore:
+      type: pgvector
+      pgvector:
+        table-name: spring_ai_knowledge_embedding
+        initialize-schema: true
+        dimensions: ${AGENT_GROUP_VECTOR_DIMENSION:1024}
+        distance-type: COSINE_DISTANCE
+        index-type: HNSW
+        id-type: TEXT
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${AGENT_GROUP_MYSQL_URL:jdbc:mysql://127.0.0.1:13306/agent_group?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
@@ -74,9 +100,6 @@ agent:
     stream:
       timeout-millis: 60000
       mock-delay-millis: 350
-    spring-ai:
-      enabled: ${AGENT_GROUP_SPRING_AI_ENABLED:true}
-      vector-store-enabled: ${AGENT_GROUP_SPRING_AI_VECTOR_STORE_ENABLED:true}
     rabbit:
       enabled: ${AGENT_GROUP_RABBIT_ENABLED:true}
     redis:
@@ -87,8 +110,6 @@ agent:
       database: ${AGENT_GROUP_PGVECTOR_DATABASE:agent_group_vector}
       username: ${AGENT_GROUP_PGVECTOR_USERNAME:agent_group}
       password: ${AGENT_GROUP_PGVECTOR_PASSWORD:agent_group_dev}
-      dimension: 1024
-      local-fallback-enabled: ${AGENT_GROUP_VECTOR_LOCAL_FALLBACK_ENABLED:true}
       keyword-fallback-enabled: ${AGENT_GROUP_VECTOR_KEYWORD_FALLBACK_ENABLED:true}
     minio:
       endpoint: ${AGENT_GROUP_MINIO_ENDPOINT:http://127.0.0.1:9000}
@@ -96,14 +117,6 @@ agent:
       secret-key: ${AGENT_GROUP_MINIO_SECRET_KEY:agent_group_dev}
       bucket-name: ${AGENT_GROUP_MINIO_BUCKET:agent-group}
     llm:
-      base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-      api-key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:}}
-      chat-model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.6-plus}
-      embedding-model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v3}
-      vision-model: ${AGENT_GROUP_LLM_VISION_MODEL:qwen3-vl-plus}
-      timeout-seconds: ${AGENT_GROUP_LLM_TIMEOUT_SECONDS:20}
-      max-retries: ${AGENT_GROUP_LLM_MAX_RETRIES:2}
-      min-interval-millis: ${AGENT_GROUP_LLM_MIN_INTERVAL_MILLIS:200}
       prompt-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_PROMPT_TOKEN_PRICE_YUAN_PER_1K:0}
       completion-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_COMPLETION_TOKEN_PRICE_YUAN_PER_1K:0}
     multimodal:

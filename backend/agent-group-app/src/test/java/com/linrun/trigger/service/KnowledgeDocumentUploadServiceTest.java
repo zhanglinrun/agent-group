@@ -2,7 +2,6 @@ package com.linrun.trigger.service;
 
 import com.linrun.api.knowledgeasset.request.UploadKnowledgeDocumentRequest;
 import com.linrun.api.knowledgeasset.response.UploadKnowledgeDocumentResponse;
-import com.linrun.domain.knowledgeasset.adapter.KnowledgeEmbeddingClient;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeObjectStorageClient;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeVectorRepository;
@@ -116,7 +115,7 @@ class KnowledgeDocumentUploadServiceTest {
                 new KnowledgeDocumentService(),
                 new KnowledgeDocumentParser(),
                 repository,
-                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository),
+                new KnowledgeVectorService(vectorRepository),
                 storageClient,
                 (fileName, contentType, content) -> "解析后的 PDF 商品详情。\n\n解析后的售后政策。");
         MockMultipartFile file = new MockMultipartFile(
@@ -166,7 +165,7 @@ class KnowledgeDocumentUploadServiceTest {
                 new KnowledgeDocumentService(),
                 new KnowledgeDocumentParser(),
                 repository,
-                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository),
+                new KnowledgeVectorService(vectorRepository),
                 storageClient);
     }
 
@@ -215,25 +214,17 @@ class KnowledgeDocumentUploadServiceTest {
         }
     }
 
-    private static class FakeKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient {
-
-        @Override
-        public List<Double> embed(String content) {
-            return List.of(1.0d, 0.0d, 0.0d);
-        }
-    }
-
     private static class FakeKnowledgeVectorRepository implements KnowledgeVectorRepository {
 
         private final List<KnowledgeFragment> savedFragments = new ArrayList<>();
 
         @Override
-        public void saveEmbedding(KnowledgeFragment fragment, List<Double> embedding) {
+        public void saveFragment(KnowledgeFragment fragment) {
             savedFragments.add(fragment);
         }
 
         @Override
-        public List<KnowledgeFragment> searchSimilar(List<Double> queryEmbedding, int limit) {
+        public List<KnowledgeFragment> searchSimilar(String question, int limit) {
             return savedFragments.stream()
                     .limit(limit)
                     .toList();

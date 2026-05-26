@@ -3,7 +3,7 @@ apiVersion: 1
 providers:
   - name: agent-group
     orgId: 1
-    folder: Agent Group
+    folder: 基于 Spring AI 的电商 Agent 导购与拼团交易系统
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

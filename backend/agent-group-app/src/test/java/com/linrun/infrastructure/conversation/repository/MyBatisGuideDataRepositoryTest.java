@@ -2,7 +2,6 @@ package com.linrun.infrastructure.conversation.repository;
 
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideReference;
-import com.linrun.domain.knowledgeasset.adapter.KnowledgeEmbeddingClient;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.domain.knowledgeasset.service.KnowledgeKeywordService;
@@ -39,7 +38,7 @@ class MyBatisGuideDataRepositoryTest {
         MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
                 guideDataDao,
                 new KnowledgeKeywordService(),
-                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository));
+                new KnowledgeVectorService(vectorRepository));
 
         List<GuideReference> references = repository.queryReferences("学生买平板", 3);
 
@@ -57,7 +56,7 @@ class MyBatisGuideDataRepositoryTest {
         MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
                 guideDataDao,
                 new KnowledgeKeywordService(),
-                new KnowledgeVectorService(new FakeKnowledgeEmbeddingClient(), vectorRepository));
+                new KnowledgeVectorService(vectorRepository));
 
         List<GuideReference> references = repository.queryReferences("拼团失败能退款吗", 3);
 
@@ -143,14 +142,6 @@ class MyBatisGuideDataRepositoryTest {
         return reference;
     }
 
-    private static class FakeKnowledgeEmbeddingClient implements KnowledgeEmbeddingClient {
-
-        @Override
-        public List<Double> embed(String content) {
-            return List.of(1.0d);
-        }
-    }
-
     private static class FakeKnowledgeVectorRepository implements KnowledgeVectorRepository {
 
         private final List<KnowledgeFragment> fragments = new ArrayList<>();
@@ -160,12 +151,12 @@ class MyBatisGuideDataRepositoryTest {
         }
 
         @Override
-        public void saveEmbedding(KnowledgeFragment fragment, List<Double> embedding) {
+        public void saveFragment(KnowledgeFragment fragment) {
             fragments.add(fragment);
         }
 
         @Override
-        public List<KnowledgeFragment> searchSimilar(List<Double> queryEmbedding, int limit) {
+        public List<KnowledgeFragment> searchSimilar(String question, int limit) {
             return fragments.stream()
                     .limit(limit)
                     .toList();

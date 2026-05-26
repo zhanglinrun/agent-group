@@ -156,14 +156,9 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(agent_group_vector_local_fallback_total[5m]))",
-          "legendFormat": "vector fallback",
+          "expr": "sum(rate(agent_group_vector_issue_total[5m]))",
+          "legendFormat": "vector issue",
           "refId": "A"
-        },
-        {
-          "expr": "sum(rate(agent_group_embedding_fallback_total[5m]))",
-          "legendFormat": "embedding fallback",
-          "refId": "B"
         },
         {
           "expr": "sum(rate(agent_group_guide_fallback_total[5m]))",
@@ -190,7 +185,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Agent Group 运行观测",
+  "title": "基于 Spring AI 的电商 Agent 导购与拼团交易系统运行观测",
   "uid": "agent-group-agent-observability",
   "version": 1,
   "weekStart": ""

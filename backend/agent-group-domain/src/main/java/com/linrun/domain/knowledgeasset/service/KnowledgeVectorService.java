@@ -1,6 +1,5 @@
 package com.linrun.domain.knowledgeasset.service;
 
-import com.linrun.domain.knowledgeasset.adapter.KnowledgeEmbeddingClient;
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeVectorRepository;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.types.exception.AppException;
@@ -12,12 +11,9 @@ import java.util.List;
 @Service
 public class KnowledgeVectorService {
 
-    private final KnowledgeEmbeddingClient knowledgeEmbeddingClient;
     private final KnowledgeVectorRepository knowledgeVectorRepository;
 
-    public KnowledgeVectorService(KnowledgeEmbeddingClient knowledgeEmbeddingClient,
-                                  KnowledgeVectorRepository knowledgeVectorRepository) {
-        this.knowledgeEmbeddingClient = knowledgeEmbeddingClient;
+    public KnowledgeVectorService(KnowledgeVectorRepository knowledgeVectorRepository) {
         this.knowledgeVectorRepository = knowledgeVectorRepository;
     }
 
@@ -25,7 +21,7 @@ public class KnowledgeVectorService {
         if (fragment == null || !StringUtils.hasText(fragment.getContent())) {
             return;
         }
-        knowledgeVectorRepository.saveEmbedding(fragment, knowledgeEmbeddingClient.embed(fragment.getContent()));
+        knowledgeVectorRepository.saveFragment(fragment);
     }
 
     public List<KnowledgeFragment> searchSimilar(String question, int limit) {
@@ -33,6 +29,6 @@ public class KnowledgeVectorService {
             throw new AppException("0001", "question cannot be blank");
         }
         int safeLimit = limit <= 0 ? 3 : limit;
-        return knowledgeVectorRepository.searchSimilar(question, knowledgeEmbeddingClient.embed(question), safeLimit);
+        return knowledgeVectorRepository.searchSimilar(question, safeLimit);
     }
 }
