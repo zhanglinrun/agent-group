@@ -3,6 +3,7 @@ package com.linrun.infrastructure.conversation.repository;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideReference;
+import com.linrun.domain.knowledgeasset.adapter.KnowledgeReranker;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.domain.knowledgeasset.service.KnowledgeKeywordService;
 import com.linrun.domain.knowledgeasset.service.KnowledgeVectorService;
@@ -25,23 +26,26 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     private final IGuideDataDao guideDataDao;
     private final KnowledgeKeywordService knowledgeKeywordService;
     private final KnowledgeVectorService knowledgeVectorService;
+    private final KnowledgeReranker knowledgeReranker;
     private final boolean keywordFallbackEnabled;
 
     @Autowired
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
                                        KnowledgeKeywordService knowledgeKeywordService,
                                        KnowledgeVectorService knowledgeVectorService,
+                                       KnowledgeReranker knowledgeReranker,
                                       @Value("${agent.group.vector.keyword-fallback-enabled:true}") boolean keywordFallbackEnabled) {
         this.guideDataDao = guideDataDao;
         this.knowledgeKeywordService = knowledgeKeywordService;
         this.knowledgeVectorService = knowledgeVectorService;
+        this.knowledgeReranker = knowledgeReranker == null ? KnowledgeReranker.noop() : knowledgeReranker;
         this.keywordFallbackEnabled = keywordFallbackEnabled;
     }
 
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
                                       KnowledgeKeywordService knowledgeKeywordService,
                                       KnowledgeVectorService knowledgeVectorService) {
-        this(guideDataDao, knowledgeKeywordService, knowledgeVectorService, true);
+        this(guideDataDao, knowledgeKeywordService, knowledgeVectorService, KnowledgeReranker.noop(), true);
     }
 
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao, KnowledgeKeywordService knowledgeKeywordService) {
@@ -54,10 +58,12 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         List<String> keywords = knowledgeKeywordService.extractKeywords(question);
         List<GuideReference> vectorReferences = queryVectorReferences(question, safeLimit * 2);
         if (!keywordFallbackEnabled) {
-            return rerank(question, keywords, vectorReferences, List.of(), safeLimit);
+            return knowledgeReranker.rerank(question,
+                    rerank(question, keywords, vectorReferences, List.of(), safeLimit), safeLimit);
         }
         List<GuideReference> keywordReferences = guideDataDao.queryReferences(keywords, safeLimit * 2);
-        return rerank(question, keywords, vectorReferences, keywordReferences, safeLimit);
+        return knowledgeReranker.rerank(question,
+                rerank(question, keywords, vectorReferences, keywordReferences, safeLimit), safeLimit);
     }
 
     @Override

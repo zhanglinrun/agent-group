@@ -1,6 +1,7 @@
 package com.linrun.domain.conversation.service;
 
 import com.linrun.domain.conversation.adapter.GuideLlmClient;
+import com.linrun.domain.conversation.model.GuideAnswerReflection;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideIntentType;
 import com.linrun.domain.conversation.model.GuideLlmResult;
@@ -8,6 +9,7 @@ import com.linrun.domain.conversation.model.GuideProduct;
 import com.linrun.domain.conversation.model.GuideRagAnswerResult;
 import com.linrun.domain.conversation.model.GuideRagPrompt;
 import com.linrun.domain.conversation.model.GuideReference;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -24,10 +26,21 @@ public class GuideRagAnswerService {
 
     private final GuideRagPromptBuilder guideRagPromptBuilder;
     private final GuideLlmClient guideLlmClient;
+    private final GuideAnswerReflectionService guideAnswerReflectionService;
 
     public GuideRagAnswerService(GuideRagPromptBuilder guideRagPromptBuilder, GuideLlmClient guideLlmClient) {
+        this(guideRagPromptBuilder, guideLlmClient, new GuideAnswerReflectionService());
+    }
+
+    @Autowired
+    public GuideRagAnswerService(GuideRagPromptBuilder guideRagPromptBuilder,
+                                 GuideLlmClient guideLlmClient,
+                                 GuideAnswerReflectionService guideAnswerReflectionService) {
         this.guideRagPromptBuilder = guideRagPromptBuilder;
         this.guideLlmClient = guideLlmClient;
+        this.guideAnswerReflectionService = guideAnswerReflectionService == null
+                ? new GuideAnswerReflectionService()
+                : guideAnswerReflectionService;
     }
 
     public List<String> answer(String question, GuideDecisionResult decisionResult) {
@@ -95,8 +108,11 @@ public class GuideRagAnswerService {
                 .filter(StringUtils::hasText)
                 .toList());
         segments.addAll(deterministicGuardSegments(effectiveAnswer, question, decisionResult));
-        return new GuideRagAnswerResult(segments, llmResult.getTokenUsage(), llmResult.getLatencyMillis(),
+        GuideRagAnswerResult result = new GuideRagAnswerResult(segments, llmResult.getTokenUsage(), llmResult.getLatencyMillis(),
                 fallbackUsed, llmResult.getModel());
+        GuideAnswerReflection reflection = guideAnswerReflectionService.reflect(question, decisionResult, segments);
+        result.setReflection(reflection);
+        return result;
     }
 
     private List<String> deterministicGuardSegments(String answer, String question, GuideDecisionResult decisionResult) {

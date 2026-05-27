@@ -12,5 +12,6 @@ public class SettlementMarketPayOrderRequest implements Serializable {
     private String channel;
     private String userId;
     private String outTradeNo;
+    private String hitlApprovalId;
     private LocalDateTime outTradeTime;
 }

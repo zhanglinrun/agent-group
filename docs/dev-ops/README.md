@@ -78,6 +78,10 @@ docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -p
 | Redis Admin | 8081 |
 | Prometheus | 19090 |
 | Grafana | 13000 |
+| Nginx | 18080 |
+| Elasticsearch | 19200 |
+| Logstash TCP | 15044 |
+| Kibana | 15601 |
 
 如果本机 `13306`（数据库端口）已经被其他项目占用，可以临时改成本项目专用端口：
 

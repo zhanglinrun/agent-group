@@ -22,6 +22,7 @@ import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
 import com.linrun.trigger.service.groupbuy.lock.GroupBuyLockContext;
 import com.linrun.trigger.service.groupbuy.lock.GroupBuyLockRuleChain;
+import com.linrun.trigger.support.lock.DistributedLock;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -143,6 +144,8 @@ public class GroupBuyLockOrderService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    @DistributedLock(key = "'group-buy:lock:' + #p0.userId + ':' + #p0.activityId + ':' + #p0.idempotentKey",
+            waitTime = 1L, leaseTime = 30L)
     public LockGroupBuyOrderResponse lock(LockGroupBuyOrderRequest request) {
         long startNanos = System.nanoTime();
         try {

@@ -380,6 +380,17 @@ create table if not exists notify_task (
   key idx_status_time (notify_status, update_time)
 ) engine=InnoDB default charset=utf8mb4 comment='notify task';
 
+create table if not exists guide_conversation_memory (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  session_id varchar(64) not null comment 'session id',
+  role varchar(32) not null comment 'USER or ASSISTANT',
+  content varchar(4096) not null comment 'message content',
+  image_url varchar(512) not null default '' comment 'image url',
+  create_time datetime not null default current_timestamp comment 'create time',
+  primary key (id),
+  key idx_session_time (session_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='guide conversation long memory';
+
 create table if not exists guide_decision_snapshot (
   id bigint unsigned not null auto_increment comment '自增主键',
   decision_id varchar(40) not null comment '导购决策编号',

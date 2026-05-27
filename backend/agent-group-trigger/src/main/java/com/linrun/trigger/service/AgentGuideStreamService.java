@@ -13,6 +13,7 @@ import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.conversation.model.AgentPlan;
 import com.linrun.domain.conversation.model.AgentToolDefinition;
+import com.linrun.domain.conversation.model.GuideAnswerReflection;
 import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
@@ -347,7 +348,7 @@ public class AgentGuideStreamService {
                 decisionResult,
                 groupTrialExecution);
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
-                selfCheck(decisionResult.getRecommendationResult(), toolEvidenceCheck))) {
+                selfCheck(decisionResult.getRecommendationResult(), toolEvidenceCheck, answerResult.getReflection()))) {
             return;
         }
         guideConversationService.rememberUserInput(userInput);
@@ -529,14 +530,22 @@ public class AgentGuideStreamService {
     }
 
     private SelfCheckDTO selfCheck(RecommendationResult recommendationResult,
-                                   GuideToolEvidenceCheck toolEvidenceCheck) {
+                                   GuideToolEvidenceCheck toolEvidenceCheck,
+                                   GuideAnswerReflection reflection) {
         GuideToolEvidenceCheck safeToolEvidenceCheck = toolEvidenceCheck == null
                 ? GuideToolEvidenceCheck.ok()
                 : toolEvidenceCheck;
+        GuideAnswerReflection safeReflection = reflection == null
+                ? GuideAnswerReflection.passed()
+                : reflection;
         SelfCheckDTO dto = new SelfCheckDTO();
-        dto.setPassed(recommendationResult.isPassedSelfCheck() && safeToolEvidenceCheck.passed());
+        dto.setPassed(recommendationResult.isPassedSelfCheck()
+                && safeToolEvidenceCheck.passed()
+                && safeReflection.isPassed());
         dto.setMessage(recommendationResult.isPassedSelfCheck()
-                ? safeToolEvidenceCheck.passed() ? recommendationResult.getSelfCheckMessage() : safeToolEvidenceCheck.message()
+                ? safeToolEvidenceCheck.passed()
+                    ? safeReflection.isPassed() ? recommendationResult.getSelfCheckMessage() : safeReflection.getMessage()
+                    : safeToolEvidenceCheck.message()
                 : recommendationResult.getSelfCheckMessage());
         return dto;
     }

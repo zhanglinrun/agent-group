@@ -6,6 +6,7 @@ import com.linrun.infrastructure.dao.INotifyTaskDao;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
@@ -29,6 +30,11 @@ public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
     @Override
     public List<NotifyTask> queryUnExecutedNotifyTaskList(String teamId) {
         return notifyTaskDao.queryUnExecutedNotifyTaskListByTeamId(teamId);
+    }
+
+    @Override
+    public Optional<NotifyTask> queryNotifyTaskByUuid(String uuid) {
+        return Optional.ofNullable(notifyTaskDao.queryNotifyTaskByUuid(uuid));
     }
 
     @Override

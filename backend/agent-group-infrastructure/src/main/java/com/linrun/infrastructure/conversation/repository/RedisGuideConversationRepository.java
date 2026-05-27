@@ -27,22 +27,26 @@ public class RedisGuideConversationRepository implements GuideConversationReposi
     private final RedissonClient redissonClient;
     private final ObjectMapper objectMapper;
     private final LocalGuideConversationRepository fallbackRepository;
+    private final GuideConversationRepository persistentRepository;
     private final String keyPrefix;
 
     @Autowired
     public RedisGuideConversationRepository(RedissonClient redissonClient,
+                                             DatabaseGuideConversationRepository persistentRepository,
                                              @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
         this(redissonClient, new ObjectMapper().findAndRegisterModules(), new LocalGuideConversationRepository(),
-                keyPrefix);
+                persistentRepository, keyPrefix);
     }
 
     RedisGuideConversationRepository(RedissonClient redissonClient,
                                      ObjectMapper objectMapper,
                                      LocalGuideConversationRepository fallbackRepository,
+                                     GuideConversationRepository persistentRepository,
                                      String keyPrefix) {
         this.redissonClient = redissonClient;
         this.objectMapper = objectMapper;
         this.fallbackRepository = fallbackRepository;
+        this.persistentRepository = persistentRepository == null ? fallbackRepository : persistentRepository;
         this.keyPrefix = StringUtils.hasText(keyPrefix) ? keyPrefix : "agent-group";
     }
 
@@ -55,7 +59,7 @@ public class RedisGuideConversationRepository implements GuideConversationReposi
             RList<String> list = redissonClient.getList(key(sessionId));
             int size = list.size();
             if (size <= 0) {
-                return List.of();
+                return persistentRepository.queryRecentMessages(sessionId, limit);
             }
             int fromIndex = Math.max(0, size - limit);
             List<String> values = list.range(fromIndex, size - 1);
@@ -65,7 +69,7 @@ public class RedisGuideConversationRepository implements GuideConversationReposi
                     .toList();
         } catch (Exception e) {
             LOGGER.warn("redis conversation fallback, reason={}", e.getClass().getSimpleName());
-            return fallbackRepository.queryRecentMessages(sessionId, limit);
+            return persistentRepository.queryRecentMessages(sessionId, limit);
         }
     }
 
@@ -83,9 +87,10 @@ public class RedisGuideConversationRepository implements GuideConversationReposi
                 list.trim(size - MAX_SESSION_MESSAGES, size - 1);
             }
             list.expire(SESSION_TTL);
+            persistentRepository.appendMessage(sessionId, message);
         } catch (Exception e) {
             LOGGER.warn("redis conversation append fallback, reason={}", e.getClass().getSimpleName());
-            fallbackRepository.appendMessage(sessionId, message);
+            persistentRepository.appendMessage(sessionId, message);
         }
     }
 

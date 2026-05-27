@@ -15,6 +15,8 @@ public interface INotifyTaskDao {
 
     List<NotifyTask> queryUnExecutedNotifyTaskListByTeamId(@Param("teamId") String teamId);
 
+    NotifyTask queryNotifyTaskByUuid(@Param("uuid") String uuid);
+
     int updateNotifyTaskStatusProcessing(NotifyTask notifyTask);
 
     int updateNotifyTaskStatusSuccess(NotifyTask notifyTask);

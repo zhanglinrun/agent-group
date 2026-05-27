@@ -40,6 +40,19 @@ class KnowledgeDocumentParserTest {
     }
 
     @Test
+    void shouldSplitMarkdownByHeading() {
+        KnowledgeDocumentParser parser = new KnowledgeDocumentParser();
+
+        List<CreateKnowledgeFragmentCommand> fragments = parser.parse(
+                "G10001",
+                "# 商品详情\n适合学习\n## 售后政策\n支持退款");
+
+        assertEquals(2, fragments.size());
+        assertTrue(fragments.get(0).getContent().startsWith("# 商品详情"));
+        assertTrue(fragments.get(1).getContent().startsWith("## 售后政策"));
+    }
+
+    @Test
     void shouldRejectBlankContent() {
         KnowledgeDocumentParser parser = new KnowledgeDocumentParser();
 

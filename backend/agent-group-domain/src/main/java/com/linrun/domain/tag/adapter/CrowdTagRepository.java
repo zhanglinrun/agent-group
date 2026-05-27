@@ -11,6 +11,8 @@ public interface CrowdTagRepository {
 
     Optional<CrowdTagJob> queryJob(String tagId, String batchId);
 
+    List<CrowdTagJob> queryRunnableJobs(int limit);
+
     List<String> queryUserIdsByOrderCount(LocalDateTime startTime, LocalDateTime endTime, int minOrderCount);
 
     List<String> queryUserIdsByPayAmount(LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPayAmount);

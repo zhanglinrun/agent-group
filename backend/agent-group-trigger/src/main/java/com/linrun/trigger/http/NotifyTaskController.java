@@ -25,4 +25,9 @@ public class NotifyTaskController {
     public Response<NotifyTaskExecuteResponse> execJob(@RequestParam(required = false) String teamId) {
         return Response.success(notifyTaskService.execNotifyJob(teamId), RequestTraceContext.getRequestId());
     }
+
+    @PostMapping("/exec_task")
+    public Response<NotifyTaskExecuteResponse> execTask(@RequestParam String uuid) {
+        return Response.success(notifyTaskService.execNotifyTask(uuid), RequestTraceContext.getRequestId());
+    }
 }

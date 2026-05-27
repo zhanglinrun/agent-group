@@ -11,4 +11,5 @@ public class RefundMarketPayOrderRequest implements Serializable {
     private String outTradeNo;
     private String source;
     private String channel;
+    private String hitlApprovalId;
 }

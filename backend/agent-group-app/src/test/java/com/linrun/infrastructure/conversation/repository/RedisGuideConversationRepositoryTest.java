@@ -29,6 +29,7 @@ class RedisGuideConversationRepositoryTest {
                 redissonClient,
                 new ObjectMapper().findAndRegisterModules(),
                 new LocalGuideConversationRepository(),
+                new LocalGuideConversationRepository(),
                 "test-agent");
 
         repository.appendMessage("S10001", GuideConversationMessage.user("student budget limited", ""));
@@ -47,6 +48,7 @@ class RedisGuideConversationRepositoryTest {
         RedisGuideConversationRepository repository = new RedisGuideConversationRepository(
                 redissonClient,
                 new ObjectMapper().findAndRegisterModules(),
+                new LocalGuideConversationRepository(),
                 new LocalGuideConversationRepository(),
                 "test-agent");
 
@@ -69,6 +71,7 @@ class RedisGuideConversationRepositoryTest {
         RedisGuideConversationRepository repository = new RedisGuideConversationRepository(
                 redissonClient,
                 objectMapper,
+                new LocalGuideConversationRepository(),
                 new LocalGuideConversationRepository(),
                 "test-agent");
 

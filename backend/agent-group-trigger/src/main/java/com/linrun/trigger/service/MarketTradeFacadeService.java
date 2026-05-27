@@ -16,6 +16,7 @@ import com.linrun.domain.marketing.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.marketing.adapter.GroupBuyOrderLockRepository;
 import com.linrun.domain.marketing.model.GroupBuyMarketTrialCommand;
 import com.linrun.domain.marketing.model.GroupBuyOrderLock;
+import com.linrun.domain.marketing.model.GroupBuyProgress;
 import com.linrun.domain.marketing.model.GroupBuyTeamDetail;
 import com.linrun.domain.marketing.model.GroupBuyTeamStatistic;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
@@ -43,6 +44,7 @@ public class MarketTradeFacadeService {
     private final TradeOrderRepository tradeOrderRepository;
     private final DynamicConfigService dynamicConfigService;
     private final GroupBuyMarketTrialService groupBuyMarketTrialService;
+    private final HumanApprovalService humanApprovalService;
 
     public MarketTradeFacadeService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -52,7 +54,8 @@ public class MarketTradeFacadeService {
                                     TradeCompensationService tradeCompensationService,
                                     TradeOrderRepository tradeOrderRepository,
                                     DynamicConfigService dynamicConfigService,
-                                    GroupBuyMarketTrialService groupBuyMarketTrialService) {
+                                    GroupBuyMarketTrialService groupBuyMarketTrialService,
+                                    HumanApprovalService humanApprovalService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
@@ -62,6 +65,7 @@ public class MarketTradeFacadeService {
         this.tradeOrderRepository = tradeOrderRepository;
         this.dynamicConfigService = dynamicConfigService;
         this.groupBuyMarketTrialService = groupBuyMarketTrialService;
+        this.humanApprovalService = humanApprovalService == null ? new HumanApprovalService() : humanApprovalService;
     }
 
     public LockMarketPayOrderResponse lockMarketPayOrder(LockMarketPayOrderRequest request) {
@@ -73,6 +77,8 @@ public class MarketTradeFacadeService {
         if (!trialResult.isEnable() || !trialResult.isAvailable()) {
             throw new AppException("GROUP_0019", "user cannot join this group activity");
         }
+        humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
+                HumanApprovalService.ACTION_LOCK_MARKET_PAY_ORDER, request.getOutTradeNo());
         LockGroupBuyOrderResponse lockResponse = groupBuyLockOrderService.lock(toGroupBuyRequest(request));
 
         LockMarketPayOrderResponse response = new LockMarketPayOrderResponse();
@@ -89,6 +95,8 @@ public class MarketTradeFacadeService {
         if (request == null || !StringUtils.hasText(request.getOutTradeNo())) {
             throw new AppException("0001", "outTradeNo cannot be blank");
         }
+        humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
+                HumanApprovalService.ACTION_SETTLEMENT_MARKET_PAY_ORDER, request.getOutTradeNo());
         String orderId = resolveOrderId(request.getOutTradeNo());
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
@@ -114,6 +122,8 @@ public class MarketTradeFacadeService {
         if (request == null || !StringUtils.hasText(request.getOutTradeNo())) {
             throw new AppException("0001", "outTradeNo cannot be blank");
         }
+        humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
+                HumanApprovalService.ACTION_REFUND_MARKET_PAY_ORDER, request.getOutTradeNo());
         String orderId = resolveOrderId(request.getOutTradeNo());
         boolean success = tradeCompensationService.refundOrCloseOrder(
                 request.getUserId(), orderId, "group buy refund");
@@ -146,6 +156,10 @@ public class MarketTradeFacadeService {
         goods.setOriginalPrice(trialResult.getOriginalPrice());
         goods.setPayPrice(trialResult.getPayPrice());
         goods.setDeductionPrice(trialResult.getDeductionPrice());
+        goods.setTotalStock(trialResult.getTotalStock());
+        goods.setAvailableStock(trialResult.getAvailableStock());
+        goods.setLockedStock(trialResult.getLockedStock());
+        goods.setPaidStock(trialResult.getPaidStock());
         response.setGoods(goods);
         fillTeamInfo(response, trialResult, request.getUserId());
         return response;
@@ -218,10 +232,22 @@ public class MarketTradeFacadeService {
         team.setTargetCount(detail.getTargetCount());
         team.setCompleteCount(detail.getCompleteCount());
         team.setLockCount(detail.getLockCount());
+        team.setProgress(toProgress(GroupBuyProgress.fromTeamDetail(detail)));
         team.setValidStartTime(detail.getValidStartTime());
         team.setValidEndTime(detail.getValidEndTime());
         team.setOutTradeNo(detail.getOutTradeNo());
         return team;
+    }
+
+    private GoodsMarketResponse.GroupProgress toProgress(GroupBuyProgress progress) {
+        GoodsMarketResponse.GroupProgress dto = new GoodsMarketResponse.GroupProgress();
+        dto.setTargetCount(progress.getTargetCount());
+        dto.setLockedCount(progress.getLockedCount());
+        dto.setCompleteCount(progress.getCompleteCount());
+        dto.setRemainingCount(progress.getRemainingCount());
+        dto.setProgressRate(progress.getProgressRate());
+        dto.setSuccess(progress.isSuccess());
+        return dto;
     }
 
     private void validateLockRequest(LockMarketPayOrderRequest request) {

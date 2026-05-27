@@ -54,6 +54,28 @@ public class CrowdTagService {
         return result;
     }
 
+    public List<CrowdTagJobResult> execRunnableTagBatchJobs(int limit) {
+        int safeLimit = limit <= 0 ? 20 : Math.min(limit, 100);
+        return crowdTagRepository.queryRunnableJobs(safeLimit).stream()
+                .map(job -> execTagBatchJob(job.getTagId(), job.getBatchId()))
+                .toList();
+    }
+
+    public CrowdTagJobResult refreshCrowdTagStatistics(String tagId) {
+        if (!StringUtils.hasText(tagId)) {
+            throw new AppException("TAG_0001", "tagId cannot be blank");
+        }
+        int statistics = crowdTagRepository.countCrowdTagUsers(tagId);
+        crowdTagRepository.updateCrowdTagStatistics(tagId, statistics);
+
+        CrowdTagJobResult result = new CrowdTagJobResult();
+        result.setTagId(tagId);
+        result.setMatchedCount(statistics);
+        result.setUserIds(List.of());
+        result.setMessage("statistics refreshed");
+        return result;
+    }
+
     private List<String> queryMatchedUsers(CrowdTagJob job) {
         LocalDateTime startTime = job.getStatStartTime();
         LocalDateTime endTime = job.getStatEndTime();

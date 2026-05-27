@@ -111,6 +111,14 @@ agent:
       username: ${AGENT_GROUP_PGVECTOR_USERNAME:agent_group}
       password: ${AGENT_GROUP_PGVECTOR_PASSWORD:agent_group_dev}
       keyword-fallback-enabled: ${AGENT_GROUP_VECTOR_KEYWORD_FALLBACK_ENABLED:true}
+    rag:
+      reranker:
+        enabled: ${AGENT_GROUP_RAG_RERANKER_ENABLED:false}
+        endpoint: ${AGENT_GROUP_RAG_RERANKER_ENDPOINT:}
+        top-n: ${AGENT_GROUP_RAG_RERANKER_TOP_N:5}
+        timeout-millis: ${AGENT_GROUP_RAG_RERANKER_TIMEOUT_MILLIS:1500}
+    hitl:
+      required: ${AGENT_GROUP_HITL_REQUIRED:false}
     minio:
       endpoint: ${AGENT_GROUP_MINIO_ENDPOINT:http://127.0.0.1:9000}
       access-key: ${AGENT_GROUP_MINIO_ACCESS_KEY:agent_group}

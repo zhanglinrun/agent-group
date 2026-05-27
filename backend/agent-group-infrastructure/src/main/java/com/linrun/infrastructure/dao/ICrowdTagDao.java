@@ -13,6 +13,8 @@ public interface ICrowdTagDao {
 
     CrowdTagJob queryJob(@Param("tagId") String tagId, @Param("batchId") String batchId);
 
+    List<CrowdTagJob> queryRunnableJobs(@Param("limit") int limit);
+
     List<String> queryUserIdsByOrderCount(@Param("startTime") LocalDateTime startTime,
                                           @Param("endTime") LocalDateTime endTime,
                                           @Param("minOrderCount") int minOrderCount);

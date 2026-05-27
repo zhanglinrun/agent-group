@@ -34,6 +34,23 @@
         limit 1
     </select>
 
+    <select id="queryRunnableJobs" resultMap="CrowdTagJobMap">
+        select id,
+               tag_id,
+               batch_id,
+               tag_type,
+               tag_rule,
+               stat_start_time,
+               stat_end_time,
+               status,
+               create_time,
+               update_time
+        from crowd_tags_job
+        where status = 0
+        order by id asc
+        limit #{limit}
+    </select>
+
     <select id="queryUserIdsByOrderCount" resultType="java.lang.String">
         select user_id
         from trade_order

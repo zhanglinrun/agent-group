@@ -10,6 +10,7 @@ import com.linrun.domain.notify.adapter.NotifyTaskRepository;
 import com.linrun.domain.notify.model.NotifyTask;
 import com.linrun.domain.order.adapter.TradeEventPublisher;
 import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
+import com.linrun.trigger.support.lock.DistributedLock;
 import com.linrun.types.exception.AppException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -97,11 +98,23 @@ public class NotifyTaskService {
         return execNotifyTasks(notifyTaskRepository.queryUnExecutedNotifyTaskList(50));
     }
 
+    @DistributedLock(key = "'notify:job:team:' + (#p0 == null || #p0.isBlank() ? 'ALL' : #p0)",
+            waitTime = 1L, leaseTime = 30L)
     public NotifyTaskExecuteResponse execNotifyJob(String teamId) {
         if (!StringUtils.hasText(teamId)) {
             return execNotifyJob();
         }
         return execNotifyTasks(notifyTaskRepository.queryUnExecutedNotifyTaskList(teamId));
+    }
+
+    @DistributedLock(key = "'notify:job:uuid:' + #p0", waitTime = 1L, leaseTime = 30L)
+    public NotifyTaskExecuteResponse execNotifyTask(String uuid) {
+        if (!StringUtils.hasText(uuid)) {
+            throw new AppException("NOTIFY_0003", "notify task uuid cannot be blank");
+        }
+        NotifyTask task = notifyTaskRepository.queryNotifyTaskByUuid(uuid)
+                .orElseThrow(() -> new AppException("NOTIFY_0004", "notify task not found"));
+        return execNotifyTasks(List.of(task));
     }
 
     private NotifyTaskExecuteResponse execNotifyTasks(List<NotifyTask> tasks) {

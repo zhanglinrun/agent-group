@@ -97,6 +97,25 @@
         limit 50
     </select>
 
+    <select id="queryNotifyTaskByUuid" resultMap="NotifyTaskMap">
+        select id,
+               activity_id,
+               team_id,
+               notify_category,
+               notify_type,
+               notify_mq,
+               notify_url,
+               notify_count,
+               notify_status,
+               parameter_json,
+               uuid,
+               create_time,
+               update_time
+        from notify_task
+        where uuid = #{uuid}
+        limit 1
+    </select>
+
     <update id="updateNotifyTaskStatusProcessing" parameterType="com.linrun.domain.notify.model.NotifyTask">
         update notify_task
         set notify_status = 4,
@@ -104,7 +123,7 @@
         where team_id = #{teamId}
           and uuid = #{uuid}
           and (
-              notify_status in (0, 2)
+              notify_status in (0, 2, 3)
               or (notify_status = 4 and update_time &lt; date_sub(now(), interval 5 minute))
           )
     </update>

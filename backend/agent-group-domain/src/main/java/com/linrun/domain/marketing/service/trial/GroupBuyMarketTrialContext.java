@@ -3,6 +3,7 @@ package com.linrun.domain.marketing.service.trial;
 import com.linrun.domain.marketing.model.GroupBuyActivity;
 import com.linrun.domain.marketing.model.GroupBuyDiscount;
 import com.linrun.domain.marketing.model.GroupBuyMarketSku;
+import com.linrun.domain.marketing.model.GroupBuyStock;
 import com.linrun.domain.marketing.model.SourceChannelSkuActivity;
 
 import java.math.BigDecimal;
@@ -13,8 +14,10 @@ public class GroupBuyMarketTrialContext {
     private SourceChannelSkuActivity sourceChannelSkuActivity;
     private GroupBuyActivity activity;
     private GroupBuyDiscount discount;
+    private GroupBuyStock stock;
     private BigDecimal deductionPrice;
     private BigDecimal payPrice;
+    private long dataLoadMillis;
     private boolean visible = true;
     private boolean enable = true;
 
@@ -50,6 +53,14 @@ public class GroupBuyMarketTrialContext {
         this.discount = discount;
     }
 
+    public GroupBuyStock getStock() {
+        return stock;
+    }
+
+    public void setStock(GroupBuyStock stock) {
+        this.stock = stock;
+    }
+
     public BigDecimal getDeductionPrice() {
         return deductionPrice;
     }
@@ -64,6 +75,14 @@ public class GroupBuyMarketTrialContext {
 
     public void setPayPrice(BigDecimal payPrice) {
         this.payPrice = payPrice;
+    }
+
+    public long getDataLoadMillis() {
+        return dataLoadMillis;
+    }
+
+    public void setDataLoadMillis(long dataLoadMillis) {
+        this.dataLoadMillis = Math.max(0L, dataLoadMillis);
     }
 
     public boolean isVisible() {

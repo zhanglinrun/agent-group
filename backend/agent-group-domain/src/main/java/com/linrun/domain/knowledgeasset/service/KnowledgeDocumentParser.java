@@ -1,18 +1,30 @@
 package com.linrun.domain.knowledgeasset.service;
 
 import com.linrun.domain.knowledgeasset.model.CreateKnowledgeFragmentCommand;
+import com.linrun.domain.knowledgeasset.service.splitter.DocumentSplitterFactory;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class KnowledgeDocumentParser {
 
     private static final int MAX_FRAGMENT_LENGTH = 500;
+
+    private final DocumentSplitterFactory documentSplitterFactory;
+
+    public KnowledgeDocumentParser() {
+        this(new DocumentSplitterFactory());
+    }
+
+    public KnowledgeDocumentParser(DocumentSplitterFactory documentSplitterFactory) {
+        this.documentSplitterFactory = documentSplitterFactory == null
+                ? new DocumentSplitterFactory()
+                : documentSplitterFactory;
+    }
 
     public List<CreateKnowledgeFragmentCommand> parse(String goodsId, String content) {
         if (!StringUtils.hasText(goodsId)) {
@@ -22,7 +34,7 @@ public class KnowledgeDocumentParser {
             throw new AppException("0001", "content cannot be blank");
         }
 
-        List<String> paragraphs = splitContent(content);
+        List<String> paragraphs = documentSplitterFactory.split(content);
         List<CreateKnowledgeFragmentCommand> fragments = new ArrayList<>();
         int rankNo = 1;
         for (String paragraph : paragraphs) {
@@ -35,21 +47,6 @@ public class KnowledgeDocumentParser {
             }
         }
         return fragments;
-    }
-
-    private List<String> splitContent(String content) {
-        String normalized = content.replace("\r\n", "\n").replace('\r', '\n');
-        List<String> paragraphs = Arrays.stream(normalized.split("\\n\\s*\\n"))
-                .map(String::trim)
-                .filter(StringUtils::hasText)
-                .toList();
-        if (paragraphs.size() > 1) {
-            return paragraphs;
-        }
-        return Arrays.stream(normalized.split("\\n"))
-                .map(String::trim)
-                .filter(StringUtils::hasText)
-                .toList();
     }
 
     private List<String> splitLongParagraph(String paragraph) {

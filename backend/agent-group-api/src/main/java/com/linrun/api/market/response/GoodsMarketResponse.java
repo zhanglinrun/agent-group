@@ -28,6 +28,10 @@ public class GoodsMarketResponse implements Serializable {
         private BigDecimal originalPrice;
         private BigDecimal deductionPrice;
         private BigDecimal payPrice;
+        private Integer totalStock;
+        private Integer availableStock;
+        private Integer lockedStock;
+        private Integer paidStock;
     }
 
     @Data
@@ -50,10 +54,22 @@ public class GoodsMarketResponse implements Serializable {
         private Integer targetCount;
         private Integer completeCount;
         private Integer lockCount;
+        private GroupProgress progress;
         private LocalDateTime validStartTime;
         private LocalDateTime validEndTime;
         private String validTimeCountdown;
         private String outTradeNo;
+    }
+
+    @Data
+    public static class GroupProgress implements Serializable {
+
+        private Integer targetCount = 0;
+        private Integer lockedCount = 0;
+        private Integer completeCount = 0;
+        private Integer remainingCount = 0;
+        private BigDecimal progressRate = BigDecimal.ZERO;
+        private Boolean success = false;
     }
 
     @Data

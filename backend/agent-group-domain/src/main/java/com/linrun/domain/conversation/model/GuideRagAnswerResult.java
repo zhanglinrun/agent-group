@@ -10,6 +10,7 @@ public class GuideRagAnswerResult {
     private long llmLatencyMillis;
     private boolean fallbackUsed;
     private String model;
+    private GuideAnswerReflection reflection = GuideAnswerReflection.passed();
 
     public GuideRagAnswerResult() {
     }
@@ -61,5 +62,13 @@ public class GuideRagAnswerResult {
 
     public void setModel(String model) {
         this.model = model;
+    }
+
+    public GuideAnswerReflection getReflection() {
+        return reflection;
+    }
+
+    public void setReflection(GuideAnswerReflection reflection) {
+        this.reflection = reflection == null ? GuideAnswerReflection.passed() : reflection;
     }
 }

@@ -21,8 +21,13 @@ public class GroupBuyTrialResult {
     private BigDecimal groupPrice;
     private Integer teamSize;
     private Integer takeLimitCount;
+    private Integer totalStock;
+    private Integer availableStock;
+    private Integer lockedStock;
+    private Integer paidStock;
     private Integer validTime;
     private Integer remainingSeconds;
+    private long dataLoadMillis;
     private GroupBuyActivityStatus status;
     private boolean available;
     private boolean visible = true;
@@ -175,6 +180,38 @@ public class GroupBuyTrialResult {
         this.takeLimitCount = takeLimitCount;
     }
 
+    public Integer getTotalStock() {
+        return totalStock;
+    }
+
+    public void setTotalStock(Integer totalStock) {
+        this.totalStock = totalStock;
+    }
+
+    public Integer getAvailableStock() {
+        return availableStock;
+    }
+
+    public void setAvailableStock(Integer availableStock) {
+        this.availableStock = availableStock;
+    }
+
+    public Integer getLockedStock() {
+        return lockedStock;
+    }
+
+    public void setLockedStock(Integer lockedStock) {
+        this.lockedStock = lockedStock;
+    }
+
+    public Integer getPaidStock() {
+        return paidStock;
+    }
+
+    public void setPaidStock(Integer paidStock) {
+        this.paidStock = paidStock;
+    }
+
     public Integer getValidTime() {
         return validTime;
     }
@@ -189,6 +226,14 @@ public class GroupBuyTrialResult {
 
     public void setRemainingSeconds(Integer remainingSeconds) {
         this.remainingSeconds = remainingSeconds;
+    }
+
+    public long getDataLoadMillis() {
+        return dataLoadMillis;
+    }
+
+    public void setDataLoadMillis(long dataLoadMillis) {
+        this.dataLoadMillis = Math.max(0L, dataLoadMillis);
     }
 
     public GroupBuyActivityStatus getStatus() {

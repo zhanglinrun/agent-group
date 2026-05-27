@@ -25,6 +25,11 @@ public class MyBatisCrowdTagRepository implements CrowdTagRepository {
     }
 
     @Override
+    public List<CrowdTagJob> queryRunnableJobs(int limit) {
+        return crowdTagDao.queryRunnableJobs(Math.max(1, limit));
+    }
+
+    @Override
     public List<String> queryUserIdsByOrderCount(LocalDateTime startTime, LocalDateTime endTime, int minOrderCount) {
         return crowdTagDao.queryUserIdsByOrderCount(startTime, endTime, minOrderCount);
     }

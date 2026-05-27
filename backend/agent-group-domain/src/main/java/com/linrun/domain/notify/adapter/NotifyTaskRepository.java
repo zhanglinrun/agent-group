@@ -3,6 +3,7 @@ package com.linrun.domain.notify.adapter;
 import com.linrun.domain.notify.model.NotifyTask;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface NotifyTaskRepository {
 
@@ -11,6 +12,8 @@ public interface NotifyTaskRepository {
     List<NotifyTask> queryUnExecutedNotifyTaskList(int limit);
 
     List<NotifyTask> queryUnExecutedNotifyTaskList(String teamId);
+
+    Optional<NotifyTask> queryNotifyTaskByUuid(String uuid);
 
     int updateNotifyTaskStatusProcessing(NotifyTask notifyTask);
 

@@ -4,6 +4,7 @@ import com.linrun.domain.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.dcc.service.DynamicConfigService;
 import com.linrun.domain.marketing.adapter.GroupBuyActivityRepository;
 import com.linrun.domain.marketing.adapter.GroupBuyMarketRepository;
+import com.linrun.domain.marketing.adapter.GroupBuyStockRepository;
 import com.linrun.domain.marketing.model.GroupBuyMarketTrialCommand;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
 import com.linrun.domain.marketing.service.discount.DiscountCalculateService;
@@ -15,6 +16,7 @@ import com.linrun.domain.marketing.service.trial.node.TagTrialNode;
 import com.linrun.domain.support.tree.StrategyHandler;
 import com.linrun.domain.support.tree.StrategyTree;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -30,13 +32,24 @@ public class GroupBuyMarketTrialService {
                                       GuideDataRepository guideDataRepository,
                                       DynamicConfigService dynamicConfigService,
                                       Map<String, DiscountCalculateService> discountCalculateServiceMap) {
+        this(groupBuyActivityRepository, groupBuyMarketRepository, GroupBuyStockRepository.noop(),
+                guideDataRepository, dynamicConfigService, discountCalculateServiceMap);
+    }
+
+    @Autowired
+    public GroupBuyMarketTrialService(GroupBuyActivityRepository groupBuyActivityRepository,
+                                      GroupBuyMarketRepository groupBuyMarketRepository,
+                                      GroupBuyStockRepository groupBuyStockRepository,
+                                      GuideDataRepository guideDataRepository,
+                                      DynamicConfigService dynamicConfigService,
+                                      Map<String, DiscountCalculateService> discountCalculateServiceMap) {
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> endNode =
                 new EndTrialNode();
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> tagNode =
                 new TagTrialNode(groupBuyMarketRepository, endNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> marketNode =
                 new MarketTrialNode(groupBuyActivityRepository, groupBuyMarketRepository, guideDataRepository,
-                        discountCalculateServiceMap, tagNode);
+                        groupBuyStockRepository, discountCalculateServiceMap, tagNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> switchNode =
                 new SwitchTrialNode(dynamicConfigService, marketNode);
         this.trialStrategyTree = new StrategyTree<>(switchNode);

@@ -125,6 +125,32 @@ class NotifyTaskServiceTest {
         assertTrue(notifyTaskRepository.tasks.get(0).getParameterJson().contains("R10001"));
     }
 
+    @Test
+    void shouldRetrySpecifiedErrorNotifyTaskByUuid() {
+        FakeNotifyTaskRepository notifyTaskRepository = new FakeNotifyTaskRepository();
+        NotifyTask task = new NotifyTask();
+        task.setActivityId("A10004");
+        task.setTeamId("T10004");
+        task.setNotifyCategory(NotifyTask.CATEGORY_TRADE_REFUND);
+        task.setNotifyType(NotifyTask.TYPE_HTTP);
+        task.setNotifyCount(1);
+        task.setNotifyStatus(NotifyTask.STATUS_ERROR);
+        task.setParameterJson("{}");
+        task.setUuid("T10004_trade_refund");
+        notifyTaskRepository.save(task);
+        NotifyTaskService service = new NotifyTaskService(
+                notifyTaskRepository,
+                new DynamicConfigService(new FakeDynamicConfigRepository()),
+                TradeEventPublisher.noop(),
+                new ObjectMapper());
+
+        NotifyTaskExecuteResponse response = service.execNotifyTask("T10004_trade_refund");
+
+        assertEquals(1, response.getWaitCount());
+        assertEquals(1, response.getSuccessCount());
+        assertEquals(NotifyTask.STATUS_SUCCESS, task.getNotifyStatus());
+    }
+
     private static class FakeNotifyTaskRepository implements NotifyTaskRepository {
 
         private final List<NotifyTask> tasks = new ArrayList<>();
@@ -151,9 +177,17 @@ class NotifyTaskServiceTest {
         }
 
         @Override
+        public Optional<NotifyTask> queryNotifyTaskByUuid(String uuid) {
+            return tasks.stream()
+                    .filter(task -> uuid.equals(task.getUuid()))
+                    .findFirst();
+        }
+
+        @Override
         public int updateNotifyTaskStatusProcessing(NotifyTask notifyTask) {
             if (notifyTask.getNotifyStatus() == NotifyTask.STATUS_INIT
-                    || notifyTask.getNotifyStatus() == NotifyTask.STATUS_RETRY) {
+                    || notifyTask.getNotifyStatus() == NotifyTask.STATUS_RETRY
+                    || notifyTask.getNotifyStatus() == NotifyTask.STATUS_ERROR) {
                 notifyTask.setNotifyStatus(NotifyTask.STATUS_PROCESSING);
                 return 1;
             }

@@ -5,6 +5,7 @@ import com.linrun.domain.marketing.model.GroupBuyActivityStatus;
 import com.linrun.domain.marketing.model.GroupBuyDiscount;
 import com.linrun.domain.marketing.model.GroupBuyMarketSku;
 import com.linrun.domain.marketing.model.GroupBuyMarketTrialCommand;
+import com.linrun.domain.marketing.model.GroupBuyStock;
 import com.linrun.domain.marketing.model.GroupBuyTrialResult;
 import com.linrun.domain.marketing.service.trial.GroupBuyMarketTrialContext;
 import com.linrun.domain.support.tree.StrategyHandler;
@@ -31,6 +32,7 @@ public class EndTrialNode implements StrategyHandler<GroupBuyMarketTrialCommand,
             result.setOriginalPrice(normalize(sku.getOriginalPrice()));
             result.setPayPrice(normalize(sku.getOriginalPrice()));
             result.setDeductionPrice(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+            result.setDataLoadMillis(dynamicContext.getDataLoadMillis());
             result.setVisible(false);
             result.setEnable(false);
             return result;
@@ -53,6 +55,7 @@ public class EndTrialNode implements StrategyHandler<GroupBuyMarketTrialCommand,
         result.setTakeLimitCount(activity.getTakeLimitCount());
         result.setValidTime(activity.getValidTime());
         result.setRemainingSeconds(activity.remainingSeconds(now));
+        result.setDataLoadMillis(dynamicContext.getDataLoadMillis());
         result.setStatus(status);
         result.setVisible(dynamicContext.isVisible());
         result.setEnable(dynamicContext.isEnable());
@@ -65,8 +68,19 @@ public class EndTrialNode implements StrategyHandler<GroupBuyMarketTrialCommand,
             result.setMarketPlan(discount.getMarketPlan());
             result.setMarketExpr(discount.getMarketExpr());
         }
+        fillStock(result, dynamicContext.getStock());
         result.setMessage(resolveMessage(status, dynamicContext));
         return result;
+    }
+
+    private void fillStock(GroupBuyTrialResult result, GroupBuyStock stock) {
+        if (stock == null) {
+            return;
+        }
+        result.setTotalStock(stock.getTotalStock());
+        result.setAvailableStock(stock.getAvailableStock());
+        result.setLockedStock(stock.getLockedStock());
+        result.setPaidStock(stock.getPaidStock());
     }
 
     private String resolveMessage(GroupBuyActivityStatus status, GroupBuyMarketTrialContext dynamicContext) {

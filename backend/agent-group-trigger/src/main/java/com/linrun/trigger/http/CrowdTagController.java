@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -27,6 +30,20 @@ public class CrowdTagController {
     public Response<CrowdTagJobResponse> execTagBatchJob(@RequestBody ExecuteCrowdTagJobRequest request) {
         CrowdTagJobResult result = crowdTagService.execTagBatchJob(request.getTagId(), request.getBatchId());
         return Response.success(toResponse(result), RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/exec_pending_tag_jobs")
+    public Response<List<CrowdTagJobResponse>> execPendingTagJobs(@RequestParam(defaultValue = "20") int limit) {
+        List<CrowdTagJobResponse> responses = crowdTagService.execRunnableTagBatchJobs(limit).stream()
+                .map(this::toResponse)
+                .toList();
+        return Response.success(responses, RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/refresh_statistics")
+    public Response<CrowdTagJobResponse> refreshStatistics(@RequestParam String tagId) {
+        return Response.success(toResponse(crowdTagService.refreshCrowdTagStatistics(tagId)),
+                RequestTraceContext.getRequestId());
     }
 
     private CrowdTagJobResponse toResponse(CrowdTagJobResult result) {

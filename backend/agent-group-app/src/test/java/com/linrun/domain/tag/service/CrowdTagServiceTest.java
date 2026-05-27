@@ -37,9 +37,32 @@ class CrowdTagServiceTest {
         assertTrue(repository.statuses.contains(CrowdTagService.STATUS_DONE));
     }
 
+    @Test
+    void shouldExecuteRunnableTagJobsAndRefreshStatistics() {
+        FakeCrowdTagRepository repository = new FakeCrowdTagRepository();
+        CrowdTagJob job = new CrowdTagJob();
+        job.setTagId("TAG_ORDER_2");
+        job.setBatchId("BATCH_001");
+        job.setTagType(1);
+        job.setTagRule("2");
+        repository.job = job;
+        repository.runnableJobs = List.of(job);
+        repository.orderCountUsers = List.of("U10001");
+        CrowdTagService service = new CrowdTagService(repository);
+
+        List<CrowdTagJobResult> results = service.execRunnableTagBatchJobs(20);
+        CrowdTagJobResult refreshResult = service.refreshCrowdTagStatistics("TAG_ORDER_2");
+
+        assertEquals(1, results.size());
+        assertEquals(1, results.get(0).getMatchedCount());
+        assertEquals(1, refreshResult.getMatchedCount());
+        assertEquals("statistics refreshed", refreshResult.getMessage());
+    }
+
     private static class FakeCrowdTagRepository implements CrowdTagRepository {
 
         private CrowdTagJob job;
+        private List<CrowdTagJob> runnableJobs = List.of();
         private List<String> orderCountUsers = List.of();
         private int statistics;
         private final Set<String> details = new HashSet<>();
@@ -48,6 +71,11 @@ class CrowdTagServiceTest {
         @Override
         public Optional<CrowdTagJob> queryJob(String tagId, String batchId) {
             return Optional.ofNullable(job);
+        }
+
+        @Override
+        public List<CrowdTagJob> queryRunnableJobs(int limit) {
+            return runnableJobs.stream().limit(limit).toList();
         }
 
         @Override
