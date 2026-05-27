@@ -360,6 +360,12 @@ function handleGuideEvent(event) {
     return;
   }
 
+  if (event.event === "retrieval_progress") {
+    const retrievers = (event.data?.retrievers || []).join(" → ");
+    addToolEvent(`${event.data?.message || event.data?.stage || "检索进度"}${retrievers ? `：${retrievers}` : ""}`);
+    return;
+  }
+
   if (event.event === "reference_delta") {
     renderReference({
       title: `${event.data?.documentType || "知识片段"} ${event.data?.fragmentId || ""}`.trim(),

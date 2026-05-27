@@ -9,6 +9,16 @@
 3. 退款入口先走退款规则链，再路由到退款策略；支付退款成功后释放拼团名额，并创建 `trade_refund`（交易退款通知）任务。
 4. `TradeEventOutboxDispatchJob`（交易事件投递任务）负责把本地事件投递到 `RabbitMQ`（消息队列）。
 5. `GroupBuyNotifyTaskJob`（通知补偿任务）负责重试 `HTTP`（网页回调）或 `MQ`（消息队列）通知。
+6. `TimeoutRefundJob`（超时退款任务）独立扫描超时未成团订单，把关闭未支付订单和成团失败退款拆成两条补偿链路。
+
+## 补偿任务
+
+| 任务 | 默认开关 | 默认频率 | 作用 |
+| --- | --- | --- | --- |
+| `TradeTimeoutCompensationJob`（交易超时补偿任务） | `agent.group.trade.timeout-close.enabled`（交易超时关闭开关） | `agent.group.trade.timeout-close.cron`（交易超时关闭定时表达式） | 关闭超时未支付订单。 |
+| `TimeoutRefundJob`（超时退款任务） | `agent.group.trade.timeout-refund.enabled`（超时退款开关） | `agent.group.trade.timeout-refund.cron`（超时退款定时表达式） | 处理已支付但超时未成团订单的退款补偿。 |
+| `GroupBuyNotifyTaskJob`（通知补偿任务） | `agent.group.notify.job.enabled`（通知任务开关） | `agent.group.notify.job.cron`（通知任务定时表达式） | 批量重试待通知任务。 |
+| `DocumentCompensationJob`（文档补偿任务） | `agent.group.knowledge.compensation.enabled`（知识补偿开关） | `agent.group.knowledge.compensation.embedding-cron`（向量补偿定时表达式） | 重试向量入库失败的知识文档。 |
 
 ## 消息队列
 
@@ -58,6 +68,54 @@ update dynamic_config
 set config_value = 'MQ'
 where config_key in ('groupSettlementNotifyType', 'groupRefundNotifyType');
 ```
+
+代码侧通过 `NotifyConfig`（通知配置值对象）统一承载通知类型、`MQ`（消息队列）路由和 `HTTP`（网页回调）地址，再交给 `TradeNotifyPort`（外部交易通知端口）派发。这样面试里可以把它讲成“通知规则可配置、通知动作走端口隔离”，不是把通知逻辑硬编码在业务服务里。
+
+## 指定任务执行
+
+通知任务支持批量补偿、按队伍执行和按任务编号执行三种方式：
+
+```text
+execNotifyJob()
+execNotifyJob(teamId)
+execNotifyTask(uuid)
+```
+
+按 `uuid`（任务编号）执行时会先加分布式锁，适合演示“单任务重试”和交易通知闭环。
+
+## 导购检索进度
+
+导购流式接口新增 `retrieval_progress`（检索进度）事件。一次知识检索会先返回 `route`（查询路由）阶段，再返回 `aggregate`（聚合排序）阶段：
+
+```text
+route -> query routed
+aggregate -> references ranked
+```
+
+查询路由会把问题分到 `trade_system`（交易系统）、`market_system`（营销系统）、`knowledge_base`（知识库）或 `hybrid`（混合检索）。这样前端可以展示“为什么查订单走交易表、为什么查售后走知识库”。
+
+## 知识补偿与工具化
+
+文档上传时，如果 `Spring AI VectorStore`（向量存储接口）写入失败，文档会标记为 `EMBEDDING_FAILED`（向量入库失败），再由定时任务或接口重试：
+
+```text
+POST /api/v1/knowledge/vector/compensate-failed-embedding?limit=20
+```
+
+`MCP`（模型上下文协议）工具当前包含：
+
+```text
+query_route
+knowledge_search
+guide_recommend
+group_trial
+order_status
+refund_status
+json_repair
+document_compensation
+```
+
+其中 `query_route`（查询路由）和 `refund_status`（退款状态）补强交易查询，`json_repair`（结构化数据修复）用于修复模型返回的非标准 `JSON`（结构化数据格式），`document_compensation`（文档补偿）用于触发失败文档重试。
 
 ## 排障检查
 

@@ -45,14 +45,4 @@ public class TradeTimeoutCompensationJob {
         });
     }
 
-    @Scheduled(cron = "${agent.group.trade.compensation.refund-unsettled-group-cron:0 */1 * * * ?}")
-    public void refundTimeoutUnsettledGroupOrders() {
-        scheduledJobLockExecutor.execute("trade-timeout-compensation:refund-unsettled-group",
-                JOB_LOCK_LEASE_TIME, () -> {
-                    int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(LocalDateTime.now(), 50);
-                    if (refundCount > 0) {
-                        LOGGER.info("timeout unsettled group orders refunded, count={}", refundCount);
-                    }
-                });
-    }
 }

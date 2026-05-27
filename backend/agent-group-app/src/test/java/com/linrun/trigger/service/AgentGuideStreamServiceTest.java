@@ -7,6 +7,7 @@ import com.linrun.api.agent.response.GuideStreamEvent;
 import com.linrun.api.agent.response.GuideUsageMetricsDTO;
 import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.api.agent.response.ProductCardDTO;
+import com.linrun.api.agent.response.RetrievalProgressDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.conversation.adapter.GuideDataRepository;
@@ -56,7 +57,9 @@ class AgentGuideStreamServiceTest {
 
         assertEquals(List.of(
                 GuideEventType.TOOL_PLAN.getCode(),
+                GuideEventType.RETRIEVAL_PROGRESS.getCode(),
                 GuideEventType.TOOL_CALL.getCode(),
+                GuideEventType.RETRIEVAL_PROGRESS.getCode(),
                 GuideEventType.REFERENCE_DELTA.getCode(),
                 GuideEventType.REFERENCE_DELTA.getCode(),
                 GuideEventType.TOOL_CALL.getCode(),
@@ -71,25 +74,28 @@ class AgentGuideStreamServiceTest {
                 GuideEventType.USAGE_METRIC.getCode(),
                 GuideEventType.DONE.getCode()
         ), events.stream().map(GuideStreamEvent::getEvent).toList());
-        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17),
                 events.stream().map(GuideStreamEvent::getSequence).toList());
 
-        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(11).getData());
+        RetrievalProgressDTO routeProgress = assertInstanceOf(RetrievalProgressDTO.class, events.get(1).getData());
+        assertEquals("knowledge_base", routeProgress.getStrategy());
+        assertEquals("route", routeProgress.getStage());
+        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(13).getData());
         assertTrue(productCard.getDecisionId().startsWith("D"));
         assertEquals("G10001", productCard.getGoodsId());
         assertEquals("轻薄学习平板标准版", productCard.getGoodsName());
         assertEquals(new BigDecimal("2099.00"), productCard.getGroupPrice());
-        SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(12).getData());
+        SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(14).getData());
         assertEquals(Boolean.TRUE, selfCheck.getPassed());
-        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(13).getData());
+        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(15).getData());
         assertTrue(usageMetrics.getTotalLatencyMillis() >= 0);
-        ToolCallDTO knowledgeTool = assertInstanceOf(ToolCallDTO.class, events.get(1).getData());
+        ToolCallDTO knowledgeTool = assertInstanceOf(ToolCallDTO.class, events.get(2).getData());
         assertEquals("knowledge-search-v1", knowledgeTool.getToolVersion());
         assertEquals("MEDIUM", knowledgeTool.getRiskLevel());
         assertEquals(Boolean.TRUE, knowledgeTool.getResultCitationRequired());
         assertEquals(List.of("KF10001", "KF10002"), knowledgeTool.getCitationIds());
         assertTrue(knowledgeTool.getToolCallId().startsWith("knowledge_search-"));
-        ToolCallDTO groupTrialTool = assertInstanceOf(ToolCallDTO.class, events.get(5).getData());
+        ToolCallDTO groupTrialTool = assertInstanceOf(ToolCallDTO.class, events.get(7).getData());
         assertEquals("group_trial", groupTrialTool.getToolName());
         assertEquals("G10001", groupTrialTool.getArguments().get("goodsId"));
         assertEquals("group-trial-v1", groupTrialTool.getToolVersion());
@@ -121,11 +127,12 @@ class AgentGuideStreamServiceTest {
 
         List<GuideStreamEvent<?>> events = service.buildEvents(request, "S10001", "R10001");
 
-        assertEquals(3, events.size());
+        assertEquals(4, events.size());
         assertEquals(GuideEventType.TOOL_PLAN.getCode(), events.get(0).getEvent());
-        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(1).getEvent());
-        assertEquals(GuideEventType.ERROR.getCode(), events.get(2).getEvent());
-        ErrorDTO error = assertInstanceOf(ErrorDTO.class, events.get(2).getData());
+        assertEquals(GuideEventType.RETRIEVAL_PROGRESS.getCode(), events.get(1).getEvent());
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(2).getEvent());
+        assertEquals(GuideEventType.ERROR.getCode(), events.get(3).getEvent());
+        ErrorDTO error = assertInstanceOf(ErrorDTO.class, events.get(3).getData());
         assertEquals("DATA_0001", error.getCode());
         assertTrue(error.getMessage().contains("导购数据源不可用"));
     }
@@ -165,7 +172,8 @@ class AgentGuideStreamServiceTest {
 
         assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(0).getEvent());
         assertEquals(GuideEventType.TOOL_PLAN.getCode(), events.get(1).getEvent());
-        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(2).getEvent());
+        assertEquals(GuideEventType.RETRIEVAL_PROGRESS.getCode(), events.get(2).getEvent());
+        assertEquals(GuideEventType.TOOL_CALL.getCode(), events.get(3).getEvent());
         assertTrue(repository.getLastQuestion().contains("请根据图片帮我判断商品是否适合购买"));
         assertTrue(repository.getLastQuestion().contains("图片疑似平板商品或商品截图"));
     }

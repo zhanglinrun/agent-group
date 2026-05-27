@@ -13,6 +13,7 @@ public class KnowledgeVectorMaintenanceResponse implements Serializable {
     private String knowledgeVersion;
     private Integer fragmentCount;
     private Integer successCount;
+    private Integer failedCount;
     private Integer expectedCount;
     private Integer matchedCount;
     private BigDecimal recallHitRate;

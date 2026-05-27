@@ -7,20 +7,16 @@ import com.linrun.api.notify.response.NotifyTaskExecuteResponse;
 import com.linrun.domain.dcc.service.DynamicConfigService;
 import com.linrun.domain.marketing.model.GroupBuyTeam;
 import com.linrun.domain.notify.adapter.NotifyTaskRepository;
+import com.linrun.domain.notify.adapter.TradeNotifyPort;
+import com.linrun.domain.notify.model.NotifyConfig;
 import com.linrun.domain.notify.model.NotifyTask;
 import com.linrun.domain.order.adapter.TradeEventPublisher;
-import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import com.linrun.trigger.support.lock.DistributedLock;
 import com.linrun.types.exception.AppException;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,17 +30,39 @@ public class NotifyTaskService {
 
     private final NotifyTaskRepository notifyTaskRepository;
     private final DynamicConfigService dynamicConfigService;
-    private final TradeEventPublisher tradeEventPublisher;
+    private final TradeNotifyPort tradeNotifyPort;
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
 
     public NotifyTaskService(NotifyTaskRepository notifyTaskRepository,
                              DynamicConfigService dynamicConfigService,
                              TradeEventPublisher tradeEventPublisher,
                              ObjectMapper objectMapper) {
+        this(notifyTaskRepository, dynamicConfigService, (TradeNotifyPort) task -> {
+            if (NotifyTask.TYPE_MQ.equalsIgnoreCase(task.getNotifyType())) {
+                com.linrun.domain.order.model.entity.TradeEventMessageEntity message =
+                        new com.linrun.domain.order.model.entity.TradeEventMessageEntity();
+                message.setFlowId(task.getUuid());
+                message.setOrderId(task.getTeamId());
+                message.setBizType("NOTIFY");
+                message.setBizId(task.getTeamId());
+                message.setEventType(task.getNotifyCategory());
+                message.setRoutingKey(task.getNotifyMq());
+                message.setToStatus("DISPATCHED");
+                message.setRemark(task.getParameterJson());
+                message.setCreateTime(java.time.LocalDateTime.now());
+                tradeEventPublisher.publish(message);
+            }
+        }, objectMapper);
+    }
+
+    @Autowired
+    public NotifyTaskService(NotifyTaskRepository notifyTaskRepository,
+                             DynamicConfigService dynamicConfigService,
+                             TradeNotifyPort tradeNotifyPort,
+                             ObjectMapper objectMapper) {
         this.notifyTaskRepository = notifyTaskRepository;
         this.dynamicConfigService = dynamicConfigService;
-        this.tradeEventPublisher = tradeEventPublisher;
+        this.tradeNotifyPort = tradeNotifyPort == null ? TradeNotifyPort.noop() : tradeNotifyPort;
         this.objectMapper = objectMapper;
     }
 
@@ -56,12 +74,7 @@ public class NotifyTaskService {
         task.setActivityId(team.getActivityId());
         task.setTeamId(team.getTeamId());
         task.setNotifyCategory(NotifyTask.CATEGORY_TRADE_SETTLEMENT);
-        task.setNotifyType(dynamicConfigService.getValue(
-                DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_TYPE, NotifyTask.TYPE_HTTP));
-        task.setNotifyMq(dynamicConfigService.getValue(
-                DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement"));
-        task.setNotifyUrl(dynamicConfigService.getValue(
-                DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_URL, ""));
+        task.applyConfig(settlementNotifyConfig());
         task.setNotifyCount(0);
         task.setNotifyStatus(NotifyTask.STATUS_INIT);
         task.setParameterJson(groupSettlementPayload(team.getTeamId(), orderIds));
@@ -80,12 +93,7 @@ public class NotifyTaskService {
         task.setActivityId(StringUtils.hasText(response.getActivityId()) ? response.getActivityId() : "UNKNOWN");
         task.setTeamId(StringUtils.hasText(response.getTeamId()) ? response.getTeamId() : response.getOrderId());
         task.setNotifyCategory(NotifyTask.CATEGORY_TRADE_REFUND);
-        task.setNotifyType(dynamicConfigService.getValue(
-                DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, NotifyTask.TYPE_HTTP));
-        task.setNotifyMq(dynamicConfigService.getValue(
-                DynamicConfigService.GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"));
-        task.setNotifyUrl(dynamicConfigService.getValue(
-                DynamicConfigService.GROUP_REFUND_NOTIFY_URL, ""));
+        task.applyConfig(refundNotifyConfig());
         task.setNotifyCount(0);
         task.setNotifyStatus(NotifyTask.STATUS_INIT);
         task.setParameterJson(groupRefundPayload(response));
@@ -148,46 +156,25 @@ public class NotifyTaskService {
 
     private String dispatch(NotifyTask task) {
         try {
-            if (NotifyTask.TYPE_HTTP.equalsIgnoreCase(task.getNotifyType())) {
-                dispatchHttp(task);
-                return DISPATCH_SUCCESS;
-            }
-            if (NotifyTask.TYPE_MQ.equalsIgnoreCase(task.getNotifyType())) {
-                dispatchMq(task);
-                return DISPATCH_SUCCESS;
-            }
-            return null;
+            tradeNotifyPort.dispatch(task);
+            return DISPATCH_SUCCESS;
         } catch (Exception e) {
             return DISPATCH_ERROR;
         }
     }
 
-    private void dispatchHttp(NotifyTask task) {
-        if (!StringUtils.hasText(task.getNotifyUrl()) || "none".equalsIgnoreCase(task.getNotifyUrl())) {
-            return;
-        }
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<String> entity = new HttpEntity<>(task.getParameterJson(), headers);
-        try {
-            restTemplate.postForEntity(task.getNotifyUrl(), entity, String.class);
-        } catch (RestClientException e) {
-            throw new AppException("NOTIFY_0001", "notify http dispatch failed");
-        }
+    private NotifyConfig settlementNotifyConfig() {
+        return NotifyConfig.of(
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_TYPE, NotifyTask.TYPE_HTTP),
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement"),
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_URL, ""));
     }
 
-    private void dispatchMq(NotifyTask task) {
-        TradeEventMessageEntity message = new TradeEventMessageEntity();
-        message.setFlowId(task.getUuid());
-        message.setOrderId(task.getTeamId());
-        message.setBizType("NOTIFY");
-        message.setBizId(task.getTeamId());
-        message.setEventType(task.getNotifyCategory());
-        message.setRoutingKey(task.getNotifyMq());
-        message.setToStatus("DISPATCHED");
-        message.setRemark(task.getParameterJson());
-        message.setCreateTime(LocalDateTime.now());
-        tradeEventPublisher.publish(message);
+    private NotifyConfig refundNotifyConfig() {
+        return NotifyConfig.of(
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, NotifyTask.TYPE_HTTP),
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"),
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_URL, ""));
     }
 
     private String groupSettlementPayload(String teamId, List<String> orderIds) {

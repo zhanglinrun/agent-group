@@ -32,6 +32,15 @@ public class NotifyTask {
         return "notify_job_lock_key_" + uuid;
     }
 
+    public void applyConfig(NotifyConfig config) {
+        if (config == null) {
+            return;
+        }
+        this.notifyType = config.getNotifyType();
+        this.notifyMq = config.getNotifyMq();
+        this.notifyUrl = config.getNotifyUrl();
+    }
+
     public Long getId() {
         return id;
     }

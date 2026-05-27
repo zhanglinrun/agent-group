@@ -1,6 +1,7 @@
 package com.linrun.infrastructure.dao;
 
 import com.linrun.domain.knowledgeasset.model.KnowledgeDocument;
+import com.linrun.domain.knowledgeasset.model.KnowledgeDocumentStatus;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -19,4 +20,9 @@ public interface IKnowledgeDocumentDao {
     List<KnowledgeFragment> queryFragmentsByDocumentId(@Param("documentId") String documentId);
 
     List<KnowledgeFragment> queryEnabledFragmentsByVersion(@Param("knowledgeVersion") String knowledgeVersion);
+
+    List<KnowledgeDocument> queryDocumentsByStatus(@Param("status") KnowledgeDocumentStatus status,
+                                                   @Param("limit") int limit);
+
+    int updateDocumentStatus(KnowledgeDocument document);
 }

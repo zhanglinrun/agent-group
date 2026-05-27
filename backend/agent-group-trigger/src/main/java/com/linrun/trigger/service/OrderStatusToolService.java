@@ -3,13 +3,16 @@ package com.linrun.trigger.service;
 import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.entity.PayOrderEntity;
+import com.linrun.domain.order.model.entity.RefundOrderEntity;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -69,6 +72,31 @@ public class OrderStatusToolService {
         dto.setDisplayStatus(displayStatus(tradeOrder.getOrderStatus(), payOrder));
         dto.setMessage(buildMessage(tradeOrder, payOrder, dto.getDisplayStatus()));
         return dto;
+    }
+
+    public Map<String, Object> queryRefundStatus(String orderId, String userId) {
+        if (!StringUtils.hasText(orderId)) {
+            throw new AppException("0001", "orderId cannot be blank");
+        }
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+                .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
+        if (StringUtils.hasText(userId) && !userId.equals(tradeOrder.getUserId())) {
+            throw new AppException("TRADE_0018", "only current user's order can be queried");
+        }
+        RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(orderId).orElse(null);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("orderId", tradeOrder.getOrderId());
+        result.put("orderStatus", tradeOrder.getOrderStatus() == null ? "" : tradeOrder.getOrderStatus().name());
+        result.put("refundExists", refundOrder != null);
+        if (refundOrder != null) {
+            result.put("refundId", refundOrder.getRefundId());
+            result.put("payOrderId", refundOrder.getPayOrderId());
+            result.put("refundAmount", refundOrder.getRefundAmount());
+            result.put("refundStatus", refundOrder.getRefundStatus() == null ? "" : refundOrder.getRefundStatus().name());
+            result.put("refundReason", refundOrder.getRefundReason());
+            result.put("refundTime", refundOrder.getRefundTime());
+        }
+        return result;
     }
 
     public String extractOrderId(String question) {

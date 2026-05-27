@@ -59,6 +59,12 @@ public class KnowledgeDocument {
         this.updateTime = LocalDateTime.now();
     }
 
+    public void markEmbeddingFailed() {
+        this.documentStatus = KnowledgeDocumentStatus.EMBEDDING_FAILED;
+        this.enabled = false;
+        this.updateTime = LocalDateTime.now();
+    }
+
     public String getDocumentId() {
         return documentId;
     }

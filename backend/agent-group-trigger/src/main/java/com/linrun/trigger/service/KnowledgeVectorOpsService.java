@@ -43,12 +43,17 @@ public class KnowledgeVectorOpsService {
                 topK));
     }
 
+    public KnowledgeVectorMaintenanceResponse compensateFailedEmbedding(int limit) {
+        return toResponse(knowledgeVectorMaintenanceService.compensateFailedEmbedding(limit));
+    }
+
     private KnowledgeVectorMaintenanceResponse toResponse(KnowledgeVectorMaintenanceReport report) {
         KnowledgeVectorMaintenanceResponse response = new KnowledgeVectorMaintenanceResponse();
         response.setAction(report.getAction());
         response.setKnowledgeVersion(report.getKnowledgeVersion());
         response.setFragmentCount(report.getFragmentCount());
         response.setSuccessCount(report.getSuccessCount());
+        response.setFailedCount(report.getFailedCount());
         response.setExpectedCount(report.getExpectedCount());
         response.setMatchedCount(report.getMatchedCount());
         response.setRecallHitRate(report.getRecallHitRate());

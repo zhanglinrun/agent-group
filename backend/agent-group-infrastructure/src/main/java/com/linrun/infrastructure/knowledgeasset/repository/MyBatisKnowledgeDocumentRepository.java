@@ -2,6 +2,7 @@ package com.linrun.infrastructure.knowledgeasset.repository;
 
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.knowledgeasset.model.KnowledgeDocument;
+import com.linrun.domain.knowledgeasset.model.KnowledgeDocumentStatus;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.infrastructure.dao.IKnowledgeDocumentDao;
 import org.springframework.stereotype.Repository;
@@ -41,5 +42,15 @@ public class MyBatisKnowledgeDocumentRepository implements KnowledgeDocumentRepo
     @Override
     public List<KnowledgeFragment> queryEnabledFragmentsByVersion(String knowledgeVersion) {
         return knowledgeDocumentDao.queryEnabledFragmentsByVersion(knowledgeVersion);
+    }
+
+    @Override
+    public List<KnowledgeDocument> queryDocumentsByStatus(KnowledgeDocumentStatus status, int limit) {
+        return knowledgeDocumentDao.queryDocumentsByStatus(status, Math.max(1, limit));
+    }
+
+    @Override
+    public void updateDocumentStatus(KnowledgeDocument document) {
+        knowledgeDocumentDao.updateDocumentStatus(document);
     }
 }

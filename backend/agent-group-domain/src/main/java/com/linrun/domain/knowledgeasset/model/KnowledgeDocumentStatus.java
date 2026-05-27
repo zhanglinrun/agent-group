@@ -4,5 +4,6 @@ public enum KnowledgeDocumentStatus {
     UPLOADED,
     PARSED,
     ENABLED,
-    DISABLED
+    DISABLED,
+    EMBEDDING_FAILED
 }

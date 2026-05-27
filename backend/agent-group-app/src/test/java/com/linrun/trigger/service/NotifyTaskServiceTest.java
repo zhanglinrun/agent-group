@@ -88,7 +88,7 @@ class NotifyTaskServiceTest {
         NotifyTaskService service = new NotifyTaskService(
                 notifyTaskRepository,
                 new DynamicConfigService(new FakeDynamicConfigRepository()),
-                message -> {
+                (TradeEventPublisher) message -> {
                     throw new IllegalStateException("mq unavailable");
                 },
                 new ObjectMapper());

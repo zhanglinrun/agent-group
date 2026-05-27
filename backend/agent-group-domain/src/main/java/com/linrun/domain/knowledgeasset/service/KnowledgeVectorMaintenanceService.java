@@ -1,6 +1,8 @@
 package com.linrun.domain.knowledgeasset.service;
 
 import com.linrun.domain.knowledgeasset.adapter.KnowledgeDocumentRepository;
+import com.linrun.domain.knowledgeasset.model.KnowledgeDocument;
+import com.linrun.domain.knowledgeasset.model.KnowledgeDocumentStatus;
 import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
 import com.linrun.domain.knowledgeasset.model.KnowledgeVectorMaintenanceReport;
 import com.linrun.types.exception.AppException;
@@ -11,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -48,6 +51,46 @@ public class KnowledgeVectorMaintenanceService {
         report.setSuccessCount(fragments.size());
         report.setSnapshotId("KV" + LocalDateTime.now().format(SNAPSHOT_FORMATTER));
         report.setMessage("知识版本备份快照已生成，可用于后续离线导出");
+        return report;
+    }
+
+    public KnowledgeVectorMaintenanceReport compensateFailedEmbedding(int limit) {
+        int safeLimit = limit <= 0 ? 20 : limit;
+        List<KnowledgeDocument> documents = knowledgeDocumentRepository.queryDocumentsByStatus(
+                KnowledgeDocumentStatus.EMBEDDING_FAILED, safeLimit);
+        int fragmentCount = 0;
+        int successCount = 0;
+        int failedCount = 0;
+        List<String> successFragmentIds = new ArrayList<>();
+        for (KnowledgeDocument document : documents) {
+            List<KnowledgeFragment> fragments = knowledgeDocumentRepository.queryFragmentsByDocumentId(document.getDocumentId());
+            boolean documentSuccess = !fragments.isEmpty();
+            fragmentCount += fragments.size();
+            for (KnowledgeFragment fragment : fragments) {
+                try {
+                    knowledgeVectorService.saveFragmentEmbedding(fragment);
+                    successCount++;
+                    successFragmentIds.add(fragment.getFragmentId());
+                } catch (Exception e) {
+                    failedCount++;
+                    documentSuccess = false;
+                }
+            }
+            if (documentSuccess) {
+                document.enable();
+            } else {
+                document.markEmbeddingFailed();
+            }
+            knowledgeDocumentRepository.updateDocumentStatus(document);
+        }
+
+        KnowledgeVectorMaintenanceReport report = new KnowledgeVectorMaintenanceReport();
+        report.setAction("DOCUMENT_EMBEDDING_COMPENSATE");
+        report.setFragmentCount(fragmentCount);
+        report.setSuccessCount(successCount);
+        report.setFailedCount(failedCount);
+        report.setHitFragmentIds(successFragmentIds);
+        report.setMessage(failedCount == 0 ? "document embedding compensation completed" : "document embedding compensation has failures");
         return report;
     }
 

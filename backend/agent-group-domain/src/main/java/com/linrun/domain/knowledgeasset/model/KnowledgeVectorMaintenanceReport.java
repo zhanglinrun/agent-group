@@ -9,6 +9,7 @@ public class KnowledgeVectorMaintenanceReport {
     private String knowledgeVersion;
     private Integer fragmentCount;
     private Integer successCount;
+    private Integer failedCount;
     private Integer expectedCount;
     private Integer matchedCount;
     private BigDecimal recallHitRate;
@@ -46,6 +47,14 @@ public class KnowledgeVectorMaintenanceReport {
 
     public void setSuccessCount(Integer successCount) {
         this.successCount = successCount;
+    }
+
+    public Integer getFailedCount() {
+        return failedCount;
+    }
+
+    public void setFailedCount(Integer failedCount) {
+        this.failedCount = failedCount;
     }
 
     public Integer getExpectedCount() {

@@ -102,8 +102,24 @@ public class KnowledgeDocumentUploadService {
                 documentCommand,
                 fragmentCommands);
         knowledgeDocumentRepository.save(buildResult.getDocument(), buildResult.getFragments());
-        buildResult.getFragments().forEach(knowledgeVectorService::saveFragmentEmbedding);
+        int embeddingFailedCount = saveFragmentEmbeddings(buildResult.getFragments());
+        if (embeddingFailedCount > 0) {
+            buildResult.getDocument().markEmbeddingFailed();
+            knowledgeDocumentRepository.updateDocumentStatus(buildResult.getDocument());
+        }
         return toResponse(buildResult);
+    }
+
+    private int saveFragmentEmbeddings(List<KnowledgeFragment> fragments) {
+        int failedCount = 0;
+        for (KnowledgeFragment fragment : fragments) {
+            try {
+                knowledgeVectorService.saveFragmentEmbedding(fragment);
+            } catch (Exception e) {
+                failedCount++;
+            }
+        }
+        return failedCount;
     }
 
     @Transactional(rollbackFor = Exception.class)

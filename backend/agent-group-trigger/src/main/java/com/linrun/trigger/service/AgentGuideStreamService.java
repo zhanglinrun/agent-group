@@ -9,6 +9,7 @@ import com.linrun.api.agent.response.GuideUsageMetricsDTO;
 import com.linrun.api.agent.response.OrderDeltaDTO;
 import com.linrun.api.agent.response.ProductCardDTO;
 import com.linrun.api.agent.response.ReferenceDeltaDTO;
+import com.linrun.api.agent.response.RetrievalProgressDTO;
 import com.linrun.api.agent.response.SelfCheckDTO;
 import com.linrun.api.agent.response.ToolCallDTO;
 import com.linrun.domain.conversation.model.AgentPlan;
@@ -17,10 +18,12 @@ import com.linrun.domain.conversation.model.GuideAnswerReflection;
 import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.conversation.model.GuideDecisionResult;
 import com.linrun.domain.conversation.model.GuideProduct;
+import com.linrun.domain.conversation.model.GuideQueryRoute;
 import com.linrun.domain.conversation.model.GuideRagAnswerResult;
 import com.linrun.domain.conversation.model.GuideReference;
 import com.linrun.domain.conversation.model.GuideTokenUsage;
 import com.linrun.domain.conversation.model.GuideUserInput;
+import com.linrun.domain.conversation.model.KnowledgeSearchResult;
 import com.linrun.domain.conversation.model.RecommendationResult;
 import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.conversation.adapter.AgentStreamTaskRegistry;
@@ -239,11 +242,16 @@ public class AgentGuideStreamService {
 
         List<GuideReference> searchedReferences = List.of();
         if (agentPlan.hasTool(AgentToolRegistry.KNOWLEDGE_SEARCH)) {
-            ToolExecution<List<GuideReference>> knowledgeExecution = toolExecutor.execute(
+            GuideQueryRoute route = knowledgeSearchToolService.route(effectiveQuestion);
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.RETRIEVAL_PROGRESS,
+                    retrievalProgress("route", route, "query routed", null))) {
+                return;
+            }
+            ToolExecution<KnowledgeSearchResult> knowledgeExecution = toolExecutor.execute(
                     agentToolRegistry.requireDefinition(AgentToolRegistry.KNOWLEDGE_SEARCH),
                     "execute",
                     "已检索知识库片段",
-                    () -> knowledgeSearchToolService.search(effectiveQuestion));
+                    () -> knowledgeSearchToolService.searchWithRoute(effectiveQuestion, 3));
             if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.TOOL_CALL,
                     toolCall(knowledgeExecution, knowledgeSearchMessage(knowledgeExecution),
                             Map.of("question", effectiveQuestion, "limit", "3")))) {
@@ -254,7 +262,13 @@ public class AgentGuideStreamService {
                         error("DATA_0001", "导购数据源不可用，请先启动本地 Docker 基础设施并初始化数据"));
                 return;
             }
-            searchedReferences = knowledgeExecution.getResult() == null ? List.of() : knowledgeExecution.getResult();
+            KnowledgeSearchResult searchResult = knowledgeExecution.getResult();
+            searchedReferences = searchResult == null ? List.of() : searchResult.getReferences();
+            GuideQueryRoute resultRoute = searchResult == null ? route : searchResult.getRoute();
+            if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.RETRIEVAL_PROGRESS,
+                    retrievalProgress("aggregate", resultRoute, "references ranked", searchedReferences.size()))) {
+                return;
+            }
             for (GuideReference reference : searchedReferences) {
                 if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.REFERENCE_DELTA, reference(reference))) {
                     return;
@@ -466,6 +480,13 @@ public class AgentGuideStreamService {
                     .filter(StringUtils::hasText)
                     .toList();
         }
+        if (result instanceof KnowledgeSearchResult searchResult) {
+            return searchResult.getReferences().stream()
+                    .map(GuideReference::getFragmentId)
+                    .filter(Objects::nonNull)
+                    .filter(StringUtils::hasText)
+                    .toList();
+        }
         if (!(result instanceof Collection<?> collection)) {
             return List.of();
         }
@@ -478,12 +499,25 @@ public class AgentGuideStreamService {
                 .toList();
     }
 
-    private String knowledgeSearchMessage(ToolExecution<List<GuideReference>> execution) {
+    private String knowledgeSearchMessage(ToolExecution<KnowledgeSearchResult> execution) {
         if (!execution.isSuccess()) {
             return "知识库检索失败";
         }
-        int count = execution.getResult() == null ? 0 : execution.getResult().size();
+        int count = execution.getResult() == null ? 0 : execution.getResult().getReferences().size();
         return "已检索知识库片段 " + count + " 条";
+    }
+
+    private RetrievalProgressDTO retrievalProgress(String stage,
+                                                   GuideQueryRoute route,
+                                                   String message,
+                                                   Integer referenceCount) {
+        return RetrievalProgressDTO.of(
+                stage,
+                route == null ? "" : route.getStrategy(),
+                message,
+                route == null ? null : route.getConfidence(),
+                route == null ? List.of() : route.getRetrievers(),
+                referenceCount);
     }
 
     private String groupTrialMessage(ToolExecution<GroupBuyTrialResult> execution) {

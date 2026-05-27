@@ -139,4 +139,29 @@
           and fragment_status = 'ENABLED'
         order by document_id asc, rank_no asc, id asc
     </select>
+
+    <select id="queryDocumentsByStatus" resultMap="KnowledgeDocumentMap">
+        select document_id,
+               document_name,
+               document_type,
+               knowledge_version,
+               source_type,
+               source_name,
+               document_status,
+               enabled,
+               create_time,
+               update_time
+        from knowledge_document
+        where document_status = #{status}
+        order by update_time asc, id asc
+        limit #{limit}
+    </select>
+
+    <update id="updateDocumentStatus" parameterType="com.linrun.domain.knowledgeasset.model.KnowledgeDocument">
+        update knowledge_document
+        set document_status = #{documentStatus},
+            enabled = #{enabled},
+            update_time = #{updateTime}
+        where document_id = #{documentId}
+    </update>
 </mapper>
