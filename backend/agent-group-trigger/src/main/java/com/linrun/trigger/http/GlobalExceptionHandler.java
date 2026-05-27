@@ -3,7 +3,7 @@ package com.linrun.trigger.http;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.enums.ResponseCode;
 import com.linrun.types.exception.AppException;
-import com.linrun.types.response.Response;
+import com.linrun.types.common.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

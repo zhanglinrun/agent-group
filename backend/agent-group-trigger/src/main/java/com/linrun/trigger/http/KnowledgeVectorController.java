@@ -1,12 +1,12 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.knowledgeasset.request.BackupKnowledgeVectorRequest;
-import com.linrun.api.knowledgeasset.request.EvaluateKnowledgeRecallRequest;
-import com.linrun.api.knowledgeasset.request.RebuildKnowledgeVectorRequest;
-import com.linrun.api.knowledgeasset.response.KnowledgeVectorMaintenanceResponse;
+import com.linrun.api.dto.BackupKnowledgeVectorRequest;
+import com.linrun.api.dto.EvaluateKnowledgeRecallRequest;
+import com.linrun.api.dto.RebuildKnowledgeVectorRequest;
+import com.linrun.api.dto.KnowledgeVectorMaintenanceResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.KnowledgeVectorOpsService;
-import com.linrun.types.response.Response;
+import com.linrun.trigger.http.KnowledgeVectorOpsHandler;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/knowledge/vector")
 public class KnowledgeVectorController {
 
-    private final KnowledgeVectorOpsService knowledgeVectorOpsService;
+    private final KnowledgeVectorOpsHandler knowledgeVectorOpsService;
 
-    public KnowledgeVectorController(KnowledgeVectorOpsService knowledgeVectorOpsService) {
+    public KnowledgeVectorController(KnowledgeVectorOpsHandler knowledgeVectorOpsService) {
         this.knowledgeVectorOpsService = knowledgeVectorOpsService;
     }
 

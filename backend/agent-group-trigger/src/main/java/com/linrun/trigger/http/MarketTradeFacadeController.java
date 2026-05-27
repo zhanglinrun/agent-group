@@ -1,16 +1,16 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.market.request.GoodsMarketRequest;
-import com.linrun.api.market.request.LockMarketPayOrderRequest;
-import com.linrun.api.market.request.RefundMarketPayOrderRequest;
-import com.linrun.api.market.request.SettlementMarketPayOrderRequest;
-import com.linrun.api.market.response.GoodsMarketResponse;
-import com.linrun.api.market.response.LockMarketPayOrderResponse;
-import com.linrun.api.market.response.RefundMarketPayOrderResponse;
-import com.linrun.api.market.response.SettlementMarketPayOrderResponse;
+import com.linrun.api.dto.GoodsMarketRequest;
+import com.linrun.api.dto.LockMarketPayOrderRequest;
+import com.linrun.api.dto.RefundMarketPayOrderRequest;
+import com.linrun.api.dto.SettlementMarketPayOrderRequest;
+import com.linrun.api.dto.GoodsMarketResponse;
+import com.linrun.api.dto.LockMarketPayOrderResponse;
+import com.linrun.api.dto.RefundMarketPayOrderResponse;
+import com.linrun.api.dto.SettlementMarketPayOrderResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.MarketTradeFacadeService;
-import com.linrun.types.response.Response;
+import com.linrun.trigger.http.MarketTradeFacadeHandler;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @CrossOrigin(origins = "*")
 public class MarketTradeFacadeController {
 
-    private final MarketTradeFacadeService marketTradeFacadeService;
+    private final MarketTradeFacadeHandler marketTradeFacadeService;
 
-    public MarketTradeFacadeController(MarketTradeFacadeService marketTradeFacadeService) {
+    public MarketTradeFacadeController(MarketTradeFacadeHandler marketTradeFacadeService) {
         this.marketTradeFacadeService = marketTradeFacadeService;
     }
 

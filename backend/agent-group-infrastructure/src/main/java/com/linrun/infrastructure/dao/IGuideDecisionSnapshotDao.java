@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.conversation.model.GuideDecisionSnapshot;
+import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -1,8 +1,8 @@
 package com.linrun.trigger.job;
 
 import com.linrun.domain.support.adapter.ScheduledJobLockRepository;
-import com.linrun.trigger.service.KnowledgeVectorOpsService;
-import com.linrun.trigger.service.ScheduledJobLockExecutor;
+import com.linrun.trigger.http.KnowledgeVectorOpsHandler;
+import com.linrun.trigger.job.ScheduledJobLockExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,15 +19,15 @@ public class DocumentCompensationJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(DocumentCompensationJob.class);
     private static final Duration JOB_LOCK_LEASE_TIME = Duration.ofSeconds(60);
 
-    private final KnowledgeVectorOpsService knowledgeVectorOpsService;
+    private final KnowledgeVectorOpsHandler knowledgeVectorOpsService;
     private final ScheduledJobLockExecutor scheduledJobLockExecutor;
 
-    public DocumentCompensationJob(KnowledgeVectorOpsService knowledgeVectorOpsService) {
+    public DocumentCompensationJob(KnowledgeVectorOpsHandler knowledgeVectorOpsService) {
         this(knowledgeVectorOpsService, new ScheduledJobLockExecutor(ScheduledJobLockRepository.noop()));
     }
 
     @Autowired
-    public DocumentCompensationJob(KnowledgeVectorOpsService knowledgeVectorOpsService,
+    public DocumentCompensationJob(KnowledgeVectorOpsHandler knowledgeVectorOpsService,
                                    ScheduledJobLockExecutor scheduledJobLockExecutor) {
         this.knowledgeVectorOpsService = knowledgeVectorOpsService;
         this.scheduledJobLockExecutor = scheduledJobLockExecutor;

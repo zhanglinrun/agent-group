@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.IGroupBuyOrderLockDao">
 
-    <resultMap id="GroupBuyTeamMap" type="com.linrun.domain.marketing.model.GroupBuyTeam">
+    <resultMap id="GroupBuyTeamMap" type="com.linrun.domain.activity.model.GroupBuyTeam">
         <id column="id" property="id"/>
         <result column="team_id" property="teamId"/>
         <result column="activity_id" property="activityId"/>
@@ -18,7 +18,7 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
-    <resultMap id="GroupBuyOrderLockMap" type="com.linrun.domain.marketing.model.GroupBuyOrderLock">
+    <resultMap id="GroupBuyOrderLockMap" type="com.linrun.domain.activity.model.GroupBuyOrderLock">
         <id column="id" property="id"/>
         <result column="lock_id" property="lockId"/>
         <result column="idempotent_key" property="idempotentKey"/>
@@ -32,7 +32,7 @@
         <result column="lock_time" property="lockTime"/>
     </resultMap>
 
-    <resultMap id="GroupBuyTeamDetailMap" type="com.linrun.domain.marketing.model.GroupBuyTeamDetail">
+    <resultMap id="GroupBuyTeamDetailMap" type="com.linrun.domain.activity.model.GroupBuyTeamDetail">
         <result column="user_id" property="userId"/>
         <result column="team_id" property="teamId"/>
         <result column="activity_id" property="activityId"/>
@@ -44,13 +44,13 @@
         <result column="out_trade_no" property="outTradeNo"/>
     </resultMap>
 
-    <resultMap id="GroupBuyTeamStatisticMap" type="com.linrun.domain.marketing.model.GroupBuyTeamStatistic">
+    <resultMap id="GroupBuyTeamStatisticMap" type="com.linrun.domain.activity.model.GroupBuyTeamStatistic">
         <result column="all_team_count" property="allTeamCount"/>
         <result column="all_team_complete_count" property="allTeamCompleteCount"/>
         <result column="all_team_user_count" property="allTeamUserCount"/>
     </resultMap>
 
-    <insert id="insertTeam" parameterType="com.linrun.domain.marketing.model.GroupBuyTeam">
+    <insert id="insertTeam" parameterType="com.linrun.domain.activity.model.GroupBuyTeam">
         insert into group_buy_team (
           team_id,
           activity_id,
@@ -104,7 +104,7 @@
           and complete_count &lt; target_count
     </update>
 
-    <insert id="insertOrderLock" parameterType="com.linrun.domain.marketing.model.GroupBuyOrderLock">
+    <insert id="insertOrderLock" parameterType="com.linrun.domain.activity.model.GroupBuyOrderLock">
         insert into group_buy_order_lock (
           lock_id,
           idempotent_key,

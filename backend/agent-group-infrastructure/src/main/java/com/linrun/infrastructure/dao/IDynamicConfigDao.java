@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.dcc.model.DynamicConfig;
+import com.linrun.domain.support.config.model.DynamicConfig;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

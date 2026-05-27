@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.order.model.entity.TradeEventConsumeRecordEntity;
+import com.linrun.domain.trade.model.entity.TradeEventConsumeRecordEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

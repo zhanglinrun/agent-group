@@ -1,11 +1,11 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.tag.request.ExecuteCrowdTagJobRequest;
-import com.linrun.api.tag.response.CrowdTagJobResponse;
+import com.linrun.api.dto.ExecuteCrowdTagJobRequest;
+import com.linrun.api.dto.CrowdTagJobResponse;
 import com.linrun.domain.tag.model.CrowdTagJobResult;
 import com.linrun.domain.tag.service.CrowdTagService;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.types.response.Response;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

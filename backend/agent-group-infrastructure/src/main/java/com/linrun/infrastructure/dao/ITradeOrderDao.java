@@ -1,9 +1,9 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.order.model.entity.PayOrderEntity;
-import com.linrun.domain.order.model.entity.RefundOrderEntity;
-import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
-import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.trade.model.entity.PayOrderEntity;
+import com.linrun.domain.trade.model.entity.RefundOrderEntity;
+import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

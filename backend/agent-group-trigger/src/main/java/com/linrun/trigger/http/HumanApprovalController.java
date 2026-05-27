@@ -1,11 +1,11 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.agent.request.ApproveHumanApprovalRequest;
-import com.linrun.api.agent.request.CreateHumanApprovalRequest;
-import com.linrun.api.agent.response.HumanApprovalResponse;
+import com.linrun.api.dto.ApproveHumanApprovalRequest;
+import com.linrun.api.dto.CreateHumanApprovalRequest;
+import com.linrun.api.dto.HumanApprovalResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.HumanApprovalService;
-import com.linrun.types.response.Response;
+import com.linrun.trigger.http.HumanApprovalHandler;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/agent/hitl")
 public class HumanApprovalController {
 
-    private final HumanApprovalService humanApprovalService;
+    private final HumanApprovalHandler humanApprovalService;
 
-    public HumanApprovalController(HumanApprovalService humanApprovalService) {
+    public HumanApprovalController(HumanApprovalHandler humanApprovalService) {
         this.humanApprovalService = humanApprovalService;
     }
 

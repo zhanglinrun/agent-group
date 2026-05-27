@@ -1,13 +1,13 @@
 package com.linrun.trigger.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.api.agent.model.GuideEventType;
-import com.linrun.api.agent.response.AnswerDeltaDTO;
-import com.linrun.api.agent.response.GuideStreamEvent;
-import com.linrun.domain.conversation.adapter.GuideStreamControlRepository;
-import com.linrun.domain.conversation.service.GuideImageInputService;
-import com.linrun.trigger.service.AgentGuideStreamService;
-import com.linrun.trigger.service.GuideImageUploadService;
+import com.linrun.api.dto.GuideEventType;
+import com.linrun.api.dto.AnswerDeltaDTO;
+import com.linrun.api.dto.GuideStreamEvent;
+import com.linrun.domain.agent.conversation.adapter.GuideStreamControlRepository;
+import com.linrun.domain.agent.conversation.service.GuideImageInputService;
+import com.linrun.trigger.http.AgentGuideStreamHandler;
+import com.linrun.trigger.http.GuideImageUploadHandler;
 import com.linrun.types.enums.ResponseCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -40,11 +40,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AgentGuideControllerTest {
 
-    private final AgentGuideStreamService agentGuideStreamService = mock(AgentGuideStreamService.class);
+    private final AgentGuideStreamHandler agentGuideStreamService = mock(AgentGuideStreamHandler.class);
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(new AgentGuideController(
                     agentGuideStreamService,
-                    new GuideImageUploadService(new GuideImageInputService()),
+                    new GuideImageUploadHandler(new GuideImageInputService()),
                     new NoopGuideStreamControlRepository(),
                     new ObjectMapper()))
             .setControllerAdvice(new GlobalExceptionHandler())

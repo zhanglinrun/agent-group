@@ -1,8 +1,8 @@
 package com.linrun.trigger.job;
 
 import com.linrun.domain.support.adapter.ScheduledJobLockRepository;
-import com.linrun.trigger.service.ScheduledJobLockExecutor;
-import com.linrun.trigger.service.TradeCompensationService;
+import com.linrun.trigger.job.ScheduledJobLockExecutor;
+import com.linrun.domain.trade.service.TradeCompensationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

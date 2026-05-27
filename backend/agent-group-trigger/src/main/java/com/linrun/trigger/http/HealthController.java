@@ -1,7 +1,7 @@
 package com.linrun.trigger.http;
 
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.types.response.Response;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 

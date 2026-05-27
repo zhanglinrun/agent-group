@@ -1,8 +1,8 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.knowledgeasset.model.KnowledgeDocument;
-import com.linrun.domain.knowledgeasset.model.KnowledgeDocumentStatus;
-import com.linrun.domain.knowledgeasset.model.KnowledgeFragment;
+import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
+import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
+import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

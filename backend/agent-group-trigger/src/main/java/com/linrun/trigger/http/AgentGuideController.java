@@ -2,14 +2,14 @@ package com.linrun.trigger.http;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.api.agent.request.GuideStreamRequest;
-import com.linrun.api.agent.response.GuideImageUploadResponse;
-import com.linrun.api.agent.response.GuideStreamEvent;
-import com.linrun.domain.conversation.adapter.GuideStreamControlRepository;
+import com.linrun.api.dto.GuideStreamRequest;
+import com.linrun.api.dto.GuideImageUploadResponse;
+import com.linrun.api.dto.GuideStreamEvent;
+import com.linrun.domain.agent.conversation.adapter.GuideStreamControlRepository;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.GuideImageUploadService;
-import com.linrun.trigger.service.AgentGuideStreamService;
-import com.linrun.types.response.Response;
+import com.linrun.trigger.http.GuideImageUploadHandler;
+import com.linrun.trigger.http.AgentGuideStreamHandler;
+import com.linrun.types.common.Response;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -32,13 +32,13 @@ import java.util.UUID;
 @RequestMapping("/api/v1/agent")
 public class AgentGuideController {
 
-    private final AgentGuideStreamService agentGuideStreamService;
-    private final GuideImageUploadService guideImageUploadService;
+    private final AgentGuideStreamHandler agentGuideStreamService;
+    private final GuideImageUploadHandler guideImageUploadService;
     private final GuideStreamControlRepository guideStreamControlRepository;
     private final ObjectMapper objectMapper;
 
-    public AgentGuideController(AgentGuideStreamService agentGuideStreamService,
-                                GuideImageUploadService guideImageUploadService,
+    public AgentGuideController(AgentGuideStreamHandler agentGuideStreamService,
+                                GuideImageUploadHandler guideImageUploadService,
                                 GuideStreamControlRepository guideStreamControlRepository,
                                 ObjectMapper objectMapper) {
         this.agentGuideStreamService = agentGuideStreamService;

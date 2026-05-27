@@ -1,10 +1,10 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.dcc.response.DynamicConfigResponse;
-import com.linrun.domain.dcc.model.DynamicConfig;
-import com.linrun.domain.dcc.service.DynamicConfigService;
+import com.linrun.api.dto.DynamicConfigResponse;
+import com.linrun.domain.support.config.model.DynamicConfig;
+import com.linrun.domain.support.config.service.DynamicConfigService;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.types.response.Response;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

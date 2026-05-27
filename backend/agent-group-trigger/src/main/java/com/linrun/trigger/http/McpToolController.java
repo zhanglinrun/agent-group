@@ -1,6 +1,6 @@
 package com.linrun.trigger.http;
 
-import com.linrun.trigger.service.McpToolService;
+import com.linrun.trigger.http.McpToolHandler;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,9 +15,9 @@ import java.util.Map;
 @RequestMapping("/api/v1/mcp")
 public class McpToolController {
 
-    private final McpToolService mcpToolService;
+    private final McpToolHandler mcpToolService;
 
-    public McpToolController(McpToolService mcpToolService) {
+    public McpToolController(McpToolHandler mcpToolService) {
         this.mcpToolService = mcpToolService;
     }
 

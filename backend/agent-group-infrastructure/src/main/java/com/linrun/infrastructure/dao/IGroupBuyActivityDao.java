@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.marketing.model.GroupBuyActivity;
+import com.linrun.domain.activity.model.GroupBuyActivity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

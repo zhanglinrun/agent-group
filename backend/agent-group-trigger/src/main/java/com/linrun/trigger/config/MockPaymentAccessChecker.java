@@ -1,5 +1,6 @@
 package com.linrun.trigger.config;
 
+import com.linrun.domain.trade.adapter.port.PaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -8,7 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MockPaymentAccessChecker {
+public class MockPaymentAccessChecker implements PaymentAccessChecker {
 
     private final boolean mockPaymentEnabled;
 
@@ -21,6 +22,7 @@ public class MockPaymentAccessChecker {
         return mockPaymentEnabled || isAdmin(authentication);
     }
 
+    @Override
     public void assertAllowed() {
         if (!isAllowed(SecurityContextHolder.getContext().getAuthentication())) {
             throw new AppException("PAY_0007", "模拟支付只允许显式开启或管理员使用");

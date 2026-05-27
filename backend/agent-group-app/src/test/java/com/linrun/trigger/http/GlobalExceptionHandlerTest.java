@@ -4,7 +4,7 @@ import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.trigger.config.RequestTraceFilter;
 import com.linrun.types.enums.ResponseCode;
 import com.linrun.types.exception.AppException;
-import com.linrun.types.response.Response;
+import com.linrun.types.common.Response;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;

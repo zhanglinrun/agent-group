@@ -1,8 +1,8 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.quality.model.GuideEvaluationFeedback;
-import com.linrun.domain.quality.model.GuideEvaluationItemResult;
-import com.linrun.domain.quality.model.GuideEvaluationReport;
+import com.linrun.domain.agent.quality.model.GuideEvaluationFeedback;
+import com.linrun.domain.agent.quality.model.GuideEvaluationItemResult;
+import com.linrun.domain.agent.quality.model.GuideEvaluationReport;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

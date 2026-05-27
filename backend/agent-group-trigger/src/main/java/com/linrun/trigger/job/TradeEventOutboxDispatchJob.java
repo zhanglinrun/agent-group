@@ -1,8 +1,8 @@
 package com.linrun.trigger.job;
 
-import com.linrun.api.order.response.TradeEventOutboxDispatchResponse;
-import com.linrun.trigger.service.ScheduledJobLockExecutor;
-import com.linrun.trigger.service.TradeEventOutboxDispatchService;
+import com.linrun.api.dto.TradeEventOutboxDispatchResponse;
+import com.linrun.trigger.job.ScheduledJobLockExecutor;
+import com.linrun.domain.trade.service.TradeEventOutboxDispatchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

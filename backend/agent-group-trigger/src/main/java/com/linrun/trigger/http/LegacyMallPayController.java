@@ -1,14 +1,14 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.mall.request.CreatePayRequest;
-import com.linrun.api.mall.request.NotifyRequest;
-import com.linrun.api.mall.request.QueryOrderListRequest;
-import com.linrun.api.mall.request.RefundOrderRequest;
-import com.linrun.api.mall.response.QueryOrderListResponse;
-import com.linrun.api.mall.response.RefundOrderResponse;
+import com.linrun.api.dto.CreatePayRequest;
+import com.linrun.api.dto.NotifyRequest;
+import com.linrun.api.dto.QueryOrderListRequest;
+import com.linrun.api.dto.RefundOrderRequest;
+import com.linrun.api.dto.QueryOrderListResponse;
+import com.linrun.api.dto.RefundOrderResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.LegacyMallPayService;
-import com.linrun.types.response.Response;
+import com.linrun.trigger.http.LegacyMallPayHandler;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/alipay")
 public class LegacyMallPayController {
 
-    private final LegacyMallPayService legacyMallPayService;
+    private final LegacyMallPayHandler legacyMallPayService;
 
-    public LegacyMallPayController(LegacyMallPayService legacyMallPayService) {
+    public LegacyMallPayController(LegacyMallPayHandler legacyMallPayService) {
         this.legacyMallPayService = legacyMallPayService;
     }
 

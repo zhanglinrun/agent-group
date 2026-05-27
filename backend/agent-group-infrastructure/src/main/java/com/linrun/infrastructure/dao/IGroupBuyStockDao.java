@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.marketing.model.GroupBuyStock;
-import com.linrun.domain.marketing.model.GroupBuyStockFlow;
+import com.linrun.domain.activity.model.GroupBuyStock;
+import com.linrun.domain.activity.model.GroupBuyStockFlow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

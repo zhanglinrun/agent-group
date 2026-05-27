@@ -1,10 +1,10 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.knowledgeasset.request.UploadKnowledgeDocumentRequest;
-import com.linrun.api.knowledgeasset.response.UploadKnowledgeDocumentResponse;
+import com.linrun.api.dto.UploadKnowledgeDocumentRequest;
+import com.linrun.api.dto.UploadKnowledgeDocumentResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.KnowledgeDocumentUploadService;
-import com.linrun.types.response.Response;
+import com.linrun.trigger.http.KnowledgeDocumentUploadHandler;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,9 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/v1/knowledge/document")
 public class KnowledgeDocumentController {
 
-    private final KnowledgeDocumentUploadService knowledgeDocumentUploadService;
+    private final KnowledgeDocumentUploadHandler knowledgeDocumentUploadService;
 
-    public KnowledgeDocumentController(KnowledgeDocumentUploadService knowledgeDocumentUploadService) {
+    public KnowledgeDocumentController(KnowledgeDocumentUploadHandler knowledgeDocumentUploadService) {
         this.knowledgeDocumentUploadService = knowledgeDocumentUploadService;
     }
 

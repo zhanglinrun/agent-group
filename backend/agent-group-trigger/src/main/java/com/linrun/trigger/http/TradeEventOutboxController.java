@@ -1,9 +1,9 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.order.response.TradeEventOutboxDispatchResponse;
+import com.linrun.api.dto.TradeEventOutboxDispatchResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.TradeEventOutboxDispatchService;
-import com.linrun.types.response.Response;
+import com.linrun.domain.trade.service.TradeEventOutboxDispatchService;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

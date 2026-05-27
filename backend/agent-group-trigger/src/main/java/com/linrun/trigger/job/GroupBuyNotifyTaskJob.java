@@ -1,8 +1,8 @@
 package com.linrun.trigger.job;
 
-import com.linrun.api.notify.response.NotifyTaskExecuteResponse;
-import com.linrun.trigger.service.NotifyTaskService;
-import com.linrun.trigger.service.ScheduledJobLockExecutor;
+import com.linrun.api.dto.NotifyTaskExecuteResponse;
+import com.linrun.domain.trade.service.task.NotifyTaskService;
+import com.linrun.trigger.job.ScheduledJobLockExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

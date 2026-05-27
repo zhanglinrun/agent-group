@@ -1,15 +1,15 @@
 package com.linrun.trigger.http;
 
-import com.linrun.api.marketing.request.CloseUnpaidGroupBuyOrderRequest;
-import com.linrun.api.marketing.request.LockGroupBuyOrderRequest;
-import com.linrun.api.marketing.request.RefundGroupBuyOrderRequest;
-import com.linrun.api.marketing.response.GroupBuyCompensationResponse;
-import com.linrun.api.marketing.response.LockGroupBuyOrderResponse;
+import com.linrun.api.dto.CloseUnpaidGroupBuyOrderRequest;
+import com.linrun.api.dto.LockGroupBuyOrderRequest;
+import com.linrun.api.dto.RefundGroupBuyOrderRequest;
+import com.linrun.api.dto.GroupBuyCompensationResponse;
+import com.linrun.api.dto.LockGroupBuyOrderResponse;
 import com.linrun.trigger.config.RequestTraceContext;
-import com.linrun.trigger.service.GroupBuyCompensationService;
-import com.linrun.trigger.service.GroupBuyLockOrderService;
-import com.linrun.trigger.service.TradeRefundService;
-import com.linrun.types.response.Response;
+import com.linrun.domain.trade.service.GroupBuyCompensationService;
+import com.linrun.domain.trade.service.GroupBuyLockOrderService;
+import com.linrun.domain.trade.service.TradeRefundService;
+import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

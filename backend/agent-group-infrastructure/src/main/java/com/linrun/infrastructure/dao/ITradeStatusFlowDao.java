@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.order.model.entity.TradeStatusFlowEntity;
+import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
