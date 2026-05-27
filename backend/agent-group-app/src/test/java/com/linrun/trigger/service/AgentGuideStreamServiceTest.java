@@ -65,22 +65,23 @@ class AgentGuideStreamServiceTest {
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.ANSWER_DELTA.getCode(),
+                GuideEventType.ANSWER_DELTA.getCode(),
                 GuideEventType.PRODUCT_CARD.getCode(),
                 GuideEventType.SELF_CHECK.getCode(),
                 GuideEventType.USAGE_METRIC.getCode(),
                 GuideEventType.DONE.getCode()
         ), events.stream().map(GuideStreamEvent::getEvent).toList());
-        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14),
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
                 events.stream().map(GuideStreamEvent::getSequence).toList());
 
-        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(10).getData());
+        ProductCardDTO productCard = assertInstanceOf(ProductCardDTO.class, events.get(11).getData());
         assertTrue(productCard.getDecisionId().startsWith("D"));
         assertEquals("G10001", productCard.getGoodsId());
         assertEquals("轻薄学习平板标准版", productCard.getGoodsName());
         assertEquals(new BigDecimal("2099.00"), productCard.getGroupPrice());
-        SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(11).getData());
+        SelfCheckDTO selfCheck = assertInstanceOf(SelfCheckDTO.class, events.get(12).getData());
         assertEquals(Boolean.TRUE, selfCheck.getPassed());
-        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(12).getData());
+        GuideUsageMetricsDTO usageMetrics = assertInstanceOf(GuideUsageMetricsDTO.class, events.get(13).getData());
         assertTrue(usageMetrics.getTotalLatencyMillis() >= 0);
         ToolCallDTO knowledgeTool = assertInstanceOf(ToolCallDTO.class, events.get(1).getData());
         assertEquals("knowledge-search-v1", knowledgeTool.getToolVersion());

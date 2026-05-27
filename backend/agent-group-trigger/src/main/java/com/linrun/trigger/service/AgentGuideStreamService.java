@@ -22,6 +22,7 @@ import com.linrun.domain.conversation.model.GuideTokenUsage;
 import com.linrun.domain.conversation.model.GuideUserInput;
 import com.linrun.domain.conversation.model.RecommendationResult;
 import com.linrun.domain.conversation.adapter.GuideDecisionSnapshotRepository;
+import com.linrun.domain.conversation.adapter.AgentStreamTaskRegistry;
 import com.linrun.domain.conversation.service.AgentPlannerService;
 import com.linrun.domain.conversation.service.AgentToolRegistry;
 import com.linrun.domain.conversation.service.GuideConversationService;
@@ -35,6 +36,7 @@ import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
@@ -64,6 +66,8 @@ public class AgentGuideStreamService {
     private final OrderStatusToolService orderStatusToolService;
     private final GuideDecisionSnapshotRepository guideDecisionSnapshotRepository;
     private final AgentObservabilityMetrics metrics;
+    private final AgentStreamTaskRegistry streamTaskRegistry;
+    private final GuideToolEvidenceSelfCheckService toolEvidenceSelfCheckService;
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
                                    GuideRagAnswerService guideRagAnswerService,
@@ -76,7 +80,8 @@ public class AgentGuideStreamService {
                                    OrderStatusToolService orderStatusToolService) {
         this(guideDecisionService, guideRagAnswerService, guideConversationService, guideImageInputService,
                 agentPlannerService, new AgentToolRegistry(), knowledgeSearchToolService, groupBuyActivityService, toolExecutor,
-                orderStatusToolService, GuideDecisionSnapshotRepository.noop(), AgentObservabilityMetrics.noop());
+                orderStatusToolService, GuideDecisionSnapshotRepository.noop(), AgentObservabilityMetrics.noop(),
+                AgentStreamTaskRegistry.noop());
     }
 
     public AgentGuideStreamService(GuideDecisionService guideDecisionService,
@@ -92,7 +97,8 @@ public class AgentGuideStreamService {
                                    AgentObservabilityMetrics metrics) {
         this(guideDecisionService, guideRagAnswerService, guideConversationService, guideImageInputService,
                 agentPlannerService, agentToolRegistry, knowledgeSearchToolService, groupBuyActivityService,
-                toolExecutor, orderStatusToolService, GuideDecisionSnapshotRepository.noop(), metrics);
+                toolExecutor, orderStatusToolService, GuideDecisionSnapshotRepository.noop(), metrics,
+                AgentStreamTaskRegistry.noop());
     }
 
     @Autowired
@@ -107,7 +113,8 @@ public class AgentGuideStreamService {
                                    ToolExecutor toolExecutor,
                                    OrderStatusToolService orderStatusToolService,
                                    GuideDecisionSnapshotRepository guideDecisionSnapshotRepository,
-                                   AgentObservabilityMetrics metrics) {
+                                   AgentObservabilityMetrics metrics,
+                                   AgentStreamTaskRegistry streamTaskRegistry) {
         this.guideDecisionService = guideDecisionService;
         this.guideRagAnswerService = guideRagAnswerService;
         this.guideConversationService = guideConversationService;
@@ -122,6 +129,8 @@ public class AgentGuideStreamService {
                 ? GuideDecisionSnapshotRepository.noop()
                 : guideDecisionSnapshotRepository;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
+        this.streamTaskRegistry = streamTaskRegistry == null ? AgentStreamTaskRegistry.noop() : streamTaskRegistry;
+        this.toolEvidenceSelfCheckService = new GuideToolEvidenceSelfCheckService();
     }
 
     public List<GuideStreamEvent<?>> buildEvents(GuideStreamRequest request, String sessionId, String requestId) {
@@ -134,9 +143,17 @@ public class AgentGuideStreamService {
                                                      String sessionId,
                                                      String requestId,
                                                      BooleanSupplier stopped) {
+        if (!streamTaskRegistry.register(sessionId, requestId)) {
+            return Flux.just(GuideStreamEvent.of(
+                    GuideEventType.ERROR.getCode(),
+                    sessionId,
+                    requestId,
+                    1,
+                    error("AGENT_0006", "session already has a running stream task")));
+        }
         Sinks.Many<GuideStreamEvent<?>> streamSink = Sinks.many().unicast().onBackpressureBuffer();
         AtomicBoolean cancelled = new AtomicBoolean(false);
-        Schedulers.boundedElastic().schedule(() -> {
+        Disposable disposable = Schedulers.boundedElastic().schedule(() -> {
             try {
                 streamEvents(
                         request,
@@ -153,7 +170,14 @@ public class AgentGuideStreamService {
                 }
             }
         });
-        return streamSink.asFlux().doOnCancel(() -> cancelled.set(true));
+        streamTaskRegistry.bind(sessionId, requestId, () -> {
+            cancelled.set(true);
+            disposable.dispose();
+            streamSink.tryEmitComplete();
+        });
+        return streamSink.asFlux()
+                .doOnCancel(() -> cancelled.set(true))
+                .doFinally(signalType -> streamTaskRegistry.complete(sessionId, requestId));
     }
 
     public void streamEvents(GuideStreamRequest request,
@@ -269,10 +293,11 @@ public class AgentGuideStreamService {
             }
         }
 
+        ToolExecution<GroupBuyTrialResult> groupTrialExecution = null;
         if (agentPlan.hasTool(AgentToolRegistry.GROUP_TRIAL)
                 && decisionResult.getProduct() != null
                 && StringUtils.hasText(decisionResult.getProduct().getGoodsId())) {
-            ToolExecution<GroupBuyTrialResult> groupTrialExecution = toolExecutor.execute(
+            groupTrialExecution = toolExecutor.execute(
                     agentToolRegistry.requireDefinition(AgentToolRegistry.GROUP_TRIAL),
                     "execute",
                     "已完成拼团试算",
@@ -313,8 +338,16 @@ public class AgentGuideStreamService {
                 productCard(decisionResult.getProduct(), decisionSnapshot))) {
             return;
         }
+        List<GuideReference> visibleReferences = searchedReferences.isEmpty()
+                ? decisionResult.getReferences()
+                : searchedReferences;
+        GuideToolEvidenceCheck toolEvidenceCheck = toolEvidenceSelfCheckService.check(
+                agentPlan,
+                visibleReferences,
+                decisionResult,
+                groupTrialExecution);
         if (!emit(sink, stopped, sessionId, requestId, sequence, GuideEventType.SELF_CHECK,
-                selfCheck(decisionResult.getRecommendationResult()))) {
+                selfCheck(decisionResult.getRecommendationResult(), toolEvidenceCheck))) {
             return;
         }
         guideConversationService.rememberUserInput(userInput);
@@ -495,10 +528,16 @@ public class AgentGuideStreamService {
         return dto;
     }
 
-    private SelfCheckDTO selfCheck(RecommendationResult recommendationResult) {
+    private SelfCheckDTO selfCheck(RecommendationResult recommendationResult,
+                                   GuideToolEvidenceCheck toolEvidenceCheck) {
+        GuideToolEvidenceCheck safeToolEvidenceCheck = toolEvidenceCheck == null
+                ? GuideToolEvidenceCheck.ok()
+                : toolEvidenceCheck;
         SelfCheckDTO dto = new SelfCheckDTO();
-        dto.setPassed(recommendationResult.isPassedSelfCheck());
-        dto.setMessage(recommendationResult.getSelfCheckMessage());
+        dto.setPassed(recommendationResult.isPassedSelfCheck() && safeToolEvidenceCheck.passed());
+        dto.setMessage(recommendationResult.isPassedSelfCheck()
+                ? safeToolEvidenceCheck.passed() ? recommendationResult.getSelfCheckMessage() : safeToolEvidenceCheck.message()
+                : recommendationResult.getSelfCheckMessage());
         return dto;
     }
 

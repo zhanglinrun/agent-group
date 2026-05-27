@@ -2,6 +2,7 @@ package com.linrun.trigger.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.marketing.response.GroupBuyCompensationResponse;
 import com.linrun.api.notify.response.NotifyTaskExecuteResponse;
 import com.linrun.domain.dcc.service.DynamicConfigService;
 import com.linrun.domain.marketing.model.GroupBuyTeam;
@@ -64,6 +65,30 @@ public class NotifyTaskService {
         task.setNotifyStatus(NotifyTask.STATUS_INIT);
         task.setParameterJson(groupSettlementPayload(team.getTeamId(), orderIds));
         task.setUuid(team.getTeamId() + "_" + NotifyTask.CATEGORY_TRADE_SETTLEMENT);
+        notifyTaskRepository.save(task);
+        return task;
+    }
+
+    public NotifyTask createGroupRefundTask(GroupBuyCompensationResponse response) {
+        if (response == null
+                || !StringUtils.hasText(response.getOrderId())
+                || !StringUtils.hasText(response.getRefundId())) {
+            return null;
+        }
+        NotifyTask task = new NotifyTask();
+        task.setActivityId(StringUtils.hasText(response.getActivityId()) ? response.getActivityId() : "UNKNOWN");
+        task.setTeamId(StringUtils.hasText(response.getTeamId()) ? response.getTeamId() : response.getOrderId());
+        task.setNotifyCategory(NotifyTask.CATEGORY_TRADE_REFUND);
+        task.setNotifyType(dynamicConfigService.getValue(
+                DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, NotifyTask.TYPE_HTTP));
+        task.setNotifyMq(dynamicConfigService.getValue(
+                DynamicConfigService.GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"));
+        task.setNotifyUrl(dynamicConfigService.getValue(
+                DynamicConfigService.GROUP_REFUND_NOTIFY_URL, ""));
+        task.setNotifyCount(0);
+        task.setNotifyStatus(NotifyTask.STATUS_INIT);
+        task.setParameterJson(groupRefundPayload(response));
+        task.setUuid(response.getOrderId() + "_" + NotifyTask.CATEGORY_TRADE_REFUND);
         notifyTaskRepository.save(task);
         return task;
     }
@@ -156,6 +181,24 @@ public class NotifyTaskService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("teamId", teamId);
         payload.put("outTradeNoList", orderIds);
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new AppException("NOTIFY_0002", "notify payload build failed");
+        }
+    }
+
+    private String groupRefundPayload(GroupBuyCompensationResponse response) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("orderId", response.getOrderId());
+        payload.put("payOrderId", response.getPayOrderId());
+        payload.put("refundId", response.getRefundId());
+        payload.put("activityId", response.getActivityId());
+        payload.put("teamId", response.getTeamId());
+        payload.put("orderStatus", response.getOrderStatus());
+        payload.put("payStatus", response.getPayStatus());
+        payload.put("refundAmount", response.getRefundAmount());
+        payload.put("finishTime", response.getFinishTime());
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {

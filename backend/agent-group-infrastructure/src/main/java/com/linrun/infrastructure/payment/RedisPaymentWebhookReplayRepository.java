@@ -2,14 +2,15 @@ package com.linrun.infrastructure.payment;
 
 import com.linrun.domain.payment.adapter.PaymentWebhookReplayRepository;
 import com.linrun.types.exception.AppException;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @Repository
 public class RedisPaymentWebhookReplayRepository implements PaymentWebhookReplayRepository {
@@ -17,12 +18,12 @@ public class RedisPaymentWebhookReplayRepository implements PaymentWebhookReplay
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisPaymentWebhookReplayRepository.class);
     private static final Duration DEFAULT_TTL = Duration.ofMinutes(5);
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedissonClient redissonClient;
     private final String keyPrefix;
 
-    public RedisPaymentWebhookReplayRepository(StringRedisTemplate redisTemplate,
+    public RedisPaymentWebhookReplayRepository(RedissonClient redissonClient,
                                                @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
-        this.redisTemplate = redisTemplate;
+        this.redissonClient = redissonClient;
         this.keyPrefix = StringUtils.hasText(keyPrefix) ? keyPrefix : "agent-group";
     }
 
@@ -32,8 +33,9 @@ public class RedisPaymentWebhookReplayRepository implements PaymentWebhookReplay
             return false;
         }
         try {
-            Boolean locked = redisTemplate.opsForValue().setIfAbsent(key(replayKey), "1", safeTtl(ttl));
-            return Boolean.TRUE.equals(locked);
+            Duration safeTtl = safeTtl(ttl);
+            return redissonClient.<String>getBucket(key(replayKey))
+                    .trySet("1", safeTtl.toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             LOGGER.error("payment webhook replay redis unavailable, replayKey={}, reason={}",
                     replayKey, e.getClass().getSimpleName());
@@ -47,7 +49,7 @@ public class RedisPaymentWebhookReplayRepository implements PaymentWebhookReplay
             return;
         }
         try {
-            redisTemplate.delete(key(replayKey));
+            redissonClient.getBucket(key(replayKey)).delete();
         } catch (Exception e) {
             LOGGER.warn("payment webhook replay redis release failed, replayKey={}, reason={}",
                     replayKey, e.getClass().getSimpleName());

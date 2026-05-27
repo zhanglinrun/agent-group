@@ -22,6 +22,9 @@ public class DynamicConfigService {
     public static final String GROUP_SETTLEMENT_NOTIFY_TYPE = "groupSettlementNotifyType";
     public static final String GROUP_SETTLEMENT_NOTIFY_URL = "groupSettlementNotifyUrl";
     public static final String GROUP_SETTLEMENT_NOTIFY_MQ = "groupSettlementNotifyMQ";
+    public static final String GROUP_REFUND_NOTIFY_TYPE = "groupRefundNotifyType";
+    public static final String GROUP_REFUND_NOTIFY_URL = "groupRefundNotifyUrl";
+    public static final String GROUP_REFUND_NOTIFY_MQ = "groupRefundNotifyMQ";
 
     private static final Map<String, String> DEFAULTS = Map.of(
             DOWNGRADE_SWITCH, "0",
@@ -30,7 +33,10 @@ public class DynamicConfigService {
             CACHE_SWITCH, "0",
             GROUP_SETTLEMENT_NOTIFY_TYPE, "HTTP",
             GROUP_SETTLEMENT_NOTIFY_URL, "",
-            GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement"
+            GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement",
+            GROUP_REFUND_NOTIFY_TYPE, "HTTP",
+            GROUP_REFUND_NOTIFY_URL, "",
+            GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"
     );
 
     private final DynamicConfigRepository dynamicConfigRepository;

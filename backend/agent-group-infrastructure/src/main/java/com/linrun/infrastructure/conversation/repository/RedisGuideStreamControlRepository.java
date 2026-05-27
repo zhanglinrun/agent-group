@@ -1,10 +1,10 @@
 package com.linrun.infrastructure.conversation.repository;
 
 import com.linrun.domain.conversation.adapter.GuideStreamControlRepository;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -18,13 +18,13 @@ public class RedisGuideStreamControlRepository implements GuideStreamControlRepo
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisGuideStreamControlRepository.class);
     private static final Duration STOP_TTL = Duration.ofMinutes(10);
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedissonClient redissonClient;
     private final String keyPrefix;
     private final Map<String, Boolean> fallbackStops = new ConcurrentHashMap<>();
 
-    public RedisGuideStreamControlRepository(StringRedisTemplate redisTemplate,
+    public RedisGuideStreamControlRepository(RedissonClient redissonClient,
                                              @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
-        this.redisTemplate = redisTemplate;
+        this.redissonClient = redissonClient;
         this.keyPrefix = StringUtils.hasText(keyPrefix) ? keyPrefix : "agent-group";
     }
 
@@ -34,7 +34,8 @@ public class RedisGuideStreamControlRepository implements GuideStreamControlRepo
             return;
         }
         try {
-            redisTemplate.opsForValue().set(key(sessionId), "1", STOP_TTL);
+            redissonClient.<String>getBucket(key(sessionId)).set("1", STOP_TTL);
+            redissonClient.getTopic(stopTopic()).publish(sessionId);
         } catch (Exception e) {
             LOGGER.warn("redis stop flag fallback, reason={}", e.getClass().getSimpleName());
             fallbackStops.put(sessionId, true);
@@ -47,7 +48,7 @@ public class RedisGuideStreamControlRepository implements GuideStreamControlRepo
             return false;
         }
         try {
-            return Boolean.TRUE.equals(redisTemplate.hasKey(key(sessionId)));
+            return redissonClient.getBucket(key(sessionId)).isExists();
         } catch (Exception e) {
             LOGGER.warn("redis stop flag query fallback, reason={}", e.getClass().getSimpleName());
             return Boolean.TRUE.equals(fallbackStops.get(sessionId));
@@ -60,7 +61,7 @@ public class RedisGuideStreamControlRepository implements GuideStreamControlRepo
             return;
         }
         try {
-            redisTemplate.delete(key(sessionId));
+            redissonClient.getBucket(key(sessionId)).delete();
         } catch (Exception e) {
             LOGGER.warn("redis stop flag clear fallback, reason={}", e.getClass().getSimpleName());
             fallbackStops.remove(sessionId);
@@ -69,5 +70,9 @@ public class RedisGuideStreamControlRepository implements GuideStreamControlRepo
 
     private String key(String sessionId) {
         return keyPrefix + ":guide:stop:" + sessionId;
+    }
+
+    private String stopTopic() {
+        return keyPrefix + ":guide:stop:topic";
     }
 }

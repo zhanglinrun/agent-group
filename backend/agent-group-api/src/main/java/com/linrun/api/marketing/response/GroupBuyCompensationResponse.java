@@ -12,6 +12,7 @@ public class GroupBuyCompensationResponse implements Serializable {
     private String orderId;
     private String payOrderId;
     private String refundId;
+    private String activityId;
     private String teamId;
     private String orderStatus;
     private String payStatus;

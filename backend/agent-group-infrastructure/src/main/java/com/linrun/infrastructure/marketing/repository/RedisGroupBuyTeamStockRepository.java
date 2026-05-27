@@ -1,15 +1,18 @@
 package com.linrun.infrastructure.marketing.repository;
 
 import com.linrun.domain.marketing.adapter.GroupBuyTeamStockRepository;
+import org.redisson.api.RAtomicLong;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 @Repository
 public class RedisGroupBuyTeamStockRepository implements GroupBuyTeamStockRepository {
@@ -18,12 +21,12 @@ public class RedisGroupBuyTeamStockRepository implements GroupBuyTeamStockReposi
     private static final Duration DEFAULT_STOCK_TTL = Duration.ofHours(2);
     private static final Duration RECOVERY_LOCK_TTL = Duration.ofDays(30);
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedissonClient redissonClient;
     private final String keyPrefix;
 
-    public RedisGroupBuyTeamStockRepository(StringRedisTemplate redisTemplate,
+    public RedisGroupBuyTeamStockRepository(RedissonClient redissonClient,
                                             @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
-        this.redisTemplate = redisTemplate;
+        this.redissonClient = redissonClient;
         this.keyPrefix = keyPrefix;
     }
 
@@ -36,18 +39,18 @@ public class RedisGroupBuyTeamStockRepository implements GroupBuyTeamStockReposi
         String recoveryKey = recoveryTeamStockKey(activityId, teamId);
         Duration ttl = stockTtl(validEndTime);
         try {
-            long recoveryCount = longValue(redisTemplate.opsForValue().get(recoveryKey));
-            Long stockCount = redisTemplate.opsForValue().increment(stockKey);
-            long occupy = (stockCount == null ? 0L : stockCount) + 1L;
-            redisTemplate.expire(stockKey, ttl);
-            redisTemplate.expire(recoveryKey, ttl);
+            RAtomicLong recoveryCounter = redissonClient.getAtomicLong(recoveryKey);
+            long recoveryCount = recoveryCounter.get();
+            RAtomicLong stockCounter = redissonClient.getAtomicLong(stockKey);
+            long occupy = stockCounter.incrementAndGet() + 1L;
+            stockCounter.expire(ttl);
+            recoveryCounter.expire(ttl);
             if (occupy > targetCount + recoveryCount) {
-                redisTemplate.opsForValue().decrement(stockKey);
+                stockCounter.decrementAndGet();
                 return false;
             }
             String lockKey = stockKey + ":" + occupy;
-            Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", ttl);
-            return Boolean.TRUE.equals(locked);
+            return redissonClient.<String>getBucket(lockKey).trySet("1", ttl.toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             LOGGER.warn("group team stock redis fallback, action=occupy, teamId={}, reason={}",
                     teamId, e.getClass().getSimpleName());
@@ -62,16 +65,18 @@ public class RedisGroupBuyTeamStockRepository implements GroupBuyTeamStockReposi
         }
         String lockKey = recoveryLockKey(orderId);
         try {
-            Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", RECOVERY_LOCK_TTL);
-            if (!Boolean.TRUE.equals(locked)) {
+            RBucket<String> recoveryLock = redissonClient.getBucket(lockKey);
+            boolean locked = recoveryLock.trySet("1", RECOVERY_LOCK_TTL.toMillis(), TimeUnit.MILLISECONDS);
+            if (!locked) {
                 return;
             }
             String recoveryKey = recoveryTeamStockKey(activityId, teamId);
-            redisTemplate.opsForValue().increment(recoveryKey);
-            redisTemplate.expire(recoveryKey, stockTtl(validEndTime));
+            RAtomicLong recoveryCounter = redissonClient.getAtomicLong(recoveryKey);
+            recoveryCounter.incrementAndGet();
+            recoveryCounter.expire(stockTtl(validEndTime));
         } catch (Exception e) {
             try {
-                redisTemplate.delete(lockKey);
+                redissonClient.getBucket(lockKey).delete();
             } catch (Exception ignored) {
                 LOGGER.warn("group team stock redis recovery lock cleanup failed, orderId={}", orderId);
             }
@@ -86,17 +91,6 @@ public class RedisGroupBuyTeamStockRepository implements GroupBuyTeamStockReposi
         }
         Duration ttl = Duration.between(LocalDateTime.now(), validEndTime).plusHours(1);
         return ttl.isNegative() || ttl.isZero() ? DEFAULT_STOCK_TTL : ttl;
-    }
-
-    private long longValue(String value) {
-        if (!StringUtils.hasText(value)) {
-            return 0L;
-        }
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
     }
 
     private String teamStockKey(String activityId, String teamId) {

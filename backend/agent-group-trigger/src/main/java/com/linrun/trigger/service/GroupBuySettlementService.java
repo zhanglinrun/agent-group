@@ -9,6 +9,7 @@ import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.valobj.TradeOrderStatusEnumVO;
+import com.linrun.trigger.service.groupbuy.settlement.GroupBuySettlementRuleChain;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class GroupBuySettlementService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final NotifyTaskService notifyTaskService;
+    private final GroupBuySettlementRuleChain settlementRuleChain;
 
     public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                      TradeOrderRepository tradeOrderRepository,
@@ -39,6 +41,12 @@ public class GroupBuySettlementService {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.notifyTaskService = notifyTaskService;
+        this.settlementRuleChain = new GroupBuySettlementRuleChain(
+                groupBuyOrderLockRepository,
+                groupBuyStockRepository,
+                tradeOrderRepository,
+                tradeStatusFlowService,
+                notifyTaskService);
     }
 
     public GroupBuySettlementService(GroupBuyOrderLockRepository groupBuyOrderLockRepository,
@@ -49,54 +57,6 @@ public class GroupBuySettlementService {
     }
 
     public void settlePaySuccess(TradeOrderEntity tradeOrder) {
-        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
-            return;
-        }
-
-        GroupBuySettlementResult settlementResult = groupBuyOrderLockRepository.settlePaidOrder(tradeOrder.getOrderId());
-        if (settlementResult.isRepeated()) {
-            return;
-        }
-        groupBuyStockRepository.markPaidStock(
-                settlementResult.getOrderLock().getActivityId(),
-                settlementResult.getOrderLock().getGoodsId(),
-                settlementResult.getOrderLock().getOrderId(),
-                settlementResult.getOrderLock().getTeamId());
-        tradeStatusFlowService.record(
-                tradeOrder.getOrderId(),
-                TradeStatusFlowService.BIZ_GROUP,
-                settlementResult.getOrderLock().getLockId(),
-                TradeStatusFlowService.EVENT_GROUP_LOCK_PAID,
-                GroupBuyLockStatus.LOCKED,
-                settlementResult.getOrderLock().getLockStatus(),
-                "group lock paid");
-        if (!GroupBuyTeamStatus.SUCCESS.equals(settlementResult.getTeam().getTeamStatus())) {
-            return;
-        }
-
-        List<String> orderIds = groupBuyOrderLockRepository.queryPaidOrderIdsByTeamId(settlementResult.getTeam().getTeamId());
-        tradeOrderRepository.updateGroupSettledByOrderIds(orderIds);
-        tradeStatusFlowService.record(
-                tradeOrder.getOrderId(),
-                TradeStatusFlowService.BIZ_GROUP,
-                settlementResult.getTeam().getTeamId(),
-                TradeStatusFlowService.EVENT_GROUP_SETTLED,
-                GroupBuyTeamStatus.PROCESSING,
-                settlementResult.getTeam().getTeamStatus(),
-                "group settled");
-        orderIds.forEach(orderId -> tradeStatusFlowService.record(
-                orderId,
-                TradeStatusFlowService.BIZ_ORDER,
-                orderId,
-                TradeStatusFlowService.EVENT_GROUP_SETTLED,
-                TradeOrderStatusEnumVO.PAY_SUCCESS,
-                TradeOrderStatusEnumVO.GROUP_SETTLED,
-                "order group settled"));
-        if (notifyTaskService != null) {
-            notifyTaskService.createGroupSettlementTask(settlementResult.getTeam(), orderIds);
-        }
-        if (orderIds.contains(tradeOrder.getOrderId())) {
-            tradeOrder.markGroupSettled();
-        }
+        settlementRuleChain.settlePaySuccess(tradeOrder);
     }
 }

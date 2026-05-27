@@ -5,12 +5,14 @@ import com.linrun.api.marketing.response.GroupBuyCompensationResponse;
 import com.linrun.api.payment.request.RefundPaymentRequest;
 import com.linrun.api.payment.response.RefundPaymentResponse;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
-import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
+import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.trigger.service.groupbuy.refund.GroupBuyRefundStrategyRouter;
+import com.linrun.trigger.service.groupbuy.refund.rule.GroupBuyRefundRuleChain;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 @Service
 public class TradeRefundService {
@@ -18,13 +20,31 @@ public class TradeRefundService {
     private final TradeOrderRepository tradeOrderRepository;
     private final PaymentService paymentService;
     private final GroupBuyCompensationService groupBuyCompensationService;
+    private final GroupBuyRefundStrategyRouter groupBuyRefundStrategyRouter;
+    private final GroupBuyRefundRuleChain groupBuyRefundRuleChain;
+    private final NotifyTaskService notifyTaskService;
 
     public TradeRefundService(TradeOrderRepository tradeOrderRepository,
                               PaymentService paymentService,
                               GroupBuyCompensationService groupBuyCompensationService) {
+        this(tradeOrderRepository, paymentService, groupBuyCompensationService, null);
+    }
+
+    @Autowired
+    public TradeRefundService(TradeOrderRepository tradeOrderRepository,
+                              PaymentService paymentService,
+                              GroupBuyCompensationService groupBuyCompensationService,
+                              NotifyTaskService notifyTaskService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.paymentService = paymentService;
         this.groupBuyCompensationService = groupBuyCompensationService;
+        this.notifyTaskService = notifyTaskService;
+        this.groupBuyRefundStrategyRouter = new GroupBuyRefundStrategyRouter(paymentService, groupBuyCompensationService);
+        this.groupBuyRefundRuleChain = new GroupBuyRefundRuleChain(
+                tradeOrderRepository,
+                groupBuyCompensationService,
+                groupBuyRefundStrategyRouter,
+                notifyTaskService);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -36,17 +56,7 @@ public class TradeRefundService {
 
     @Transactional(rollbackFor = Exception.class)
     public GroupBuyCompensationResponse refundGroupBuy(RefundGroupBuyOrderRequest request) {
-        if (request == null || !StringUtils.hasText(request.getOrderId())) {
-            throw new AppException("0001", "订单编号不能为空");
-        }
-        TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
-        validateGroupBuyOrder(tradeOrder);
-
-        RefundPaymentRequest paymentRequest = new RefundPaymentRequest();
-        paymentRequest.setOrderId(request.getOrderId());
-        paymentRequest.setRefundReason(request.getRefundReason());
-        paymentService.refund(paymentRequest);
-        return groupBuyCompensationService.releaseRefundedOrder(request);
+        return groupBuyRefundRuleChain.refund(request);
     }
 
     private void releaseGroupBuyIfNeeded(String orderId, String refundReason) {
@@ -57,17 +67,14 @@ public class TradeRefundService {
         RefundGroupBuyOrderRequest groupRequest = new RefundGroupBuyOrderRequest();
         groupRequest.setOrderId(orderId);
         groupRequest.setRefundReason(refundReason);
-        groupBuyCompensationService.releaseRefundedOrder(groupRequest);
+        GroupBuyCompensationResponse response = groupBuyCompensationService.releaseRefundedOrder(groupRequest);
+        if (notifyTaskService != null) {
+            notifyTaskService.createGroupRefundTask(response);
+        }
     }
 
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
-    }
-
-    private void validateGroupBuyOrder(TradeOrderEntity tradeOrder) {
-        if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
-            throw new AppException("TRADE_0008", "非拼团订单不能做拼团补偿");
-        }
+                .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
     }
 }

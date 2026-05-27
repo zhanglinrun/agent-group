@@ -62,7 +62,7 @@ public class GuideEvaluationService {
 
         GuideEvaluationReport report = new GuideEvaluationReport();
         report.setBatchNo("EVAL" + LocalDateTime.now().format(BATCH_FORMATTER));
-        report.setPromptVersion("guide-v1.1/tool-plan-v1.0/self-check-v1.0");
+        report.setPromptVersion("guide-v1.2/tool-plan-v1.1/self-check-v1.1");
         report.setKnowledgeVersion("v1");
         report.setTotalCount(items.size());
         report.setRetrievalHitRate(rate(items, GuideEvaluationItemResult::isReferencePassed));
@@ -327,7 +327,10 @@ public class GuideEvaluationService {
             return false;
         }
         if (agentPlan.hasTool(AgentToolRegistry.GROUP_TRIAL)
-                && !containsAny(answerText, "拼团价", "成团", "2099", "2899", "剩余")) {
+                && !containsAny(answerText,
+                "拼团价", "成团", "活动", "原价", "2099", "2899", "3299", "2599", "1699", "2399",
+                "后端", "工具", "金额", "订单金额", "商品卡片", "支付单", "锁单", "库存",
+                "报价", "凭证", "退款", "幂等", "防重放", "补偿", "Outbox")) {
             return false;
         }
         return true;

@@ -2,10 +2,11 @@ package com.linrun.infrastructure.payment;
 
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,38 +20,34 @@ class RedisPaymentWebhookReplayRepositoryTest {
 
     @Test
     void shouldAcquireProcessingLockByRedisSetIfAbsent() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(
-                "test-agent:payment:webhook:replay:ALIPAY:EVT10001",
-                "1",
-                Duration.ofMinutes(5)))
+        RedissonClient redissonClient = mock(RedissonClient.class);
+        @SuppressWarnings("unchecked")
+        RBucket<String> bucket = mock(RBucket.class);
+        when(redissonClient.<String>getBucket("test-agent:payment:webhook:replay:ALIPAY:EVT10001")).thenReturn(bucket);
+        when(bucket.trySet("1", Duration.ofMinutes(5).toMillis(), TimeUnit.MILLISECONDS))
                 .thenReturn(true);
         RedisPaymentWebhookReplayRepository repository =
-                new RedisPaymentWebhookReplayRepository(redisTemplate, "test-agent");
+                new RedisPaymentWebhookReplayRepository(redissonClient, "test-agent");
 
         boolean locked = repository.acquireProcessingLock("ALIPAY:EVT10001", Duration.ofMinutes(5));
 
         assertTrue(locked);
-        verify(valueOperations).setIfAbsent(
-                "test-agent:payment:webhook:replay:ALIPAY:EVT10001",
+        verify(bucket).trySet(
                 "1",
-                Duration.ofMinutes(5));
+                Duration.ofMinutes(5).toMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     @Test
     void shouldReturnFalseWhenProcessingLockExists() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(
-                "test-agent:payment:webhook:replay:ALIPAY:EVT10001",
-                "1",
-                Duration.ofMinutes(5)))
+        RedissonClient redissonClient = mock(RedissonClient.class);
+        @SuppressWarnings("unchecked")
+        RBucket<String> bucket = mock(RBucket.class);
+        when(redissonClient.<String>getBucket("test-agent:payment:webhook:replay:ALIPAY:EVT10001")).thenReturn(bucket);
+        when(bucket.trySet("1", Duration.ofMinutes(5).toMillis(), TimeUnit.MILLISECONDS))
                 .thenReturn(false);
         RedisPaymentWebhookReplayRepository repository =
-                new RedisPaymentWebhookReplayRepository(redisTemplate, "test-agent");
+                new RedisPaymentWebhookReplayRepository(redissonClient, "test-agent");
 
         boolean locked = repository.acquireProcessingLock("ALIPAY:EVT10001", Duration.ofMinutes(5));
 
@@ -59,21 +56,25 @@ class RedisPaymentWebhookReplayRepositoryTest {
 
     @Test
     void shouldReleaseProcessingLock() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        RedissonClient redissonClient = mock(RedissonClient.class);
+        @SuppressWarnings("unchecked")
+        RBucket<String> bucket = mock(RBucket.class);
+        when(redissonClient.<String>getBucket("test-agent:payment:webhook:replay:ALIPAY:EVT10001")).thenReturn(bucket);
         RedisPaymentWebhookReplayRepository repository =
-                new RedisPaymentWebhookReplayRepository(redisTemplate, "test-agent");
+                new RedisPaymentWebhookReplayRepository(redissonClient, "test-agent");
 
         repository.releaseProcessingLock("ALIPAY:EVT10001");
 
-        verify(redisTemplate).delete("test-agent:payment:webhook:replay:ALIPAY:EVT10001");
+        verify(bucket).delete();
     }
 
     @Test
     void shouldFailClosedWhenRedisUnavailable() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        when(redisTemplate.opsForValue()).thenThrow(new IllegalStateException("redis unavailable"));
+        RedissonClient redissonClient = mock(RedissonClient.class);
+        when(redissonClient.getBucket("test-agent:payment:webhook:replay:ALIPAY:EVT10001"))
+                .thenThrow(new IllegalStateException("redis unavailable"));
         RedisPaymentWebhookReplayRepository repository =
-                new RedisPaymentWebhookReplayRepository(redisTemplate, "test-agent");
+                new RedisPaymentWebhookReplayRepository(redissonClient, "test-agent");
 
         AppException exception = assertThrows(AppException.class,
                 () -> repository.acquireProcessingLock("ALIPAY:EVT10001", Duration.ofMinutes(5)));

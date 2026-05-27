@@ -1,6 +1,7 @@
 package com.linrun.trigger.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.marketing.response.GroupBuyCompensationResponse;
 import com.linrun.api.notify.response.NotifyTaskExecuteResponse;
 import com.linrun.domain.dcc.adapter.DynamicConfigRepository;
 import com.linrun.domain.dcc.model.DynamicConfig;
@@ -12,6 +13,7 @@ import com.linrun.domain.order.adapter.TradeEventPublisher;
 import com.linrun.domain.order.model.entity.TradeEventMessageEntity;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -95,6 +97,32 @@ class NotifyTaskServiceTest {
 
         assertEquals(1, response.getErrorCount());
         assertEquals(NotifyTask.STATUS_ERROR, task.getNotifyStatus());
+    }
+
+    @Test
+    void shouldCreateRefundNotifyTask() {
+        FakeNotifyTaskRepository notifyTaskRepository = new FakeNotifyTaskRepository();
+        DynamicConfigService dynamicConfigService = new DynamicConfigService(new FakeDynamicConfigRepository());
+        dynamicConfigService.updateConfig(DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, NotifyTask.TYPE_MQ);
+        NotifyTaskService service = new NotifyTaskService(
+                notifyTaskRepository,
+                dynamicConfigService,
+                TradeEventPublisher.noop(),
+                new ObjectMapper());
+        GroupBuyCompensationResponse response = new GroupBuyCompensationResponse();
+        response.setOrderId("O10001");
+        response.setPayOrderId("P10001");
+        response.setRefundId("R10001");
+        response.setActivityId("A10001");
+        response.setTeamId("T10001");
+        response.setRefundAmount(new BigDecimal("2099.00"));
+
+        service.createGroupRefundTask(response);
+
+        assertEquals(1, notifyTaskRepository.tasks.size());
+        assertEquals(NotifyTask.CATEGORY_TRADE_REFUND, notifyTaskRepository.tasks.get(0).getNotifyCategory());
+        assertEquals("agent.group.notify.group-refund", notifyTaskRepository.tasks.get(0).getNotifyMq());
+        assertTrue(notifyTaskRepository.tasks.get(0).getParameterJson().contains("R10001"));
     }
 
     private static class FakeNotifyTaskRepository implements NotifyTaskRepository {

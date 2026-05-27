@@ -53,6 +53,25 @@ class GuideConversationServiceTest {
         assertTrue(messages.get(1).getContent().contains("推荐标准版"));
     }
 
+    @Test
+    void shouldCompactLongConversationContext() {
+        FakeGuideConversationRepository repository = new FakeGuideConversationRepository();
+        for (int i = 0; i < 6; i++) {
+            repository.appendMessage("S10001", GuideConversationMessage.user("old-message-" + i + "-".repeat(500), ""));
+        }
+        repository.appendMessage("S10001", GuideConversationMessage.assistant("latest-answer"));
+        GuideConversationService service = new GuideConversationService(repository);
+        GuideUserInput input = new GuideUserInput();
+        input.setSessionId("S10001");
+        input.setQuestion("current-question");
+
+        String question = service.buildQuestionWithContext(input);
+
+        assertTrue(question.contains("[older conversation compacted]"));
+        assertTrue(question.contains("latest-answer"));
+        assertTrue(question.length() < 2200);
+    }
+
     private static class FakeGuideConversationRepository implements GuideConversationRepository {
 
         private final List<GuideConversationMessage> messages = new ArrayList<>();

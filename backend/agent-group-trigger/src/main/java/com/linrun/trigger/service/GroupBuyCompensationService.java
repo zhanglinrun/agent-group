@@ -8,6 +8,7 @@ import com.linrun.domain.marketing.adapter.GroupBuyStockRepository;
 import com.linrun.domain.marketing.adapter.GroupBuyTeamStockRepository;
 import com.linrun.domain.marketing.model.GroupBuyLockStatus;
 import com.linrun.domain.marketing.model.GroupBuySettlementResult;
+import com.linrun.domain.marketing.model.GroupBuyTeamStatus;
 import com.linrun.domain.order.adapter.TradeOrderRepository;
 import com.linrun.domain.order.model.entity.PayOrderEntity;
 import com.linrun.domain.order.model.valobj.PayStatusEnumVO;
@@ -186,6 +187,9 @@ public class GroupBuyCompensationService {
     }
 
     private void recoverTeamStock(GroupBuySettlementResult releaseResult) {
+        if (GroupBuyTeamStatus.SUCCESS.equals(releaseResult.getTeam().getTeamStatus())) {
+            return;
+        }
         groupBuyTeamStockRepository.recoverTeamStock(
                 releaseResult.getOrderLock().getActivityId(),
                 releaseResult.getOrderLock().getTeamId(),
@@ -212,6 +216,7 @@ public class GroupBuyCompensationService {
         response.setOrderId(tradeOrder.getOrderId());
         response.setPayOrderId(payOrder.getPayOrderId());
         response.setRefundId(refundOrder == null ? null : refundOrder.getRefundId());
+        response.setActivityId(releaseResult.getOrderLock().getActivityId());
         response.setTeamId(releaseResult.getTeam().getTeamId());
         response.setOrderStatus(tradeOrder.getOrderStatus().name());
         response.setPayStatus(payOrder.getPayStatus().name());

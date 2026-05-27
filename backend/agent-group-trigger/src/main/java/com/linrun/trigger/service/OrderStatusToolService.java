@@ -29,10 +29,21 @@ public class OrderStatusToolService {
             return false;
         }
         String normalized = question.toLowerCase();
-        return normalized.contains("订单")
-                || normalized.contains("支付状态")
-                || normalized.contains("物流")
-                || normalized.contains("order");
+        if (!normalized.contains("订单")
+                && !normalized.contains("支付状态")
+                && !normalized.contains("物流")
+                && !normalized.contains("order")) {
+            return false;
+        }
+        if (StringUtils.hasText(extractOrderId(question))) {
+            return true;
+        }
+        return normalized.contains("查订单")
+                || normalized.contains("查询订单")
+                || normalized.contains("看下订单")
+                || normalized.contains("看看订单")
+                || normalized.contains("订单状态")
+                || normalized.contains("物流到哪");
     }
 
     public OrderDeltaDTO queryOrderStatusByQuestion(String question, String userId) {

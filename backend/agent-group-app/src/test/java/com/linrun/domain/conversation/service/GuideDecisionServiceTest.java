@@ -69,6 +69,16 @@ class GuideDecisionServiceTest {
     }
 
     @Test
+    void shouldNotTreatTradeRuleAsConcreteOrderQuery() {
+        GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
+
+        assertEquals(GuideIntentType.GROUP_RULE,
+                service.recognizeIntent("拼团支付成功以后订单就算已成团了吗？").getIntentType());
+        assertEquals(GuideIntentType.ORDER_QUERY,
+                service.recognizeIntent("查一下订单 O10001 的支付状态。").getIntentType());
+    }
+
+    @Test
     void shouldRankCreativeProductWhenUserNeedsPerformance() {
         GuideDecisionService service = new GuideDecisionService(new CreativeGuideDataRepository(), groupBuyService());
 

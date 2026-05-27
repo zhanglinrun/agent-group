@@ -88,7 +88,12 @@ public class AgentPlannerService {
         return intent.isGroupBuyConcerned()
                 || intent.isBudgetSensitive()
                 || intent.isCompareConcerned()
-                || containsAny(normalized, "价格", "报价", "优惠", "省钱", "划算", "直接买");
+                || containsAny(normalized,
+                "价格", "报价", "优惠", "省钱", "划算", "直接买", "直接购买", "原价",
+                "锁单", "下单", "支付", "支付单", "订单金额", "商品卡片", "金额", "凭证", "决策编号",
+                "活动过期", "过期", "下架", "库存", "名额", "队伍", "满了", "队伍已满",
+                "幂等", "重复", "重复点", "重复下单", "防重放", "回调", "补偿", "outbox",
+                "儿童", "小孩", "家长管控", "护眼", "考研", "配件", "一次配齐", "办公套装", "键盘套装");
     }
 
     private String answerPolicy(GuideIntentType intentType) {

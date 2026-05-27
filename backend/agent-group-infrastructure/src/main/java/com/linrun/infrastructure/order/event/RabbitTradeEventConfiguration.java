@@ -19,9 +19,13 @@ public class RabbitTradeEventConfiguration {
 
     public static final String TRADE_EVENT_EXCHANGE = "agent.group.trade.event.exchange";
     public static final String TRADE_EVENT_QUEUE = "agent.group.trade.event.queue";
+    public static final String TEAM_SUCCESS_EVENT_QUEUE = "agent.group.trade.event.team-success.queue";
+    public static final String REFUND_SUCCESS_EVENT_QUEUE = "agent.group.trade.event.refund-success.queue";
     public static final String TRADE_EVENT_DEAD_LETTER_EXCHANGE = "agent.group.trade.event.dlx";
     public static final String TRADE_EVENT_DEAD_LETTER_QUEUE = "agent.group.trade.event.dlq";
     public static final String TRADE_EVENT_ROUTING_KEY = "trade.event.#";
+    public static final String TEAM_SUCCESS_EVENT_ROUTING_KEY = "trade.event.group.group_settled";
+    public static final String REFUND_SUCCESS_EVENT_ROUTING_KEY = "trade.event.refund.refund_success";
     public static final String TRADE_EVENT_DEAD_LETTER_ROUTING_KEY = "trade.event.dead";
     public static final String NOTIFY_EVENT_ROUTING_KEY = "agent.group.notify.#";
 
@@ -33,6 +37,22 @@ public class RabbitTradeEventConfiguration {
     @Bean
     public Queue tradeEventQueue() {
         return QueueBuilder.durable(TRADE_EVENT_QUEUE)
+                .deadLetterExchange(TRADE_EVENT_DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(TRADE_EVENT_DEAD_LETTER_ROUTING_KEY)
+                .build();
+    }
+
+    @Bean
+    public Queue teamSuccessEventQueue() {
+        return QueueBuilder.durable(TEAM_SUCCESS_EVENT_QUEUE)
+                .deadLetterExchange(TRADE_EVENT_DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(TRADE_EVENT_DEAD_LETTER_ROUTING_KEY)
+                .build();
+    }
+
+    @Bean
+    public Queue refundSuccessEventQueue() {
+        return QueueBuilder.durable(REFUND_SUCCESS_EVENT_QUEUE)
                 .deadLetterExchange(TRADE_EVENT_DEAD_LETTER_EXCHANGE)
                 .deadLetterRoutingKey(TRADE_EVENT_DEAD_LETTER_ROUTING_KEY)
                 .build();
@@ -52,6 +72,22 @@ public class RabbitTradeEventConfiguration {
         return BindingBuilder.bind(tradeEventQueue)
                 .to(tradeEventExchange)
                 .with(NOTIFY_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding teamSuccessEventBinding(TopicExchange tradeEventExchange,
+                                           @Qualifier("teamSuccessEventQueue") Queue teamSuccessEventQueue) {
+        return BindingBuilder.bind(teamSuccessEventQueue)
+                .to(tradeEventExchange)
+                .with(TEAM_SUCCESS_EVENT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding refundSuccessEventBinding(TopicExchange tradeEventExchange,
+                                             @Qualifier("refundSuccessEventQueue") Queue refundSuccessEventQueue) {
+        return BindingBuilder.bind(refundSuccessEventQueue)
+                .to(tradeEventExchange)
+                .with(REFUND_SUCCESS_EVENT_ROUTING_KEY);
     }
 
     @Bean

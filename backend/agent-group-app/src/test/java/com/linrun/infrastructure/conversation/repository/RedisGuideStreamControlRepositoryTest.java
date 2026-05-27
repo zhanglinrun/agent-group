@@ -1,8 +1,9 @@
 package com.linrun.infrastructure.conversation.repository;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.redisson.api.RBucket;
+import org.redisson.api.RTopic;
+import org.redisson.api.RedissonClient;
 
 import java.time.Duration;
 
@@ -15,22 +16,28 @@ class RedisGuideStreamControlRepositoryTest {
 
     @Test
     void shouldStoreStopFlagInRedis() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        RedissonClient redissonClient = mock(RedissonClient.class);
         @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        RedisGuideStreamControlRepository repository = new RedisGuideStreamControlRepository(redisTemplate, "test-agent");
+        RBucket<String> bucket = mock(RBucket.class);
+        RTopic topic = mock(RTopic.class);
+        when(redissonClient.<String>getBucket("test-agent:guide:stop:S10001")).thenReturn(bucket);
+        when(redissonClient.getTopic("test-agent:guide:stop:topic")).thenReturn(topic);
+        RedisGuideStreamControlRepository repository = new RedisGuideStreamControlRepository(redissonClient, "test-agent");
 
         repository.markStopped("S10001");
 
-        verify(valueOperations).set("test-agent:guide:stop:S10001", "1", Duration.ofMinutes(10));
+        verify(bucket).set("1", Duration.ofMinutes(10));
+        verify(topic).publish("S10001");
     }
 
     @Test
     void shouldReadStopFlagFromRedis() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        when(redisTemplate.hasKey("test-agent:guide:stop:S10001")).thenReturn(true);
-        RedisGuideStreamControlRepository repository = new RedisGuideStreamControlRepository(redisTemplate, "test-agent");
+        RedissonClient redissonClient = mock(RedissonClient.class);
+        @SuppressWarnings("unchecked")
+        RBucket<String> bucket = mock(RBucket.class);
+        when(redissonClient.<String>getBucket("test-agent:guide:stop:S10001")).thenReturn(bucket);
+        when(bucket.isExists()).thenReturn(true);
+        RedisGuideStreamControlRepository repository = new RedisGuideStreamControlRepository(redissonClient, "test-agent");
 
         assertTrue(repository.isStopped("S10001"));
     }

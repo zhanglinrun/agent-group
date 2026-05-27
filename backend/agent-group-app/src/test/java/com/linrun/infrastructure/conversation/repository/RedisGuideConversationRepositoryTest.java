@@ -3,8 +3,8 @@ package com.linrun.infrastructure.conversation.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.conversation.model.GuideConversationMessage;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.redisson.api.RList;
+import org.redisson.api.RedissonClient;
 
 import java.time.Duration;
 import java.util.List;
@@ -20,35 +20,54 @@ class RedisGuideConversationRepositoryTest {
 
     @Test
     void shouldAppendMessageToRedisListAndKeepTtl() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        RedissonClient redissonClient = mock(RedissonClient.class);
         @SuppressWarnings("unchecked")
-        ListOperations<String, String> listOperations = mock(ListOperations.class);
-        when(redisTemplate.opsForList()).thenReturn(listOperations);
+        RList<String> list = mock(RList.class);
+        when(redissonClient.<String>getList("test-agent:guide:conversation:S10001")).thenReturn(list);
+        when(list.size()).thenReturn(1);
         RedisGuideConversationRepository repository = new RedisGuideConversationRepository(
-                redisTemplate,
+                redissonClient,
                 new ObjectMapper().findAndRegisterModules(),
                 new LocalGuideConversationRepository(),
                 "test-agent");
 
-        repository.appendMessage("S10001", GuideConversationMessage.user("学生预算有限", ""));
+        repository.appendMessage("S10001", GuideConversationMessage.user("student budget limited", ""));
 
-        verify(listOperations).rightPush(eq("test-agent:guide:conversation:S10001"), anyString());
-        verify(listOperations).trim("test-agent:guide:conversation:S10001", -20, -1);
-        verify(redisTemplate).expire("test-agent:guide:conversation:S10001", Duration.ofHours(6));
+        verify(list).add(anyString());
+        verify(list).expire(Duration.ofHours(6));
+    }
+
+    @Test
+    void shouldTrimRedisListWhenExceedMaxSessionMessages() {
+        RedissonClient redissonClient = mock(RedissonClient.class);
+        @SuppressWarnings("unchecked")
+        RList<String> list = mock(RList.class);
+        when(redissonClient.<String>getList("test-agent:guide:conversation:S10001")).thenReturn(list);
+        when(list.size()).thenReturn(21);
+        RedisGuideConversationRepository repository = new RedisGuideConversationRepository(
+                redissonClient,
+                new ObjectMapper().findAndRegisterModules(),
+                new LocalGuideConversationRepository(),
+                "test-agent");
+
+        repository.appendMessage("S10001", GuideConversationMessage.user("need phone", ""));
+
+        verify(list).trim(1, 20);
+        verify(list).expire(Duration.ofHours(6));
     }
 
     @Test
     void shouldReadRecentMessagesFromRedisList() throws Exception {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        RedissonClient redissonClient = mock(RedissonClient.class);
         @SuppressWarnings("unchecked")
-        ListOperations<String, String> listOperations = mock(ListOperations.class);
+        RList<String> list = mock(RList.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        GuideConversationMessage message = GuideConversationMessage.assistant("推荐标准版");
-        when(redisTemplate.opsForList()).thenReturn(listOperations);
-        when(listOperations.range("test-agent:guide:conversation:S10001", -1, -1))
-                .thenReturn(List.of(objectMapper.writeValueAsString(message)));
+        GuideConversationMessage message = GuideConversationMessage.assistant("recommend standard edition");
+        when(redissonClient.<String>getList("test-agent:guide:conversation:S10001")).thenReturn(list);
+        when(list.size()).thenReturn(1);
+        when(list.range(0, 0)).thenReturn(List.of(objectMapper.writeValueAsString(message)));
         RedisGuideConversationRepository repository = new RedisGuideConversationRepository(
-                redisTemplate,
+                redissonClient,
                 objectMapper,
                 new LocalGuideConversationRepository(),
                 "test-agent");
@@ -56,6 +75,7 @@ class RedisGuideConversationRepositoryTest {
         List<GuideConversationMessage> messages = repository.queryRecentMessages("S10001", 1);
 
         assertEquals(1, messages.size());
-        assertEquals("推荐标准版", messages.get(0).getContent());
+        assertEquals("recommend standard edition", messages.get(0).getContent());
+        verify(list).range(eq(0), eq(0));
     }
 }

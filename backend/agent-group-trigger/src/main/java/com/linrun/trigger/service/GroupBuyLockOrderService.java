@@ -7,7 +7,6 @@ import com.linrun.domain.marketing.adapter.GroupBuyOrderLockRepository;
 import com.linrun.domain.marketing.adapter.GroupBuyStockRepository;
 import com.linrun.domain.marketing.adapter.GroupBuyTeamStockRepository;
 import com.linrun.domain.marketing.model.GroupBuyActivity;
-import com.linrun.domain.marketing.model.GroupBuyActivityStatus;
 import com.linrun.domain.marketing.model.GroupBuyLockResult;
 import com.linrun.domain.marketing.model.GroupBuyOrderLock;
 import com.linrun.domain.marketing.model.GroupBuyTeam;
@@ -21,6 +20,8 @@ import com.linrun.domain.order.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.order.model.entity.TradeOrderEntity;
 import com.linrun.domain.order.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.order.service.TradeOrderService;
+import com.linrun.trigger.service.groupbuy.lock.GroupBuyLockContext;
+import com.linrun.trigger.service.groupbuy.lock.GroupBuyLockRuleChain;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class GroupBuyLockOrderService {
     private final TradeStatusFlowService tradeStatusFlowService;
     private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
     private final AgentObservabilityMetrics metrics;
+    private final GroupBuyLockRuleChain groupBuyLockRuleChain;
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -134,6 +136,10 @@ public class GroupBuyLockOrderService {
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
+        this.groupBuyLockRuleChain = new GroupBuyLockRuleChain(
+                groupBuyOrderLockRepository,
+                groupBuyTeamStockRepository,
+                guideDecisionSnapshotValidator);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -170,16 +176,8 @@ public class GroupBuyLockOrderService {
                 .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存在"));
 
         LocalDateTime now = LocalDateTime.now();
-        validateActivity(request, activity, now);
-        validateTakeLimit(request, activity);
-        guideDecisionSnapshotValidator.validateGroup(
-                request.getDecisionId(),
-                request.getUserId(),
-                request.getGoodsId(),
-                request.getActivityId(),
-                product.getOriginPrice(),
-                activity.getGroupPrice(),
-                now);
+        GroupBuyLockContext lockContext = new GroupBuyLockContext(request, product, activity, now);
+        groupBuyLockRuleChain.apply(lockContext);
 
         String teamId = StringUtils.hasText(request.getTeamId()) ? request.getTeamId() : nextNo("T");
         BigDecimal payAmount = resolvePayAmount(activity);
@@ -204,13 +202,9 @@ public class GroupBuyLockOrderService {
             return toResponse(lockResult, tradePayOrder, request.getDecisionId());
         }
 
-        GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(teamId)
-                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
-        team.assertCanJoin(activity.getActivityId(), activity.getGoodsId(), now);
-        boolean teamStockOccupied = groupBuyTeamStockRepository.occupyTeamStock(
-                activity.getActivityId(), teamId, team.getTargetCount(), team.getValidEndTime());
-        if (!teamStockOccupied) {
-            throw new AppException("GROUP_0007", "拼团队伍名额已满");
+        GroupBuyTeam team = lockContext.getTeam();
+        if (team == null) {
+            throw new AppException("GROUP_0003", "group team not found");
         }
         try {
             groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
@@ -220,8 +214,10 @@ public class GroupBuyLockOrderService {
             recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
             return toResponse(lockResult, tradePayOrder, request.getDecisionId());
         } catch (RuntimeException e) {
-            groupBuyTeamStockRepository.recoverTeamStock(
-                    activity.getActivityId(), teamId, orderLock.getOrderId(), team.getValidEndTime());
+            if (lockContext.isTeamStockOccupied()) {
+                groupBuyTeamStockRepository.recoverTeamStock(
+                        activity.getActivityId(), teamId, orderLock.getOrderId(), team.getValidEndTime());
+            }
             throw e;
         }
     }
@@ -273,26 +269,6 @@ public class GroupBuyLockOrderService {
         }
         if (!StringUtils.hasText(request.getDecisionId())) {
             throw new AppException("GUIDE_0005", "导购决策编号不能为空，请先完成导购推荐后再下单");
-        }
-    }
-
-    private void validateActivity(LockGroupBuyOrderRequest request, GroupBuyActivity activity, LocalDateTime now) {
-        if (!request.getGoodsId().equals(activity.getGoodsId())) {
-            throw new AppException("GROUP_0002", "拼团活动和商品不匹配");
-        }
-        if (!GroupBuyActivityStatus.ACTIVE.equals(activity.resolveStatus(now))) {
-            throw new AppException("GROUP_0008", "拼团活动不可用");
-        }
-    }
-
-    private void validateTakeLimit(LockGroupBuyOrderRequest request, GroupBuyActivity activity) {
-        Integer takeLimitCount = activity.getTakeLimitCount();
-        if (takeLimitCount == null || takeLimitCount <= 0) {
-            return;
-        }
-        int count = groupBuyOrderLockRepository.countUserActivityLocks(request.getUserId(), activity.getActivityId());
-        if (count >= takeLimitCount) {
-            throw new AppException("GROUP_0017", "user group buy take limit reached");
         }
     }
 
