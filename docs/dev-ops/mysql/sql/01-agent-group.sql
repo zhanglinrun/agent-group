@@ -186,15 +186,23 @@ create table if not exists knowledge_fragment (
   goods_id varchar(32) not null comment '商品编号',
   document_type varchar(32) not null comment '文档类型',
   knowledge_version varchar(32) not null comment '知识版本',
-  content varchar(1024) not null comment '片段内容',
+  content text not null comment '片段内容',
   rank_no int not null default 100 comment '命中排序',
+  parent_fragment_id varchar(32) default null comment '父片段编号',
+  brother_group_id varchar(64) not null default '' comment '兄弟片段组',
+  brother_index int not null default 1 comment '兄弟片段序号',
+  brother_total int not null default 1 comment '兄弟片段总数',
+  chunk_type varchar(16) not null default 'CHILD' comment '片段类型',
+  embedding_enabled tinyint not null default 1 comment '是否写入向量',
   fragment_status varchar(32) not null default 'ENABLED' comment '片段状态',
   enabled tinyint not null default 1 comment '是否启用',
   create_time datetime not null default current_timestamp comment '创建时间',
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
   primary key (id),
   unique key uk_fragment_id (fragment_id),
-  key idx_goods_rank (goods_id, rank_no)
+  key idx_goods_rank (goods_id, rank_no),
+  key idx_parent_fragment (parent_fragment_id),
+  key idx_brother_group (brother_group_id, brother_index)
 ) engine=InnoDB default charset=utf8mb4 comment='知识片段表';
 
 create table if not exists trade_order (

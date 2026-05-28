@@ -67,6 +67,29 @@ class MyBatisGuideDataRepositoryTest {
     }
 
     @Test
+    void shouldExpandVectorHitToParentAndSiblingReferences() {
+        FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
+        GuideReferencePO parent = reference("KFPARENT", "policy", "parent full refund policy");
+        GuideReferencePO sibling = reference("KFSIBLING", "policy", "sibling unformed group refund");
+        sibling.setBrotherGroupId("BRO90001");
+        guideDataDao.references = List.of(parent, sibling);
+        KnowledgeFragment hit = fragment("KFCHILD", "child refund");
+        hit.setParentFragmentId("KFPARENT");
+        hit.setBrotherGroupId("BRO90001");
+        FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository(List.of(hit));
+        MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
+                guideDataDao,
+                new KnowledgeKeywordService(),
+                new KnowledgeVectorService(vectorRepository));
+
+        List<GuideReference> references = repository.queryReferences("refund", 5);
+
+        assertTrue(references.stream().anyMatch(reference -> "KFPARENT".equals(reference.getFragmentId())));
+        assertTrue(references.stream().anyMatch(reference -> "KFSIBLING".equals(reference.getFragmentId())));
+        assertTrue(references.stream().anyMatch(reference -> "KFCHILD".equals(reference.getFragmentId())));
+    }
+
+    @Test
     void shouldQueryCandidateProductsByExtractedKeywords() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
         MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
@@ -94,6 +117,22 @@ class MyBatisGuideDataRepositoryTest {
             this.limit = limit;
             this.queryCount++;
             return references;
+        }
+
+        @Override
+        public GuideReferencePO queryReferenceByFragmentId(String fragmentId) {
+            return references.stream()
+                    .filter(reference -> fragmentId.equals(reference.getFragmentId()))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        @Override
+        public List<GuideReferencePO> querySiblingReferences(String brotherGroupId, int limit) {
+            return references.stream()
+                    .filter(reference -> brotherGroupId.equals(reference.getBrotherGroupId()))
+                    .limit(limit)
+                    .toList();
         }
 
         @Override

@@ -6,10 +6,13 @@ import com.alipay.api.AlipayConfig;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradePrecreateRequest;
+import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.request.AlipayTradeRefundRequest;
 import com.alipay.api.response.AlipayTradePrecreateResponse;
+import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.alipay.api.domain.AlipayTradePrecreateModel;
+import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.domain.AlipayTradeRefundModel;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.model.payment.PaymentChannel;
@@ -31,6 +34,7 @@ import com.wechat.pay.java.service.payments.nativepay.NativePayService;
 import com.wechat.pay.java.service.payments.nativepay.model.Amount;
 import com.wechat.pay.java.service.payments.nativepay.model.PrepayRequest;
 import com.wechat.pay.java.service.payments.nativepay.model.PrepayResponse;
+import com.wechat.pay.java.service.payments.nativepay.model.QueryOrderByOutTradeNoRequest;
 import com.wechat.pay.java.service.refund.RefundService;
 import com.wechat.pay.java.service.refund.model.AmountReq;
 import com.wechat.pay.java.service.refund.model.CreateRequest;
@@ -139,6 +143,16 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 message);
     }
 
+    @Override
+    public PaymentWebhookResult queryPayment(PaymentReconcileCommand command) {
+        PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
+        return switch (channel) {
+            case ALIPAY -> queryAlipayPayment(command);
+            case WECHAT_PAY -> queryWechatPayment(command);
+            case MOCK_PAY -> queryMockPayment(command);
+        };
+    }
+
     private PaymentCreateResult createMockPayment(PaymentCreateCommand command) {
         return PaymentCreateResult.created(
                 command.getOrderId(),
@@ -162,6 +176,10 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     private PaymentRefundResult refundMock(PaymentRefundCommand command) {
         return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), nextNo("R"), "模拟退款成功");
+    }
+
+    private PaymentWebhookResult queryMockPayment(PaymentReconcileCommand command) {
+        return notPaid(command, "WAIT_BUYER_PAY", "mock payment query keeps local wait status");
     }
 
     private PaymentCreateResult createAlipayPayment(PaymentCreateCommand command) {
@@ -188,6 +206,40 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                     "支付宝预下单成功");
         } catch (AlipayApiException e) {
             throw new AppException("PAY_0003", "支付宝创建支付失败：" + e.getMessage());
+        }
+    }
+
+    private PaymentWebhookResult queryAlipayPayment(PaymentReconcileCommand command) {
+        ensureAlipayReady();
+        try {
+            AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
+            AlipayTradeQueryModel model = new AlipayTradeQueryModel();
+            model.setOutTradeNo(command.getPayOrderId());
+            if (StringUtils.hasText(command.getGatewayTradeNo())
+                    && !command.getGatewayTradeNo().equals(command.getPayOrderId())) {
+                model.setTradeNo(command.getGatewayTradeNo());
+            }
+            request.setBizModel(model);
+            AlipayTradeQueryResponse response = alipayClient().execute(request);
+            if (!response.isSuccess()) {
+                return notPaid(command, "WAIT_BUYER_PAY", "alipay query not paid: " + response.getSubMsg());
+            }
+            String tradeStatus = response.getTradeStatus();
+            if (!isAlipayPaid(tradeStatus)) {
+                return notPaid(command, tradeStatus, "alipay query trade status: " + tradeStatus);
+            }
+            return PaymentWebhookResult.verified(
+                    command.getOrderId(),
+                    firstText(response.getOutTradeNo(), command.getPayOrderId()),
+                    firstText(response.getTradeNo(), command.getGatewayTradeNo()),
+                    parseAlipayTime(response.getSendPayDate()),
+                    firstText(response.getTradeNo(), command.getGatewayTradeNo()),
+                    LocalDateTime.now(),
+                    parseAmount(response.getTotalAmount()),
+                    tradeStatus,
+                    "alipay query confirmed paid");
+        } catch (AlipayApiException e) {
+            throw new AppException("PAY_0007", "鏀粯瀹濇煡鍗曞紓甯革細" + e.getMessage());
         }
     }
 
@@ -258,6 +310,31 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 "微信支付预下单成功");
     }
 
+    private PaymentWebhookResult queryWechatPayment(PaymentReconcileCommand command) {
+        ensureWechatReady();
+        QueryOrderByOutTradeNoRequest request = new QueryOrderByOutTradeNoRequest();
+        request.setMchid(wechatMerchantId);
+        request.setOutTradeNo(command.getPayOrderId());
+        Transaction transaction = new NativePayService.Builder()
+                .config(wechatConfig())
+                .build()
+                .queryOrderByOutTradeNo(request);
+        String tradeStatus = transaction.getTradeState() == null ? "" : transaction.getTradeState().name();
+        if (!"SUCCESS".equals(tradeStatus)) {
+            return notPaid(command, tradeStatus, "wechat pay query trade status: " + tradeStatus);
+        }
+        return PaymentWebhookResult.verified(
+                firstText(transaction.getAttach(), command.getOrderId()),
+                firstText(transaction.getOutTradeNo(), command.getPayOrderId()),
+                transaction.getTransactionId(),
+                parseWechatTime(transaction.getSuccessTime()),
+                transaction.getTransactionId(),
+                LocalDateTime.now(),
+                amountYuan(transaction.getAmount()),
+                tradeStatus,
+                "wechat pay query confirmed paid");
+    }
+
     private PaymentWebhookResult verifyWechatWebhook(PaymentWebhookCommand command) {
         ensureWechatReady();
         Map<String, String> headers = command.getHeaders() == null ? Map.of() : command.getHeaders();
@@ -302,6 +379,25 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 command.getPayOrderId(),
                 firstText(refund.getRefundId(), refundId),
                 "微信支付退款已受理");
+    }
+
+    private PaymentWebhookResult notPaid(PaymentReconcileCommand command, String tradeStatus, String message) {
+        PaymentWebhookResult result = new PaymentWebhookResult();
+        result.setOrderId(command.getOrderId());
+        result.setPayOrderId(command.getPayOrderId());
+        result.setGatewayTradeNo(command.getGatewayTradeNo());
+        result.setTradeStatus(tradeStatus);
+        result.setVerified(false);
+        result.setMessage(message);
+        return result;
+    }
+
+    private boolean isAlipayPaid(String tradeStatus) {
+        if (!StringUtils.hasText(tradeStatus)) {
+            return false;
+        }
+        String normalized = tradeStatus.trim().toUpperCase(Locale.ROOT);
+        return "TRADE_SUCCESS".equals(normalized) || "TRADE_FINISHED".equals(normalized);
     }
 
     private AlipayClient alipayClient() throws AlipayApiException {
@@ -448,5 +544,12 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         } catch (Exception e) {
             throw new AppException("PAY_0002", "支付宝回调时间戳格式不正确");
         }
+    }
+
+    private LocalDateTime parseAlipayTime(java.util.Date value) {
+        if (value == null) {
+            return LocalDateTime.now();
+        }
+        return LocalDateTime.ofInstant(value.toInstant(), java.time.ZoneId.systemDefault());
     }
 }

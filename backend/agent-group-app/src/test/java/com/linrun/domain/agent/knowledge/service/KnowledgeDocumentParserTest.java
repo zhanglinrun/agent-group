@@ -35,8 +35,15 @@ class KnowledgeDocumentParserTest {
 
         List<CreateKnowledgeFragmentCommand> fragments = parser.parse("G10001", content);
 
-        assertEquals(3, fragments.size());
-        assertTrue(fragments.stream().allMatch(fragment -> fragment.getContent().length() <= 500));
+        assertEquals(4, fragments.size());
+        assertEquals("PARENT", fragments.get(0).getChunkType());
+        assertEquals(Boolean.FALSE, fragments.get(0).getEmbeddingEnabled());
+        assertTrue(fragments.stream()
+                .filter(fragment -> "CHILD".equals(fragment.getChunkType()))
+                .allMatch(fragment -> fragment.getContent().length() <= 500));
+        assertTrue(fragments.stream()
+                .filter(fragment -> "CHILD".equals(fragment.getChunkType()))
+                .allMatch(fragment -> fragments.get(0).getParentKey().equals(fragment.getParentKey())));
     }
 
     @Test

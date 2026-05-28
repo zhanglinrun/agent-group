@@ -225,6 +225,83 @@ public class PaymentService {
         return toReconcileResponse(tradeOrder, payOrder, request, result);
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public PaymentWebhookResponse queryGatewayAndCompleteIfPaid(String orderId) {
+        long startNanos = System.nanoTime();
+        if (!StringUtils.hasText(orderId)) {
+            throw new AppException("0001", "璁㈠崟缂栧彿涓嶈兘涓虹┖");
+        }
+        TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
+        PayOrderEntity payOrder = queryPayOrder(orderId);
+        PaymentChannel payChannel = PaymentChannel.parse(payOrder.getPayChannel());
+        if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
+            PaymentWebhookResult result = PaymentWebhookResult.verified(
+                    tradeOrder.getOrderId(),
+                    payOrder.getPayOrderId(),
+                    payOrder.getOutTradeNo(),
+                    payOrder.getPayTime(),
+                    payOrder.getPayAmount(),
+                    successTradeStatus(payChannel),
+                    "local payment already success");
+            return toWebhookResponse(result, existingCallbackResponse(tradeOrder, payOrder));
+        }
+        if (!PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
+            return null;
+        }
+
+        PaymentWebhookResult queryResult = paymentGatewayClient.queryPayment(
+                toReconcileCommand(tradeOrder, payOrder, LocalDate.now()));
+        if (queryResult == null || !queryResult.isVerified()) {
+            recordPaymentQueryFlow(tradeOrder, payOrder,
+                    queryResult == null ? "gateway payment query no result" : queryResult.getMessage());
+            return null;
+        }
+        normalizeQueryResult(queryResult, tradeOrder, payOrder);
+        if (!isSuccessTradeStatus(payChannel, queryResult.getTradeStatus())) {
+            recordPaymentQueryFlow(tradeOrder, payOrder, queryResult.getMessage());
+            return null;
+        }
+        validateWebhookConsistency(payChannel, queryResult);
+
+        PaymentWebhookResponse existingResponse = queryExistingWebhookResponse(queryResult);
+        if (existingResponse != null) {
+            metrics.recordPaymentWebhook(payChannel.name(), "query_duplicate_completed", elapsedMillis(startNanos));
+            return existingResponse;
+        }
+        if (!paymentWebhookReplayGuard.acquireProcessingLock(payChannel, queryResult)) {
+            existingResponse = queryExistingWebhookResponse(queryResult);
+            if (existingResponse != null) {
+                metrics.recordPaymentWebhook(payChannel.name(), "query_duplicate_completed", elapsedMillis(startNanos));
+                return existingResponse;
+            }
+            metrics.recordPaymentWebhook(payChannel.name(), "query_processing_conflict", elapsedMillis(startNanos));
+            return null;
+        }
+
+        boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, queryResult);
+        try {
+            MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
+            callbackRequest.setOrderId(queryResult.getOrderId());
+            callbackRequest.setOutTradeNo(resolveGatewayTradeNo(queryResult));
+            callbackRequest.setPayTime(queryResult.getPayTime() == null ? LocalDateTime.now() : queryResult.getPayTime());
+            MockPayCallbackResponse callbackResponse = mockPayCallbackService.paySuccess(callbackRequest);
+            tradeStatusFlowService.record(
+                    callbackResponse.getOrderId(),
+                    TradeStatusFlowService.BIZ_PAY,
+                    callbackResponse.getPayOrderId(),
+                    TradeStatusFlowService.EVENT_RECONCILE_PAYMENT,
+                    null,
+                    callbackResponse.getPayStatus(),
+                    queryResult.getMessage());
+            metrics.recordPaymentWebhook(payChannel.name(), "query_success", elapsedMillis(startNanos));
+            return toWebhookResponse(queryResult, callbackResponse);
+        } finally {
+            if (!releaseAfterCompletion) {
+                paymentWebhookReplayGuard.releaseProcessingLock(payChannel, queryResult);
+            }
+        }
+    }
+
     private PaymentCreateCommand toCreateCommand(TradeOrderEntity tradeOrder,
                                                  PayOrderEntity payOrder,
                                                  String payChannel,
@@ -338,12 +415,19 @@ public class PaymentService {
     private PaymentReconcileCommand toReconcileCommand(TradeOrderEntity tradeOrder,
                                                        PayOrderEntity payOrder,
                                                        ReconcilePaymentRequest request) {
+        return toReconcileCommand(tradeOrder, payOrder,
+                request.getBillDate() == null ? LocalDate.now() : request.getBillDate());
+    }
+
+    private PaymentReconcileCommand toReconcileCommand(TradeOrderEntity tradeOrder,
+                                                       PayOrderEntity payOrder,
+                                                       LocalDate billDate) {
         PaymentReconcileCommand command = new PaymentReconcileCommand();
         command.setOrderId(tradeOrder.getOrderId());
         command.setPayOrderId(payOrder.getPayOrderId());
         command.setPayChannel(payOrder.getPayChannel());
         command.setGatewayTradeNo(payOrder.getOutTradeNo());
-        command.setBillDate(request.getBillDate() == null ? LocalDate.now() : request.getBillDate());
+        command.setBillDate(billDate == null ? LocalDate.now() : billDate);
         return command;
     }
 
@@ -435,6 +519,34 @@ public class PaymentService {
                 "refund success");
     }
 
+    private void recordPaymentQueryFlow(TradeOrderEntity tradeOrder, PayOrderEntity payOrder, String message) {
+        tradeStatusFlowService.record(
+                tradeOrder.getOrderId(),
+                TradeStatusFlowService.BIZ_PAY,
+                payOrder.getPayOrderId(),
+                TradeStatusFlowService.EVENT_RECONCILE_PAYMENT,
+                null,
+                payOrder.getPayStatus(),
+                StringUtils.hasText(message) ? message : "gateway payment query not paid");
+    }
+
+    private void normalizeQueryResult(PaymentWebhookResult result,
+                                      TradeOrderEntity tradeOrder,
+                                      PayOrderEntity payOrder) {
+        if (!StringUtils.hasText(result.getOrderId())) {
+            result.setOrderId(tradeOrder.getOrderId());
+        }
+        if (!StringUtils.hasText(result.getPayOrderId())) {
+            result.setPayOrderId(payOrder.getPayOrderId());
+        }
+        if (result.getPayAmount() == null) {
+            result.setPayAmount(payOrder.getPayAmount());
+        }
+        if (result.getPayTime() == null) {
+            result.setPayTime(LocalDateTime.now());
+        }
+    }
+
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
@@ -469,11 +581,22 @@ public class PaymentService {
     }
 
     private boolean isSuccessTradeStatus(PaymentChannel payChannel, String tradeStatus) {
+        if (!StringUtils.hasText(tradeStatus)) {
+            return false;
+        }
         String normalized = tradeStatus.trim().toUpperCase(Locale.ROOT);
         return switch (payChannel) {
             case ALIPAY -> "TRADE_SUCCESS".equals(normalized) || "TRADE_FINISHED".equals(normalized);
             case WECHAT_PAY -> "SUCCESS".equals(normalized);
             case MOCK_PAY -> true;
+        };
+    }
+
+    private String successTradeStatus(PaymentChannel payChannel) {
+        return switch (payChannel) {
+            case ALIPAY -> "TRADE_SUCCESS";
+            case WECHAT_PAY -> "SUCCESS";
+            case MOCK_PAY -> "SUCCESS";
         };
     }
 

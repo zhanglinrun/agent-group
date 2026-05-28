@@ -25,6 +25,18 @@ class KnowledgeVectorServiceTest {
     }
 
     @Test
+    void shouldSkipParentFragmentEmbedding() {
+        FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository();
+        KnowledgeVectorService service = new KnowledgeVectorService(vectorRepository);
+        KnowledgeFragment fragment = fragment("KF10000", "parent full context");
+        fragment.setEmbeddingEnabled(false);
+
+        service.saveFragmentEmbedding(fragment);
+
+        assertEquals(0, vectorRepository.savedFragments.size());
+    }
+
+    @Test
     void shouldSearchSimilarFragments() {
         FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository();
         KnowledgeVectorService service = new KnowledgeVectorService(vectorRepository);

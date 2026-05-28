@@ -257,6 +257,12 @@ public class KnowledgeDocumentUploadHandler {
         dto.setKnowledgeVersion(fragment.getKnowledgeVersion());
         dto.setContent(fragment.getContent());
         dto.setRankNo(fragment.getRankNo());
+        dto.setParentFragmentId(fragment.getParentFragmentId());
+        dto.setBrotherGroupId(fragment.getBrotherGroupId());
+        dto.setBrotherIndex(fragment.getBrotherIndex());
+        dto.setBrotherTotal(fragment.getBrotherTotal());
+        dto.setChunkType(fragment.getChunkType());
+        dto.setEmbeddingEnabled(fragment.getEmbeddingEnabled());
         dto.setFragmentStatus(fragment.getFragmentStatus().name());
         return dto;
     }

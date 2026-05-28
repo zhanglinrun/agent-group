@@ -89,6 +89,25 @@ class KnowledgeDocumentServiceTest {
         assertFalse(result.getFragments().get(0).getEnabled());
     }
 
+    @Test
+    void shouldResolveParentFragmentIdForChildChunks() {
+        KnowledgeDocumentService service = new KnowledgeDocumentService();
+        CreateKnowledgeFragmentCommand parent = fragmentCommand("G10001", "parent content", 1);
+        parent.setParentKey("PARENT-1");
+        parent.setChunkType("PARENT");
+        parent.setEmbeddingEnabled(false);
+        CreateKnowledgeFragmentCommand child = fragmentCommand("G10001", "child content", 2);
+        child.setParentKey("PARENT-1");
+        child.setChunkType("CHILD");
+        child.setEmbeddingEnabled(true);
+
+        KnowledgeDocumentBuildResult result = service.createParsedDocument(documentCommand(), List.of(parent, child));
+
+        assertEquals(result.getFragments().get(0).getFragmentId(), result.getFragments().get(1).getParentFragmentId());
+        assertEquals(Boolean.FALSE, result.getFragments().get(0).getEmbeddingEnabled());
+        assertEquals(Boolean.TRUE, result.getFragments().get(1).getEmbeddingEnabled());
+    }
+
     private CreateKnowledgeDocumentCommand documentCommand() {
         CreateKnowledgeDocumentCommand command = new CreateKnowledgeDocumentCommand();
         command.setDocumentName("学习平板商品详情");

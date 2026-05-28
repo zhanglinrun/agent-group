@@ -11,7 +11,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -29,9 +31,27 @@ public class KnowledgeDocumentService {
         document.markParsed();
         document.enable();
 
-        List<KnowledgeFragment> fragments = fragmentCommands.stream()
-                .map(command -> KnowledgeFragment.enabled(nextNo("KF"), document, command, now))
+        List<String> fragmentIds = fragmentCommands.stream()
+                .map(command -> nextNo("KF"))
                 .toList();
+        Map<String, String> parentIdMap = new HashMap<>();
+        for (int i = 0; i < fragmentCommands.size(); i++) {
+            CreateKnowledgeFragmentCommand command = fragmentCommands.get(i);
+            if (StringUtils.hasText(command.getParentKey()) && "PARENT".equals(command.getChunkType())) {
+                parentIdMap.put(command.getParentKey(), fragmentIds.get(i));
+            }
+        }
+        for (CreateKnowledgeFragmentCommand command : fragmentCommands) {
+            if (StringUtils.hasText(command.getParentKey())
+                    && !"PARENT".equals(command.getChunkType())
+                    && !StringUtils.hasText(command.getParentFragmentId())) {
+                command.setParentFragmentId(parentIdMap.get(command.getParentKey()));
+            }
+        }
+        List<KnowledgeFragment> fragments = new java.util.ArrayList<>();
+        for (int i = 0; i < fragmentCommands.size(); i++) {
+            fragments.add(KnowledgeFragment.enabled(fragmentIds.get(i), document, fragmentCommands.get(i), now));
+        }
         return new KnowledgeDocumentBuildResult(document, fragments);
     }
 

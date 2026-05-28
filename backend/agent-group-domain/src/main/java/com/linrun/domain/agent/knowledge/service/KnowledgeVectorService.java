@@ -21,6 +21,9 @@ public class KnowledgeVectorService {
         if (fragment == null || !StringUtils.hasText(fragment.getContent())) {
             return;
         }
+        if (Boolean.FALSE.equals(fragment.getEmbeddingEnabled())) {
+            return;
+        }
         knowledgeVectorRepository.saveFragment(fragment);
     }
 

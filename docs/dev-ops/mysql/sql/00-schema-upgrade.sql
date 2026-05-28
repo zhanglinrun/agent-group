@@ -78,6 +78,112 @@ prepare stmt from @sql;
 execute stmt;
 deallocate prepare stmt;
 
+alter table knowledge_fragment modify column content text not null comment '片段内容';
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add column parent_fragment_id varchar(32) default null comment ''父片段编号'' after rank_no',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and column_name = 'parent_fragment_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add column brother_group_id varchar(64) not null default '''' comment ''兄弟片段组'' after parent_fragment_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and column_name = 'brother_group_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add column brother_index int not null default 1 comment ''兄弟片段序号'' after brother_group_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and column_name = 'brother_index'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add column brother_total int not null default 1 comment ''兄弟片段总数'' after brother_index',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and column_name = 'brother_total'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add column chunk_type varchar(16) not null default ''CHILD'' comment ''片段类型'' after brother_total',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and column_name = 'chunk_type'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add column embedding_enabled tinyint not null default 1 comment ''是否写入向量'' after chunk_type',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and column_name = 'embedding_enabled'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add index idx_parent_fragment (parent_fragment_id)',
+    'select 1')
+  from information_schema.statistics
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and index_name = 'idx_parent_fragment'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table knowledge_fragment add index idx_brother_group (brother_group_id, brother_index)',
+    'select 1')
+  from information_schema.statistics
+  where table_schema = database()
+    and table_name = 'knowledge_fragment'
+    and index_name = 'idx_brother_group'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
 create table if not exists group_buy_stock (
   id bigint unsigned not null auto_increment comment '自增主键',
   activity_id varchar(32) not null comment '活动编号',

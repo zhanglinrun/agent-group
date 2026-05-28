@@ -11,6 +11,12 @@ public class KnowledgeFragmentPO {
     private String knowledgeVersion;
     private String content;
     private Integer rankNo;
+    private String parentFragmentId;
+    private String brotherGroupId;
+    private Integer brotherIndex;
+    private Integer brotherTotal;
+    private String chunkType;
+    private Boolean embeddingEnabled;
     private String fragmentStatus;
     private Boolean enabled;
     private LocalDateTime createTime;
@@ -70,6 +76,54 @@ public class KnowledgeFragmentPO {
 
     public void setRankNo(Integer rankNo) {
         this.rankNo = rankNo;
+    }
+
+    public String getParentFragmentId() {
+        return parentFragmentId;
+    }
+
+    public void setParentFragmentId(String parentFragmentId) {
+        this.parentFragmentId = parentFragmentId;
+    }
+
+    public String getBrotherGroupId() {
+        return brotherGroupId;
+    }
+
+    public void setBrotherGroupId(String brotherGroupId) {
+        this.brotherGroupId = brotherGroupId;
+    }
+
+    public Integer getBrotherIndex() {
+        return brotherIndex;
+    }
+
+    public void setBrotherIndex(Integer brotherIndex) {
+        this.brotherIndex = brotherIndex;
+    }
+
+    public Integer getBrotherTotal() {
+        return brotherTotal;
+    }
+
+    public void setBrotherTotal(Integer brotherTotal) {
+        this.brotherTotal = brotherTotal;
+    }
+
+    public String getChunkType() {
+        return chunkType;
+    }
+
+    public void setChunkType(String chunkType) {
+        this.chunkType = chunkType;
+    }
+
+    public Boolean getEmbeddingEnabled() {
+        return embeddingEnabled;
+    }
+
+    public void setEmbeddingEnabled(Boolean embeddingEnabled) {
+        this.embeddingEnabled = embeddingEnabled;
     }
 
     public String getFragmentStatus() {

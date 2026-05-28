@@ -7,13 +7,16 @@ import com.linrun.domain.agent.knowledge.adapter.KnowledgeReranker;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
 import com.linrun.domain.agent.knowledge.service.KnowledgeVectorService;
+import com.linrun.domain.support.config.service.DynamicConfigService;
 import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IGuideDataDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,18 +32,30 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     private final KnowledgeVectorService knowledgeVectorService;
     private final KnowledgeReranker knowledgeReranker;
     private final boolean keywordFallbackEnabled;
+    private final DynamicConfigService dynamicConfigService;
 
     @Autowired
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
                                        KnowledgeKeywordService knowledgeKeywordService,
                                        KnowledgeVectorService knowledgeVectorService,
                                        KnowledgeReranker knowledgeReranker,
-                                      @Value("${agent.group.vector.keyword-fallback-enabled:true}") boolean keywordFallbackEnabled) {
+                                      @Value("${agent.group.vector.keyword-fallback-enabled:true}") boolean keywordFallbackEnabled,
+                                      DynamicConfigService dynamicConfigService) {
         this.guideDataDao = guideDataDao;
         this.knowledgeKeywordService = knowledgeKeywordService;
         this.knowledgeVectorService = knowledgeVectorService;
         this.knowledgeReranker = knowledgeReranker == null ? KnowledgeReranker.noop() : knowledgeReranker;
         this.keywordFallbackEnabled = keywordFallbackEnabled;
+        this.dynamicConfigService = dynamicConfigService;
+    }
+
+    public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
+                                      KnowledgeKeywordService knowledgeKeywordService,
+                                      KnowledgeVectorService knowledgeVectorService,
+                                      KnowledgeReranker knowledgeReranker,
+                                      boolean keywordFallbackEnabled) {
+        this(guideDataDao, knowledgeKeywordService, knowledgeVectorService, knowledgeReranker,
+                keywordFallbackEnabled, null);
     }
 
     public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
@@ -114,11 +129,47 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         try {
             AtomicInteger rank = new AtomicInteger(1);
             return knowledgeVectorService.searchSimilar(question, limit).stream()
-                    .map(fragment -> toGuideReference(fragment, rank.getAndIncrement()))
+                    .flatMap(fragment -> expandVectorFragment(fragment, rank).stream())
                     .toList();
         } catch (Exception ignored) {
             return List.of();
         }
+    }
+
+    private List<GuideReference> expandVectorFragment(KnowledgeFragment fragment, AtomicInteger rank) {
+        GuideReference hit = toGuideReference(fragment, 0);
+        if (!shouldExpandKnowledgeContext()) {
+            return List.of(hit);
+        }
+        Map<String, GuideReference> expanded = new LinkedHashMap<>();
+        if (StringUtils.hasText(fragment.getParentFragmentId())) {
+            GuideReference parent = AgentPOConverter.toEntity(
+                    guideDataDao.queryReferenceByFragmentId(fragment.getParentFragmentId()));
+            appendExpanded(expanded, parent, rank);
+        }
+        appendExpanded(expanded, hit, rank);
+        if (StringUtils.hasText(fragment.getBrotherGroupId())) {
+            List<GuideReference> siblings = AgentPOConverter.toGuideReferences(
+                    guideDataDao.querySiblingReferences(fragment.getBrotherGroupId(), 6));
+            for (GuideReference sibling : siblings) {
+                appendExpanded(expanded, sibling, rank);
+            }
+        }
+        return expanded.isEmpty() ? List.of(hit) : new ArrayList<>(expanded.values());
+    }
+
+    private void appendExpanded(Map<String, GuideReference> expanded,
+                                GuideReference reference,
+                                AtomicInteger rank) {
+        if (reference == null) {
+            return;
+        }
+        reference.setRank(rank.getAndIncrement());
+        expanded.putIfAbsent(referenceKey(reference), reference);
+    }
+
+    private boolean shouldExpandKnowledgeContext() {
+        return dynamicConfigService == null || dynamicConfigService.isKnowledgeContextExpansionOpen();
     }
 
     private List<GuideReference> rerank(String question,
@@ -225,6 +276,11 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         reference.setKnowledgeVersion(fragment.getKnowledgeVersion());
         reference.setContent(fragment.getContent());
         reference.setRank(rank);
+        reference.setParentFragmentId(fragment.getParentFragmentId());
+        reference.setBrotherGroupId(fragment.getBrotherGroupId());
+        reference.setBrotherIndex(fragment.getBrotherIndex());
+        reference.setBrotherTotal(fragment.getBrotherTotal());
+        reference.setChunkType(fragment.getChunkType());
         return reference;
     }
 

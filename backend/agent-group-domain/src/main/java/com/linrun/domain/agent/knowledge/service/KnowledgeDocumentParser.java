@@ -13,6 +13,8 @@ import java.util.List;
 public class KnowledgeDocumentParser {
 
     private static final int MAX_FRAGMENT_LENGTH = 500;
+    private static final String CHUNK_TYPE_PARENT = "PARENT";
+    private static final String CHUNK_TYPE_CHILD = "CHILD";
 
     private final DocumentSplitterFactory documentSplitterFactory;
 
@@ -37,16 +39,47 @@ public class KnowledgeDocumentParser {
         List<String> paragraphs = documentSplitterFactory.split(content);
         List<CreateKnowledgeFragmentCommand> fragments = new ArrayList<>();
         int rankNo = 1;
+        int paragraphNo = 1;
         for (String paragraph : paragraphs) {
-            for (String chunk : splitLongParagraph(paragraph)) {
-                CreateKnowledgeFragmentCommand command = new CreateKnowledgeFragmentCommand();
-                command.setGoodsId(goodsId.trim());
-                command.setContent(chunk);
-                command.setRankNo(rankNo++);
-                fragments.add(command);
+            List<String> chunks = splitLongParagraph(paragraph);
+            if (chunks.size() <= 1) {
+                fragments.add(fragment(goodsId, paragraph, rankNo++, null,
+                        "BRO-" + paragraphNo, 1, 1, CHUNK_TYPE_CHILD, true));
+            } else {
+                String parentKey = "PARENT-" + paragraphNo;
+                String brotherGroupId = "BRO-" + paragraphNo;
+                fragments.add(fragment(goodsId, paragraph, rankNo++, parentKey,
+                        brotherGroupId, 0, chunks.size(), CHUNK_TYPE_PARENT, false));
+                for (int i = 0; i < chunks.size(); i++) {
+                    fragments.add(fragment(goodsId, chunks.get(i), rankNo++, parentKey,
+                            brotherGroupId, i + 1, chunks.size(), CHUNK_TYPE_CHILD, true));
+                }
             }
+            paragraphNo++;
         }
         return fragments;
+    }
+
+    private CreateKnowledgeFragmentCommand fragment(String goodsId,
+                                                    String content,
+                                                    int rankNo,
+                                                    String parentKey,
+                                                    String brotherGroupId,
+                                                    int brotherIndex,
+                                                    int brotherTotal,
+                                                    String chunkType,
+                                                    boolean embeddingEnabled) {
+        CreateKnowledgeFragmentCommand command = new CreateKnowledgeFragmentCommand();
+        command.setGoodsId(goodsId.trim());
+        command.setContent(content);
+        command.setRankNo(rankNo);
+        command.setParentKey(parentKey);
+        command.setBrotherGroupId(brotherGroupId);
+        command.setBrotherIndex(brotherIndex);
+        command.setBrotherTotal(brotherTotal);
+        command.setChunkType(chunkType);
+        command.setEmbeddingEnabled(embeddingEnabled);
+        return command;
     }
 
     private List<String> splitLongParagraph(String paragraph) {

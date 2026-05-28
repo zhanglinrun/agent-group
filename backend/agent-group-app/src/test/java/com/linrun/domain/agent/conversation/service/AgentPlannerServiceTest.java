@@ -38,6 +38,9 @@ class AgentPlannerServiceTest {
                 .findFirst()
                 .orElseThrow()
                 .getRiskLevel());
+        assertFalse(plan.getSkills().isEmpty());
+        assertEquals("clarify", plan.getExecutionStages().get(0).getStage());
+        assertTrue(plan.getCritique().contains("交易"));
 
         GuideProduct product = new GuideProduct();
         product.setGoodsId("G10001");

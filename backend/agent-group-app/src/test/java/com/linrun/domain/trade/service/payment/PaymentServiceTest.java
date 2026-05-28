@@ -218,6 +218,25 @@ class PaymentServiceTest {
         assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getLocalPayStatus());
     }
 
+    @Test
+    void shouldQueryGatewayAndCompletePaidOrderWhenWebhookMissed() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.gateway.queryPayOrderId = "P10001";
+        fixture.gateway.queryGatewayTradeNo = "GT10001";
+        fixture.gateway.queryAmount = new BigDecimal("2399.00");
+        fixture.gateway.queryTradeStatus = "TRADE_SUCCESS";
+
+        PaymentWebhookResponse response = fixture.service.queryGatewayAndCompleteIfPaid("O10001");
+
+        assertTrue(response.isVerified());
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.SUCCESS, fixture.repository.payOrder.getPayStatus());
+        assertEquals("GT10001", response.getGatewayTradeNo());
+        assertTrue(fixture.flowRepository.flows.stream()
+                .anyMatch(flow -> TradeStatusFlowService.EVENT_RECONCILE_PAYMENT.equals(flow.getEventType())));
+    }
+
     private Fixture fixture(TradeOrderStatusEnumVO orderStatus, PayStatusEnumVO payStatus) {
         return fixture(orderStatus, payStatus, new PaymentWebhookReplayGuard(300L));
     }
@@ -257,6 +276,10 @@ class PaymentServiceTest {
         private String webhookGatewayTradeNo;
         private BigDecimal webhookAmount;
         private String webhookTradeStatus;
+        private String queryPayOrderId;
+        private String queryGatewayTradeNo;
+        private BigDecimal queryAmount;
+        private String queryTradeStatus;
 
         @Override
         public PaymentCreateResult createPayment(PaymentCreateCommand command) {
@@ -296,6 +319,23 @@ class PaymentServiceTest {
                     command.getPayOrderId(),
                     command.getGatewayTradeNo(),
                     "matched");
+        }
+
+        @Override
+        public PaymentWebhookResult queryPayment(PaymentReconcileCommand command) {
+            if (queryTradeStatus == null) {
+                return null;
+            }
+            return PaymentWebhookResult.verified(
+                    command.getOrderId(),
+                    queryPayOrderId == null ? command.getPayOrderId() : queryPayOrderId,
+                    queryGatewayTradeNo == null ? command.getGatewayTradeNo() : queryGatewayTradeNo,
+                    LocalDateTime.of(2026, 5, 14, 10, 0),
+                    "QUERY10001",
+                    LocalDateTime.now(),
+                    queryAmount,
+                    queryTradeStatus,
+                    "query paid");
         }
     }
 

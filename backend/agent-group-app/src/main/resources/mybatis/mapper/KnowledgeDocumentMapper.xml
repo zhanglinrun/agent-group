@@ -25,6 +25,12 @@
         <result column="knowledge_version" property="knowledgeVersion"/>
         <result column="content" property="content"/>
         <result column="rank_no" property="rankNo"/>
+        <result column="parent_fragment_id" property="parentFragmentId"/>
+        <result column="brother_group_id" property="brotherGroupId"/>
+        <result column="brother_index" property="brotherIndex"/>
+        <result column="brother_total" property="brotherTotal"/>
+        <result column="chunk_type" property="chunkType"/>
+        <result column="embedding_enabled" property="embeddingEnabled"/>
         <result column="fragment_status" property="fragmentStatus"/>
         <result column="enabled" property="enabled"/>
         <result column="create_time" property="createTime"/>
@@ -66,6 +72,12 @@
           knowledge_version,
           content,
           rank_no,
+          parent_fragment_id,
+          brother_group_id,
+          brother_index,
+          brother_total,
+          chunk_type,
+          embedding_enabled,
           fragment_status,
           enabled,
           create_time,
@@ -80,6 +92,12 @@
           #{fragment.knowledgeVersion},
           #{fragment.content},
           #{fragment.rankNo},
+          #{fragment.parentFragmentId},
+          #{fragment.brotherGroupId},
+          #{fragment.brotherIndex},
+          #{fragment.brotherTotal},
+          #{fragment.chunkType},
+          #{fragment.embeddingEnabled},
           #{fragment.fragmentStatus},
           #{fragment.enabled},
           #{fragment.createTime},
@@ -112,6 +130,12 @@
                knowledge_version,
                content,
                rank_no,
+               parent_fragment_id,
+               brother_group_id,
+               brother_index,
+               brother_total,
+               chunk_type,
+               embedding_enabled,
                fragment_status,
                enabled,
                create_time,
@@ -129,6 +153,12 @@
                knowledge_version,
                content,
                rank_no,
+               parent_fragment_id,
+               brother_group_id,
+               brother_index,
+               brother_total,
+               chunk_type,
+               embedding_enabled,
                fragment_status,
                enabled,
                create_time,

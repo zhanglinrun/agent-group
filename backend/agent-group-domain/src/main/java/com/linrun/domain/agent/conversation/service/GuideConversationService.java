@@ -4,10 +4,11 @@ import com.linrun.domain.agent.conversation.adapter.GuideConversationRepository;
 import com.linrun.domain.agent.conversation.model.GuideConversationMessage;
 import com.linrun.domain.agent.conversation.model.GuideMessageRole;
 import com.linrun.domain.agent.conversation.model.GuideUserInput;
+import com.linrun.domain.support.config.service.DynamicConfigService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,12 +17,22 @@ public class GuideConversationService {
 
     private static final int RECENT_MESSAGE_LIMIT = 6;
     private static final int MAX_CONTEXT_CHARS = 1600;
-    private static final String CONTEXT_COMPACT_MARK = "[older conversation compacted]";
 
     private final GuideConversationRepository guideConversationRepository;
+    private final GuideContextCompactor guideContextCompactor;
+    private final DynamicConfigService dynamicConfigService;
 
     public GuideConversationService(GuideConversationRepository guideConversationRepository) {
+        this(guideConversationRepository, new GuideContextCompactor(), null);
+    }
+
+    @Autowired
+    public GuideConversationService(GuideConversationRepository guideConversationRepository,
+                                    GuideContextCompactor guideContextCompactor,
+                                    DynamicConfigService dynamicConfigService) {
         this.guideConversationRepository = guideConversationRepository;
+        this.guideContextCompactor = guideContextCompactor == null ? new GuideContextCompactor() : guideContextCompactor;
+        this.dynamicConfigService = dynamicConfigService;
     }
 
     public String buildQuestionWithContext(GuideUserInput input) {
@@ -75,31 +86,13 @@ public class GuideConversationService {
         List<String> lines = recentMessages.stream()
                 .map(this::messageLine)
                 .toList();
-        String context = String.join("\n", lines);
-        if (context.length() <= MAX_CONTEXT_CHARS) {
-            return context;
-        }
-        return compactLines(lines);
+        return guideContextCompactor.compact(lines, maxContextChars());
     }
 
-    private String compactLines(List<String> lines) {
-        List<String> keptLines = new ArrayList<>();
-        int currentLength = CONTEXT_COMPACT_MARK.length();
-        for (int i = lines.size() - 1; i >= 0; i--) {
-            String line = lines.get(i);
-            int nextLength = currentLength + line.length() + 1;
-            if (nextLength > MAX_CONTEXT_CHARS) {
-                break;
-            }
-            keptLines.add(0, line);
-            currentLength = nextLength;
-        }
-        if (keptLines.isEmpty() && !lines.isEmpty()) {
-            String lastLine = lines.get(lines.size() - 1);
-            int keepLength = Math.max(0, MAX_CONTEXT_CHARS - CONTEXT_COMPACT_MARK.length() - 1);
-            keptLines.add(lastLine.substring(Math.max(0, lastLine.length() - keepLength)));
-        }
-        return CONTEXT_COMPACT_MARK + "\n" + String.join("\n", keptLines);
+    private int maxContextChars() {
+        return dynamicConfigService == null
+                ? MAX_CONTEXT_CHARS
+                : dynamicConfigService.agentContextCompactThreshold();
     }
 
     private String messageLine(GuideConversationMessage message) {

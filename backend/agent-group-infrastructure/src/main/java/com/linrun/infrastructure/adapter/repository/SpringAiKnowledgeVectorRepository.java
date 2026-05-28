@@ -92,6 +92,11 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
         metadata.put("documentType", safe(fragment.getDocumentType()));
         metadata.put("knowledgeVersion", safe(fragment.getKnowledgeVersion()));
         metadata.put("rankNo", fragment.getRankNo() == null ? 0 : fragment.getRankNo());
+        metadata.put("parentFragmentId", safe(fragment.getParentFragmentId()));
+        metadata.put("brotherGroupId", safe(fragment.getBrotherGroupId()));
+        metadata.put("brotherIndex", fragment.getBrotherIndex() == null ? 1 : fragment.getBrotherIndex());
+        metadata.put("brotherTotal", fragment.getBrotherTotal() == null ? 1 : fragment.getBrotherTotal());
+        metadata.put("chunkType", safe(fragment.getChunkType()));
         return Document.builder()
                 .id(fragment.getFragmentId())
                 .text(fragment.getContent())
@@ -109,6 +114,12 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
         fragment.setKnowledgeVersion(text(metadata, "knowledgeVersion", "v1"));
         fragment.setContent(document.getText());
         fragment.setRankNo(rank);
+        fragment.setParentFragmentId(text(metadata, "parentFragmentId", ""));
+        fragment.setBrotherGroupId(text(metadata, "brotherGroupId", ""));
+        fragment.setBrotherIndex(number(metadata, "brotherIndex", 1));
+        fragment.setBrotherTotal(number(metadata, "brotherTotal", 1));
+        fragment.setChunkType(text(metadata, "chunkType", "CHILD"));
+        fragment.setEmbeddingEnabled(true);
         fragment.setFragmentStatus(KnowledgeFragmentStatus.ENABLED);
         fragment.setEnabled(true);
         return fragment;
@@ -121,6 +132,21 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private Integer number(Map<String, Object> metadata, String key, int fallback) {
+        Object value = metadata.get(key);
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private long elapsedMillis(long startNanos) {

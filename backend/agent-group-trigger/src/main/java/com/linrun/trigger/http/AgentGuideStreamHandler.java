@@ -553,6 +553,11 @@ public class AgentGuideStreamHandler {
         dto.setKnowledgeVersion(reference.getKnowledgeVersion());
         dto.setContent(reference.getContent());
         dto.setRank(reference.getRank());
+        dto.setParentFragmentId(reference.getParentFragmentId());
+        dto.setBrotherGroupId(reference.getBrotherGroupId());
+        dto.setBrotherIndex(reference.getBrotherIndex());
+        dto.setBrotherTotal(reference.getBrotherTotal());
+        dto.setChunkType(reference.getChunkType());
         return dto;
     }
 

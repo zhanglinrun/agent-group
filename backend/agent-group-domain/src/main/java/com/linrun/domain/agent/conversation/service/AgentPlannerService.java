@@ -1,10 +1,13 @@
 package com.linrun.domain.agent.conversation.service;
 
 import com.linrun.domain.agent.conversation.model.AgentPlan;
+import com.linrun.domain.agent.conversation.model.AgentSkill;
 import com.linrun.domain.agent.conversation.model.AgentToolCall;
 import com.linrun.domain.agent.conversation.model.GuideDecisionResult;
 import com.linrun.domain.agent.conversation.model.GuideIntent;
 import com.linrun.domain.agent.conversation.model.GuideIntentType;
+import com.linrun.domain.support.config.service.DynamicConfigService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -23,10 +26,25 @@ public class AgentPlannerService {
 
     private final GuideDecisionService guideDecisionService;
     private final AgentToolRegistry agentToolRegistry;
+    private final AgentSkillRegistry agentSkillRegistry;
+    private final AgentPlanExecuteService agentPlanExecuteService;
+    private final DynamicConfigService dynamicConfigService;
 
     public AgentPlannerService(GuideDecisionService guideDecisionService, AgentToolRegistry agentToolRegistry) {
+        this(guideDecisionService, agentToolRegistry, new AgentSkillRegistry(), new AgentPlanExecuteService(), null);
+    }
+
+    @Autowired
+    public AgentPlannerService(GuideDecisionService guideDecisionService,
+                               AgentToolRegistry agentToolRegistry,
+                               AgentSkillRegistry agentSkillRegistry,
+                               AgentPlanExecuteService agentPlanExecuteService,
+                               DynamicConfigService dynamicConfigService) {
         this.guideDecisionService = guideDecisionService;
         this.agentToolRegistry = agentToolRegistry;
+        this.agentSkillRegistry = agentSkillRegistry == null ? new AgentSkillRegistry() : agentSkillRegistry;
+        this.agentPlanExecuteService = agentPlanExecuteService == null ? new AgentPlanExecuteService() : agentPlanExecuteService;
+        this.dynamicConfigService = dynamicConfigService;
     }
 
     public AgentPlan plan(String question) {
@@ -35,7 +53,13 @@ public class AgentPlannerService {
         plan.setIntent(intent.getIntentType());
         plan.setTools(buildTools(question, intent));
         plan.setAnswerPolicy(answerPolicy(intent.getIntentType()));
-        return agentToolRegistry.validate(plan);
+        AgentPlan validatedPlan = agentToolRegistry.validate(plan);
+        List<AgentSkill> skills = agentSkillRegistry.select(intent.getIntentType(), question);
+        if (dynamicConfigService == null || dynamicConfigService.isAgentPlanExecuteOpen()) {
+            return agentPlanExecuteService.enrich(question, validatedPlan, skills);
+        }
+        validatedPlan.setSkills(skills);
+        return validatedPlan;
     }
 
     private List<AgentToolCall> buildTools(String question, GuideIntent intent) {

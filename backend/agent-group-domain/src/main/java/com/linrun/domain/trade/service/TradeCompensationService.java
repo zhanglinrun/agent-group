@@ -9,8 +9,11 @@ import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
+import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -27,6 +30,7 @@ public class TradeCompensationService {
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final TradeRefundService tradeRefundService;
     private final TradeStatusFlowService tradeStatusFlowService;
+    private final PaymentService paymentService;
 
     public TradeCompensationService(TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
@@ -34,12 +38,25 @@ public class TradeCompensationService {
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     TradeRefundService tradeRefundService,
                                     TradeStatusFlowService tradeStatusFlowService) {
+        this(tradeOrderRepository, tradeOrderService, groupBuyCompensationService, groupBuyOrderLockRepository,
+                tradeRefundService, tradeStatusFlowService, null);
+    }
+
+    @Autowired
+    public TradeCompensationService(TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    GroupBuyCompensationService groupBuyCompensationService,
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    TradeRefundService tradeRefundService,
+                                    TradeStatusFlowService tradeStatusFlowService,
+                                    PaymentService paymentService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuyCompensationService = groupBuyCompensationService;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.tradeRefundService = tradeRefundService;
         this.tradeStatusFlowService = tradeStatusFlowService;
+        this.paymentService = paymentService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -52,6 +69,21 @@ public class TradeCompensationService {
             }
         }
         return closedCount;
+    }
+
+    public int reconcileTimeoutPayWaitOrders(LocalDateTime deadline, int limit) {
+        if (paymentService == null) {
+            return 0;
+        }
+        List<String> orderIds = tradeOrderRepository.queryTimeoutPayWaitOrderIds(deadline, limit);
+        int completedCount = 0;
+        for (String orderId : orderIds) {
+            PaymentWebhookResponse response = paymentService.queryGatewayAndCompleteIfPaid(orderId);
+            if (response != null && PayStatusEnumVO.SUCCESS.name().equals(response.getPayStatus())) {
+                completedCount++;
+            }
+        }
+        return completedCount;
     }
 
     public int refundTimeoutUnsettledGroupOrders(LocalDateTime deadline, int limit) {

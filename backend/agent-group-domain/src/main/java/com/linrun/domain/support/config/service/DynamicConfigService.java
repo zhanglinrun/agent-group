@@ -25,18 +25,32 @@ public class DynamicConfigService {
     public static final String GROUP_REFUND_NOTIFY_TYPE = "groupRefundNotifyType";
     public static final String GROUP_REFUND_NOTIFY_URL = "groupRefundNotifyUrl";
     public static final String GROUP_REFUND_NOTIFY_MQ = "groupRefundNotifyMQ";
+    public static final String PAYMENT_QUERY_COMPENSATION_SWITCH = "paymentQueryCompensationSwitch";
+    public static final String PAYMENT_QUERY_COMPENSATION_LIMIT = "paymentQueryCompensationLimit";
+    public static final String MOCK_PAY_SWITCH = "mockPaySwitch";
+    public static final String PAYMENT_RISK_CHECK_SWITCH = "paymentRiskCheckSwitch";
+    public static final String AGENT_PLAN_EXECUTE_SWITCH = "agentPlanExecuteSwitch";
+    public static final String AGENT_CONTEXT_COMPACT_THRESHOLD = "agentContextCompactThreshold";
+    public static final String KNOWLEDGE_CONTEXT_EXPANSION_SWITCH = "knowledgeContextExpansionSwitch";
 
-    private static final Map<String, String> DEFAULTS = Map.of(
-            DOWNGRADE_SWITCH, "0",
-            CUT_RANGE, "100",
-            SC_BLACKLIST, "",
-            CACHE_SWITCH, "0",
-            GROUP_SETTLEMENT_NOTIFY_TYPE, "HTTP",
-            GROUP_SETTLEMENT_NOTIFY_URL, "",
-            GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement",
-            GROUP_REFUND_NOTIFY_TYPE, "HTTP",
-            GROUP_REFUND_NOTIFY_URL, "",
-            GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"
+    private static final Map<String, String> DEFAULTS = Map.ofEntries(
+            Map.entry(DOWNGRADE_SWITCH, "0"),
+            Map.entry(CUT_RANGE, "100"),
+            Map.entry(SC_BLACKLIST, ""),
+            Map.entry(CACHE_SWITCH, "0"),
+            Map.entry(GROUP_SETTLEMENT_NOTIFY_TYPE, "HTTP"),
+            Map.entry(GROUP_SETTLEMENT_NOTIFY_URL, ""),
+            Map.entry(GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement"),
+            Map.entry(GROUP_REFUND_NOTIFY_TYPE, "HTTP"),
+            Map.entry(GROUP_REFUND_NOTIFY_URL, ""),
+            Map.entry(GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"),
+            Map.entry(PAYMENT_QUERY_COMPENSATION_SWITCH, "1"),
+            Map.entry(PAYMENT_QUERY_COMPENSATION_LIMIT, "50"),
+            Map.entry(MOCK_PAY_SWITCH, "1"),
+            Map.entry(PAYMENT_RISK_CHECK_SWITCH, "1"),
+            Map.entry(AGENT_PLAN_EXECUTE_SWITCH, "1"),
+            Map.entry(AGENT_CONTEXT_COMPACT_THRESHOLD, "1600"),
+            Map.entry(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1")
     );
 
     private final DynamicConfigRepository dynamicConfigRepository;
@@ -107,6 +121,34 @@ public class DynamicConfigService {
 
     public boolean isCacheOpenSwitch() {
         return "0".equals(getValue(CACHE_SWITCH, "0"));
+    }
+
+    public boolean isPaymentQueryCompensationOpen() {
+        return "1".equals(getValue(PAYMENT_QUERY_COMPENSATION_SWITCH, "1"));
+    }
+
+    public int paymentQueryCompensationLimit() {
+        return Math.max(1, parseInt(getValue(PAYMENT_QUERY_COMPENSATION_LIMIT, "50"), 50));
+    }
+
+    public boolean isMockPayOpen() {
+        return "1".equals(getValue(MOCK_PAY_SWITCH, "1"));
+    }
+
+    public boolean isPaymentRiskCheckOpen() {
+        return "1".equals(getValue(PAYMENT_RISK_CHECK_SWITCH, "1"));
+    }
+
+    public boolean isAgentPlanExecuteOpen() {
+        return "1".equals(getValue(AGENT_PLAN_EXECUTE_SWITCH, "1"));
+    }
+
+    public int agentContextCompactThreshold() {
+        return Math.max(600, parseInt(getValue(AGENT_CONTEXT_COMPACT_THRESHOLD, "1600"), 1600));
+    }
+
+    public boolean isKnowledgeContextExpansionOpen() {
+        return "1".equals(getValue(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1"));
     }
 
     private String defaultValue(String key) {

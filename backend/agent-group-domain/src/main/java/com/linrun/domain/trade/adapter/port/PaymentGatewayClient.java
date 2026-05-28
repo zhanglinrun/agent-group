@@ -18,4 +18,8 @@ public interface PaymentGatewayClient {
     PaymentRefundResult refund(PaymentRefundCommand command);
 
     PaymentReconcileResult reconcile(PaymentReconcileCommand command);
+
+    default PaymentWebhookResult queryPayment(PaymentReconcileCommand command) {
+        return null;
+    }
 }

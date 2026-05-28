@@ -19,5 +19,10 @@ public class ReferenceDeltaDTO implements Serializable {
     private String knowledgeVersion;
     private String content;
     private Integer rank;
+    private String parentFragmentId;
+    private String brotherGroupId;
+    private Integer brotherIndex;
+    private Integer brotherTotal;
+    private String chunkType;
 }
 

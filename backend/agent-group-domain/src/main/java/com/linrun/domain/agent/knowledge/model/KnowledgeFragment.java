@@ -11,6 +11,12 @@ public class KnowledgeFragment {
     private String knowledgeVersion;
     private String content;
     private Integer rankNo;
+    private String parentFragmentId;
+    private String brotherGroupId;
+    private Integer brotherIndex;
+    private Integer brotherTotal;
+    private String chunkType;
+    private Boolean embeddingEnabled;
     private KnowledgeFragmentStatus fragmentStatus;
     private Boolean enabled;
     private LocalDateTime createTime;
@@ -28,6 +34,12 @@ public class KnowledgeFragment {
         fragment.setKnowledgeVersion(document.getKnowledgeVersion());
         fragment.setContent(command.getContent());
         fragment.setRankNo(command.getRankNo());
+        fragment.setParentFragmentId(command.getParentFragmentId());
+        fragment.setBrotherGroupId(command.getBrotherGroupId());
+        fragment.setBrotherIndex(command.getBrotherIndex() == null ? 1 : command.getBrotherIndex());
+        fragment.setBrotherTotal(command.getBrotherTotal() == null ? 1 : command.getBrotherTotal());
+        fragment.setChunkType(command.getChunkType() == null ? "CHILD" : command.getChunkType());
+        fragment.setEmbeddingEnabled(command.getEmbeddingEnabled() == null ? Boolean.TRUE : command.getEmbeddingEnabled());
         fragment.setFragmentStatus(KnowledgeFragmentStatus.ENABLED);
         fragment.setEnabled(true);
         fragment.setCreateTime(now);
@@ -98,6 +110,54 @@ public class KnowledgeFragment {
 
     public void setRankNo(Integer rankNo) {
         this.rankNo = rankNo;
+    }
+
+    public String getParentFragmentId() {
+        return parentFragmentId;
+    }
+
+    public void setParentFragmentId(String parentFragmentId) {
+        this.parentFragmentId = parentFragmentId;
+    }
+
+    public String getBrotherGroupId() {
+        return brotherGroupId;
+    }
+
+    public void setBrotherGroupId(String brotherGroupId) {
+        this.brotherGroupId = brotherGroupId;
+    }
+
+    public Integer getBrotherIndex() {
+        return brotherIndex;
+    }
+
+    public void setBrotherIndex(Integer brotherIndex) {
+        this.brotherIndex = brotherIndex;
+    }
+
+    public Integer getBrotherTotal() {
+        return brotherTotal;
+    }
+
+    public void setBrotherTotal(Integer brotherTotal) {
+        this.brotherTotal = brotherTotal;
+    }
+
+    public String getChunkType() {
+        return chunkType;
+    }
+
+    public void setChunkType(String chunkType) {
+        this.chunkType = chunkType;
+    }
+
+    public Boolean getEmbeddingEnabled() {
+        return embeddingEnabled;
+    }
+
+    public void setEmbeddingEnabled(Boolean embeddingEnabled) {
+        this.embeddingEnabled = embeddingEnabled;
     }
 
     public KnowledgeFragmentStatus getFragmentStatus() {
