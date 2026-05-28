@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.tag.adapter.CrowdTagRepository;
 import com.linrun.domain.tag.model.CrowdTagJob;
+import com.linrun.infrastructure.converter.SupportPOConverter;
 import com.linrun.infrastructure.dao.ICrowdTagDao;
 import org.springframework.stereotype.Repository;
 
@@ -21,12 +22,12 @@ public class MyBatisCrowdTagRepository implements CrowdTagRepository {
 
     @Override
     public Optional<CrowdTagJob> queryJob(String tagId, String batchId) {
-        return Optional.ofNullable(crowdTagDao.queryJob(tagId, batchId));
+        return Optional.ofNullable(SupportPOConverter.toEntity(crowdTagDao.queryJob(tagId, batchId)));
     }
 
     @Override
     public List<CrowdTagJob> queryRunnableJobs(int limit) {
-        return crowdTagDao.queryRunnableJobs(Math.max(1, limit));
+        return SupportPOConverter.toCrowdTagJobs(crowdTagDao.queryRunnableJobs(Math.max(1, limit)));
     }
 
     @Override

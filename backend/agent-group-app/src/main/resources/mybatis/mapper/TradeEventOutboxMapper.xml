@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.ITradeEventOutboxDao">
 
-    <resultMap id="TradeEventOutboxMap" type="com.linrun.domain.trade.model.entity.TradeEventOutboxEntity">
+    <resultMap id="TradeEventOutboxMap" type="com.linrun.infrastructure.po.TradeEventOutboxPO">
         <id column="id" property="id"/>
         <result column="event_id" property="eventId"/>
         <result column="order_id" property="orderId"/>
@@ -22,7 +22,7 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <insert id="insert" parameterType="com.linrun.domain.trade.model.entity.TradeEventOutboxEntity">
+    <insert id="insert" parameterType="com.linrun.infrastructure.po.TradeEventOutboxPO">
         insert into trade_event_outbox (
           event_id,
           order_id,
@@ -81,7 +81,7 @@
         limit #{limit}
     </select>
 
-    <update id="updateStatusProcessing" parameterType="com.linrun.domain.trade.model.entity.TradeEventOutboxEntity">
+    <update id="updateStatusProcessing" parameterType="com.linrun.infrastructure.po.TradeEventOutboxPO">
         update trade_event_outbox
         set send_status = 4,
             update_time = now()
@@ -92,7 +92,7 @@
           )
     </update>
 
-    <update id="updateStatusSuccess" parameterType="com.linrun.domain.trade.model.entity.TradeEventOutboxEntity">
+    <update id="updateStatusSuccess" parameterType="com.linrun.infrastructure.po.TradeEventOutboxPO">
         update trade_event_outbox
         set send_count = send_count + 1,
             send_status = 1,
@@ -102,7 +102,7 @@
           and send_status = 4
     </update>
 
-    <update id="updateStatusRetry" parameterType="com.linrun.domain.trade.model.entity.TradeEventOutboxEntity">
+    <update id="updateStatusRetry" parameterType="com.linrun.infrastructure.po.TradeEventOutboxPO">
         update trade_event_outbox
         set send_count = send_count + 1,
             send_status = 2,
@@ -112,7 +112,7 @@
           and send_status = 4
     </update>
 
-    <update id="updateStatusDeadLetter" parameterType="com.linrun.domain.trade.model.entity.TradeEventOutboxEntity">
+    <update id="updateStatusDeadLetter" parameterType="com.linrun.infrastructure.po.TradeEventOutboxPO">
         update trade_event_outbox
         set send_count = send_count + 1,
             send_status = 3,

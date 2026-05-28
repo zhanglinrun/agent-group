@@ -7,6 +7,7 @@ import com.linrun.domain.agent.knowledge.adapter.KnowledgeReranker;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
 import com.linrun.domain.agent.knowledge.service.KnowledgeVectorService;
+import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IGuideDataDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,7 +62,8 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
             return knowledgeReranker.rerank(question,
                     rerank(question, keywords, vectorReferences, List.of(), safeLimit), safeLimit);
         }
-        List<GuideReference> keywordReferences = guideDataDao.queryReferences(keywords, safeLimit * 2);
+        List<GuideReference> keywordReferences = AgentPOConverter.toGuideReferences(
+                guideDataDao.queryReferences(keywords, safeLimit * 2));
         return knowledgeReranker.rerank(question,
                 rerank(question, keywords, vectorReferences, keywordReferences, safeLimit), safeLimit);
     }
@@ -69,7 +71,8 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     @Override
     public List<GuideProduct> queryCandidateProducts(String question, int limit) {
         int safeLimit = limit <= 0 ? 5 : limit;
-        return guideDataDao.queryCandidateProducts(knowledgeKeywordService.extractKeywords(question), safeLimit)
+        return AgentPOConverter.toGuideProducts(
+                        guideDataDao.queryCandidateProducts(knowledgeKeywordService.extractKeywords(question), safeLimit))
                 .stream()
                 .map(this::normalizeProduct)
                 .flatMap(Optional::stream)
@@ -78,13 +81,13 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
 
     @Override
     public Optional<GuideProduct> queryRecommendProduct(String question) {
-        GuideProduct product = guideDataDao.queryRecommendProduct(question);
+        GuideProduct product = AgentPOConverter.toEntity(guideDataDao.queryRecommendProduct(question));
         return normalizeProduct(product);
     }
 
     @Override
     public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
-        GuideProduct product = guideDataDao.queryProductByGoodsId(goodsId);
+        GuideProduct product = AgentPOConverter.toEntity(guideDataDao.queryProductByGoodsId(goodsId));
         return normalizeProduct(product);
     }
 

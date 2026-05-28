@@ -1,8 +1,8 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.agent.quality.model.GuideEvaluationFeedback;
-import com.linrun.domain.agent.quality.model.GuideEvaluationItemResult;
-import com.linrun.domain.agent.quality.model.GuideEvaluationReport;
+import com.linrun.infrastructure.po.GuideEvaluationFeedbackPO;
+import com.linrun.infrastructure.po.GuideEvaluationItemResultPO;
+import com.linrun.infrastructure.po.GuideEvaluationReportPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -11,15 +11,15 @@ import java.util.List;
 @Mapper
 public interface IGuideEvaluationReportDao {
 
-    void insertReport(GuideEvaluationReport report);
+    void insertReport(GuideEvaluationReportPO report);
 
-    void insertItems(@Param("batchNo") String batchNo, @Param("items") List<GuideEvaluationItemResult> items);
+    void insertItems(@Param("batchNo") String batchNo, @Param("items") List<GuideEvaluationItemResultPO> items);
 
-    void insertFeedbacks(@Param("batchNo") String batchNo, @Param("feedbacks") List<GuideEvaluationFeedback> feedbacks);
+    void insertFeedbacks(@Param("batchNo") String batchNo, @Param("feedbacks") List<GuideEvaluationFeedbackPO> feedbacks);
 
-    GuideEvaluationReport queryLatestReport();
+    GuideEvaluationReportPO queryLatestReport();
 
-    List<GuideEvaluationItemResult> queryItemsByBatchNo(@Param("batchNo") String batchNo);
+    List<GuideEvaluationItemResultPO> queryItemsByBatchNo(@Param("batchNo") String batchNo);
 
-    List<GuideEvaluationFeedback> queryFeedbacksByBatchNo(@Param("batchNo") String batchNo);
+    List<GuideEvaluationFeedbackPO> queryFeedbacksByBatchNo(@Param("batchNo") String batchNo);
 }

@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.IKnowledgeDocumentDao">
 
-    <resultMap id="KnowledgeDocumentMap" type="com.linrun.domain.agent.knowledge.model.KnowledgeDocument">
+    <resultMap id="KnowledgeDocumentMap" type="com.linrun.infrastructure.po.KnowledgeDocumentPO">
         <id column="document_id" property="documentId"/>
         <result column="document_name" property="documentName"/>
         <result column="document_type" property="documentType"/>
@@ -17,7 +17,7 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <resultMap id="KnowledgeFragmentMap" type="com.linrun.domain.agent.knowledge.model.KnowledgeFragment">
+    <resultMap id="KnowledgeFragmentMap" type="com.linrun.infrastructure.po.KnowledgeFragmentPO">
         <id column="fragment_id" property="fragmentId"/>
         <result column="document_id" property="documentId"/>
         <result column="goods_id" property="goodsId"/>
@@ -31,7 +31,7 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <insert id="insertDocument" parameterType="com.linrun.domain.agent.knowledge.model.KnowledgeDocument">
+    <insert id="insertDocument" parameterType="com.linrun.infrastructure.po.KnowledgeDocumentPO">
         insert into knowledge_document (
           document_id,
           document_name,
@@ -152,12 +152,23 @@
                create_time,
                update_time
         from knowledge_document
-        where document_status = #{status}
-        order by update_time asc, id asc
+        <where>
+            <if test="status != null and status != ''">
+                document_status = #{status}
+            </if>
+        </where>
+        <choose>
+            <when test="status != null and status != ''">
+                order by update_time asc, id asc
+            </when>
+            <otherwise>
+                order by update_time desc, id desc
+            </otherwise>
+        </choose>
         limit #{limit}
     </select>
 
-    <update id="updateDocumentStatus" parameterType="com.linrun.domain.agent.knowledge.model.KnowledgeDocument">
+    <update id="updateDocumentStatus" parameterType="com.linrun.infrastructure.po.KnowledgeDocumentPO">
         update knowledge_document
         set document_status = #{documentStatus},
             enabled = #{enabled},

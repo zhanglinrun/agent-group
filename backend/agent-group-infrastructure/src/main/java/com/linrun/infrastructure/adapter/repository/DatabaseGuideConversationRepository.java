@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.agent.conversation.adapter.GuideConversationRepository;
 import com.linrun.domain.agent.conversation.model.GuideConversationMessage;
+import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IGuideConversationDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -22,7 +23,8 @@ public class DatabaseGuideConversationRepository implements GuideConversationRep
         if (!StringUtils.hasText(sessionId) || limit <= 0) {
             return List.of();
         }
-        return guideConversationDao.queryRecentMessages(sessionId, Math.max(1, limit));
+        return AgentPOConverter.toGuideConversationMessages(
+                guideConversationDao.queryRecentMessages(sessionId, Math.max(1, limit)));
     }
 
     @Override
@@ -30,6 +32,6 @@ public class DatabaseGuideConversationRepository implements GuideConversationRep
         if (!StringUtils.hasText(sessionId) || message == null) {
             return;
         }
-        guideConversationDao.insertMessage(sessionId, message);
+        guideConversationDao.insertMessage(sessionId, AgentPOConverter.toPO(message));
     }
 }

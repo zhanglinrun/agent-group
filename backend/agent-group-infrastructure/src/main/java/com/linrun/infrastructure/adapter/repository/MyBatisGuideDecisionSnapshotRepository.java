@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
+import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IGuideDecisionSnapshotDao;
 import org.springframework.stereotype.Repository;
 
@@ -19,12 +20,12 @@ public class MyBatisGuideDecisionSnapshotRepository implements GuideDecisionSnap
     @Override
     public void save(GuideDecisionSnapshot snapshot) {
         if (snapshot != null) {
-            guideDecisionSnapshotDao.insert(snapshot);
+            guideDecisionSnapshotDao.insert(AgentPOConverter.toPO(snapshot));
         }
     }
 
     @Override
     public Optional<GuideDecisionSnapshot> queryByDecisionId(String decisionId) {
-        return Optional.ofNullable(guideDecisionSnapshotDao.queryByDecisionId(decisionId));
+        return Optional.ofNullable(AgentPOConverter.toEntity(guideDecisionSnapshotDao.queryByDecisionId(decisionId)));
     }
 }

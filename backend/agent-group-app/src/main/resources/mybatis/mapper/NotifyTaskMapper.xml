@@ -4,7 +4,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.INotifyTaskDao">
 
-    <resultMap id="NotifyTaskMap" type="com.linrun.domain.trade.model.notify.NotifyTask">
+    <resultMap id="NotifyTaskMap" type="com.linrun.infrastructure.po.NotifyTaskPO">
         <id column="id" property="id"/>
         <result column="activity_id" property="activityId"/>
         <result column="team_id" property="teamId"/>
@@ -20,7 +20,7 @@
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <insert id="insert" parameterType="com.linrun.domain.trade.model.notify.NotifyTask">
+    <insert id="insert" parameterType="com.linrun.infrastructure.po.NotifyTaskPO">
         insert into notify_task (
           activity_id,
           team_id,
@@ -116,7 +116,7 @@
         limit 1
     </select>
 
-    <update id="updateNotifyTaskStatusProcessing" parameterType="com.linrun.domain.trade.model.notify.NotifyTask">
+    <update id="updateNotifyTaskStatusProcessing" parameterType="com.linrun.infrastructure.po.NotifyTaskPO">
         update notify_task
         set notify_status = 4,
             update_time = now()
@@ -128,7 +128,7 @@
           )
     </update>
 
-    <update id="updateNotifyTaskStatusSuccess" parameterType="com.linrun.domain.trade.model.notify.NotifyTask">
+    <update id="updateNotifyTaskStatusSuccess" parameterType="com.linrun.infrastructure.po.NotifyTaskPO">
         update notify_task
         set notify_count = notify_count + 1,
             notify_status = 1,
@@ -138,7 +138,7 @@
           and notify_status = 4
     </update>
 
-    <update id="updateNotifyTaskStatusRetry" parameterType="com.linrun.domain.trade.model.notify.NotifyTask">
+    <update id="updateNotifyTaskStatusRetry" parameterType="com.linrun.infrastructure.po.NotifyTaskPO">
         update notify_task
         set notify_count = notify_count + 1,
             notify_status = 2,
@@ -148,7 +148,7 @@
           and notify_status = 4
     </update>
 
-    <update id="updateNotifyTaskStatusError" parameterType="com.linrun.domain.trade.model.notify.NotifyTask">
+    <update id="updateNotifyTaskStatusError" parameterType="com.linrun.infrastructure.po.NotifyTaskPO">
         update notify_task
         set notify_count = notify_count + 1,
             notify_status = 3,

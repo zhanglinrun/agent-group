@@ -397,6 +397,7 @@ h2 {
 
 .product-deck,
 .reference-list,
+.trace-list,
 .data-list,
 .version-stack {
   display: grid;
@@ -510,6 +511,85 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfd;
+}
+
+.trace-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.trace-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.trace-item.warn {
+  border-color: #efdca8;
+  background: #fff8e7;
+}
+
+.trace-item.active {
+  border-color: #d6e8e3;
+  background: #f3faf8;
+}
+
+.trace-index {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.trace-item.warn .trace-index {
+  background: var(--amber);
+}
+
+.trace-item strong,
+.trace-item p,
+.trace-item small {
+  display: block;
+}
+
+.trace-item p {
+  margin: 3px 0;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.trace-item small {
+  color: var(--muted);
+}
+
+.panel-actions,
+.inline-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compact-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.fragment-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .timeline {

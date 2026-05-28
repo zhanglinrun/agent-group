@@ -1,17 +1,17 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.activity.model.GroupBuyStock;
-import com.linrun.domain.activity.model.GroupBuyStockFlow;
+import com.linrun.infrastructure.po.GroupBuyStockFlowPO;
+import com.linrun.infrastructure.po.GroupBuyStockPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface IGroupBuyStockDao {
 
-    GroupBuyStock queryByActivityId(@Param("activityId") String activityId);
+    GroupBuyStockPO queryByActivityId(@Param("activityId") String activityId);
 
-    GroupBuyStock queryByActivityIdAndGoodsIdForUpdate(@Param("activityId") String activityId,
-                                                       @Param("goodsId") String goodsId);
+    GroupBuyStockPO queryByActivityIdAndGoodsIdForUpdate(@Param("activityId") String activityId,
+                                                         @Param("goodsId") String goodsId);
 
     int lockStock(@Param("activityId") String activityId, @Param("goodsId") String goodsId);
 
@@ -21,5 +21,5 @@ public interface IGroupBuyStockDao {
 
     int releasePaidStock(@Param("activityId") String activityId, @Param("goodsId") String goodsId);
 
-    void insertStockFlow(GroupBuyStockFlow flow);
+    void insertStockFlow(GroupBuyStockFlowPO flow);
 }

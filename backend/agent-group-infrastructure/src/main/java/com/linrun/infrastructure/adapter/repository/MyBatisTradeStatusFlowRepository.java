@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
+import com.linrun.infrastructure.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.ITradeStatusFlowDao;
 import org.springframework.stereotype.Repository;
 
@@ -18,11 +19,11 @@ public class MyBatisTradeStatusFlowRepository implements TradeStatusFlowReposito
 
     @Override
     public void save(TradeStatusFlowEntity flow) {
-        tradeStatusFlowDao.insert(flow);
+        tradeStatusFlowDao.insert(TradePOConverter.toPO(flow));
     }
 
     @Override
     public List<TradeStatusFlowEntity> queryByOrderId(String orderId) {
-        return tradeStatusFlowDao.queryByOrderId(orderId);
+        return TradePOConverter.toTradeStatusFlowEntities(tradeStatusFlowDao.queryByOrderId(orderId));
     }
 }

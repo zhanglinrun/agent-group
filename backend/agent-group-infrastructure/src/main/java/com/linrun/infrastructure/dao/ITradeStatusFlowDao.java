@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
+import com.linrun.infrastructure.po.TradeStatusFlowPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper
 public interface ITradeStatusFlowDao {
 
-    void insert(TradeStatusFlowEntity flow);
+    void insert(TradeStatusFlowPO flow);
 
-    List<TradeStatusFlowEntity> queryByOrderId(@Param("orderId") String orderId);
+    List<TradeStatusFlowPO> queryByOrderId(@Param("orderId") String orderId);
 }

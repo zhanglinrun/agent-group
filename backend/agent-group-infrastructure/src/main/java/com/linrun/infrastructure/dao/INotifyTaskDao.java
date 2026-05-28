@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.trade.model.notify.NotifyTask;
+import com.linrun.infrastructure.po.NotifyTaskPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -9,19 +9,19 @@ import java.util.List;
 @Mapper
 public interface INotifyTaskDao {
 
-    void insert(NotifyTask notifyTask);
+    void insert(NotifyTaskPO notifyTask);
 
-    List<NotifyTask> queryUnExecutedNotifyTaskList(@Param("limit") int limit);
+    List<NotifyTaskPO> queryUnExecutedNotifyTaskList(@Param("limit") int limit);
 
-    List<NotifyTask> queryUnExecutedNotifyTaskListByTeamId(@Param("teamId") String teamId);
+    List<NotifyTaskPO> queryUnExecutedNotifyTaskListByTeamId(@Param("teamId") String teamId);
 
-    NotifyTask queryNotifyTaskByUuid(@Param("uuid") String uuid);
+    NotifyTaskPO queryNotifyTaskByUuid(@Param("uuid") String uuid);
 
-    int updateNotifyTaskStatusProcessing(NotifyTask notifyTask);
+    int updateNotifyTaskStatusProcessing(NotifyTaskPO notifyTask);
 
-    int updateNotifyTaskStatusSuccess(NotifyTask notifyTask);
+    int updateNotifyTaskStatusSuccess(NotifyTaskPO notifyTask);
 
-    int updateNotifyTaskStatusRetry(NotifyTask notifyTask);
+    int updateNotifyTaskStatusRetry(NotifyTaskPO notifyTask);
 
-    int updateNotifyTaskStatusError(NotifyTask notifyTask);
+    int updateNotifyTaskStatusError(NotifyTaskPO notifyTask);
 }

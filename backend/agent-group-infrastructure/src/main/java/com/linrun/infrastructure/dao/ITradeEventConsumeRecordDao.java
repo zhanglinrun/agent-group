@@ -1,21 +1,21 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.trade.model.entity.TradeEventConsumeRecordEntity;
+import com.linrun.infrastructure.po.TradeEventConsumeRecordPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface ITradeEventConsumeRecordDao {
 
-    void insert(TradeEventConsumeRecordEntity record);
+    void insert(TradeEventConsumeRecordPO record);
 
-    TradeEventConsumeRecordEntity queryByEventId(@Param("eventId") String eventId);
+    TradeEventConsumeRecordPO queryByEventId(@Param("eventId") String eventId);
 
-    int updateStatusProcessing(TradeEventConsumeRecordEntity record);
+    int updateStatusProcessing(TradeEventConsumeRecordPO record);
 
-    int updateStatusConsumed(TradeEventConsumeRecordEntity record);
+    int updateStatusConsumed(TradeEventConsumeRecordPO record);
 
-    int updateStatusRetry(TradeEventConsumeRecordEntity record);
+    int updateStatusRetry(TradeEventConsumeRecordPO record);
 
-    int updateStatusDeadLetter(TradeEventConsumeRecordEntity record);
+    int updateStatusDeadLetter(TradeEventConsumeRecordPO record);
 }

@@ -1,13 +1,13 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
+import com.linrun.infrastructure.po.GuideDecisionSnapshotPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface IGuideDecisionSnapshotDao {
 
-    void insert(GuideDecisionSnapshot snapshot);
+    void insert(GuideDecisionSnapshotPO snapshot);
 
-    GuideDecisionSnapshot queryByDecisionId(@Param("decisionId") String decisionId);
+    GuideDecisionSnapshotPO queryByDecisionId(@Param("decisionId") String decisionId);
 }

@@ -1,9 +1,9 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.activity.model.GroupBuyOrderLock;
-import com.linrun.domain.activity.model.GroupBuyTeam;
-import com.linrun.domain.activity.model.GroupBuyTeamDetail;
-import com.linrun.domain.activity.model.GroupBuyTeamStatistic;
+import com.linrun.infrastructure.po.GroupBuyOrderLockPO;
+import com.linrun.infrastructure.po.GroupBuyTeamDetailPO;
+import com.linrun.infrastructure.po.GroupBuyTeamPO;
+import com.linrun.infrastructure.po.GroupBuyTeamStatisticPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -13,17 +13,17 @@ import java.util.List;
 @Mapper
 public interface IGroupBuyOrderLockDao {
 
-    void insertTeam(GroupBuyTeam team);
+    void insertTeam(GroupBuyTeamPO team);
 
     int updateTeamLockCount(@Param("teamId") String teamId);
 
-    void insertOrderLock(GroupBuyOrderLock orderLock);
+    void insertOrderLock(GroupBuyOrderLockPO orderLock);
 
-    GroupBuyOrderLock queryLockByIdempotentKey(@Param("idempotentKey") String idempotentKey);
+    GroupBuyOrderLockPO queryLockByIdempotentKey(@Param("idempotentKey") String idempotentKey);
 
-    GroupBuyOrderLock queryLockByOrderId(@Param("orderId") String orderId);
+    GroupBuyOrderLockPO queryLockByOrderId(@Param("orderId") String orderId);
 
-    GroupBuyTeam queryTeamByTeamId(@Param("teamId") String teamId);
+    GroupBuyTeamPO queryTeamByTeamId(@Param("teamId") String teamId);
 
     int updateOrderLockPaid(@Param("orderId") String orderId);
 
@@ -44,13 +44,13 @@ public interface IGroupBuyOrderLockDao {
 
     int countUserActivityLocks(@Param("userId") String userId, @Param("activityId") String activityId);
 
-    List<GroupBuyTeamDetail> queryInProgressOwnerTeamDetails(@Param("activityId") String activityId,
-                                                             @Param("userId") String userId,
-                                                             @Param("limit") int limit);
+    List<GroupBuyTeamDetailPO> queryInProgressOwnerTeamDetails(@Param("activityId") String activityId,
+                                                               @Param("userId") String userId,
+                                                               @Param("limit") int limit);
 
-    List<GroupBuyTeamDetail> queryInProgressRandomTeamDetails(@Param("activityId") String activityId,
-                                                              @Param("userId") String userId,
-                                                              @Param("limit") int limit);
+    List<GroupBuyTeamDetailPO> queryInProgressRandomTeamDetails(@Param("activityId") String activityId,
+                                                                @Param("userId") String userId,
+                                                                @Param("limit") int limit);
 
-    GroupBuyTeamStatistic queryTeamStatisticByActivityId(@Param("activityId") String activityId);
+    GroupBuyTeamStatisticPO queryTeamStatisticByActivityId(@Param("activityId") String activityId);
 }

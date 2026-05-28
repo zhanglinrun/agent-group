@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.trade.adapter.repository.NotifyTaskRepository;
 import com.linrun.domain.trade.model.notify.NotifyTask;
+import com.linrun.infrastructure.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.INotifyTaskDao;
 import org.springframework.stereotype.Repository;
 
@@ -19,41 +20,41 @@ public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
 
     @Override
     public void save(NotifyTask notifyTask) {
-        notifyTaskDao.insert(notifyTask);
+        notifyTaskDao.insert(TradePOConverter.toPO(notifyTask));
     }
 
     @Override
     public List<NotifyTask> queryUnExecutedNotifyTaskList(int limit) {
-        return notifyTaskDao.queryUnExecutedNotifyTaskList(limit);
+        return TradePOConverter.toNotifyTasks(notifyTaskDao.queryUnExecutedNotifyTaskList(limit));
     }
 
     @Override
     public List<NotifyTask> queryUnExecutedNotifyTaskList(String teamId) {
-        return notifyTaskDao.queryUnExecutedNotifyTaskListByTeamId(teamId);
+        return TradePOConverter.toNotifyTasks(notifyTaskDao.queryUnExecutedNotifyTaskListByTeamId(teamId));
     }
 
     @Override
     public Optional<NotifyTask> queryNotifyTaskByUuid(String uuid) {
-        return Optional.ofNullable(notifyTaskDao.queryNotifyTaskByUuid(uuid));
+        return Optional.ofNullable(TradePOConverter.toEntity(notifyTaskDao.queryNotifyTaskByUuid(uuid)));
     }
 
     @Override
     public int updateNotifyTaskStatusProcessing(NotifyTask notifyTask) {
-        return notifyTaskDao.updateNotifyTaskStatusProcessing(notifyTask);
+        return notifyTaskDao.updateNotifyTaskStatusProcessing(TradePOConverter.toPO(notifyTask));
     }
 
     @Override
     public int updateNotifyTaskStatusSuccess(NotifyTask notifyTask) {
-        return notifyTaskDao.updateNotifyTaskStatusSuccess(notifyTask);
+        return notifyTaskDao.updateNotifyTaskStatusSuccess(TradePOConverter.toPO(notifyTask));
     }
 
     @Override
     public int updateNotifyTaskStatusRetry(NotifyTask notifyTask) {
-        return notifyTaskDao.updateNotifyTaskStatusRetry(notifyTask);
+        return notifyTaskDao.updateNotifyTaskStatusRetry(TradePOConverter.toPO(notifyTask));
     }
 
     @Override
     public int updateNotifyTaskStatusError(NotifyTask notifyTask) {
-        return notifyTaskDao.updateNotifyTaskStatusError(notifyTask);
+        return notifyTaskDao.updateNotifyTaskStatusError(TradePOConverter.toPO(notifyTask));
     }
 }

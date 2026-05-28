@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.agent.quality.adapter.GuideEvaluationReportRepository;
 import com.linrun.domain.agent.quality.model.GuideEvaluationReport;
+import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IGuideEvaluationReportDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,23 +25,27 @@ public class MyBatisGuideEvaluationReportRepository implements GuideEvaluationRe
         if (report == null || !StringUtils.hasText(report.getBatchNo())) {
             return;
         }
-        guideEvaluationReportDao.insertReport(report);
+        guideEvaluationReportDao.insertReport(AgentPOConverter.toPO(report));
         if (report.getItems() != null && !report.getItems().isEmpty()) {
-            guideEvaluationReportDao.insertItems(report.getBatchNo(), report.getItems());
+            guideEvaluationReportDao.insertItems(report.getBatchNo(),
+                    AgentPOConverter.toGuideEvaluationItemPOList(report.getItems()));
         }
         if (report.getFeedbacks() != null && !report.getFeedbacks().isEmpty()) {
-            guideEvaluationReportDao.insertFeedbacks(report.getBatchNo(), report.getFeedbacks());
+            guideEvaluationReportDao.insertFeedbacks(report.getBatchNo(),
+                    AgentPOConverter.toGuideEvaluationFeedbackPOList(report.getFeedbacks()));
         }
     }
 
     @Override
     public Optional<GuideEvaluationReport> queryLatest() {
-        GuideEvaluationReport report = guideEvaluationReportDao.queryLatestReport();
+        GuideEvaluationReport report = AgentPOConverter.toEntity(guideEvaluationReportDao.queryLatestReport());
         if (report == null || !StringUtils.hasText(report.getBatchNo())) {
             return Optional.empty();
         }
-        report.setItems(guideEvaluationReportDao.queryItemsByBatchNo(report.getBatchNo()));
-        report.setFeedbacks(guideEvaluationReportDao.queryFeedbacksByBatchNo(report.getBatchNo()));
+        report.setItems(AgentPOConverter.toGuideEvaluationItems(
+                guideEvaluationReportDao.queryItemsByBatchNo(report.getBatchNo())));
+        report.setFeedbacks(AgentPOConverter.toGuideEvaluationFeedbacks(
+                guideEvaluationReportDao.queryFeedbacksByBatchNo(report.getBatchNo())));
         return Optional.of(report);
     }
 }

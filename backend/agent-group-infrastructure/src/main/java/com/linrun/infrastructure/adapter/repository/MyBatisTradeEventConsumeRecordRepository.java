@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.trade.adapter.repository.TradeEventConsumeRecordRepository;
 import com.linrun.domain.trade.model.entity.TradeEventConsumeRecordEntity;
+import com.linrun.infrastructure.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.ITradeEventConsumeRecordDao;
 import org.springframework.stereotype.Repository;
 
@@ -18,31 +19,31 @@ public class MyBatisTradeEventConsumeRecordRepository implements TradeEventConsu
 
     @Override
     public void save(TradeEventConsumeRecordEntity record) {
-        tradeEventConsumeRecordDao.insert(record);
+        tradeEventConsumeRecordDao.insert(TradePOConverter.toPO(record));
     }
 
     @Override
     public Optional<TradeEventConsumeRecordEntity> queryByEventId(String eventId) {
-        return Optional.ofNullable(tradeEventConsumeRecordDao.queryByEventId(eventId));
+        return Optional.ofNullable(TradePOConverter.toEntity(tradeEventConsumeRecordDao.queryByEventId(eventId)));
     }
 
     @Override
     public int updateStatusProcessing(TradeEventConsumeRecordEntity record) {
-        return tradeEventConsumeRecordDao.updateStatusProcessing(record);
+        return tradeEventConsumeRecordDao.updateStatusProcessing(TradePOConverter.toPO(record));
     }
 
     @Override
     public int updateStatusConsumed(TradeEventConsumeRecordEntity record) {
-        return tradeEventConsumeRecordDao.updateStatusConsumed(record);
+        return tradeEventConsumeRecordDao.updateStatusConsumed(TradePOConverter.toPO(record));
     }
 
     @Override
     public int updateStatusRetry(TradeEventConsumeRecordEntity record) {
-        return tradeEventConsumeRecordDao.updateStatusRetry(record);
+        return tradeEventConsumeRecordDao.updateStatusRetry(TradePOConverter.toPO(record));
     }
 
     @Override
     public int updateStatusDeadLetter(TradeEventConsumeRecordEntity record) {
-        return tradeEventConsumeRecordDao.updateStatusDeadLetter(record);
+        return tradeEventConsumeRecordDao.updateStatusDeadLetter(TradePOConverter.toPO(record));
     }
 }

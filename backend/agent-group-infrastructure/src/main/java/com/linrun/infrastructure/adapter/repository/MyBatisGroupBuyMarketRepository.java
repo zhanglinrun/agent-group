@@ -4,6 +4,7 @@ import com.linrun.domain.activity.adapter.repository.GroupBuyMarketRepository;
 import com.linrun.domain.activity.model.GroupBuyDiscount;
 import com.linrun.domain.activity.model.GroupBuyMarketSku;
 import com.linrun.domain.activity.model.SourceChannelSkuActivity;
+import com.linrun.infrastructure.converter.ActivityPOConverter;
 import com.linrun.infrastructure.dao.ICrowdTagDao;
 import com.linrun.infrastructure.dao.IGroupBuyDiscountDao;
 import com.linrun.infrastructure.dao.IGroupBuyMarketSkuDao;
@@ -33,17 +34,18 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
 
     @Override
     public Optional<GroupBuyMarketSku> querySkuByGoodsId(String goodsId) {
-        return Optional.ofNullable(skuDao.queryByGoodsId(goodsId));
+        return Optional.ofNullable(ActivityPOConverter.toEntity(skuDao.queryByGoodsId(goodsId)));
     }
 
     @Override
     public Optional<SourceChannelSkuActivity> querySourceChannelSkuActivity(String source, String channel, String goodsId) {
-        return Optional.ofNullable(sourceChannelSkuActivityDao.queryBySourceChannelGoodsId(source, channel, goodsId));
+        return Optional.ofNullable(ActivityPOConverter.toEntity(
+                sourceChannelSkuActivityDao.queryBySourceChannelGoodsId(source, channel, goodsId)));
     }
 
     @Override
     public Optional<GroupBuyDiscount> queryDiscountByDiscountId(String discountId) {
-        return Optional.ofNullable(discountDao.queryByDiscountId(discountId));
+        return Optional.ofNullable(ActivityPOConverter.toEntity(discountDao.queryByDiscountId(discountId)));
     }
 
     @Override

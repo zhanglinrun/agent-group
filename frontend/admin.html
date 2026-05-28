@@ -34,6 +34,8 @@
           <h1>导购质量、知识治理和交易监控</h1>
         </div>
         <div class="admin-actions">
+          <button id="refreshKnowledgeBtn" class="soft-button" type="button">刷新知识库</button>
+          <button id="refreshOrdersBtn" class="soft-button" type="button">刷新订单</button>
           <button id="mockKnowledgeBtn" class="soft-button" type="button">模拟上传文档</button>
           <button id="runEvalBtn" class="primary-button" type="button">执行评测</button>
         </div>
@@ -104,9 +106,22 @@
               <strong>知识库治理</strong>
               <span>正式知识与用户临时资料分开管理</span>
             </div>
-            <span class="state-badge">3 份已生效</span>
+            <div class="panel-actions">
+              <span id="knowledgeSummary" class="state-badge">3 份已生效</span>
+              <button id="rebuildKnowledgeBtn" class="soft-button compact-button" type="button">重建向量</button>
+              <button id="compensateKnowledgeBtn" class="soft-button compact-button" type="button">失败补偿</button>
+            </div>
           </div>
           <div id="knowledgeRows" class="data-list"></div>
+          <div class="fragment-panel">
+            <div class="block-title">
+              <div>
+                <strong>知识片段预览</strong>
+                <span id="fragmentSummary">选择文档后查看切片内容</span>
+              </div>
+            </div>
+            <div id="fragmentRows" class="data-list"></div>
+          </div>
         </section>
 
         <section class="admin-panel">
@@ -147,6 +162,10 @@
             <div>
               <strong>交易状态</strong>
               <span>支付、拼团和退款监控</span>
+            </div>
+            <div class="panel-actions">
+              <button id="openCheckoutBtn" class="soft-button compact-button" type="button">打开结算页</button>
+              <button id="refreshTradeBtn" class="soft-button compact-button" type="button">刷新订单</button>
             </div>
           </div>
           <div id="orderRows" class="data-list"></div>

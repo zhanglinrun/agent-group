@@ -63,11 +63,16 @@ const GUIDE_STREAM_URL = apiUrl("/api/v1/agent/guide/stream");
 const GUIDE_STOP_URL = apiUrl("/api/v1/agent/stop");
 const GUIDE_EVALUATION_URL = apiUrl("/api/v1/evaluate/guide/run");
 const KNOWLEDGE_UPLOAD_FILE_URL = apiUrl("/api/v1/knowledge/document/upload-file");
+const KNOWLEDGE_DOCUMENT_LIST_URL = apiUrl("/api/v1/knowledge/document/list");
+const KNOWLEDGE_DOCUMENT_FRAGMENTS_URL = apiUrl("/api/v1/knowledge/document/fragments");
+const KNOWLEDGE_VECTOR_REBUILD_URL = apiUrl("/api/v1/knowledge/vector/rebuild");
+const KNOWLEDGE_VECTOR_COMPENSATE_URL = apiUrl("/api/v1/knowledge/vector/compensate-failed-embedding");
 const DIRECT_ORDER_URL = apiUrl("/api/v1/trade/order/direct");
 const GROUP_LOCK_URL = apiUrl("/api/v1/group/trade/lock");
 const PAYMENT_CREATE_URL = apiUrl("/api/v1/payment/create");
 const PAYMENT_WEBHOOK_URL = apiUrl("/api/v1/payment/webhook");
 const STATUS_FLOW_URL = apiUrl("/api/v1/trade/order/status-flow");
+const LEGACY_ORDER_LIST_URL = apiUrl("/api/v1/alipay/query_user_order_list");
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 
 const state = {
@@ -78,6 +83,8 @@ const state = {
   pendingImageUrl: "",
   pendingImageName: "",
   products: [],
+  traceEvents: [],
+  answerStarted: false,
   docs: loadStore("agentGroupDocs", defaultDocs),
   orders: loadStore("agentGroupOrders", []),
   evalCases: loadStore("agentGroupEvalCases", defaultEvalCases)
@@ -110,8 +117,13 @@ function initConsumer() {
 function initAdmin() {
   bindAdminActions();
   renderKnowledgeRows();
+  renderFragmentRows([]);
   renderOrderRows();
   renderEvalRows();
+  if (hasAdminAuth()) {
+    loadKnowledgeDocuments();
+    loadTradeOrders();
+  }
 }
 
 function bindComposer() {
@@ -144,6 +156,15 @@ function bindConsumerActions() {
 }
 
 function bindAdminActions() {
+  $("#refreshKnowledgeBtn")?.addEventListener("click", loadKnowledgeDocuments);
+  $("#refreshOrdersBtn")?.addEventListener("click", loadTradeOrders);
+  $("#refreshTradeBtn")?.addEventListener("click", loadTradeOrders);
+  $("#openCheckoutBtn")?.addEventListener("click", () => {
+    saveCheckoutSession({ ...sampleProducts[0], decisionId: localDecisionId() }, "group");
+    window.location.href = "./checkout.html?mode=group&goodsId=G10001";
+  });
+  $("#rebuildKnowledgeBtn")?.addEventListener("click", rebuildKnowledgeVector);
+  $("#compensateKnowledgeBtn")?.addEventListener("click", compensateKnowledgeEmbedding);
   $("#mockKnowledgeBtn")?.addEventListener("click", () => {
     state.docs.unshift({
       name: "学生平板促销补充说明.md",
@@ -229,6 +250,8 @@ function runGuide(message) {
   state.streaming = true;
   state.answerTarget = null;
   state.products = [];
+  state.traceEvents = [];
+  state.answerStarted = false;
   setText("#connectionStatus", "连接后端中");
   setText("#sessionHint", "正在理解你的需求");
   setText("#decisionCopy", "系统正在识别预算、场景和限制，并检索商品知识库。");
@@ -240,7 +263,10 @@ function runGuide(message) {
   clearNode("#productDeck");
   clearNode("#referenceList");
   clearNode("#tradeTimeline");
+  clearNode("#agentTraceList");
   clearNode("#attachmentList");
+  setText("#traceState", "执行中");
+  recordTrace("开始", "接收用户问题，创建本轮导购任务", "done");
 
   addMessage("user", "你", message);
   state.answerTarget = addMessage("assistant", "AI 导购", "");
@@ -250,6 +276,7 @@ function runGuide(message) {
       return;
     }
     addMessage("system", "系统", "后端服务暂不可用，已切换为本地演示流。");
+    recordTrace("降级", "后端流式接口不可用，切换到本地演示闭环", "warn");
     runLocalGuideDemo();
   });
 }
@@ -309,19 +336,23 @@ function readFileAsDataUrl(file) {
 
 function runLocalGuideDemo() {
   setText("#connectionStatus", "本地演示生成中");
-  schedule(180, () => addToolEvent("识别意图：商品推荐、预算敏感、学习场景"));
+  schedule(180, () => addToolEvent("识别意图：商品推荐、预算敏感、学习场景", "计划"));
   schedule(420, () => renderReferences(sampleReferences.slice(0, 1)));
   schedule(760, () => appendAnswer("我会先按预算、学习场景和长期使用成本筛选。"));
   schedule(1120, () => renderReferences(sampleReferences.slice(0, 2)));
   schedule(1260, () => appendAnswer("从知识库看，标准版覆盖写论文、做笔记和看网课这些核心需求。"));
-  schedule(1580, () => renderProduct(sampleProducts[0]));
+  schedule(1580, () => renderProduct({ ...sampleProducts[0], decisionId: localDecisionId() }));
   schedule(1900, () => appendAnswer("如果你不需要长期剪视频或运行大型应用，标准版更符合预算优先的选择。"));
   schedule(2200, () => renderReferences(sampleReferences));
-  schedule(2460, () => renderProduct(sampleProducts[1]));
+  schedule(2460, () => renderProduct({ ...sampleProducts[1], decisionId: localDecisionId() }));
   schedule(2740, () => appendAnswer("高配版性能更强，但价格更高，更适合创作类场景。"));
   schedule(3100, () => appendAnswer("我的建议是优先选标准版。如果你想省钱，可以用三人成团价购买；如果不想等成团，也可以按原价直接购买。"));
-  schedule(3400, () => addToolEvent("结果自检：回答依据充分，商品卡片价格与推荐理由一致"));
-  schedule(3700, () => finishStream("本地演示"));
+  schedule(3400, () => addToolEvent("结果自检：回答依据充分，商品卡片价格与推荐理由一致", "自检"));
+  schedule(3700, () => {
+    recordTrace("完成", "本地导购演示任务已结束", "done");
+    setText("#traceState", "已完成");
+    finishStream("本地演示");
+  });
 }
 
 function handleSseBlock(block) {
@@ -350,19 +381,20 @@ function handleGuideEvent(event) {
 
   if (event.event === "tool_call") {
     const args = formatToolArguments(event.data?.arguments);
-    addToolEvent(`${event.data?.message || "后端正在执行导购步骤"}${args ? `（${args}）` : ""}`);
+    addToolEvent(`${event.data?.message || "后端正在执行导购步骤"}${args ? `（${args}）` : ""}`, "工具");
     return;
   }
 
   if (event.event === "tool_plan") {
     const tools = (event.data?.tools || []).map((tool) => tool.name).join(" → ");
-    addToolEvent(`工具计划：${tools || "已生成"}`);
+    addToolEvent(`工具计划：${tools || "已生成"}`, "计划");
     return;
   }
 
   if (event.event === "retrieval_progress") {
     const retrievers = (event.data?.retrievers || []).join(" → ");
-    addToolEvent(`${event.data?.message || event.data?.stage || "检索进度"}${retrievers ? `：${retrievers}` : ""}`);
+    const count = event.data?.referenceCount == null ? "" : `，命中 ${event.data.referenceCount} 条`;
+    addToolEvent(`${event.data?.message || event.data?.stage || "检索进度"}${retrievers ? `：${retrievers}` : ""}${count}`, "检索");
     return;
   }
 
@@ -371,31 +403,47 @@ function handleGuideEvent(event) {
       title: `${event.data?.documentType || "知识片段"} ${event.data?.fragmentId || ""}`.trim(),
       text: event.data?.content || ""
     });
+    recordTrace("引用", `引用知识片段 ${event.data?.fragmentId || "-"}`, "done");
     return;
   }
 
   if (event.event === "answer_delta") {
+    if (!state.answerStarted) {
+      state.answerStarted = true;
+      recordTrace("生成", "开始生成导购回答", "active");
+    }
     appendAnswerChunk(event.data?.content || "");
     return;
   }
 
   if (event.event === "product_card") {
     renderProduct(mapProductCard(event.data));
+    recordTrace("商品", `生成商品卡片 ${event.data?.goodsId || ""}`, "done");
     return;
   }
 
   if (event.event === "order_delta") {
     handleOrderDelta(event.data);
+    recordTrace("交易", event.data?.message || event.data?.status || "订单状态已更新", "done");
     return;
   }
 
   if (event.event === "self_check") {
-    addToolEvent(event.data?.message || "结果自检完成");
+    addToolEvent(event.data?.message || "结果自检完成", "自检");
+    return;
+  }
+
+  if (event.event === "usage_metric") {
+    const total = formatLatency(event.data?.totalLatencyMillis);
+    const tokens = formatInteger(event.data?.totalTokens);
+    recordTrace("指标", `总耗时 ${total}，模型用量 ${tokens} Token`, "done");
     return;
   }
 
   if (event.event === "error") {
     addMessage("system", "错误", event.data?.message || "导购接口返回错误");
+    recordTrace("异常", event.data?.message || "导购接口返回错误", "warn");
+    setText("#traceState", "异常结束");
     finishStream("后端已结束", {
       hint: "导购生成失败",
       copy: "可以修改问题后再次发送。"
@@ -404,6 +452,8 @@ function handleGuideEvent(event) {
   }
 
   if (event.event === "done") {
+    recordTrace("完成", "本轮导购任务已结束", "done");
+    setText("#traceState", "已完成");
     finishStream("后端已完成");
   }
 }
@@ -507,6 +557,10 @@ function appendAnswer(text) {
   if (!state.answerTarget) {
     return;
   }
+  if (!state.answerStarted) {
+    state.answerStarted = true;
+    recordTrace("生成", "开始生成导购回答", "active");
+  }
   const prefix = state.answerTarget.textContent ? "\n" : "";
   state.answerTarget.textContent += `${prefix}${text}`;
   const stream = $("#chatStream");
@@ -549,16 +603,62 @@ function appendAnswerChunk(text) {
   }
 }
 
-function addToolEvent(text) {
+function addToolEvent(text, stage = "事件") {
+  recordTrace(stage, text, "done");
   addMessage("system", "事件", text);
 }
 
 function renderEmptyResult() {
   setText("#productCount", "0 个");
   setText("#tradeState", "未开始");
+  setText("#traceState", "等待开始");
   setHtml("#productDeck", `<div class="empty-state">发送问题后，这里会实时出现商品卡片。</div>`);
   setHtml("#referenceList", `<div class="empty-state">检索到的商品详情、活动规则和售后片段会显示在这里。</div>`);
+  setHtml("#agentTraceList", `<div class="empty-state">本轮导购的计划、检索、工具调用、自检和耗时会显示在这里。</div>`);
   setHtml("#tradeTimeline", `<li class="wait">选择商品后开始购买流程</li>`);
+}
+
+function recordTrace(stage, text, status = "done") {
+  if (!$("#agentTraceList")) {
+    return;
+  }
+  const item = {
+    stage,
+    text,
+    status,
+    time: new Date().toLocaleTimeString("zh-CN", { hour12: false })
+  };
+  state.traceEvents.push(item);
+  if (state.traceEvents.length > 30) {
+    state.traceEvents.shift();
+  }
+  saveStore("agentGroupLastTrace", state.traceEvents);
+  renderTraceList();
+}
+
+function renderTraceList() {
+  const root = $("#agentTraceList");
+  if (!root) {
+    return;
+  }
+  root.innerHTML = "";
+  if (state.traceEvents.length === 0) {
+    root.innerHTML = `<div class="empty-state">本轮导购的计划、检索、工具调用、自检和耗时会显示在这里。</div>`;
+    return;
+  }
+  state.traceEvents.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = `trace-item ${item.status || "done"}`;
+    row.innerHTML = `
+      <span class="trace-index">${index + 1}</span>
+      <div>
+        <strong>${escapeHtml(item.stage)}</strong>
+        <p>${escapeHtml(item.text)}</p>
+        <small>${escapeHtml(item.time)}</small>
+      </div>
+    `;
+    root.appendChild(row);
+  });
 }
 
 function renderReferences(references) {
@@ -665,6 +765,7 @@ async function startPurchase(product, mode) {
     pushTradeStep("请先连接后端完成一次真实导购，系统会生成导购报价凭证后才能下单。", "warn");
     return;
   }
+  recordTrace("交易", `${mode === "group" ? "进入拼团结算" : "进入直接购买结算"}：${product.name}`, "done");
   saveCheckoutSession(product, mode);
   window.location.href = `./checkout.html?mode=${encodeURIComponent(mode)}&goodsId=${encodeURIComponent(product.id)}`;
 }
@@ -677,6 +778,14 @@ function saveCheckoutSession(product, mode) {
     idempotentKey: resolveCheckoutIdempotentKey(product, mode, createdAt),
     createdAt
   });
+}
+
+function localDecisionId() {
+  return `DLOCAL-${Date.now()}`;
+}
+
+function isLocalDemoDecision(decisionId) {
+  return String(decisionId || "").startsWith("DLOCAL-");
 }
 
 function initCheckout() {
@@ -770,6 +879,21 @@ async function submitCheckoutOrder(checkout) {
     setDisabled("#mockPayBtn", false);
     setDisabled("#refreshFlowBtn", false);
   } catch (error) {
+    if (isLocalDemoDecision(product.decisionId)) {
+      checkout.order = buildLocalCheckoutOrder(checkout);
+      saveStore("agentGroupCheckout", checkout);
+      upsertOrderForAdmin(checkout.order);
+      renderCheckoutOrder(checkout.order);
+      renderCheckoutSteps([
+        "后端交易接口不可用，进入本地商城演示",
+        isGroup ? "已模拟拼团锁单" : "已模拟直接购买下单",
+        "等待支付回调演示"
+      ], 2);
+      setText("#checkoutStatus", "本地待支付");
+      setDisabled("#mockPayBtn", false);
+      setDisabled("#refreshFlowBtn", false);
+      return;
+    }
     setDisabled("#confirmOrderBtn", false);
     setText("#checkoutStatus", "下单失败");
     renderCheckoutSteps([error.message || "订单提交失败"], -1);
@@ -779,6 +903,22 @@ async function submitCheckoutOrder(checkout) {
 async function simulateCheckoutPay(checkout) {
   if (!checkout.order?.orderId || !checkout.order?.payOrderId) {
     renderCheckoutSteps(["请先确认下单"], -1);
+    return;
+  }
+  if (checkout.order.localDemo) {
+    checkout.order.orderStatus = "PAY_SUCCESS";
+    checkout.order.payStatus = "SUCCESS";
+    checkout.order.gatewayTradeNo = `MOCK${checkout.order.payOrderId}`;
+    saveStore("agentGroupCheckout", checkout);
+    upsertOrderForAdmin({
+      ...checkout.order,
+      status: checkout.order.orderStatus
+    });
+    renderCheckoutOrder(checkout.order);
+    setText("#checkoutStatus", "本地支付成功");
+    setDisabled("#mockPayBtn", true);
+    setDisabled("#refreshFlowBtn", false);
+    renderCheckoutLocalFlow(checkout.order);
     return;
   }
   setDisabled("#mockPayBtn", true);
@@ -810,6 +950,10 @@ async function refreshCheckoutFlow(checkout) {
     renderCheckoutSteps(["请先确认下单"], -1);
     return;
   }
+  if (checkout.order.localDemo) {
+    renderCheckoutLocalFlow(checkout.order);
+    return;
+  }
   try {
     const response = await fetch(`${STATUS_FLOW_URL}?orderId=${encodeURIComponent(orderId)}`, {
       headers: { "Accept": "application/json" }
@@ -832,6 +976,39 @@ async function refreshCheckoutFlow(checkout) {
   } catch (error) {
     renderCheckoutSteps([error.message || "订单流水查询失败"], -1);
   }
+}
+
+function buildLocalCheckoutOrder(checkout) {
+  const product = checkout.product;
+  const isGroup = checkout.mode === "group";
+  const timestamp = Date.now();
+  return {
+    orderId: `ODEMO${timestamp}`,
+    payOrderId: `PDEMO${timestamp}`,
+    goodsId: product.id,
+    goods: product.name,
+    type: isGroup ? "拼团购买" : "直接购买",
+    amount: formatPrice(isGroup ? product.groupPrice : product.originPrice),
+    orderStatus: "PAY_WAIT",
+    payStatus: "WAIT_PAY",
+    payUrl: `mock://pay/PDEMO${timestamp}`,
+    decisionId: product.decisionId,
+    teamId: isGroup ? `TDEMO${timestamp}` : "",
+    teamStatus: isGroup ? "LOCKED" : "",
+    lockStatus: isGroup ? "LOCKED" : "",
+    createdAt: nowLocalDateTime(),
+    localDemo: true
+  };
+}
+
+function renderCheckoutLocalFlow(order) {
+  const paid = isPaidOrder(order);
+  renderCheckoutSteps([
+    "本地演示：订单已创建",
+    order.type === "拼团购买" ? "本地演示：拼团名额已锁定" : "本地演示：直接购买库存已锁定",
+    paid ? "本地演示：支付回调成功" : "本地演示：等待支付回调",
+    paid ? "本地演示：订单状态已推进" : "本地演示：可点击支付回调演示"
+  ], paid ? 3 : 2);
 }
 
 function normalizeCheckoutOrder(checkout, createResult, paymentResult) {
@@ -1024,6 +1201,19 @@ async function postJson(url, payload) {
   return handleJsonResponse(response);
 }
 
+async function postJsonWithHeaders(url, payload, extraHeaders = {}) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+      ...extraHeaders
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleJsonResponse(response);
+}
+
 async function postForm(url, form, headers = {}) {
   const response = await fetch(url, {
     method: "POST",
@@ -1084,13 +1274,151 @@ function renderKnowledgeRows() {
     return;
   }
   root.innerHTML = "";
+  setText("#knowledgeSummary", `${state.docs.length} 份文档`);
+  if (state.docs.length === 0) {
+    root.innerHTML = `<div class="empty-state">还没有知识文档。可以上传商品详情、售后政策或活动规则后再刷新。</div>`;
+    return;
+  }
   state.docs.forEach((doc) => {
-    root.appendChild(renderDataItem(doc.name, [
-      `类型：${doc.type}`,
-      `范围：${doc.scope}`,
-      `状态：${doc.status}`
-    ], doc.status.includes("待") ? "warn" : "info"));
+    root.appendChild(renderKnowledgeDataItem(doc));
   });
+}
+
+function renderKnowledgeDataItem(doc) {
+  const row = document.createElement("div");
+  row.className = "data-item";
+  const statusText = doc.status || doc.documentStatus || "";
+  const tagType = statusText.includes("待") || statusText.includes("FAILED") ? "warn" : "info";
+  const tagText = tagType === "warn" ? "待处理" : "正常";
+  const documentId = doc.documentId || "";
+  const lines = [
+    `类型：${doc.type || doc.documentType || "-"}`,
+    `版本：${doc.knowledgeVersion || doc.scope || "-"}`,
+    `来源：${doc.sourceType || doc.sourceName || doc.scope || "-"}`,
+    `片段数：${doc.fragmentCount ?? "-"}`,
+    `状态：${statusText || "-"}`
+  ].map(escapeHtml);
+  row.innerHTML = `
+    <div class="data-title">
+      <strong>${escapeHtml(doc.name || doc.documentName || documentId || "-")}</strong>
+      <span class="tag ${tagType}">${tagText}</span>
+    </div>
+    <div>${lines.join("<br>")}</div>
+    <div class="inline-actions">
+      <button class="soft-button compact-button" type="button" ${documentId ? "" : "disabled"}>查看片段</button>
+    </div>
+  `;
+  row.querySelector("button")?.addEventListener("click", () => loadKnowledgeFragments(documentId));
+  return row;
+}
+
+function renderFragmentRows(fragments) {
+  const root = $("#fragmentRows");
+  if (!root) {
+    return;
+  }
+  root.innerHTML = "";
+  setText("#fragmentSummary", fragments.length ? `${fragments.length} 个切片` : "选择文档后查看切片内容");
+  if (!fragments.length) {
+    root.innerHTML = `<div class="empty-state">选择一份知识文档后，这里展示切片、商品编号、版本和状态。</div>`;
+    return;
+  }
+  fragments.forEach((fragment) => {
+    root.appendChild(renderDataItem(fragment.fragmentId || "-", [
+      `商品：${fragment.goodsId || "-"}`,
+      `类型：${fragment.documentType || "-"}`,
+      `版本：${fragment.knowledgeVersion || "-"}`,
+      `状态：${fragment.fragmentStatus || "-"}`,
+      `内容：${clipText(fragment.content || "", 120)}`
+    ], fragment.fragmentStatus === "ENABLED" ? "info" : "warn"));
+  });
+}
+
+async function loadKnowledgeDocuments() {
+  if (!$("#knowledgeRows")) {
+    return;
+  }
+  try {
+    const response = await fetch(`${KNOWLEDGE_DOCUMENT_LIST_URL}?limit=30`, {
+      headers: {
+        "Accept": "application/json",
+        ...adminAuthHeaders()
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`知识库列表查询失败：${response.status}`);
+    }
+    const body = await response.json();
+    const rows = unwrapResponse(body) || [];
+    state.docs = rows.map((doc) => ({
+      documentId: doc.documentId,
+      name: doc.documentName,
+      type: doc.documentType,
+      knowledgeVersion: doc.knowledgeVersion,
+      sourceType: doc.sourceType,
+      sourceName: doc.sourceName,
+      status: doc.documentStatus,
+      fragmentCount: doc.fragmentCount
+    }));
+    saveStore("agentGroupDocs", state.docs);
+    renderKnowledgeRows();
+  } catch (error) {
+    renderKnowledgeRows();
+    setText("#knowledgeSummary", "本地样例");
+  }
+}
+
+async function loadKnowledgeFragments(documentId) {
+  if (!documentId) {
+    renderFragmentRows([]);
+    return;
+  }
+  try {
+    const response = await fetch(`${KNOWLEDGE_DOCUMENT_FRAGMENTS_URL}?documentId=${encodeURIComponent(documentId)}`, {
+      headers: {
+        "Accept": "application/json",
+        ...adminAuthHeaders()
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`知识片段查询失败：${response.status}`);
+    }
+    const body = await response.json();
+    renderFragmentRows(unwrapResponse(body) || []);
+  } catch (error) {
+    renderFragmentRows([]);
+    setText("#fragmentSummary", error.message || "知识片段查询失败");
+  }
+}
+
+async function rebuildKnowledgeVector() {
+  const version = window.prompt("知识版本", "v1");
+  if (!version) {
+    return;
+  }
+  try {
+    const result = await postJsonWithHeaders(KNOWLEDGE_VECTOR_REBUILD_URL, { knowledgeVersion: version }, adminAuthHeaders());
+    setText("#knowledgeSummary", result.message || "向量重建完成");
+  } catch (error) {
+    setText("#knowledgeSummary", error.message || "向量重建失败");
+  }
+}
+
+async function compensateKnowledgeEmbedding() {
+  try {
+    const response = await fetch(`${KNOWLEDGE_VECTOR_COMPENSATE_URL}?limit=20`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        ...adminAuthHeaders()
+      }
+    });
+    const result = await handleJsonResponse(response);
+    setText("#knowledgeSummary", result.message || "失败补偿完成");
+    loadKnowledgeDocuments();
+  } catch (error) {
+    setText("#knowledgeSummary", error.message || "失败补偿失败");
+  }
 }
 
 function renderOrderRows() {
@@ -1114,6 +1442,32 @@ function renderOrderRows() {
       `状态：${order.status}`
     ], normalStatus ? "info" : "warn"));
   });
+}
+
+async function loadTradeOrders() {
+  if (!$("#orderRows")) {
+    return;
+  }
+  try {
+    const result = await postJsonWithHeaders(LEGACY_ORDER_LIST_URL, {
+      userId: DEMO_USER_ID,
+      pageSize: 10
+    }, adminAuthHeaders());
+    const orders = result?.orderList || [];
+    state.orders = orders.map((order) => ({
+      orderNo: order.orderId,
+      type: order.marketType === 1 ? "拼团购买" : "直接购买",
+      goods: order.productName || order.productId,
+      amount: formatPrice(order.payAmount || order.totalAmount),
+      status: order.status,
+      payUrl: order.payUrl
+    }));
+    saveStore("agentGroupOrders", state.orders);
+    renderOrderRows();
+    clearNode("#orderTimeline");
+  } catch (error) {
+    renderOrderRows();
+  }
 }
 
 function renderEvalRows() {
@@ -1189,6 +1543,10 @@ async function runEval() {
 function adminAuthHeaders() {
   const auth = getAdminAuth();
   return auth ? { Authorization: `Basic ${auth}` } : {};
+}
+
+function hasAdminAuth() {
+  return Boolean(loadSession(ADMIN_AUTH_KEY, ""));
 }
 
 function getAdminAuth() {
@@ -1403,6 +1761,14 @@ function formatCostYuan(value) {
     return "¥0.000000";
   }
   return `¥${Math.max(0, numberValue).toFixed(6)}`;
+}
+
+function clipText(value, maxLength) {
+  const text = String(value || "");
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, Math.max(0, maxLength - 1))}…`;
 }
 
 function escapeHtml(value) {

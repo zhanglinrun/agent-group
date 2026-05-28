@@ -4,6 +4,7 @@ import com.linrun.domain.activity.adapter.repository.GroupBuyStockRepository;
 import com.linrun.domain.activity.model.GroupBuyStock;
 import com.linrun.domain.activity.model.GroupBuyStockFlow;
 import com.linrun.domain.activity.model.GroupBuyStockFlowType;
+import com.linrun.infrastructure.converter.ActivityPOConverter;
 import com.linrun.infrastructure.dao.IGroupBuyStockDao;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Repository;
@@ -83,11 +84,12 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
 
     @Override
     public Optional<GroupBuyStock> queryByActivityId(String activityId) {
-        return Optional.ofNullable(groupBuyStockDao.queryByActivityId(activityId));
+        return Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyStockDao.queryByActivityId(activityId)));
     }
 
     private GroupBuyStock queryForUpdate(String activityId, String goodsId) {
-        GroupBuyStock stock = groupBuyStockDao.queryByActivityIdAndGoodsIdForUpdate(activityId, goodsId);
+        GroupBuyStock stock = ActivityPOConverter.toEntity(
+                groupBuyStockDao.queryByActivityIdAndGoodsIdForUpdate(activityId, goodsId));
         if (stock == null) {
             throw new AppException("GROUP_0016", "拼团库存未配置");
         }
@@ -114,7 +116,7 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
         flow.setAfterAvailableStock(afterAvailableStock);
         flow.setRemark(remark);
         flow.setCreateTime(LocalDateTime.now());
-        groupBuyStockDao.insertStockFlow(flow);
+        groupBuyStockDao.insertStockFlow(ActivityPOConverter.toPO(flow));
     }
 
     private String nextFlowId() {

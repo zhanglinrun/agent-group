@@ -2,6 +2,7 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.support.config.adapter.DynamicConfigRepository;
 import com.linrun.domain.support.config.model.DynamicConfig;
+import com.linrun.infrastructure.converter.SupportPOConverter;
 import com.linrun.infrastructure.dao.IDynamicConfigDao;
 import org.springframework.stereotype.Repository;
 
@@ -18,11 +19,11 @@ public class MyBatisDynamicConfigRepository implements DynamicConfigRepository {
 
     @Override
     public Optional<DynamicConfig> queryByKey(String configKey) {
-        return Optional.ofNullable(dynamicConfigDao.queryByKey(configKey));
+        return Optional.ofNullable(SupportPOConverter.toEntity(dynamicConfigDao.queryByKey(configKey)));
     }
 
     @Override
     public void saveOrUpdate(DynamicConfig config) {
-        dynamicConfigDao.saveOrUpdate(config);
+        dynamicConfigDao.saveOrUpdate(SupportPOConverter.toPO(config));
     }
 }

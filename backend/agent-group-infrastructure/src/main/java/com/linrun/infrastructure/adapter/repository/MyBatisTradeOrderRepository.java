@@ -5,6 +5,7 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
+import com.linrun.infrastructure.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.ITradeOrderDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +26,15 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.insertTradeOrder(tradeOrder);
-        tradeOrderDao.insertPayOrder(payOrder);
+        tradeOrderDao.insertTradeOrder(TradePOConverter.toPO(tradeOrder));
+        tradeOrderDao.insertPayOrder(TradePOConverter.toPO(payOrder));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.updateTradeOrderPaySuccess(tradeOrder);
-        tradeOrderDao.updatePayOrderSuccess(payOrder);
+        tradeOrderDao.updateTradeOrderPaySuccess(TradePOConverter.toPO(tradeOrder));
+        tradeOrderDao.updatePayOrderSuccess(TradePOConverter.toPO(payOrder));
     }
 
     @Override
@@ -47,50 +48,50 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.updateTradeOrderClosed(tradeOrder);
-        tradeOrderDao.updatePayOrderClosed(payOrder);
+        tradeOrderDao.updateTradeOrderClosed(TradePOConverter.toPO(tradeOrder));
+        tradeOrderDao.updatePayOrderClosed(TradePOConverter.toPO(payOrder));
     }
 
     @Override
     public void saveRefundOrder(RefundOrderEntity refundOrder) {
-        tradeOrderDao.insertRefundOrder(refundOrder);
+        tradeOrderDao.insertRefundOrder(TradePOConverter.toPO(refundOrder));
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.updateTradeOrderRefunded(tradeOrder);
-        tradeOrderDao.updatePayOrderRefunded(payOrder);
+        tradeOrderDao.updateTradeOrderRefunded(TradePOConverter.toPO(tradeOrder));
+        tradeOrderDao.updatePayOrderRefunded(TradePOConverter.toPO(payOrder));
     }
 
     @Override
     public void updateDealDone(TradeOrderEntity tradeOrder) {
-        tradeOrderDao.updateTradeOrderDealDone(tradeOrder);
+        tradeOrderDao.updateTradeOrderDealDone(TradePOConverter.toPO(tradeOrder));
     }
 
     @Override
     public Optional<RefundOrderEntity> queryRefundOrderByOrderId(String orderId) {
-        return Optional.ofNullable(tradeOrderDao.queryRefundOrderByOrderId(orderId));
+        return Optional.ofNullable(TradePOConverter.toEntity(tradeOrderDao.queryRefundOrderByOrderId(orderId)));
     }
 
     @Override
     public Optional<TradeOrderEntity> queryTradeOrderByOrderId(String orderId) {
-        return Optional.ofNullable(tradeOrderDao.queryTradeOrderByOrderId(orderId));
+        return Optional.ofNullable(TradePOConverter.toEntity(tradeOrderDao.queryTradeOrderByOrderId(orderId)));
     }
 
     @Override
     public Optional<TradeOrderEntity> queryTradeOrderByIdempotentKey(String idempotentKey) {
-        return Optional.ofNullable(tradeOrderDao.queryTradeOrderByIdempotentKey(idempotentKey));
+        return Optional.ofNullable(TradePOConverter.toEntity(tradeOrderDao.queryTradeOrderByIdempotentKey(idempotentKey)));
     }
 
     @Override
     public Optional<PayOrderEntity> queryPayOrderByOrderId(String orderId) {
-        return Optional.ofNullable(tradeOrderDao.queryPayOrderByOrderId(orderId));
+        return Optional.ofNullable(TradePOConverter.toEntity(tradeOrderDao.queryPayOrderByOrderId(orderId)));
     }
 
     @Override
     public List<TradeOrderEntity> queryUserTradeOrders(String userId, Long lastId, int pageSize) {
-        return tradeOrderDao.queryUserTradeOrders(userId, lastId, pageSize);
+        return TradePOConverter.toTradeOrderEntities(tradeOrderDao.queryUserTradeOrders(userId, lastId, pageSize));
     }
 
     @Override
@@ -100,6 +101,7 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
 
     @Override
     public Optional<TradeOrderEntity> queryLatestUnpaidOrder(String userId, String goodsId, TradeBuyTypeEnumVO buyType) {
-        return Optional.ofNullable(tradeOrderDao.queryLatestUnpaidOrder(userId, goodsId, buyType));
+        return Optional.ofNullable(TradePOConverter.toEntity(
+                tradeOrderDao.queryLatestUnpaidOrder(userId, goodsId, buyType == null ? null : buyType.name())));
     }
 }

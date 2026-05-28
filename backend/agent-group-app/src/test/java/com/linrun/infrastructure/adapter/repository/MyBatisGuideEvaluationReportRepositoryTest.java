@@ -4,6 +4,9 @@ import com.linrun.domain.agent.quality.model.GuideEvaluationFeedback;
 import com.linrun.domain.agent.quality.model.GuideEvaluationItemResult;
 import com.linrun.domain.agent.quality.model.GuideEvaluationReport;
 import com.linrun.infrastructure.dao.IGuideEvaluationReportDao;
+import com.linrun.infrastructure.po.GuideEvaluationFeedbackPO;
+import com.linrun.infrastructure.po.GuideEvaluationItemResultPO;
+import com.linrun.infrastructure.po.GuideEvaluationReportPO;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -45,8 +48,8 @@ class MyBatisGuideEvaluationReportRepositoryTest {
     private GuideEvaluationReport report() {
         GuideEvaluationItemResult item = new GuideEvaluationItemResult();
         item.setCaseId("EV10001");
-        item.setCaseName("学生预算导购");
-        item.setQuestion("预算有限买学习平板");
+        item.setCaseName("student budget guide");
+        item.setQuestion("limited budget tablet");
         item.setExpectedGoodsId("G10001");
         item.setActualGoodsId("G10001");
         item.setReferencePassed(true);
@@ -55,7 +58,7 @@ class MyBatisGuideEvaluationReportRepositoryTest {
         item.setContextPassed(true);
         item.setLatencyMillis(12L);
         item.setScore(100);
-        item.setSuggestion("通过");
+        item.setSuggestion("passed");
 
         GuideEvaluationReport report = new GuideEvaluationReport();
         report.setBatchNo("EVAL20260518101010001");
@@ -67,45 +70,45 @@ class MyBatisGuideEvaluationReportRepositoryTest {
         report.setRecommendationReasonableRate(new BigDecimal("100.00"));
         report.setContextConsistencyRate(new BigDecimal("100.00"));
         report.setItems(List.of(item));
-        report.setFeedbacks(List.of(new GuideEvaluationFeedback("PROMPT", "HIGH", "保留当前提示词")));
+        report.setFeedbacks(List.of(new GuideEvaluationFeedback("PROMPT", "HIGH", "keep current prompt")));
         return report;
     }
 
     private static class FakeGuideEvaluationReportDao implements IGuideEvaluationReportDao {
 
-        private GuideEvaluationReport report;
-        private final List<GuideEvaluationItemResult> items = new ArrayList<>();
-        private final List<GuideEvaluationFeedback> feedbacks = new ArrayList<>();
+        private GuideEvaluationReportPO report;
+        private final List<GuideEvaluationItemResultPO> items = new ArrayList<>();
+        private final List<GuideEvaluationFeedbackPO> feedbacks = new ArrayList<>();
 
         @Override
-        public void insertReport(GuideEvaluationReport report) {
+        public void insertReport(GuideEvaluationReportPO report) {
             this.report = report;
         }
 
         @Override
-        public void insertItems(String batchNo, List<GuideEvaluationItemResult> items) {
+        public void insertItems(String batchNo, List<GuideEvaluationItemResultPO> items) {
             this.items.clear();
             this.items.addAll(items);
         }
 
         @Override
-        public void insertFeedbacks(String batchNo, List<GuideEvaluationFeedback> feedbacks) {
+        public void insertFeedbacks(String batchNo, List<GuideEvaluationFeedbackPO> feedbacks) {
             this.feedbacks.clear();
             this.feedbacks.addAll(feedbacks);
         }
 
         @Override
-        public GuideEvaluationReport queryLatestReport() {
+        public GuideEvaluationReportPO queryLatestReport() {
             return report;
         }
 
         @Override
-        public List<GuideEvaluationItemResult> queryItemsByBatchNo(String batchNo) {
+        public List<GuideEvaluationItemResultPO> queryItemsByBatchNo(String batchNo) {
             return items;
         }
 
         @Override
-        public List<GuideEvaluationFeedback> queryFeedbacksByBatchNo(String batchNo) {
+        public List<GuideEvaluationFeedbackPO> queryFeedbacksByBatchNo(String batchNo) {
             return feedbacks;
         }
     }

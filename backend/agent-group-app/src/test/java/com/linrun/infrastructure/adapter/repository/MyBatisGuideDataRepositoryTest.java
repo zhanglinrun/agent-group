@@ -7,6 +7,8 @@ import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
 import com.linrun.domain.agent.knowledge.service.KnowledgeVectorService;
 import com.linrun.infrastructure.dao.IGuideDataDao;
+import com.linrun.infrastructure.po.GuideProductPO;
+import com.linrun.infrastructure.po.GuideReferencePO;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -24,11 +26,11 @@ class MyBatisGuideDataRepositoryTest {
                 guideDataDao,
                 new KnowledgeKeywordService());
 
-        repository.queryReferences("我想了解拼团退款规则", 3);
+        repository.queryReferences("outbox retry", 3);
 
         assertEquals(6, guideDataDao.limit);
-        assertTrue(guideDataDao.keywords.contains("拼团"));
-        assertTrue(guideDataDao.keywords.contains("退款"));
+        assertTrue(guideDataDao.keywords.contains("outbox"));
+        assertTrue(guideDataDao.keywords.contains("retry"));
     }
 
     @Test
@@ -40,7 +42,7 @@ class MyBatisGuideDataRepositoryTest {
                 new KnowledgeKeywordService(),
                 new KnowledgeVectorService(vectorRepository));
 
-        List<GuideReference> references = repository.queryReferences("学生买平板", 3);
+        List<GuideReference> references = repository.queryReferences("student tablet", 3);
 
         assertEquals(1, references.size());
         assertEquals("KF90001", references.get(0).getFragmentId());
@@ -50,15 +52,15 @@ class MyBatisGuideDataRepositoryTest {
     @Test
     void shouldRerankKeywordHitWhenBusinessTermMatchesBetter() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
-        guideDataDao.references = List.of(reference("KF90002", "售后政策", "拼团失败后会自动退款，退款会原路返回。"));
+        guideDataDao.references = List.of(reference("KF90002", "refund policy", "group refund supported"));
         FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository(
-                List.of(fragment("KF90001", "标准版适合学生写论文和看网课")));
+                List.of(fragment("KF90001", "standard tablet for study")));
         MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
                 guideDataDao,
                 new KnowledgeKeywordService(),
                 new KnowledgeVectorService(vectorRepository));
 
-        List<GuideReference> references = repository.queryReferences("拼团失败能退款吗", 3);
+        List<GuideReference> references = repository.queryReferences("group refund", 3);
 
         assertEquals("KF90002", references.get(0).getFragmentId());
         assertEquals(1, references.get(0).getRank());
@@ -71,12 +73,11 @@ class MyBatisGuideDataRepositoryTest {
                 guideDataDao,
                 new KnowledgeKeywordService());
 
-        List<GuideProduct> products = repository.queryCandidateProducts("我想剪视频，需要高配性能", 5);
+        List<GuideProduct> products = repository.queryCandidateProducts("video editing high performance", 5);
 
         assertEquals(1, products.size());
         assertEquals("G10002", products.get(0).getGoodsId());
-        assertTrue(guideDataDao.keywords.contains("剪视频"));
-        assertTrue(guideDataDao.keywords.contains("高配"));
+        assertTrue(guideDataDao.keywords.contains("video"));
         assertEquals(5, guideDataDao.limit);
     }
 
@@ -85,10 +86,10 @@ class MyBatisGuideDataRepositoryTest {
         private List<String> keywords;
         private int limit;
         private int queryCount;
-        private List<GuideReference> references = List.of();
+        private List<GuideReferencePO> references = List.of();
 
         @Override
-        public List<GuideReference> queryReferences(List<String> keywords, int limit) {
+        public List<GuideReferencePO> queryReferences(List<String> keywords, int limit) {
             this.keywords = keywords;
             this.limit = limit;
             this.queryCount++;
@@ -96,28 +97,28 @@ class MyBatisGuideDataRepositoryTest {
         }
 
         @Override
-        public List<GuideProduct> queryCandidateProducts(List<String> keywords, int limit) {
+        public List<GuideProductPO> queryCandidateProducts(List<String> keywords, int limit) {
             this.keywords = keywords;
             this.limit = limit;
-            GuideProduct product = new GuideProduct();
+            GuideProductPO product = new GuideProductPO();
             product.setGoodsId("G10002");
-            product.setGoodsName("高配创作平板");
+            product.setGoodsName("creator tablet");
             return List.of(product);
         }
 
         @Override
-        public GuideProduct queryRecommendProduct(String question) {
+        public GuideProductPO queryRecommendProduct(String question) {
             return null;
         }
 
         @Override
-        public GuideProduct queryProductByGoodsId(String goodsId) {
+        public GuideProductPO queryProductByGoodsId(String goodsId) {
             return null;
         }
     }
 
     private KnowledgeFragment fragment(String fragmentId) {
-        return fragment(fragmentId, "标准版适合学生写论文和看网课");
+        return fragment(fragmentId, "standard tablet for study");
     }
 
     private KnowledgeFragment fragment(String fragmentId, String content) {
@@ -125,14 +126,14 @@ class MyBatisGuideDataRepositoryTest {
         fragment.setFragmentId(fragmentId);
         fragment.setDocumentId("DOC90001");
         fragment.setGoodsId("G10001");
-        fragment.setDocumentType("商品详情");
+        fragment.setDocumentType("product detail");
         fragment.setKnowledgeVersion("v1");
         fragment.setContent(content);
         return fragment;
     }
 
-    private GuideReference reference(String fragmentId, String documentType, String content) {
-        GuideReference reference = new GuideReference();
+    private GuideReferencePO reference(String fragmentId, String documentType, String content) {
+        GuideReferencePO reference = new GuideReferencePO();
         reference.setFragmentId(fragmentId);
         reference.setDocumentId("DOC90002");
         reference.setGoodsId("G10001");

@@ -1,13 +1,13 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.support.config.model.DynamicConfig;
+import com.linrun.infrastructure.po.DynamicConfigPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface IDynamicConfigDao {
 
-    DynamicConfig queryByKey(@Param("configKey") String configKey);
+    DynamicConfigPO queryByKey(@Param("configKey") String configKey);
 
-    void saveOrUpdate(DynamicConfig config);
+    void saveOrUpdate(DynamicConfigPO config);
 }

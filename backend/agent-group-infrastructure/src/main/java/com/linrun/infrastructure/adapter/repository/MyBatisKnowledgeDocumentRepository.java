@@ -4,6 +4,7 @@ import com.linrun.domain.agent.knowledge.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
+import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IKnowledgeDocumentDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,34 +24,35 @@ public class MyBatisKnowledgeDocumentRepository implements KnowledgeDocumentRepo
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(KnowledgeDocument document, List<KnowledgeFragment> fragments) {
-        knowledgeDocumentDao.insertDocument(document);
+        knowledgeDocumentDao.insertDocument(AgentPOConverter.toPO(document));
         if (fragments != null && !fragments.isEmpty()) {
-            knowledgeDocumentDao.insertFragments(fragments);
+            knowledgeDocumentDao.insertFragments(AgentPOConverter.toKnowledgeFragmentPOList(fragments));
         }
     }
 
     @Override
     public Optional<KnowledgeDocument> queryDocumentByDocumentId(String documentId) {
-        return Optional.ofNullable(knowledgeDocumentDao.queryDocumentByDocumentId(documentId));
+        return Optional.ofNullable(AgentPOConverter.toEntity(knowledgeDocumentDao.queryDocumentByDocumentId(documentId)));
     }
 
     @Override
     public List<KnowledgeFragment> queryFragmentsByDocumentId(String documentId) {
-        return knowledgeDocumentDao.queryFragmentsByDocumentId(documentId);
+        return AgentPOConverter.toKnowledgeFragments(knowledgeDocumentDao.queryFragmentsByDocumentId(documentId));
     }
 
     @Override
     public List<KnowledgeFragment> queryEnabledFragmentsByVersion(String knowledgeVersion) {
-        return knowledgeDocumentDao.queryEnabledFragmentsByVersion(knowledgeVersion);
+        return AgentPOConverter.toKnowledgeFragments(knowledgeDocumentDao.queryEnabledFragmentsByVersion(knowledgeVersion));
     }
 
     @Override
     public List<KnowledgeDocument> queryDocumentsByStatus(KnowledgeDocumentStatus status, int limit) {
-        return knowledgeDocumentDao.queryDocumentsByStatus(status, Math.max(1, limit));
+        return AgentPOConverter.toKnowledgeDocuments(
+                knowledgeDocumentDao.queryDocumentsByStatus(status == null ? null : status.name(), Math.max(1, limit)));
     }
 
     @Override
     public void updateDocumentStatus(KnowledgeDocument document) {
-        knowledgeDocumentDao.updateDocumentStatus(document);
+        knowledgeDocumentDao.updateDocumentStatus(AgentPOConverter.toPO(document));
     }
 }

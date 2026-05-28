@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.trade.model.entity.TradeEventOutboxEntity;
+import com.linrun.infrastructure.po.TradeEventOutboxPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -9,15 +9,15 @@ import java.util.List;
 @Mapper
 public interface ITradeEventOutboxDao {
 
-    void insert(TradeEventOutboxEntity outbox);
+    void insert(TradeEventOutboxPO outbox);
 
-    List<TradeEventOutboxEntity> queryPending(@Param("limit") int limit);
+    List<TradeEventOutboxPO> queryPending(@Param("limit") int limit);
 
-    int updateStatusProcessing(TradeEventOutboxEntity outbox);
+    int updateStatusProcessing(TradeEventOutboxPO outbox);
 
-    int updateStatusSuccess(TradeEventOutboxEntity outbox);
+    int updateStatusSuccess(TradeEventOutboxPO outbox);
 
-    int updateStatusRetry(TradeEventOutboxEntity outbox);
+    int updateStatusRetry(TradeEventOutboxPO outbox);
 
-    int updateStatusDeadLetter(TradeEventOutboxEntity outbox);
+    int updateStatusDeadLetter(TradeEventOutboxPO outbox);
 }

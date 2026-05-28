@@ -1,8 +1,7 @@
 package com.linrun.infrastructure.dao;
 
-import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
-import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
-import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
+import com.linrun.infrastructure.po.KnowledgeDocumentPO;
+import com.linrun.infrastructure.po.KnowledgeFragmentPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -11,18 +10,18 @@ import java.util.List;
 @Mapper
 public interface IKnowledgeDocumentDao {
 
-    void insertDocument(KnowledgeDocument document);
+    void insertDocument(KnowledgeDocumentPO document);
 
-    void insertFragments(@Param("fragments") List<KnowledgeFragment> fragments);
+    void insertFragments(@Param("fragments") List<KnowledgeFragmentPO> fragments);
 
-    KnowledgeDocument queryDocumentByDocumentId(@Param("documentId") String documentId);
+    KnowledgeDocumentPO queryDocumentByDocumentId(@Param("documentId") String documentId);
 
-    List<KnowledgeFragment> queryFragmentsByDocumentId(@Param("documentId") String documentId);
+    List<KnowledgeFragmentPO> queryFragmentsByDocumentId(@Param("documentId") String documentId);
 
-    List<KnowledgeFragment> queryEnabledFragmentsByVersion(@Param("knowledgeVersion") String knowledgeVersion);
+    List<KnowledgeFragmentPO> queryEnabledFragmentsByVersion(@Param("knowledgeVersion") String knowledgeVersion);
 
-    List<KnowledgeDocument> queryDocumentsByStatus(@Param("status") KnowledgeDocumentStatus status,
-                                                   @Param("limit") int limit);
+    List<KnowledgeDocumentPO> queryDocumentsByStatus(@Param("status") String status,
+                                                     @Param("limit") int limit);
 
-    int updateDocumentStatus(KnowledgeDocument document);
+    int updateDocumentStatus(KnowledgeDocumentPO document);
 }
