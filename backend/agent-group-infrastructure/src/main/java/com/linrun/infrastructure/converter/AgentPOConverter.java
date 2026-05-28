@@ -37,6 +37,9 @@ public final class AgentPOConverter {
         GuideConversationMessagePO po = new GuideConversationMessagePO();
         BeanUtils.copyProperties(entity, po, "role");
         po.setRole(enumName(entity.getRole()));
+        if (po.getImageUrl() == null) {
+            po.setImageUrl("");
+        }
         return po;
     }
 

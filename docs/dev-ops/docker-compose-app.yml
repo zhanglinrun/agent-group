@@ -1,0 +1,44 @@
+services:
+  agent-group-app:
+    build:
+      context: ../..
+      dockerfile: docs/dev-ops/Dockerfile
+    image: agent-group-app:1.0-SNAPSHOT
+    container_name: agent-group-app
+    restart: always
+    ports:
+      - "${AGENT_GROUP_APP_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      AGENT_GROUP_MYSQL_URL: ${AGENT_GROUP_MYSQL_URL:-jdbc:mysql://mysql:3306/agent_group?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+      AGENT_GROUP_MYSQL_USERNAME: ${AGENT_GROUP_MYSQL_USERNAME:-root}
+      AGENT_GROUP_MYSQL_PASSWORD: ${AGENT_GROUP_MYSQL_PASSWORD:-agent_group_dev}
+      AGENT_GROUP_REDIS_HOST: ${AGENT_GROUP_REDIS_HOST:-redis}
+      AGENT_GROUP_REDIS_PORT: ${AGENT_GROUP_REDIS_PORT:-6379}
+      AGENT_GROUP_RABBITMQ_HOST: ${AGENT_GROUP_RABBITMQ_HOST:-rabbitmq}
+      AGENT_GROUP_RABBITMQ_PORT: ${AGENT_GROUP_RABBITMQ_PORT:-5672}
+      AGENT_GROUP_RABBITMQ_USERNAME: ${AGENT_GROUP_RABBITMQ_USERNAME:-agent_group}
+      AGENT_GROUP_RABBITMQ_PASSWORD: ${AGENT_GROUP_RABBITMQ_PASSWORD:-agent_group_dev}
+      AGENT_GROUP_PGVECTOR_HOST: ${AGENT_GROUP_PGVECTOR_HOST:-pgvector}
+      AGENT_GROUP_PGVECTOR_PORT: ${AGENT_GROUP_PGVECTOR_PORT:-5432}
+      AGENT_GROUP_MINIO_ENDPOINT: ${AGENT_GROUP_MINIO_ENDPOINT:-http://minio:9000}
+      AGENT_GROUP_LLM_API_KEY: ${AGENT_GROUP_LLM_API_KEY:-not-configured}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-not-configured}
+      AGENT_GROUP_WECHAT_CALLBACK_BASE_URL: ${AGENT_GROUP_WECHAT_CALLBACK_BASE_URL:-http://localhost:8080}
+      AGENT_GROUP_WECHAT_OFFICIAL_APP_ID: ${AGENT_GROUP_WECHAT_OFFICIAL_APP_ID:-}
+      AGENT_GROUP_WECHAT_OFFICIAL_APP_SECRET: ${AGENT_GROUP_WECHAT_OFFICIAL_APP_SECRET:-}
+      AGENT_GROUP_WECHAT_OFFICIAL_TOKEN: ${AGENT_GROUP_WECHAT_OFFICIAL_TOKEN:-agent_group_dev_token}
+      AGENT_GROUP_ALIPAY_APP_ID: ${AGENT_GROUP_ALIPAY_APP_ID:-}
+      AGENT_GROUP_ALIPAY_PRIVATE_KEY: ${AGENT_GROUP_ALIPAY_PRIVATE_KEY:-}
+      AGENT_GROUP_ALIPAY_PUBLIC_KEY: ${AGENT_GROUP_ALIPAY_PUBLIC_KEY:-}
+    volumes:
+      - ../../logs:/app/logs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - agent-group-network
+
+networks:
+  agent-group-network:
+    external: true
+    name: agent-group_agent-group-network

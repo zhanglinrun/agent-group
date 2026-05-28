@@ -21,6 +21,20 @@ cd docs/dev-ops
 docker compose -f docker-compose-environment.yml up -d
 ```
 
+如果需要按完整应用方式启动，可以先打包后端并启动应用容器：
+
+```powershell
+.\start.ps1
+```
+
+停止应用和本地依赖：
+
+```powershell
+.\stop.ps1
+```
+
+微信公众号扫码登录、公众号回调和模板消息联调见 `natapp-wechat.md`。
+
 管理页面会默认一起启动，方便查看 MySQL 和 Redis 数据。
 
 ## 最小演示路径

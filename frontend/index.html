@@ -1,110 +1,13 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>电商 AI 导购用户端</title>
-  <link rel="stylesheet" href="./styles.css">
-</head>
-<body data-page="consumer">
-  <div class="consumer-shell">
-    <header class="consumer-topbar">
-      <a class="brand-line" href="./index.html" aria-label="电商 AI 导购用户端">
-        <span class="brand-mark">AG</span>
-        <span>
-          <strong>导购交易台</strong>
-          <small>商品咨询 · 拼团购买 · 支付演示</small>
-        </span>
-      </a>
-
-      <nav class="top-links" aria-label="页面入口">
-        <a href="./admin.html">运营端</a>
-        <button id="runDemoBtn" class="soft-button" type="button">运行示例</button>
-      </nav>
-    </header>
-
-    <main class="consumer-grid">
-      <section class="conversation-pane" aria-label="导购对话">
-        <div class="pane-head">
-          <div>
-            <p class="eyebrow">导购会话</p>
-            <h1>把用户需求转成可购买的商品决策</h1>
-          </div>
-          <span id="connectionStatus" class="state-badge">本地演示</span>
-        </div>
-
-        <div class="quick-prompts" aria-label="快捷问题">
-          <button type="button" data-prompt="我是学生，预算有限，想买适合写论文和看网课的平板，哪款更合适？">学生平板推荐</button>
-          <button type="button" data-prompt="拼团价买的商品可以退款吗？成团失败怎么办？">拼团退款规则</button>
-          <button type="button" data-prompt="标准版和高配版哪个更划算？">规格对比</button>
-        </div>
-
-        <div id="chatStream" class="chat-stream" aria-live="polite"></div>
-
-        <form id="composerForm" class="composer">
-          <div id="attachmentList" class="attachment-list" aria-live="polite"></div>
-          <textarea id="messageInput" rows="3" placeholder="例如：我是学生，预算有限，想买适合写论文和看网课的平板，哪款更合适？"></textarea>
-          <div class="composer-bar">
-            <div class="upload-actions">
-              <label class="soft-button file-trigger">
-                上传图片
-                <input id="imageInput" type="file" accept="image/*">
-              </label>
-              <label class="soft-button file-trigger">
-                上传文档
-                <input id="docInput" type="file" accept=".txt,.md,.pdf,.doc,.docx">
-              </label>
-            </div>
-            <div class="send-actions">
-              <button id="stopBtn" class="soft-button danger" type="button" disabled>停止</button>
-              <button id="sendBtn" class="primary-button" type="submit">发送</button>
-            </div>
-          </div>
-        </form>
-      </section>
-
-      <aside class="decision-pane" aria-label="决策辅助">
-        <section class="decision-summary">
-          <p class="eyebrow">本轮结论</p>
-          <h2 id="sessionHint">等待会话开始</h2>
-          <p id="decisionCopy">商品、价格、活动和售后会在同一轮决策里汇总。</p>
-        </section>
-
-        <section class="result-block">
-          <div class="block-title">
-            <strong>推荐商品</strong>
-            <span id="productCount">0 个</span>
-          </div>
-          <div id="productDeck" class="product-deck"></div>
-        </section>
-
-        <section class="result-block">
-          <div class="block-title">
-            <strong>检索依据</strong>
-            <span>Top 3</span>
-          </div>
-          <div id="referenceList" class="reference-list"></div>
-        </section>
-
-        <section class="result-block">
-          <div class="block-title">
-            <strong>智能体执行轨迹</strong>
-            <span id="traceState">等待开始</span>
-          </div>
-          <div id="agentTraceList" class="trace-list"></div>
-        </section>
-
-        <section class="result-block">
-          <div class="block-title">
-            <strong>购买状态</strong>
-            <span id="tradeState">未开始</span>
-          </div>
-          <ol id="tradeTimeline" class="timeline"></ol>
-        </section>
-      </aside>
-    </main>
-  </div>
-
-  <script src="./app.js"></script>
-</body>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

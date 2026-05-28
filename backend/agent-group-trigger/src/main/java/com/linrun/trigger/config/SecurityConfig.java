@@ -47,6 +47,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/create", "/api/v1/payment/webhook", "/api/v1/payment/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/gbm/index/query_group_buy_market_config", "/api/v1/gbm/trade/lock_market_pay_order").permitAll()
+                        .requestMatchers("/api/v1/weixin/portal", "/api/v1/weixin/login/**").permitAll()
+                        .requestMatchers("/api/v1/weixin/template/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/mcp", "/api/v1/mcp/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/knowledge/**", "/api/v1/evaluate/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/mock-pay-success")
