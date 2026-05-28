@@ -468,6 +468,7 @@ public class PaymentService {
         response.setRefundId(refundOrder.getRefundId());
         response.setOrderStatus(tradeOrder.getOrderStatus().name());
         response.setPayStatus(payOrder.getPayStatus().name());
+        response.setRefundStatus(refundOrder.getRefundStatus() == null ? null : refundOrder.getRefundStatus().name());
         response.setRefundAmount(refundOrder.getRefundAmount());
         response.setRefundTime(refundOrder.getRefundTime());
         response.setMessage(message);

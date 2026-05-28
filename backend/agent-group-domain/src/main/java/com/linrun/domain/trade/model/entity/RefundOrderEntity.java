@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public class RefundOrderEntity {
 
+    private Long id;
     private String refundId;
     private String orderId;
     private String payOrderId;
@@ -33,6 +34,14 @@ public class RefundOrderEntity {
         refundOrder.setCreateTime(refundTime);
         refundOrder.setRefundTime(refundTime);
         return refundOrder;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getRefundId() {

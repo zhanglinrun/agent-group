@@ -95,6 +95,24 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    public List<TradeOrderEntity> queryUserTradeOrders(String userId,
+                                                       Long lastId,
+                                                       int pageSize,
+                                                       Integer marketType,
+                                                       String orderStatus,
+                                                       String keyword) {
+        String buyType = marketType == null ? null : (marketType == 1 ? TradeBuyTypeEnumVO.GROUP_BUY.name() : TradeBuyTypeEnumVO.DIRECT.name());
+        return TradePOConverter.toTradeOrderEntities(
+                tradeOrderDao.queryUserTradeOrdersFiltered(userId, lastId, pageSize, buyType, orderStatus, keyword));
+    }
+
+    @Override
+    public List<RefundOrderEntity> queryRefundOrders(String userId, String refundStatus, int pageSize) {
+        return TradePOConverter.toRefundOrderEntities(
+                tradeOrderDao.queryRefundOrders(userId, refundStatus, Math.max(1, pageSize)));
+    }
+
+    @Override
     public List<String> queryTimeoutPayWaitOrderIds(LocalDateTime deadline, int limit) {
         return tradeOrderDao.queryTimeoutPayWaitOrderIds(deadline, limit);
     }

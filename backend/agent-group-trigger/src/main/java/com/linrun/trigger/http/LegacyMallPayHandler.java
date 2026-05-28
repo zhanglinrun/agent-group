@@ -13,10 +13,13 @@ import com.linrun.api.dto.LockGroupBuyOrderResponse;
 import com.linrun.api.dto.CreatePayRequest;
 import com.linrun.api.dto.NotifyRequest;
 import com.linrun.api.dto.QueryOrderListRequest;
+import com.linrun.api.dto.QueryRefundOrderListRequest;
 import com.linrun.api.dto.RefundOrderRequest;
 import com.linrun.api.dto.QueryOrderListResponse;
+import com.linrun.api.dto.QueryRefundOrderListResponse;
 import com.linrun.api.dto.RefundOrderResponse;
 import com.linrun.api.dto.CreatePaymentRequest;
+import com.linrun.api.dto.PaymentWebhookRequest;
 import com.linrun.api.dto.ReconcilePaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
@@ -24,6 +27,7 @@ import com.linrun.api.dto.CreateDirectOrderRequest;
 import com.linrun.api.dto.CreateDirectOrderResponse;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
+import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.types.exception.AppException;
@@ -31,7 +35,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -90,7 +97,12 @@ public class LegacyMallPayHandler {
         }
         int pageSize = request.getPageSize() == null || request.getPageSize() <= 0 ? 10 : request.getPageSize();
         List<TradeOrderEntity> orders = tradeOrderRepository.queryUserTradeOrders(
-                request.getUserId(), request.getLastId(), pageSize + 1);
+                request.getUserId(),
+                request.getLastId(),
+                pageSize + 1,
+                request.getMarketType(),
+                request.getOrderStatus(),
+                request.getKeyword());
         boolean hasMore = orders.size() > pageSize;
         if (hasMore) {
             orders = orders.subList(0, pageSize);
@@ -100,6 +112,19 @@ public class LegacyMallPayHandler {
         response.setHasMore(hasMore);
         response.setOrderList(orders.stream().map(this::toOrderInfo).toList());
         response.setLastId(orders.isEmpty() ? request.getLastId() : orders.get(orders.size() - 1).getId());
+        return response;
+    }
+
+    public QueryRefundOrderListResponse queryRefundOrderList(QueryRefundOrderListRequest request) {
+        int pageSize = request == null || request.getPageSize() == null || request.getPageSize() <= 0
+                ? 20
+                : Math.min(request.getPageSize(), 100);
+        List<RefundOrderEntity> refunds = tradeOrderRepository.queryRefundOrders(
+                request == null ? null : request.getUserId(),
+                request == null ? null : request.getRefundStatus(),
+                pageSize);
+        QueryRefundOrderListResponse response = new QueryRefundOrderListResponse();
+        response.setRefundList(refunds.stream().map(this::toRefundInfo).toList());
         return response;
     }
 
@@ -127,6 +152,18 @@ public class LegacyMallPayHandler {
         return response.getMessage();
     }
 
+    public String alipayNotify(String requestBody, Map<String, String> params) {
+        try {
+            PaymentWebhookRequest request = new PaymentWebhookRequest();
+            request.setPayChannel("ALIPAY");
+            request.setRequestBody(StringUtils.hasText(requestBody) ? requestBody : formBody(params));
+            paymentService.handleWebhook(request);
+            return "success";
+        } catch (Exception e) {
+            return "false";
+        }
+    }
+
     private QueryOrderListResponse.OrderInfo toOrderInfo(TradeOrderEntity order) {
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(order.getOrderId()).orElse(null);
         QueryOrderListResponse.OrderInfo info = new QueryOrderListResponse.OrderInfo();
@@ -145,6 +182,21 @@ public class LegacyMallPayHandler {
                 ? BigDecimal.ZERO
                 : order.getOriginAmount().subtract(order.getPayAmount()));
         info.setPayTime(order.getPayTime());
+        return info;
+    }
+
+    private QueryRefundOrderListResponse.RefundInfo toRefundInfo(RefundOrderEntity refundOrder) {
+        QueryRefundOrderListResponse.RefundInfo info = new QueryRefundOrderListResponse.RefundInfo();
+        info.setId(refundOrder.getId());
+        info.setRefundId(refundOrder.getRefundId());
+        info.setOrderId(refundOrder.getOrderId());
+        info.setPayOrderId(refundOrder.getPayOrderId());
+        info.setUserId(refundOrder.getUserId());
+        info.setRefundAmount(refundOrder.getRefundAmount());
+        info.setRefundStatus(refundOrder.getRefundStatus() == null ? null : refundOrder.getRefundStatus().name());
+        info.setRefundReason(refundOrder.getRefundReason());
+        info.setCreateTime(refundOrder.getCreateTime());
+        info.setRefundTime(refundOrder.getRefundTime());
         return info;
     }
 
@@ -210,5 +262,19 @@ public class LegacyMallPayHandler {
 
     private String resolveRefundReason(RefundOrderRequest request) {
         return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "user refund";
+    }
+
+    private String formBody(Map<String, String> params) {
+        if (params == null || params.isEmpty()) {
+            return "";
+        }
+        return params.entrySet().stream()
+                .map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
+                .reduce((left, right) -> left + "&" + right)
+                .orElse("");
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 }

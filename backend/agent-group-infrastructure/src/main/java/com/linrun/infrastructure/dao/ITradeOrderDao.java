@@ -46,6 +46,17 @@ public interface ITradeOrderDao {
                                             @Param("lastId") Long lastId,
                                             @Param("pageSize") int pageSize);
 
+    List<TradeOrderPO> queryUserTradeOrdersFiltered(@Param("userId") String userId,
+                                                    @Param("lastId") Long lastId,
+                                                    @Param("pageSize") int pageSize,
+                                                    @Param("buyType") String buyType,
+                                                    @Param("orderStatus") String orderStatus,
+                                                    @Param("keyword") String keyword);
+
+    List<RefundOrderPO> queryRefundOrders(@Param("userId") String userId,
+                                          @Param("refundStatus") String refundStatus,
+                                          @Param("pageSize") int pageSize);
+
     List<String> queryTimeoutPayWaitOrderIds(@Param("deadline") LocalDateTime deadline,
                                              @Param("limit") int limit);
 

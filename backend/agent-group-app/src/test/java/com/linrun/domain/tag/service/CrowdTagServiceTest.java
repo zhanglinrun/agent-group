@@ -59,11 +59,34 @@ class CrowdTagServiceTest {
         assertEquals("statistics refreshed", refreshResult.getMessage());
     }
 
+    @Test
+    void shouldExecuteDslCrowdTagRuleWithIntersectionAndUnion() {
+        FakeCrowdTagRepository repository = new FakeCrowdTagRepository();
+        CrowdTagJob job = new CrowdTagJob();
+        job.setTagId("TAG_DSL");
+        job.setBatchId("BATCH_DSL");
+        job.setTagType(99);
+        job.setTagRule("orderCount>=2 && payAmount>=500 || paid=true");
+        repository.job = job;
+        repository.orderCountUsers = List.of("U10001", "U10002");
+        repository.payAmountUsers = List.of("U10002", "U10003");
+        repository.paidUsers = List.of("U10004");
+
+        CrowdTagJobResult result = new CrowdTagService(repository).execTagBatchJob("TAG_DSL", "BATCH_DSL");
+
+        assertEquals(2, result.getMatchedCount());
+        assertTrue(result.getUserIds().contains("U10002"));
+        assertTrue(result.getUserIds().contains("U10004"));
+        assertEquals(2, repository.statistics);
+    }
+
     private static class FakeCrowdTagRepository implements CrowdTagRepository {
 
         private CrowdTagJob job;
         private List<CrowdTagJob> runnableJobs = List.of();
         private List<String> orderCountUsers = List.of();
+        private List<String> payAmountUsers = List.of();
+        private List<String> paidUsers = List.of();
         private int statistics;
         private final Set<String> details = new HashSet<>();
         private final List<Integer> statuses = new ArrayList<>();
@@ -85,12 +108,12 @@ class CrowdTagServiceTest {
 
         @Override
         public List<String> queryUserIdsByPayAmount(LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPayAmount) {
-            return List.of();
+            return payAmountUsers;
         }
 
         @Override
         public List<String> queryDistinctPaidUserIds(LocalDateTime startTime, LocalDateTime endTime) {
-            return List.of();
+            return paidUsers;
         }
 
         @Override

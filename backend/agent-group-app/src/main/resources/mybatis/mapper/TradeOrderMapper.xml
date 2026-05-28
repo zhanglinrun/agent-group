@@ -34,7 +34,8 @@
     </resultMap>
 
     <resultMap id="RefundOrderMap" type="com.linrun.infrastructure.po.RefundOrderPO">
-        <id column="refund_id" property="refundId"/>
+        <id column="id" property="id"/>
+        <result column="refund_id" property="refundId"/>
         <result column="order_id" property="orderId"/>
         <result column="pay_order_id" property="payOrderId"/>
         <result column="user_id" property="userId"/>
@@ -245,6 +246,43 @@
         limit #{pageSize}
     </select>
 
+    <select id="queryUserTradeOrdersFiltered" resultMap="TradeOrderMap">
+        select id,
+               order_id,
+               idempotent_key,
+               user_id,
+               goods_id,
+               goods_name,
+               activity_id,
+               buy_type,
+               origin_amount,
+               pay_amount,
+               order_status,
+               create_time,
+               pay_time,
+               close_time
+        from trade_order
+        where user_id = #{userId}
+        <if test="lastId != null">
+            and id &gt; #{lastId}
+        </if>
+        <if test="buyType != null and buyType != ''">
+            and buy_type = #{buyType}
+        </if>
+        <if test="orderStatus != null and orderStatus != ''">
+            and order_status = #{orderStatus}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            and (
+              order_id like concat('%', #{keyword}, '%')
+              or goods_id like concat('%', #{keyword}, '%')
+              or goods_name like concat('%', #{keyword}, '%')
+            )
+        </if>
+        order by id asc
+        limit #{pageSize}
+    </select>
+
     <select id="queryTimeoutPayWaitOrderIds" resultType="java.lang.String">
         select order_id
         from trade_order
@@ -294,7 +332,8 @@
     </select>
 
     <select id="queryRefundOrderByOrderId" resultMap="RefundOrderMap">
-        select refund_id,
+        select id,
+               refund_id,
                order_id,
                pay_order_id,
                user_id,
@@ -306,5 +345,28 @@
         from refund_order
         where order_id = #{orderId}
         limit 1
+    </select>
+
+    <select id="queryRefundOrders" resultMap="RefundOrderMap">
+        select id,
+               refund_id,
+               order_id,
+               pay_order_id,
+               user_id,
+               refund_amount,
+               refund_status,
+               refund_reason,
+               create_time,
+               refund_time
+        from refund_order
+        where 1 = 1
+        <if test="userId != null and userId != ''">
+            and user_id = #{userId}
+        </if>
+        <if test="refundStatus != null and refundStatus != ''">
+            and refund_status = #{refundStatus}
+        </if>
+        order by id desc
+        limit #{pageSize}
     </select>
 </mapper>

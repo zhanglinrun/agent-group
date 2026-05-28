@@ -12,6 +12,7 @@ import com.linrun.domain.activity.model.GroupBuyActivityStatus;
 import com.linrun.domain.activity.model.GroupBuyTrialResult;
 import com.linrun.domain.activity.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -29,10 +30,21 @@ public class GuideDecisionService {
 
     private final GuideDataRepository guideDataRepository;
     private final GroupBuyActivityService groupBuyActivityService;
+    private final GuideIntentRecognitionService guideIntentRecognitionService;
 
     public GuideDecisionService(GuideDataRepository guideDataRepository, GroupBuyActivityService groupBuyActivityService) {
+        this(guideDataRepository, groupBuyActivityService, new GuideIntentRecognitionService());
+    }
+
+    @Autowired
+    public GuideDecisionService(GuideDataRepository guideDataRepository,
+                                GroupBuyActivityService groupBuyActivityService,
+                                GuideIntentRecognitionService guideIntentRecognitionService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityService = groupBuyActivityService;
+        this.guideIntentRecognitionService = guideIntentRecognitionService == null
+                ? new GuideIntentRecognitionService()
+                : guideIntentRecognitionService;
     }
 
     public GuideDecisionResult decide(String question) {
@@ -63,21 +75,7 @@ public class GuideDecisionService {
     }
 
     GuideIntent recognizeIntent(String question) {
-        String normalized = question == null ? "" : question.toLowerCase();
-        GuideIntent intent = new GuideIntent();
-        BigDecimal budgetUpperLimit = recognizeBudgetUpperLimit(normalized);
-        intent.setBudgetUpperLimit(budgetUpperLimit);
-        intent.setBudgetSensitive(budgetUpperLimit != null
-                || containsAny(normalized, "预算", "便宜", "性价比", "省钱", "价格", "划算", "低价"));
-        intent.setGroupBuyConcerned(containsAny(normalized, "拼团", "成团", "团购"));
-        intent.setAfterSaleConcerned(containsAny(normalized, "售后", "退货", "退款", "质保", "保修", "拼团失败", "未成团"));
-        intent.setCompareConcerned(containsAny(normalized, "对比", "比较", "哪款", "区别", "更合适", "怎么选", "应该选"));
-        intent.setPerformanceSensitive(containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作", "游戏", "影音", "高配"));
-        intent.setPortabilitySensitive(containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂", "会议", "键盘"));
-        intent.setUserIdentity(containsAny(normalized, "学生", "大学生", "研究生") ? "学生" : "普通用户");
-        intent.setUsageScenarios(recognizeScenarios(normalized));
-        intent.setIntentType(resolveIntentType(intent, normalized));
-        return intent;
+        return guideIntentRecognitionService.recognize(question);
     }
 
     private List<String> recognizeScenarios(String normalized) {

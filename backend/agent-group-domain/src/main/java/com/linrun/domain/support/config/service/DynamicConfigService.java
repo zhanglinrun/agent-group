@@ -123,6 +123,15 @@ public class DynamicConfigService {
         return "0".equals(getValue(CACHE_SWITCH, "0"));
     }
 
+    public List<DynamicConfig> queryAllConfigs() {
+        Map<String, DynamicConfig> merged = new java.util.LinkedHashMap<>();
+        DEFAULTS.forEach((key, value) -> merged.put(key, DynamicConfig.of(key, value, "default")));
+        dynamicConfigRepository.queryAll().forEach(config -> merged.put(config.getConfigKey(), config));
+        return merged.values().stream()
+                .sorted(java.util.Comparator.comparing(DynamicConfig::getConfigKey))
+                .toList();
+    }
+
     public boolean isPaymentQueryCompensationOpen() {
         return "1".equals(getValue(PAYMENT_QUERY_COMPENSATION_SWITCH, "1"));
     }

@@ -10,4 +10,7 @@ public class QueryOrderListRequest implements Serializable {
     private String userId;
     private Long lastId;
     private Integer pageSize;
+    private Integer marketType;
+    private String orderStatus;
+    private String keyword;
 }

@@ -96,6 +96,13 @@ public final class TradePOConverter {
         return entity;
     }
 
+    public static List<RefundOrderEntity> toRefundOrderEntities(List<RefundOrderPO> poList) {
+        if (poList == null || poList.isEmpty()) {
+            return List.of();
+        }
+        return poList.stream().map(TradePOConverter::toEntity).toList();
+    }
+
     public static TradeStatusFlowPO toPO(TradeStatusFlowEntity entity) {
         if (entity == null) {
             return null;

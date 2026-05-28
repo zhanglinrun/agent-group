@@ -14,6 +14,7 @@ public class RefundPaymentResponse implements Serializable {
     private String refundId;
     private String orderStatus;
     private String payStatus;
+    private String refundStatus;
     private BigDecimal refundAmount;
     private LocalDateTime refundTime;
     private String message;

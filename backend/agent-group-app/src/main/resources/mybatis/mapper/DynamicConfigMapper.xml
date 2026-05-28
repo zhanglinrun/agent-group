@@ -25,6 +25,17 @@
         limit 1
     </select>
 
+    <select id="queryAll" resultMap="DynamicConfigMap">
+        select id,
+               config_key,
+               config_value,
+               remark,
+               create_time,
+               update_time
+        from dynamic_config
+        order by config_key asc
+    </select>
+
     <insert id="saveOrUpdate" parameterType="com.linrun.infrastructure.po.DynamicConfigPO">
         insert into dynamic_config (
           config_key,

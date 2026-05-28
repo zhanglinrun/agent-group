@@ -15,7 +15,11 @@ public class GuideIntent {
     private boolean portabilitySensitive;
     private BigDecimal budgetUpperLimit;
     private String userIdentity;
+    private String orderId;
+    private String goodsId;
+    private String normalizedQuestion;
     private List<String> usageScenarios = new ArrayList<>();
+    private List<String> entities = new ArrayList<>();
 
     public GuideIntentType getIntentType() {
         return intentType;
@@ -89,11 +93,43 @@ public class GuideIntent {
         this.userIdentity = userIdentity;
     }
 
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
+    }
+
+    public String getGoodsId() {
+        return goodsId;
+    }
+
+    public void setGoodsId(String goodsId) {
+        this.goodsId = goodsId;
+    }
+
+    public String getNormalizedQuestion() {
+        return normalizedQuestion;
+    }
+
+    public void setNormalizedQuestion(String normalizedQuestion) {
+        this.normalizedQuestion = normalizedQuestion;
+    }
+
     public List<String> getUsageScenarios() {
         return usageScenarios;
     }
 
     public void setUsageScenarios(List<String> usageScenarios) {
         this.usageScenarios = usageScenarios;
+    }
+
+    public List<String> getEntities() {
+        return entities;
+    }
+
+    public void setEntities(List<String> entities) {
+        this.entities = entities;
     }
 }

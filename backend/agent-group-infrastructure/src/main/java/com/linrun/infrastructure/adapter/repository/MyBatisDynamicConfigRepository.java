@@ -7,6 +7,7 @@ import com.linrun.infrastructure.dao.IDynamicConfigDao;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public class MyBatisDynamicConfigRepository implements DynamicConfigRepository {
@@ -20,6 +21,13 @@ public class MyBatisDynamicConfigRepository implements DynamicConfigRepository {
     @Override
     public Optional<DynamicConfig> queryByKey(String configKey) {
         return Optional.ofNullable(SupportPOConverter.toEntity(dynamicConfigDao.queryByKey(configKey)));
+    }
+
+    @Override
+    public List<DynamicConfig> queryAll() {
+        return dynamicConfigDao.queryAll().stream()
+                .map(SupportPOConverter::toEntity)
+                .toList();
     }
 
     @Override

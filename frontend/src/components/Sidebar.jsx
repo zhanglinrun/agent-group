@@ -1,4 +1,4 @@
-﻿import { Plus, MessageSquare } from 'lucide-react';
+import { ListOrdered, MessageSquare, Plus, ShoppingBag } from "lucide-react";
 
 export default function Sidebar({
   sessions,
@@ -12,28 +12,30 @@ export default function Sidebar({
         AI 拼团导购助手
       </div>
 
-      <button className="new-chat-btn" onClick={onNewSession} style={{marginTop: '16px'}}>
+      <button className="new-chat-btn" onClick={onNewSession} style={{ marginTop: "16px" }}>
         <Plus size={16} />
         开启新对话
       </button>
 
       <div className="history-list">
-        <div style={{fontSize: '0.8rem', color: '#999', margin: '8px 12px'}}>今天</div>
+        <div style={{ fontSize: "0.8rem", color: "#999", margin: "8px 12px" }}>今天</div>
         {sessions.map(session => (
           <div
             key={session.id}
-            className={`history-item ${session.id === currentSessionId ? 'active' : ''}`}
+            className={`history-item ${session.id === currentSessionId ? "active" : ""}`}
             onClick={() => onSelectSession(session.id)}
           >
-            <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <MessageSquare size={14} color="#666" />
-              <span style={{overflow: 'hidden', textOverflow: 'ellipsis'}}>{session.title}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{session.title}</span>
             </div>
           </div>
         ))}
       </div>
 
       <div className="sidebar-footer">
+        <a href="/mall"><ShoppingBag size={14} /> 商品商城</a>
+        <a href="/order-list"><ListOrdered size={14} /> 订单中心</a>
         <a href="/admin">进入管理员后台</a>
       </div>
     </aside>

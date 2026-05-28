@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 public class RefundOrderPO {
 
+    private Long id;
     private String refundId;
     private String orderId;
     private String payOrderId;
@@ -14,6 +15,14 @@ public class RefundOrderPO {
     private String refundReason;
     private LocalDateTime createTime;
     private LocalDateTime refundTime;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getRefundId() {
         return refundId;

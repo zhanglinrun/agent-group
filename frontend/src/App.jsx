@@ -4,7 +4,7 @@ import InputArea from "./components/InputArea";
 import Sidebar from "./components/Sidebar";
 import AdminDashboard from "./components/AdminDashboard";
 import AgentTracePanel from "./components/AgentTracePanel";
-import { CallbackTestPage, CheckoutPage, LoginPage, OrderListPage } from "./components/MallPages";
+import { CallbackTestPage, CartPage, CheckoutPage, LoginPage, OrderListPage, ProductDetailPage, ProductListPage } from "./components/MallPages";
 import { createDirectOrder, getSessionId, lockGroupBuyOrder, mockPaySuccess, requestGuideStream, stopGuideStream } from "./services/api";
 
 function App() {
@@ -15,6 +15,15 @@ function App() {
   }
   if (path === "/login" || path === "/login.html") {
     return <LoginPage />;
+  }
+  if (path === "/mall" || path === "/products" || path === "/mall.html") {
+    return <ProductListPage />;
+  }
+  if (path.startsWith("/products/")) {
+    return <ProductDetailPage />;
+  }
+  if (path === "/cart" || path === "/cart.html") {
+    return <CartPage />;
   }
   if (path === "/order-list" || path === "/orders" || path === "/order-list.html") {
     return <OrderListPage />;
@@ -39,7 +48,7 @@ function describeTrace(event) {
     case "tool_plan":
       return {
         stage: "计划",
-        text: `准备调用：${data.tools?.map(tool => tool.name).join("、") || "无工具"}`
+        text: `${data.intent ? `意图：${data.intent}；` : ""}准备调用：${data.tools?.map(tool => tool.name).join("、") || "无工具"}`
       };
     case "retrieval_progress":
       return {

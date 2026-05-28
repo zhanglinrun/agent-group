@@ -247,14 +247,63 @@ export async function getLatestGuideEvaluation() {
   });
 }
 
-export async function queryUserOrderList(pageSize = 10) {
+export async function queryUserOrderList(options = 10) {
+  const params = typeof options === "number" ? { pageSize: options } : (options || {});
   return request("/api/v1/alipay/query_user_order_list", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       userId: DEMO_USER_ID,
-      pageSize
+      pageSize: params.pageSize || 10,
+      lastId: params.lastId,
+      marketType: params.marketType === "" || params.marketType === undefined ? undefined : Number(params.marketType),
+      orderStatus: params.orderStatus || undefined,
+      keyword: params.keyword || undefined
+    })
+  });
+}
+
+export async function queryRefundOrderList(options = {}) {
+  return request("/api/v1/alipay/query_refund_order_list", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: options.userId === undefined ? DEMO_USER_ID : options.userId,
+      refundStatus: options.refundStatus || undefined,
+      pageSize: options.pageSize || 20
+    })
+  });
+}
+
+export async function queryProductCatalog(keyword = "", limit = 20) {
+  const params = new URLSearchParams();
+  if (keyword) params.set("keyword", keyword);
+  params.set("limit", String(limit));
+  return request(`/api/v1/mall/products?${params.toString()}`, {
+    method: "GET"
+  });
+}
+
+export async function queryProductDetail(goodsId) {
+  return request(`/api/v1/mall/products/${encodeURIComponent(goodsId)}`, {
+    method: "GET"
+  });
+}
+
+export async function validateCart(items) {
+  return request("/api/v1/mall/cart/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: DEMO_USER_ID,
+      items: (items || []).map((item) => ({
+        goodsId: item.goodsId,
+        quantity: item.quantity || 1,
+        marketType: item.marketType,
+        activityId: item.activityId
+      }))
     })
   });
 }
@@ -273,6 +322,19 @@ export async function createLegacyPayOrder({ productId, decisionId, marketType, 
       teamId,
       payChannel: "MOCK_PAY",
       idempotentKey: `IDEMP_${Date.now()}`
+    })
+  });
+}
+
+export async function refundOrder(orderId, refundReason = "用户申请售后退款") {
+  return request("/api/v1/alipay/refund_order", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: DEMO_USER_ID,
+      orderId,
+      refundReason
     })
   });
 }
@@ -320,5 +382,21 @@ export async function sendWeixinTemplateMessage(payload) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
+  });
+}
+
+export async function queryOperationalRules() {
+  return request("/api/v1/ops/rules", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function updateOperationalRule(ruleKey, ruleValue) {
+  return request("/api/v1/ops/rules", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ruleKey, ruleValue })
   });
 }

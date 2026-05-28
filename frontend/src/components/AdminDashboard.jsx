@@ -1,27 +1,34 @@
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, Database, LogOut, PlayCircle, RefreshCw, ShoppingCart, Upload } from "lucide-react";
+import { Activity, AlertTriangle, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, ShoppingCart, Upload } from "lucide-react";
 import AdminAuthBar from "./AdminAuthBar";
 import {
   compensateKnowledgeVector,
   getKnowledgeDocuments,
   getLatestGuideEvaluation,
+  queryOperationalRules,
+  queryRefundOrderList,
   queryUserOrderList,
   rebuildKnowledgeVector,
   runGuideEvaluation,
+  updateOperationalRule,
   uploadKnowledgeDocument
 } from "../services/api";
 
 async function fetchAdminData() {
-  const [docsResult, evalResult, ordersResult] = await Promise.allSettled([
+  const [docsResult, evalResult, ordersResult, refundsResult, rulesResult] = await Promise.allSettled([
     getKnowledgeDocuments(),
     getLatestGuideEvaluation(),
-    queryUserOrderList()
+    queryUserOrderList({ pageSize: 20 }),
+    queryRefundOrderList({ userId: null, pageSize: 20 }),
+    queryOperationalRules()
   ]);
 
   return {
     docsResult,
     evalResult,
-    ordersResult
+    ordersResult,
+    refundsResult,
+    rulesResult
   };
 }
 
@@ -48,11 +55,13 @@ export default function AdminDashboard() {
   const [documents, setDocuments] = useState([]);
   const [evaluation, setEvaluation] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [refunds, setRefunds] = useState([]);
+  const [rules, setRules] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
 
   const loadData = async () => {
     setErrorMsg("");
-    const { docsResult, evalResult, ordersResult } = await fetchAdminData();
+    const { docsResult, evalResult, ordersResult, refundsResult, rulesResult } = await fetchAdminData();
 
     if (docsResult.status === "fulfilled" && docsResult.value.code === "0000") {
       setDocuments(docsResult.value.data || []);
@@ -63,8 +72,14 @@ export default function AdminDashboard() {
     if (ordersResult.status === "fulfilled" && ordersResult.value.code === "0000") {
       setOrders(ordersResult.value.data?.orderList || []);
     }
+    if (refundsResult.status === "fulfilled" && refundsResult.value.code === "0000") {
+      setRefunds(refundsResult.value.data?.refundList || []);
+    }
+    if (rulesResult.status === "fulfilled" && rulesResult.value.code === "0000") {
+      setRules(rulesResult.value.data || []);
+    }
 
-    const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult)].filter(Boolean);
+    const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult)].filter(Boolean);
     if (errors.length > 0) {
       setErrorMsg([...new Set(errors)].join("；"));
     }
@@ -72,7 +87,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let active = true;
-    fetchAdminData().then(({ docsResult, evalResult, ordersResult }) => {
+    fetchAdminData().then(({ docsResult, evalResult, ordersResult, refundsResult, rulesResult }) => {
       if (!active) return;
       if (docsResult.status === "fulfilled" && docsResult.value.code === "0000") {
         setDocuments(docsResult.value.data || []);
@@ -83,7 +98,13 @@ export default function AdminDashboard() {
       if (ordersResult.status === "fulfilled" && ordersResult.value.code === "0000") {
         setOrders(ordersResult.value.data?.orderList || []);
       }
-      const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult)].filter(Boolean);
+      if (refundsResult.status === "fulfilled" && refundsResult.value.code === "0000") {
+        setRefunds(refundsResult.value.data?.refundList || []);
+      }
+      if (rulesResult.status === "fulfilled" && rulesResult.value.code === "0000") {
+        setRules(rulesResult.value.data || []);
+      }
+      const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult)].filter(Boolean);
       if (errors.length > 0) {
         setErrorMsg([...new Set(errors)].join("；"));
       }
@@ -116,6 +137,14 @@ export default function AdminDashboard() {
       handleAction(`上传文档 ${file.name}`, () => uploadKnowledgeDocument(file, "global", file.name, "Knowledge"));
     }
     event.target.value = null;
+  };
+
+  const updateRuleDraft = (ruleKey, ruleValue) => {
+    setRules(prev => prev.map(rule => rule.ruleKey === ruleKey ? { ...rule, ruleValue } : rule));
+  };
+
+  const saveRule = async (rule) => {
+    await handleAction(`保存规则 ${rule.ruleKey}`, () => updateOperationalRule(rule.ruleKey, rule.ruleValue));
   };
 
   return (
@@ -273,6 +302,94 @@ export default function AdminDashboard() {
                     </tr>
                   ))}
                   {orders.length === 0 && <tr><td colSpan="6" className="empty-cell">暂无真实订单数据，请在前台发起购买</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-card full-width">
+          <div className="admin-card-header">
+            <div className="admin-title-line">
+              <RotateCcw size={18} color="#7c3aed" />
+              <h3>售后退款后台</h3>
+            </div>
+          </div>
+          <div className="admin-card-body">
+            <div className="table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>退款单号</th>
+                    <th>订单号</th>
+                    <th>用户</th>
+                    <th>金额</th>
+                    <th>状态</th>
+                    <th>原因</th>
+                    <th>创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {refunds.map((refund) => (
+                    <tr key={refund.id || refund.refundId}>
+                      <td className="mono">{refund.refundId}</td>
+                      <td className="mono">{refund.orderId}</td>
+                      <td>{refund.userId}</td>
+                      <td>￥{refund.refundAmount || 0}</td>
+                      <td><span className="badge badge-purple">{refund.refundStatus}</span></td>
+                      <td>{refund.refundReason || "-"}</td>
+                      <td>{refund.createTime ? refund.createTime.replace("T", " ") : ""}</td>
+                    </tr>
+                  ))}
+                  {refunds.length === 0 && <tr><td colSpan="7" className="empty-cell">暂无退款单</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-card full-width">
+          <div className="admin-card-header">
+            <div className="admin-title-line">
+              <Settings size={18} color="#0f766e" />
+              <h3>运营规则配置</h3>
+            </div>
+          </div>
+          <div className="admin-card-body">
+            <div className="table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>规则分组</th>
+                    <th>配置项</th>
+                    <th>配置值</th>
+                    <th>来源</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((rule) => (
+                    <tr key={rule.ruleKey}>
+                      <td><span className="badge badge-green">{rule.ruleGroup}</span></td>
+                      <td className="mono">{rule.ruleKey}</td>
+                      <td>
+                        <input
+                          className="rule-value-input"
+                          value={rule.ruleValue || ""}
+                          onChange={(event) => updateRuleDraft(rule.ruleKey, event.target.value)}
+                        />
+                      </td>
+                      <td>{rule.description || "-"}</td>
+                      <td>{rule.updateTime ? rule.updateTime.replace("T", " ") : ""}</td>
+                      <td>
+                        <button className="admin-btn outline" onClick={() => saveRule(rule)}>
+                          <Save size={16} /> 保存
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {rules.length === 0 && <tr><td colSpan="6" className="empty-cell">暂无运营规则</td></tr>}
                 </tbody>
               </table>
             </div>

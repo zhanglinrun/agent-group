@@ -40,6 +40,19 @@ public interface TradeOrderRepository {
         return List.of();
     }
 
+    default List<TradeOrderEntity> queryUserTradeOrders(String userId,
+                                                        Long lastId,
+                                                        int pageSize,
+                                                        Integer marketType,
+                                                        String orderStatus,
+                                                        String keyword) {
+        return queryUserTradeOrders(userId, lastId, pageSize);
+    }
+
+    default List<RefundOrderEntity> queryRefundOrders(String userId, String refundStatus, int pageSize) {
+        return List.of();
+    }
+
     default List<String> queryTimeoutPayWaitOrderIds(LocalDateTime deadline, int limit) {
         return List.of();
     }
