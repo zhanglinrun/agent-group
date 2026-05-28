@@ -4,10 +4,14 @@ import com.linrun.infrastructure.po.SourceChannelSkuActivityPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface ISourceChannelSkuActivityDao {
 
     SourceChannelSkuActivityPO queryBySourceChannelGoodsId(@Param("source") String source,
                                                            @Param("channel") String channel,
                                                            @Param("goodsId") String goodsId);
+
+    List<SourceChannelSkuActivityPO> querySourceChannelList(@Param("limit") int limit);
 }

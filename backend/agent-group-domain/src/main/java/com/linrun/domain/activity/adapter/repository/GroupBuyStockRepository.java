@@ -2,6 +2,7 @@ package com.linrun.domain.activity.adapter.repository;
 
 import com.linrun.domain.activity.model.GroupBuyStock;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface GroupBuyStockRepository {
@@ -15,6 +16,10 @@ public interface GroupBuyStockRepository {
     GroupBuyStock releasePaidStock(String activityId, String goodsId, String orderId, String teamId);
 
     Optional<GroupBuyStock> queryByActivityId(String activityId);
+
+    default List<GroupBuyStock> queryStockList(int limit) {
+        return List.of();
+    }
 
     static GroupBuyStockRepository noop() {
         return NoopGroupBuyStockRepository.INSTANCE;
@@ -47,6 +52,11 @@ public interface GroupBuyStockRepository {
         @Override
         public Optional<GroupBuyStock> queryByActivityId(String activityId) {
             return Optional.empty();
+        }
+
+        @Override
+        public List<GroupBuyStock> queryStockList(int limit) {
+            return List.of();
         }
 
         private GroupBuyStock empty(String activityId, String goodsId) {

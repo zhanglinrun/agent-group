@@ -77,4 +77,27 @@
         where activity_id = #{activityId}
         limit 1
     </select>
+
+    <select id="queryActivityList" resultMap="GroupBuyActivityMap">
+        select id,
+               activity_id,
+               activity_name,
+               goods_id,
+               group_price,
+               case when target is not null and target &gt; 1 then target else team_size end as team_size,
+               discount_id,
+               group_type,
+               take_limit_count,
+               target,
+               valid_time,
+               status,
+               start_time,
+               end_time,
+               tag_id,
+               tag_scope,
+               enabled
+        from group_activity
+        order by id desc
+        limit #{limit}
+    </select>
 </mapper>

@@ -97,6 +97,25 @@
         limit 50
     </select>
 
+    <select id="queryRecentNotifyTaskList" resultMap="NotifyTaskMap">
+        select id,
+               activity_id,
+               team_id,
+               notify_category,
+               notify_type,
+               notify_mq,
+               notify_url,
+               notify_count,
+               notify_status,
+               parameter_json,
+               uuid,
+               create_time,
+               update_time
+        from notify_task
+        order by id desc
+        limit #{limit}
+    </select>
+
     <select id="queryNotifyTaskByUuid" resultMap="NotifyTaskMap">
         select id,
                activity_id,

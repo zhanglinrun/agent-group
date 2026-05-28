@@ -24,4 +24,15 @@
           and goods_id = #{goodsId}
         limit 1
     </select>
+
+    <select id="querySourceChannelList" resultMap="SourceChannelSkuActivityMap">
+        select id,
+               source,
+               channel,
+               activity_id,
+               goods_id
+        from sc_sku_activity
+        order by id desc
+        limit #{limit}
+    </select>
 </mapper>

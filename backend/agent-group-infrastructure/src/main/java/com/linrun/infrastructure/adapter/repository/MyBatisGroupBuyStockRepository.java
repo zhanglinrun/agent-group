@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -85,6 +86,11 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
     @Override
     public Optional<GroupBuyStock> queryByActivityId(String activityId) {
         return Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyStockDao.queryByActivityId(activityId)));
+    }
+
+    @Override
+    public List<GroupBuyStock> queryStockList(int limit) {
+        return ActivityPOConverter.toStocks(groupBuyStockDao.queryStockList(Math.max(1, limit)));
     }
 
     private GroupBuyStock queryForUpdate(String activityId, String goodsId) {

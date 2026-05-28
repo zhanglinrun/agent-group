@@ -41,6 +41,13 @@ public final class ActivityPOConverter {
         return entity;
     }
 
+    public static List<GroupBuyActivity> toActivities(List<GroupBuyActivityPO> poList) {
+        if (poList == null || poList.isEmpty()) {
+            return List.of();
+        }
+        return poList.stream().map(ActivityPOConverter::toEntity).toList();
+    }
+
     public static GroupBuyDiscount toEntity(GroupBuyDiscountPO po) {
         if (po == null) {
             return null;
@@ -59,6 +66,13 @@ public final class ActivityPOConverter {
         return entity;
     }
 
+    public static List<GroupBuyMarketSku> toMarketSkus(List<GroupBuyMarketSkuPO> poList) {
+        if (poList == null || poList.isEmpty()) {
+            return List.of();
+        }
+        return poList.stream().map(ActivityPOConverter::toEntity).toList();
+    }
+
     public static SourceChannelSkuActivity toEntity(SourceChannelSkuActivityPO po) {
         if (po == null) {
             return null;
@@ -68,6 +82,13 @@ public final class ActivityPOConverter {
         return entity;
     }
 
+    public static List<SourceChannelSkuActivity> toSourceChannels(List<SourceChannelSkuActivityPO> poList) {
+        if (poList == null || poList.isEmpty()) {
+            return List.of();
+        }
+        return poList.stream().map(ActivityPOConverter::toEntity).toList();
+    }
+
     public static GroupBuyStock toEntity(GroupBuyStockPO po) {
         if (po == null) {
             return null;
@@ -75,6 +96,13 @@ public final class ActivityPOConverter {
         GroupBuyStock entity = new GroupBuyStock();
         BeanUtils.copyProperties(po, entity);
         return entity;
+    }
+
+    public static List<GroupBuyStock> toStocks(List<GroupBuyStockPO> poList) {
+        if (poList == null || poList.isEmpty()) {
+            return List.of();
+        }
+        return poList.stream().map(ActivityPOConverter::toEntity).toList();
     }
 
     public static GroupBuyStockFlowPO toPO(GroupBuyStockFlow entity) {

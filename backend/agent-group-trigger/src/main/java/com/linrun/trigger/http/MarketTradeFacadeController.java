@@ -9,6 +9,7 @@ import com.linrun.api.dto.LockMarketPayOrderResponse;
 import com.linrun.api.dto.RefundMarketPayOrderResponse;
 import com.linrun.api.dto.SettlementMarketPayOrderResponse;
 import com.linrun.trigger.config.RequestTraceContext;
+import com.linrun.trigger.config.RateLimiterAccessInterceptor;
 import com.linrun.trigger.http.MarketTradeFacadeHandler;
 import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -43,7 +44,13 @@ public class MarketTradeFacadeController {
     }
 
     @PostMapping("/api/v1/gbm/index/query_group_buy_market_config")
+    @RateLimiterAccessInterceptor(key = "userId", fallbackMethod = "queryGroupBuyMarketConfigFallBack",
+            permitsPerSecond = 1.0d, blacklistCount = 1)
     public Response<GoodsMarketResponse> queryGroupBuyMarketConfig(@RequestBody GoodsMarketRequest request) {
         return Response.success(marketTradeFacadeService.queryGroupBuyMarketConfig(request), RequestTraceContext.getRequestId());
+    }
+
+    public Response<GoodsMarketResponse> queryGroupBuyMarketConfigFallBack(@RequestBody GoodsMarketRequest request) {
+        return Response.fail("0006", "接口限流", RequestTraceContext.getRequestId());
     }
 }

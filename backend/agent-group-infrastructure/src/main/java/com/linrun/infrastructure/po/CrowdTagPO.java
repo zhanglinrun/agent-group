@@ -1,8 +1,8 @@
-package com.linrun.domain.tag.model;
+package com.linrun.infrastructure.po;
 
 import java.time.LocalDateTime;
 
-public class CrowdTag {
+public class CrowdTagPO {
 
     private Long id;
     private String tagId;

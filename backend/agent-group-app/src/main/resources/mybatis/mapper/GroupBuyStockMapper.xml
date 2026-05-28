@@ -48,6 +48,21 @@
         for update
     </select>
 
+    <select id="queryStockList" resultMap="GroupBuyStockMap">
+        select id,
+               activity_id,
+               goods_id,
+               total_stock,
+               available_stock,
+               locked_stock,
+               paid_stock,
+               create_time,
+               update_time
+        from group_buy_stock
+        order by id desc
+        limit #{limit}
+    </select>
+
     <update id="lockStock">
         update group_buy_stock
         set available_stock = available_stock - 1,

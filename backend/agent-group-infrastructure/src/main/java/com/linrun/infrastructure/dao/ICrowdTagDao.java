@@ -1,6 +1,7 @@
 package com.linrun.infrastructure.dao;
 
 import com.linrun.infrastructure.po.CrowdTagJobPO;
+import com.linrun.infrastructure.po.CrowdTagPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -12,6 +13,8 @@ import java.util.List;
 public interface ICrowdTagDao {
 
     CrowdTagJobPO queryJob(@Param("tagId") String tagId, @Param("batchId") String batchId);
+
+    List<CrowdTagPO> queryTagList(@Param("limit") int limit);
 
     List<CrowdTagJobPO> queryRunnableJobs(@Param("limit") int limit);
 

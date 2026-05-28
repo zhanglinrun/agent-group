@@ -13,6 +13,10 @@ public interface NotifyTaskRepository {
 
     List<NotifyTask> queryUnExecutedNotifyTaskList(String teamId);
 
+    default List<NotifyTask> queryRecentNotifyTaskList(int limit) {
+        return List.of();
+    }
+
     Optional<NotifyTask> queryNotifyTaskByUuid(String uuid);
 
     int updateNotifyTaskStatusProcessing(NotifyTask notifyTask);

@@ -25,4 +25,16 @@
         order by id desc
         limit 1
     </select>
+
+    <select id="querySkuList" resultMap="GroupBuyMarketSkuMap">
+        select id,
+               source,
+               channel,
+               goods_id,
+               goods_name,
+               original_price
+        from sku
+        order by id desc
+        limit #{limit}
+    </select>
 </mapper>

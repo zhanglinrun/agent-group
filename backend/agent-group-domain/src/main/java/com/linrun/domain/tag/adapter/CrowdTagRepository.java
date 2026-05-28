@@ -1,6 +1,7 @@
 package com.linrun.domain.tag.adapter;
 
 import com.linrun.domain.tag.model.CrowdTagJob;
+import com.linrun.domain.tag.model.CrowdTag;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -10,6 +11,10 @@ import java.util.Optional;
 public interface CrowdTagRepository {
 
     Optional<CrowdTagJob> queryJob(String tagId, String batchId);
+
+    default List<CrowdTag> queryTagList(int limit) {
+        return List.of();
+    }
 
     List<CrowdTagJob> queryRunnableJobs(int limit);
 

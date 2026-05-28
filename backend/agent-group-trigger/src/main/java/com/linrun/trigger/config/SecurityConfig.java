@@ -60,7 +60,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/trade/order/status-flow").permitAll()
                         .requestMatchers("/api/v1/alipay/**", "/api/v1/gbm/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/group/trade/close-unpaid", "/api/v1/group/trade/refund").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/payment/refund", "/api/v1/payment/reconcile").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/payment/refund", "/api/v1/payment/reconcile",
+                                "/api/v1/payment/bill/download", "/api/v1/payment/refund/query",
+                                "/api/v1/payment/refund/webhook/**", "/api/v1/payment/certificate/refresh",
+                                "/api/v1/payment/error-map").hasRole("ADMIN")
                         .anyRequest().authenticated());
         return http.build();
     }

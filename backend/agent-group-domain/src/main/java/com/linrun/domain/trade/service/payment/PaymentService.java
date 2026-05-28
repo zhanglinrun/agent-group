@@ -1,8 +1,15 @@
 package com.linrun.domain.trade.service.payment;
 
 import com.linrun.api.dto.CreatePaymentRequest;
+import com.linrun.api.dto.DownloadPaymentBillRequest;
+import com.linrun.api.dto.DownloadPaymentBillResponse;
+import com.linrun.api.dto.PaymentGatewayErrorMapResponse;
 import com.linrun.api.dto.PaymentWebhookRequest;
+import com.linrun.api.dto.QueryPaymentRefundRequest;
+import com.linrun.api.dto.QueryPaymentRefundResponse;
 import com.linrun.api.dto.ReconcilePaymentRequest;
+import com.linrun.api.dto.RefreshPaymentCertificateRequest;
+import com.linrun.api.dto.RefreshPaymentCertificateResponse;
 import com.linrun.api.dto.RefundPaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
@@ -13,12 +20,19 @@ import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
+import com.linrun.domain.trade.model.payment.PaymentBillDownloadCommand;
+import com.linrun.domain.trade.model.payment.PaymentBillDownloadResult;
+import com.linrun.domain.trade.model.payment.PaymentCertificateRefreshCommand;
+import com.linrun.domain.trade.model.payment.PaymentCertificateRefreshResult;
 import com.linrun.domain.trade.model.payment.PaymentChannel;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
+import com.linrun.domain.trade.model.payment.PaymentGatewayErrorMapping;
 import com.linrun.domain.trade.model.payment.PaymentReconcileCommand;
 import com.linrun.domain.trade.model.payment.PaymentReconcileResult;
 import com.linrun.domain.trade.model.payment.PaymentRefundCommand;
+import com.linrun.domain.trade.model.payment.PaymentRefundQueryCommand;
+import com.linrun.domain.trade.model.payment.PaymentRefundQueryResult;
 import com.linrun.domain.trade.model.payment.PaymentRefundResult;
 import com.linrun.domain.trade.model.payment.PaymentWebhookCommand;
 import com.linrun.domain.trade.model.payment.PaymentWebhookResult;
@@ -223,6 +237,64 @@ public class PaymentService {
                 payOrder.getPayStatus(),
                 result.getMessage());
         return toReconcileResponse(tradeOrder, payOrder, request, result);
+    }
+
+    public DownloadPaymentBillResponse downloadBill(DownloadPaymentBillRequest request) {
+        if (request == null || !StringUtils.hasText(request.getPayChannel())) {
+            throw new AppException("0001", "支付渠道不能为空");
+        }
+        PaymentBillDownloadResult result = paymentGatewayClient.downloadBill(new PaymentBillDownloadCommand(
+                PaymentChannel.parse(request.getPayChannel()).name(),
+                request.getBillDate() == null ? LocalDate.now() : request.getBillDate(),
+                StringUtils.hasText(request.getBillType()) ? request.getBillType() : "trade",
+                request.isDownloadContent(),
+                request.getBillFileUrl()));
+        return toBillDownloadResponse(result);
+    }
+
+    public QueryPaymentRefundResponse queryRefund(QueryPaymentRefundRequest request) {
+        PaymentRefundQueryCommand command = toRefundQueryCommand(request);
+        return toRefundQueryResponse(paymentGatewayClient.queryRefund(command));
+    }
+
+    public QueryPaymentRefundResponse handleRefundWebhook(PaymentWebhookRequest request) {
+        if (request == null || !StringUtils.hasText(request.getPayChannel())) {
+            throw new AppException("0001", "支付渠道不能为空");
+        }
+        PaymentRefundQueryCommand command = new PaymentRefundQueryCommand(
+                PaymentChannel.parse(request.getPayChannel()).name(),
+                request.getOrderId(),
+                request.getPayOrderId(),
+                request.getGatewayTradeNo(),
+                null,
+                request.getRequestBody(),
+                request.getHeaders());
+        return toRefundQueryResponse(paymentGatewayClient.verifyRefundWebhook(command));
+    }
+
+    public RefreshPaymentCertificateResponse refreshCertificate(RefreshPaymentCertificateRequest request) {
+        if (request == null || !StringUtils.hasText(request.getPayChannel())) {
+            throw new AppException("0001", "支付渠道不能为空");
+        }
+        PaymentCertificateRefreshResult result = paymentGatewayClient.refreshCertificate(
+                new PaymentCertificateRefreshCommand(PaymentChannel.parse(request.getPayChannel()).name()));
+        return toCertificateRefreshResponse(result);
+    }
+
+    public PaymentGatewayErrorMapResponse mapGatewayError(String payChannel, String gatewayCode) {
+        if (!StringUtils.hasText(payChannel) || !StringUtils.hasText(gatewayCode)) {
+            throw new AppException("0001", "支付渠道和渠道错误码不能为空");
+        }
+        PaymentGatewayErrorMapping mapping = paymentGatewayClient.mapGatewayError(
+                PaymentChannel.parse(payChannel).name(), gatewayCode);
+        PaymentGatewayErrorMapResponse response = new PaymentGatewayErrorMapResponse();
+        response.setPayChannel(mapping.payChannel());
+        response.setGatewayCode(mapping.gatewayCode());
+        response.setBusinessCode(mapping.businessCode());
+        response.setBusinessMessage(mapping.businessMessage());
+        response.setRetryable(mapping.retryable());
+        response.setSuggestion(mapping.suggestion());
+        return response;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -431,6 +503,36 @@ public class PaymentService {
         return command;
     }
 
+    private PaymentRefundQueryCommand toRefundQueryCommand(QueryPaymentRefundRequest request) {
+        if (request == null) {
+            throw new AppException("0001", "退款查询参数不能为空");
+        }
+        if (StringUtils.hasText(request.getOrderId())) {
+            TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+            PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
+            RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(request.getOrderId()).orElse(null);
+            return new PaymentRefundQueryCommand(
+                    payOrder.getPayChannel(),
+                    tradeOrder.getOrderId(),
+                    payOrder.getPayOrderId(),
+                    StringUtils.hasText(request.getGatewayTradeNo()) ? request.getGatewayTradeNo() : payOrder.getOutTradeNo(),
+                    StringUtils.hasText(request.getRefundId()) ? request.getRefundId() : refundOrder == null ? null : refundOrder.getRefundId(),
+                    null,
+                    null);
+        }
+        if (!StringUtils.hasText(request.getPayChannel()) || !StringUtils.hasText(request.getPayOrderId())) {
+            throw new AppException("0001", "退款查询缺少支付渠道或支付单号");
+        }
+        return new PaymentRefundQueryCommand(
+                PaymentChannel.parse(request.getPayChannel()).name(),
+                request.getOrderId(),
+                request.getPayOrderId(),
+                request.getGatewayTradeNo(),
+                request.getRefundId(),
+                null,
+                null);
+    }
+
     private CreatePaymentResponse toCreateResponse(PaymentCreateResult result, PayOrderEntity payOrder) {
         CreatePaymentResponse response = new CreatePaymentResponse();
         response.setOrderId(result.getOrderId());
@@ -441,6 +543,47 @@ public class PaymentService {
         response.setPayAmount(payOrder.getPayAmount());
         response.setCreated(result.isCreated());
         response.setMessage(result.getMessage());
+        return response;
+    }
+
+    private DownloadPaymentBillResponse toBillDownloadResponse(PaymentBillDownloadResult result) {
+        DownloadPaymentBillResponse response = new DownloadPaymentBillResponse();
+        response.setPayChannel(result.payChannel());
+        response.setBillDate(result.billDate());
+        response.setBillType(result.billType());
+        response.setDownloadUrl(result.downloadUrl());
+        response.setDownloaded(result.downloaded());
+        response.setParsed(result.parsed());
+        response.setTotalCount(result.totalCount());
+        response.setTotalAmount(result.totalAmount());
+        response.setSummary(result.summary());
+        response.setMessage(result.message());
+        return response;
+    }
+
+    private QueryPaymentRefundResponse toRefundQueryResponse(PaymentRefundQueryResult result) {
+        QueryPaymentRefundResponse response = new QueryPaymentRefundResponse();
+        response.setPayChannel(result.payChannel());
+        response.setOrderId(result.orderId());
+        response.setPayOrderId(result.payOrderId());
+        response.setGatewayTradeNo(result.gatewayTradeNo());
+        response.setRefundId(result.refundId());
+        response.setRefundStatus(result.refundStatus());
+        response.setRefundAmount(result.refundAmount());
+        response.setRefundTime(result.refundTime());
+        response.setVerified(result.verified());
+        response.setRawBody(result.rawBody());
+        response.setMessage(result.message());
+        return response;
+    }
+
+    private RefreshPaymentCertificateResponse toCertificateRefreshResponse(PaymentCertificateRefreshResult result) {
+        RefreshPaymentCertificateResponse response = new RefreshPaymentCertificateResponse();
+        response.setPayChannel(result.payChannel());
+        response.setRefreshed(result.refreshed());
+        response.setCertificateSerialNo(result.certificateSerialNo());
+        response.setRefreshTime(result.refreshTime());
+        response.setMessage(result.message());
         return response;
     }
 

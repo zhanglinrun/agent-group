@@ -12,6 +12,7 @@ import com.linrun.infrastructure.dao.ISourceChannelSkuActivityDao;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -61,5 +62,15 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
             return false;
         }
         return crowdTagDao.isTagCrowdRange(tagId, userId);
+    }
+
+    @Override
+    public List<GroupBuyMarketSku> querySkuList(int limit) {
+        return ActivityPOConverter.toMarketSkus(skuDao.querySkuList(Math.max(1, limit)));
+    }
+
+    @Override
+    public List<SourceChannelSkuActivity> querySourceChannelList(int limit) {
+        return ActivityPOConverter.toSourceChannels(sourceChannelSkuActivityDao.querySourceChannelList(Math.max(1, limit)));
     }
 }

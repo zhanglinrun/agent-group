@@ -40,7 +40,7 @@ export default function InputArea({ onSend, onStop, isStreaming }) {
         {image && (
           <div className="image-preview-wrap">
             <img src={image.url} alt="preview" />
-            <button type="button" className="image-remove" onClick={() => setImage(null)} aria-label="绉婚櫎鍥剧墖"><X size={12}/></button>
+            <button type="button" className="image-remove" onClick={() => setImage(null)} aria-label="移除图片"><X size={12}/></button>
           </div>
         )}
 
@@ -49,7 +49,7 @@ export default function InputArea({ onSend, onStop, isStreaming }) {
             type="button"
             className="action-btn"
             onClick={() => fileInputRef.current?.click()}
-            title="涓婁紶鍥剧墖"
+            title="上传图片"
           >
             <Paperclip size={18} />
           </button>
@@ -65,7 +65,7 @@ export default function InputArea({ onSend, onStop, isStreaming }) {
             id="guide-input"
             name="guide-input"
             className="chat-input"
-            placeholder="杈撳叆鎮ㄧ殑闂..."
+            placeholder="输入你的问题..."
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -84,7 +84,8 @@ export default function InputArea({ onSend, onStop, isStreaming }) {
         </div>
       </div>
       <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '0.75rem', color: '#b3b3b3' }}>
-        AI 鐢熸垚鐨勫唴瀹瑰彲鑳藉瓨鍦ㄤ笉鍑嗙‘锛岃娉ㄦ剰鐢勫埆銆?      </div>
+        AI 生成的内容可能不准确，请注意甄别。
+      </div>
     </div>
   );
 }

@@ -277,6 +277,41 @@ export async function queryRefundOrderList(options = {}) {
   });
 }
 
+export async function downloadPaymentBill(payload) {
+  return request("/api/v1/payment/bill/download", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function queryPaymentRefund(payload) {
+  return request("/api/v1/payment/refund/query", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function refreshPaymentCertificate(payChannel) {
+  return request("/api/v1/payment/certificate/refresh", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payChannel })
+  });
+}
+
+export async function queryPaymentErrorMap(payChannel, gatewayCode) {
+  const params = new URLSearchParams({ payChannel, gatewayCode });
+  return request(`/api/v1/payment/error-map?${params.toString()}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
 export async function queryProductCatalog(keyword = "", limit = 20) {
   const params = new URLSearchParams();
   if (keyword) params.set("keyword", keyword);
@@ -387,6 +422,13 @@ export async function sendWeixinTemplateMessage(payload) {
 
 export async function queryOperationalRules() {
   return request("/api/v1/ops/rules", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function queryOpsDashboard() {
+  return request("/api/v1/ops/dashboard", {
     auth: true,
     method: "GET"
   });

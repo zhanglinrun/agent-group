@@ -1,26 +1,32 @@
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, ShoppingCart, Upload } from "lucide-react";
+import { Activity, AlertTriangle, Bell, Boxes, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, ShoppingCart, Tags, Upload } from "lucide-react";
 import AdminAuthBar from "./AdminAuthBar";
 import {
   compensateKnowledgeVector,
+  downloadPaymentBill,
   getKnowledgeDocuments,
   getLatestGuideEvaluation,
+  queryOpsDashboard,
   queryOperationalRules,
+  queryPaymentErrorMap,
+  queryPaymentRefund,
   queryRefundOrderList,
   queryUserOrderList,
   rebuildKnowledgeVector,
+  refreshPaymentCertificate,
   runGuideEvaluation,
   updateOperationalRule,
   uploadKnowledgeDocument
 } from "../services/api";
 
 async function fetchAdminData() {
-  const [docsResult, evalResult, ordersResult, refundsResult, rulesResult] = await Promise.allSettled([
+  const [docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult] = await Promise.allSettled([
     getKnowledgeDocuments(),
     getLatestGuideEvaluation(),
     queryUserOrderList({ pageSize: 20 }),
     queryRefundOrderList({ userId: null, pageSize: 20 }),
-    queryOperationalRules()
+    queryOperationalRules(),
+    queryOpsDashboard()
   ]);
 
   return {
@@ -28,7 +34,8 @@ async function fetchAdminData() {
     evalResult,
     ordersResult,
     refundsResult,
-    rulesResult
+    rulesResult,
+    opsResult
   };
 }
 
@@ -57,11 +64,14 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [rules, setRules] = useState([]);
+  const [opsDashboard, setOpsDashboard] = useState({ activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
+  const [paymentOps, setPaymentOps] = useState({ payChannel: "MOCK_PAY", billDate: "", refundOrderId: "", gatewayCode: "SYSTEMERROR" });
+  const [paymentOpsResult, setPaymentOpsResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   const loadData = async () => {
     setErrorMsg("");
-    const { docsResult, evalResult, ordersResult, refundsResult, rulesResult } = await fetchAdminData();
+    const { docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult } = await fetchAdminData();
 
     if (docsResult.status === "fulfilled" && docsResult.value.code === "0000") {
       setDocuments(docsResult.value.data || []);
@@ -78,8 +88,11 @@ export default function AdminDashboard() {
     if (rulesResult.status === "fulfilled" && rulesResult.value.code === "0000") {
       setRules(rulesResult.value.data || []);
     }
+    if (opsResult.status === "fulfilled" && opsResult.value.code === "0000") {
+      setOpsDashboard(opsResult.value.data || { activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
+    }
 
-    const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult)].filter(Boolean);
+    const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult), resultError(opsResult)].filter(Boolean);
     if (errors.length > 0) {
       setErrorMsg([...new Set(errors)].join("；"));
     }
@@ -87,7 +100,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let active = true;
-    fetchAdminData().then(({ docsResult, evalResult, ordersResult, refundsResult, rulesResult }) => {
+    fetchAdminData().then(({ docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult }) => {
       if (!active) return;
       if (docsResult.status === "fulfilled" && docsResult.value.code === "0000") {
         setDocuments(docsResult.value.data || []);
@@ -104,7 +117,10 @@ export default function AdminDashboard() {
       if (rulesResult.status === "fulfilled" && rulesResult.value.code === "0000") {
         setRules(rulesResult.value.data || []);
       }
-      const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult)].filter(Boolean);
+      if (opsResult.status === "fulfilled" && opsResult.value.code === "0000") {
+        setOpsDashboard(opsResult.value.data || { activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
+      }
+      const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult), resultError(opsResult)].filter(Boolean);
       if (errors.length > 0) {
         setErrorMsg([...new Set(errors)].join("；"));
       }
@@ -145,6 +161,25 @@ export default function AdminDashboard() {
 
   const saveRule = async (rule) => {
     await handleAction(`保存规则 ${rule.ruleKey}`, () => updateOperationalRule(rule.ruleKey, rule.ruleValue));
+  };
+
+  const updatePaymentOps = (field, value) => {
+    setPaymentOps(prev => ({ ...prev, [field]: value }));
+  };
+
+  const runPaymentOps = async (actionName, apiCall) => {
+    setLoadingMsg(`${actionName}中...`);
+    try {
+      const res = await apiCall();
+      setPaymentOpsResult(res.data || res);
+      if (res.code !== "0000") {
+        alert(`${actionName}失败：${res.info}`);
+      }
+    } catch (error) {
+      alert(`${actionName}异常：${error.message || "请求失败"}`);
+    } finally {
+      setLoadingMsg("");
+    }
   };
 
   return (
@@ -344,6 +379,180 @@ export default function AdminDashboard() {
                   {refunds.length === 0 && <tr><td colSpan="7" className="empty-cell">暂无退款单</td></tr>}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-card full-width">
+          <div className="admin-card-header">
+            <div className="admin-title-line">
+              <RefreshCw size={18} color="#2563eb" />
+              <h3>支付生产运维</h3>
+            </div>
+          </div>
+          <div className="admin-card-body">
+            <div className="form-grid">
+              <label>
+                支付渠道
+                <select value={paymentOps.payChannel} onChange={(event) => updatePaymentOps("payChannel", event.target.value)}>
+                  <option value="MOCK_PAY">MOCK_PAY</option>
+                  <option value="ALIPAY">ALIPAY</option>
+                  <option value="WECHAT_PAY">WECHAT_PAY</option>
+                </select>
+              </label>
+              <label>
+                账单日期
+                <input type="date" value={paymentOps.billDate} onChange={(event) => updatePaymentOps("billDate", event.target.value)} />
+              </label>
+              <label>
+                退款订单号
+                <input value={paymentOps.refundOrderId} onChange={(event) => updatePaymentOps("refundOrderId", event.target.value)} placeholder="本地订单号" />
+              </label>
+              <label>
+                渠道错误码
+                <input value={paymentOps.gatewayCode} onChange={(event) => updatePaymentOps("gatewayCode", event.target.value)} placeholder="如 SYSTEMERROR" />
+              </label>
+            </div>
+            <div className="admin-actions payment-actions">
+              <button className="admin-btn outline" onClick={() => runPaymentOps("下载解析账单", () => downloadPaymentBill({
+                payChannel: paymentOps.payChannel,
+                billDate: paymentOps.billDate || undefined,
+                billType: "trade",
+                downloadContent: paymentOps.payChannel === "MOCK_PAY"
+              }))}>
+                <Database size={16} /> 账单解析
+              </button>
+              <button className="admin-btn outline" onClick={() => runPaymentOps("查询退款", () => queryPaymentRefund({
+                orderId: paymentOps.refundOrderId,
+                payChannel: paymentOps.payChannel
+              }))}>
+                <RotateCcw size={16} /> 退款查询
+              </button>
+              <button className="admin-btn outline" onClick={() => runPaymentOps("刷新证书", () => refreshPaymentCertificate(paymentOps.payChannel))}>
+                <RefreshCw size={16} /> 证书刷新
+              </button>
+              <button className="admin-btn outline" onClick={() => runPaymentOps("映射错误码", () => queryPaymentErrorMap(paymentOps.payChannel, paymentOps.gatewayCode))}>
+                <AlertTriangle size={16} /> 错误码映射
+              </button>
+            </div>
+            {paymentOpsResult && (
+              <pre className="ops-result">{JSON.stringify(paymentOpsResult, null, 2)}</pre>
+            )}
+          </div>
+        </section>
+
+        <section className="admin-card full-width">
+          <div className="admin-card-header">
+            <div className="admin-title-line">
+              <Boxes size={18} color="#0f766e" />
+              <h3>活动渠道运营台</h3>
+            </div>
+          </div>
+          <div className="admin-card-body ops-panel">
+            <div className="ops-mini-grid">
+              <div className="ops-block">
+                <div className="admin-title-line ops-title"><Activity size={16} /><h4>活动配置</h4></div>
+                <div className="table-wrap compact">
+                  <table className="admin-table compact">
+                    <thead><tr><th>活动</th><th>商品</th><th>团价</th><th>状态</th><th>人群</th></tr></thead>
+                    <tbody>
+                      {(opsDashboard.activities || []).map((item) => (
+                        <tr key={item.activityId}>
+                          <td>{item.activityName || item.activityId}</td>
+                          <td className="mono">{item.goodsId}</td>
+                          <td>￥{item.groupPrice || 0}</td>
+                          <td><span className={`badge ${item.enabled ? "badge-green" : "badge-gray"}`}>{item.enabled ? "启用" : "停用"}</span></td>
+                          <td>{item.tagId || "-"}</td>
+                        </tr>
+                      ))}
+                      {(opsDashboard.activities || []).length === 0 && <tr><td colSpan="5" className="empty-cell">暂无活动配置</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="ops-block">
+                <div className="admin-title-line ops-title"><Tags size={16} /><h4>渠道商品</h4></div>
+                <div className="table-wrap compact">
+                  <table className="admin-table compact">
+                    <thead><tr><th>来源</th><th>渠道</th><th>商品</th><th>活动</th></tr></thead>
+                    <tbody>
+                      {(opsDashboard.channels || []).map((item) => (
+                        <tr key={`${item.source}-${item.channel}-${item.goodsId}`}>
+                          <td>{item.source}</td>
+                          <td>{item.channel}</td>
+                          <td>{item.goodsName || item.goodsId}</td>
+                          <td className="mono">{item.activityId}</td>
+                        </tr>
+                      ))}
+                      {(opsDashboard.channels || []).length === 0 && <tr><td colSpan="4" className="empty-cell">暂无渠道配置</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="ops-block">
+                <div className="admin-title-line ops-title"><Tags size={16} /><h4>人群标签</h4></div>
+                <div className="table-wrap compact">
+                  <table className="admin-table compact">
+                    <thead><tr><th>标签</th><th>人数</th><th>批次</th><th>状态</th></tr></thead>
+                    <tbody>
+                      {(opsDashboard.crowdTags || []).map((item) => (
+                        <tr key={item.tagId}>
+                          <td>{item.tagName || item.tagId}</td>
+                          <td>{item.statistics || 0}</td>
+                          <td className="mono">{item.latestBatchId || "-"}</td>
+                          <td><span className="badge badge-blue">{item.latestJobStatus ?? "-"}</span></td>
+                        </tr>
+                      ))}
+                      {(opsDashboard.crowdTags || []).length === 0 && <tr><td colSpan="4" className="empty-cell">暂无人群标签</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="ops-block">
+                <div className="admin-title-line ops-title"><Boxes size={16} /><h4>库存水位</h4></div>
+                <div className="table-wrap compact">
+                  <table className="admin-table compact">
+                    <thead><tr><th>活动</th><th>商品</th><th>可用</th><th>锁定</th><th>已付</th></tr></thead>
+                    <tbody>
+                      {(opsDashboard.stocks || []).map((item) => (
+                        <tr key={`${item.activityId}-${item.goodsId}`}>
+                          <td className="mono">{item.activityId}</td>
+                          <td className="mono">{item.goodsId}</td>
+                          <td>{item.availableStock || 0}/{item.totalStock || 0}</td>
+                          <td>{item.lockedStock || 0}</td>
+                          <td>{item.paidStock || 0}</td>
+                        </tr>
+                      ))}
+                      {(opsDashboard.stocks || []).length === 0 && <tr><td colSpan="5" className="empty-cell">暂无库存配置</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="ops-block wide">
+                <div className="admin-title-line ops-title"><Bell size={16} /><h4>通知任务</h4></div>
+                <div className="table-wrap compact">
+                  <table className="admin-table compact">
+                    <thead><tr><th>任务</th><th>分类</th><th>类型</th><th>次数</th><th>状态</th><th>更新时间</th></tr></thead>
+                    <tbody>
+                      {(opsDashboard.notifyTasks || []).map((item) => (
+                        <tr key={item.uuid}>
+                          <td className="mono">{item.uuid}</td>
+                          <td>{item.notifyCategory}</td>
+                          <td>{item.notifyType}</td>
+                          <td>{item.notifyCount || 0}</td>
+                          <td><span className="badge badge-purple">{item.notifyStatus}</span></td>
+                          <td>{item.updateTime ? item.updateTime.replace("T", " ") : ""}</td>
+                        </tr>
+                      ))}
+                      {(opsDashboard.notifyTasks || []).length === 0 && <tr><td colSpan="6" className="empty-cell">暂无通知任务</td></tr>}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </section>

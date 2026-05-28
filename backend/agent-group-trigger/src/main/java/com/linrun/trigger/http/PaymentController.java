@@ -1,8 +1,15 @@
 package com.linrun.trigger.http;
 
 import com.linrun.api.dto.CreatePaymentRequest;
+import com.linrun.api.dto.DownloadPaymentBillRequest;
+import com.linrun.api.dto.DownloadPaymentBillResponse;
+import com.linrun.api.dto.PaymentGatewayErrorMapResponse;
 import com.linrun.api.dto.PaymentWebhookRequest;
+import com.linrun.api.dto.QueryPaymentRefundRequest;
+import com.linrun.api.dto.QueryPaymentRefundResponse;
 import com.linrun.api.dto.ReconcilePaymentRequest;
+import com.linrun.api.dto.RefreshPaymentCertificateRequest;
+import com.linrun.api.dto.RefreshPaymentCertificateResponse;
 import com.linrun.api.dto.RefundPaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
@@ -15,6 +22,7 @@ import com.linrun.types.common.Response;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -71,6 +79,39 @@ public class PaymentController {
     @PostMapping("/reconcile")
     public Response<ReconcilePaymentResponse> reconcile(@RequestBody ReconcilePaymentRequest request) {
         return Response.success(paymentService.reconcile(request), RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/bill/download")
+    public Response<DownloadPaymentBillResponse> downloadBill(@RequestBody DownloadPaymentBillRequest request) {
+        return Response.success(paymentService.downloadBill(request), RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/refund/query")
+    public Response<QueryPaymentRefundResponse> queryRefund(@RequestBody QueryPaymentRefundRequest request) {
+        return Response.success(paymentService.queryRefund(request), RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping(value = "/refund/webhook/{payChannel}", consumes = MediaType.ALL_VALUE)
+    public Response<QueryPaymentRefundResponse> refundWebhook(@PathVariable String payChannel,
+                                                              @RequestBody(required = false) String requestBody,
+                                                              @RequestHeader Map<String, String> headers,
+                                                              @RequestParam(required = false) Map<String, String> params) {
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel(payChannel);
+        request.setHeaders(headers);
+        request.setRequestBody(StringUtils.hasText(requestBody) ? requestBody : formBody(params));
+        return Response.success(paymentService.handleRefundWebhook(request), RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/certificate/refresh")
+    public Response<RefreshPaymentCertificateResponse> refreshCertificate(@RequestBody RefreshPaymentCertificateRequest request) {
+        return Response.success(paymentService.refreshCertificate(request), RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/error-map")
+    public Response<PaymentGatewayErrorMapResponse> errorMap(@RequestParam String payChannel,
+                                                             @RequestParam String gatewayCode) {
+        return Response.success(paymentService.mapGatewayError(payChannel, gatewayCode), RequestTraceContext.getRequestId());
     }
 
     private String formBody(Map<String, String> params) {

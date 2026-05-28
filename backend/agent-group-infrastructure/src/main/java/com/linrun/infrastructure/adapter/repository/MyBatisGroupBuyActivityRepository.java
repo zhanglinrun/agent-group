@@ -6,6 +6,7 @@ import com.linrun.infrastructure.converter.ActivityPOConverter;
 import com.linrun.infrastructure.dao.IGroupBuyActivityDao;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -25,5 +26,10 @@ public class MyBatisGroupBuyActivityRepository implements GroupBuyActivityReposi
     @Override
     public Optional<GroupBuyActivity> queryByActivityId(String activityId) {
         return Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyActivityDao.queryByActivityId(activityId)));
+    }
+
+    @Override
+    public List<GroupBuyActivity> queryActivityList(int limit) {
+        return ActivityPOConverter.toActivities(groupBuyActivityDao.queryActivityList(Math.max(1, limit)));
     }
 }

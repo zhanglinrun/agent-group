@@ -5,6 +5,8 @@ import com.linrun.infrastructure.po.GroupBuyStockPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface IGroupBuyStockDao {
 
@@ -12,6 +14,8 @@ public interface IGroupBuyStockDao {
 
     GroupBuyStockPO queryByActivityIdAndGoodsIdForUpdate(@Param("activityId") String activityId,
                                                          @Param("goodsId") String goodsId);
+
+    List<GroupBuyStockPO> queryStockList(@Param("limit") int limit);
 
     int lockStock(@Param("activityId") String activityId, @Param("goodsId") String goodsId);
 

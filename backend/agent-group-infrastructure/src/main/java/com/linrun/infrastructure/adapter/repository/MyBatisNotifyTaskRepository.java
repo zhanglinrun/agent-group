@@ -34,6 +34,11 @@ public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
     }
 
     @Override
+    public List<NotifyTask> queryRecentNotifyTaskList(int limit) {
+        return TradePOConverter.toNotifyTasks(notifyTaskDao.queryRecentNotifyTaskList(Math.max(1, limit)));
+    }
+
+    @Override
     public Optional<NotifyTask> queryNotifyTaskByUuid(String uuid) {
         return Optional.ofNullable(TradePOConverter.toEntity(notifyTaskDao.queryNotifyTaskByUuid(uuid)));
     }
