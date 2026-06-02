@@ -30,22 +30,22 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-public class AcademicDodoAgentHandler {
+public class AcademicBearDoctorAgentHandler {
 
-    private final DodoNativeAgentService dodoNativeAgentService;
+    private final BearDoctorNativeAgentService bearDoctorNativeAgentService;
     private final UserAccountService userAccountService;
     private final UserQuotaService userQuotaService;
     private final AgentTaskManager taskManager;
     private final AiPptInstService aiPptInstService;
     private final ObjectMapper objectMapper;
 
-    public AcademicDodoAgentHandler(DodoNativeAgentService dodoNativeAgentService,
+    public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
                                     UserAccountService userAccountService,
                                     UserQuotaService userQuotaService,
                                     AgentTaskManager taskManager,
                                     AiPptInstService aiPptInstService,
                                     ObjectMapper objectMapper) {
-        this.dodoNativeAgentService = dodoNativeAgentService;
+        this.bearDoctorNativeAgentService = bearDoctorNativeAgentService;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
         this.taskManager = taskManager;
@@ -65,7 +65,7 @@ public class AcademicDodoAgentHandler {
             String fileId = nullToBlank(safeRequest.getFileId());
             AtomicInteger sequence = new AtomicInteger(1);
 
-            return dodoNativeAgentService.stream(token, taskType, query, sessionId, fileId)
+            return bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId)
                     .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence))
                     .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(user, sessionId, requestId, sequence, taskType))))
                     .onErrorResume(error -> Flux.just(errorEvent(sessionId, requestId, sequence, error)));
@@ -73,7 +73,7 @@ public class AcademicDodoAgentHandler {
     }
 
     public AcademicAgentStreamRequest resumeRequest(String token, String sessionId) {
-        List<AiSession> messages = dodoNativeAgentService.querySessionMessages(token, sessionId);
+        List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
         AiSession latest = messages.stream()
                 .reduce((first, second) -> second)
                 .orElseThrow(() -> new AppException("SESSION_0001", "会话不存在，无法继续生成"));
@@ -88,7 +88,7 @@ public class AcademicDodoAgentHandler {
     public Map<String, Object> queryTaskStatus(String token, String sessionId) {
         UserAccount user = userAccountService.requireUserByToken(token);
         String internalSessionId = internalSessionId(user.getUserId(), sessionId);
-        List<AiSession> messages = dodoNativeAgentService.querySessionMessages(token, sessionId);
+        List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("sessionId", sessionId);
         data.put("running", taskManager.hasRunningTask(internalSessionId));
@@ -100,7 +100,7 @@ public class AcademicDodoAgentHandler {
     }
 
     public AcademicFileUploadResponse upload(String token, MultipartFile file, String sessionId) {
-        FileInfo fileInfo = dodoNativeAgentService.upload(token, file, sessionId);
+        FileInfo fileInfo = bearDoctorNativeAgentService.upload(token, file, sessionId);
         AcademicFileUploadResponse response = new AcademicFileUploadResponse();
         response.setFileId(fileInfo.getFileId());
         response.setFileName(fileInfo.getFileName());
@@ -112,12 +112,12 @@ public class AcademicDodoAgentHandler {
     }
 
     public boolean stop(String token, String sessionId) {
-        return dodoNativeAgentService.stop(token, sessionId);
+        return bearDoctorNativeAgentService.stop(token, sessionId);
     }
 
     public List<AcademicSessionSummaryDTO> querySessions(String token, int limit) {
         UserAccount user = userAccountService.requireUserByToken(token);
-        return dodoNativeAgentService.querySessions(token, 1, Math.max(1, Math.min(limit, 100)))
+        return bearDoctorNativeAgentService.querySessions(token, 1, Math.max(1, Math.min(limit, 100)))
                 .stream()
                 .map(session -> toSummary(user, session))
                 .toList();
@@ -127,7 +127,7 @@ public class AcademicDodoAgentHandler {
         AcademicSessionDetailResponse response = new AcademicSessionDetailResponse();
         response.setSessionId(sessionId);
         List<AcademicSessionDetailResponse.Message> messages = new ArrayList<>();
-        for (AiSession session : dodoNativeAgentService.querySessionMessages(token, sessionId)) {
+        for (AiSession session : bearDoctorNativeAgentService.querySessionMessages(token, sessionId)) {
             if (StringUtils.hasText(session.getQuestion())) {
                 messages.add(toMessage("USER", session.getQuestion(), session.getCreateTime()));
             }
@@ -184,7 +184,7 @@ public class AcademicDodoAgentHandler {
         events.add(event("usage_metric", sessionId, requestId, sequence, Map.of(
                 "consumedQuota", userQuotaService.estimatePreCheckCost(taskType),
                 "remainingQuota", quota.getQuotaBalance(),
-                "model", "dodo-agent")));
+                "model", "bear-doctor-agent")));
         events.add(event("done", sessionId, requestId, sequence, "done"));
         return events;
     }
@@ -274,7 +274,7 @@ public class AcademicDodoAgentHandler {
 
     private AcademicSessionSummaryDTO toSummary(UserAccount user, AiSession session) {
         AcademicSessionSummaryDTO dto = new AcademicSessionSummaryDTO();
-        dto.setSessionId(dodoNativeAgentService.externalConversationId(user.getUserId(), session.getSessionId()));
+        dto.setSessionId(bearDoctorNativeAgentService.externalConversationId(user.getUserId(), session.getSessionId()));
         dto.setTitle(title(session.getQuestion(), session.getAgentType()));
         dto.setLastMessage(limit(session.getAnswer(), 120));
         dto.setUpdateTime(session.getUpdateTime() == null ? session.getCreateTime() : session.getUpdateTime());

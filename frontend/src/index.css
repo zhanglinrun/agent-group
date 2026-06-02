@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   /* Doubao Chat Colors */
@@ -1310,8 +1310,8 @@ body {
   }
 }
 
-/* Dodo Agent shell */
-.dodo-app {
+/* 熊博士 Agent shell */
+.bear-doctor-app {
   --primary-color: #8b5cf6;
   --primary-light: #a78bfa;
   --primary-dark: #6d28d9;
@@ -1333,7 +1333,7 @@ body {
   color: var(--text-primary);
 }
 
-.dodo-app .container {
+.bear-doctor-app .container {
   display: flex;
   width: 100%;
   height: 100%;
@@ -1341,7 +1341,7 @@ body {
   z-index: 1;
 }
 
-.dodo-app .sidebar {
+.bear-doctor-app .sidebar {
   width: var(--sidebar-width);
   background: #252525;
   border-right: 1px solid #333;
@@ -1350,25 +1350,25 @@ body {
   flex-shrink: 0;
 }
 
-.dodo-app .sidebar-header {
+.bear-doctor-app .sidebar-header {
   padding: 24px 20px;
   border-bottom: 1px solid var(--border-color);
 }
 
-.dodo-app .app-title {
+.bear-doctor-app .app-title {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
 }
 
-.dodo-app .logo-icon {
+.bear-doctor-app .logo-icon {
   font-size: 32px;
   filter: drop-shadow(0 0 12px var(--glow-color));
-  animation: dodoPulseGlow 2.5s ease-in-out infinite;
+  animation: bearDoctorPulseGlow 2.5s ease-in-out infinite;
 }
 
-@keyframes dodoPulseGlow {
+@keyframes bearDoctorPulseGlow {
   0%, 100% {
     transform: scale(1);
     filter: drop-shadow(0 0 12px var(--glow-color));
@@ -1379,7 +1379,7 @@ body {
   }
 }
 
-.dodo-app .title-text {
+.bear-doctor-app .title-text {
   font-size: 24px;
   font-weight: 700;
   background: linear-gradient(135deg, var(--primary-light), var(--accent-light));
@@ -1388,7 +1388,7 @@ body {
   background-clip: text;
 }
 
-.dodo-app .new-chat-btn {
+.bear-doctor-app .new-chat-btn {
   width: 100%;
   padding: 14px 20px;
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
@@ -1406,18 +1406,18 @@ body {
   box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
 }
 
-.dodo-app .new-chat-btn:hover {
+.bear-doctor-app .new-chat-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
 }
 
-.dodo-app .chat-list {
+.bear-doctor-app .chat-list {
   flex: 1;
   overflow-y: auto;
   padding: 12px 16px;
 }
 
-.dodo-app .chat-item {
+.bear-doctor-app .chat-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1430,17 +1430,17 @@ body {
   border: 1px solid transparent;
 }
 
-.dodo-app .chat-item:hover {
+.bear-doctor-app .chat-item:hover {
   background: rgba(139, 92, 246, 0.15);
   transform: translateX(2px);
 }
 
-.dodo-app .chat-item.active {
+.bear-doctor-app .chat-item.active {
   background: rgba(139, 92, 246, 0.25);
   border-color: var(--primary-color);
 }
 
-.dodo-app .chat-title {
+.bear-doctor-app .chat-title {
   flex: 1;
   font-size: 14px;
   white-space: nowrap;
@@ -1449,7 +1449,7 @@ body {
   color: var(--text-primary);
 }
 
-.dodo-app .delete-btn {
+.bear-doctor-app .delete-btn {
   opacity: 0;
   width: 32px;
   height: 32px;
@@ -1464,22 +1464,22 @@ body {
   border: none;
 }
 
-.dodo-app .chat-item:hover .delete-btn {
+.bear-doctor-app .chat-item:hover .delete-btn {
   opacity: 0.6;
 }
 
-.dodo-app .delete-btn:hover {
+.bear-doctor-app .delete-btn:hover {
   opacity: 1;
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
 
-.dodo-app .sidebar-footer {
+.bear-doctor-app .sidebar-footer {
   padding: 20px;
   border-top: 1px solid var(--border-color);
 }
 
-.dodo-app .model-info {
+.bear-doctor-app .model-info {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1488,7 +1488,7 @@ body {
   word-break: break-all;
 }
 
-.dodo-app .main-content {
+.bear-doctor-app .main-content {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1496,18 +1496,18 @@ body {
   background: transparent;
 }
 
-.dodo-app .top-decoration {
+.bear-doctor-app .top-decoration {
   position: relative;
   padding: 20px 0 0 0;
 }
 
-.dodo-app .decoration-line {
+.bear-doctor-app .decoration-line {
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--primary-color), var(--accent-color), transparent);
   width: 100%;
 }
 
-.dodo-app .top-actions {
+.bear-doctor-app .top-actions {
   position: absolute;
   top: 28px;
   right: 28px;
@@ -1517,8 +1517,8 @@ body {
   z-index: 3;
 }
 
-.dodo-app .quota-chip,
-.dodo-app .account-btn {
+.bear-doctor-app .quota-chip,
+.bear-doctor-app .account-btn {
   height: 36px;
   border: 1px solid rgba(139, 92, 246, 0.35);
   background: rgba(15, 23, 42, 0.72);
@@ -1532,20 +1532,20 @@ body {
   backdrop-filter: blur(10px);
 }
 
-.dodo-app .quota-chip:hover,
-.dodo-app .account-btn:hover {
+.bear-doctor-app .quota-chip:hover,
+.bear-doctor-app .account-btn:hover {
   border-color: var(--primary-light);
   background: rgba(139, 92, 246, 0.22);
 }
 
-.dodo-app .messages-container {
+.bear-doctor-app .messages-container {
   flex: 1;
   overflow-y: auto;
   padding: 30px 80px;
   scroll-behavior: smooth;
 }
 
-.dodo-app .empty-state {
+.bear-doctor-app .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1554,24 +1554,24 @@ body {
   color: var(--text-secondary);
 }
 
-.dodo-app .empty-icon-wrapper {
+.bear-doctor-app .empty-icon-wrapper {
   position: relative;
   margin-bottom: 24px;
 }
 
-.dodo-app .empty-icon {
+.bear-doctor-app .empty-icon {
   font-size: 100px;
   position: relative;
   z-index: 1;
-  animation: dodoFloatIcon 4s ease-in-out infinite;
+  animation: bearDoctorFloatIcon 4s ease-in-out infinite;
 }
 
-@keyframes dodoFloatIcon {
+@keyframes bearDoctorFloatIcon {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-15px); }
 }
 
-.dodo-app .icon-glow {
+.bear-doctor-app .icon-glow {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1582,10 +1582,10 @@ body {
   border-radius: 50%;
   filter: blur(30px);
   z-index: 0;
-  animation: dodoGlowPulse 3s ease-in-out infinite;
+  animation: bearDoctorGlowPulse 3s ease-in-out infinite;
 }
 
-@keyframes dodoGlowPulse {
+@keyframes bearDoctorGlowPulse {
   0%, 100% {
     opacity: 0.5;
     transform: translate(-50%, -50%) scale(1);
@@ -1596,7 +1596,7 @@ body {
   }
 }
 
-.dodo-app .empty-state h2 {
+.bear-doctor-app .empty-state h2 {
   font-size: 32px;
   margin-bottom: 12px;
   color: var(--text-primary);
@@ -1608,19 +1608,19 @@ body {
   text-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
 }
 
-.dodo-app .empty-state p {
+.bear-doctor-app .empty-state p {
   font-size: 16px;
   margin-bottom: 40px;
 }
 
-.dodo-app .quick-actions {
+.bear-doctor-app .quick-actions {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
-.dodo-app .quick-action {
+.bear-doctor-app .quick-action {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1633,21 +1633,21 @@ body {
   font-size: 14px;
 }
 
-.dodo-app .quick-action:hover {
+.bear-doctor-app .quick-action:hover {
   background: var(--primary-color);
   border-color: var(--primary-color);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
 }
 
-.dodo-app .message {
+.bear-doctor-app .message {
   display: flex;
   gap: 16px;
   margin-bottom: 36px;
-  animation: dodoFadeIn 0.45s ease;
+  animation: bearDoctorFadeIn 0.45s ease;
 }
 
-@keyframes dodoFadeIn {
+@keyframes bearDoctorFadeIn {
   from {
     opacity: 0;
     transform: translateY(18px);
@@ -1658,7 +1658,7 @@ body {
   }
 }
 
-.dodo-app .message-avatar {
+.bear-doctor-app .message-avatar {
   width: 44px;
   height: 44px;
   border-radius: 14px;
@@ -1671,17 +1671,17 @@ body {
   box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
 }
 
-.dodo-app .message.user .message-avatar {
+.bear-doctor-app .message.user .message-avatar {
   background: linear-gradient(135deg, #64748b, #475569);
 }
 
-.dodo-app .message-content {
+.bear-doctor-app .message-content {
   flex: 1;
   min-width: 0;
   padding-top: 6px;
 }
 
-.dodo-app .user-message {
+.bear-doctor-app .user-message {
   background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
   color: white;
   padding: 16px 20px;
@@ -1693,7 +1693,7 @@ body {
   white-space: pre-wrap;
 }
 
-.dodo-app .file-attachment {
+.bear-doctor-app .file-attachment {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1704,23 +1704,23 @@ body {
   font-size: 13px;
 }
 
-.dodo-app .ai-message {
+.bear-doctor-app .ai-message {
   color: var(--text-primary);
 }
 
-.dodo-app .text-content {
+.bear-doctor-app .text-content {
   line-height: 1.8;
   font-size: 15px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.dodo-app .markdown-body {
+.bear-doctor-app .markdown-body {
   color: var(--text-primary);
 }
 
-.dodo-app .timeline-section,
-.dodo-app .reference-section {
+.bear-doctor-app .timeline-section,
+.bear-doctor-app .reference-section {
   margin-bottom: 20px;
   border-radius: 16px;
   overflow: hidden;
@@ -1729,14 +1729,14 @@ body {
   backdrop-filter: blur(10px);
 }
 
-.dodo-app .reference-section {
+.bear-doctor-app .reference-section {
   margin-top: 24px;
   border-color: rgba(6, 182, 212, 0.25);
   background: rgba(6, 182, 212, 0.08);
 }
 
-.dodo-app .timeline-header,
-.dodo-app .reference-header {
+.bear-doctor-app .timeline-header,
+.bear-doctor-app .reference-header {
   width: 100%;
   border: none;
   display: flex;
@@ -1751,20 +1751,20 @@ body {
   text-align: left;
 }
 
-.dodo-app .reference-header {
+.bear-doctor-app .reference-header {
   background: rgba(6, 182, 212, 0.12);
 }
 
-.dodo-app .timeline-header:hover {
+.bear-doctor-app .timeline-header:hover {
   background: rgba(139, 92, 246, 0.25);
 }
 
-.dodo-app .reference-header:hover {
+.bear-doctor-app .reference-header:hover {
   background: rgba(6, 182, 212, 0.18);
 }
 
-.dodo-app .timeline-icon-wrapper,
-.dodo-app .reference-icon-wrapper {
+.bear-doctor-app .timeline-icon-wrapper,
+.bear-doctor-app .reference-icon-wrapper {
   width: 28px;
   height: 28px;
   background: rgba(139, 92, 246, 0.3);
@@ -1775,21 +1775,21 @@ body {
   flex-shrink: 0;
 }
 
-.dodo-app .reference-icon-wrapper {
+.bear-doctor-app .reference-icon-wrapper {
   background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(139, 92, 246, 0.25));
 }
 
-.dodo-app .timeline-title,
-.dodo-app .reference-title {
+.bear-doctor-app .timeline-title,
+.bear-doctor-app .reference-title {
   flex: 1;
   font-weight: 600;
 }
 
-.dodo-app .timeline-content {
+.bear-doctor-app .timeline-content {
   padding: 14px 18px;
 }
 
-.dodo-app .timeline-item {
+.bear-doctor-app .timeline-item {
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -1798,11 +1798,11 @@ body {
   padding-left: 4px;
 }
 
-.dodo-app .timeline-item:last-child {
+.bear-doctor-app .timeline-item:last-child {
   padding-bottom: 0;
 }
 
-.dodo-app .timeline-item:not(:last-child)::after {
+.bear-doctor-app .timeline-item:not(:last-child)::after {
   content: '';
   position: absolute;
   left: 7px;
@@ -1812,7 +1812,7 @@ body {
   background: rgba(100, 116, 139, 0.3);
 }
 
-.dodo-app .timeline-dot {
+.bear-doctor-app .timeline-dot {
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -1821,74 +1821,74 @@ body {
   margin-top: 2px;
 }
 
-.dodo-app .timeline-dot.thinking {
+.bear-doctor-app .timeline-dot.thinking {
   background: rgba(139, 92, 246, 0.6);
   border: 2px solid var(--primary-light);
 }
 
-.dodo-app .timeline-dot.completed,
-.dodo-app .timeline-dot.tool {
+.bear-doctor-app .timeline-dot.completed,
+.bear-doctor-app .timeline-dot.tool {
   background: rgba(16, 185, 129, 0.6);
   border: 2px solid #10b981;
 }
 
-.dodo-app .timeline-dot.error {
+.bear-doctor-app .timeline-dot.error {
   background: rgba(245, 158, 11, 0.6);
   border: 2px solid #f59e0b;
 }
 
-.dodo-app .timeline-item-body {
+.bear-doctor-app .timeline-item-body {
   flex: 1;
   min-width: 0;
 }
 
-.dodo-app .timeline-thinking {
+.bear-doctor-app .timeline-thinking {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
 }
 
-.dodo-app .timeline-tool,
-.dodo-app .timeline-error {
+.bear-doctor-app .timeline-tool,
+.bear-doctor-app .timeline-error {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
 }
 
-.dodo-app .timeline-error {
+.bear-doctor-app .timeline-error {
   color: #f59e0b;
 }
 
-.dodo-app .timeline-tool-name {
+.bear-doctor-app .timeline-tool-name {
   color: var(--text-primary);
   font-weight: 600;
 }
 
-.dodo-app .thinking-loading {
+.bear-doctor-app .thinking-loading {
   display: flex;
   gap: 8px;
   padding: 12px 0;
 }
 
-.dodo-app .thinking-loading .dot {
+.bear-doctor-app .thinking-loading .dot {
   width: 8px;
   height: 8px;
   background: var(--primary-light);
   border-radius: 50%;
-  animation: dodoThinkingBounce 1.4s infinite ease-in-out;
+  animation: bearDoctorThinkingBounce 1.4s infinite ease-in-out;
 }
 
-.dodo-app .thinking-loading .dot:nth-child(2) {
+.bear-doctor-app .thinking-loading .dot:nth-child(2) {
   animation-delay: 0.2s;
 }
 
-.dodo-app .thinking-loading .dot:nth-child(3) {
+.bear-doctor-app .thinking-loading .dot:nth-child(3) {
   animation-delay: 0.4s;
 }
 
-@keyframes dodoThinkingBounce {
+@keyframes bearDoctorThinkingBounce {
   0%, 60%, 100% {
     transform: translateY(0);
     opacity: 0.4;
@@ -1899,14 +1899,14 @@ body {
   }
 }
 
-.dodo-app .reference-content {
+.bear-doctor-app .reference-content {
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.dodo-app .reference-link {
+.bear-doctor-app .reference-link {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -1917,7 +1917,7 @@ body {
   border: 1px solid rgba(6, 182, 212, 0.15);
 }
 
-.dodo-app .ref-icon {
+.bear-doctor-app .ref-icon {
   width: 36px;
   height: 36px;
   background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
@@ -1928,12 +1928,12 @@ body {
   flex-shrink: 0;
 }
 
-.dodo-app .ref-info {
+.bear-doctor-app .ref-info {
   flex: 1;
   min-width: 0;
 }
 
-.dodo-app .ref-title-text {
+.bear-doctor-app .ref-title-text {
   font-size: 14px;
   color: var(--text-primary);
   font-weight: 600;
@@ -1943,7 +1943,7 @@ body {
   white-space: nowrap;
 }
 
-.dodo-app .ref-url-text {
+.bear-doctor-app .ref-url-text {
   font-size: 12px;
   color: var(--accent-light);
   opacity: 0.85;
@@ -1952,20 +1952,20 @@ body {
   white-space: nowrap;
 }
 
-.dodo-app .artifact-section {
+.bear-doctor-app .artifact-section {
   margin-top: 16px;
   display: grid;
   gap: 10px;
 }
 
-.dodo-app .artifact-card {
+.bear-doctor-app .artifact-card {
   border: 1px solid rgba(139, 92, 246, 0.28);
   border-radius: 12px;
   background: rgba(15, 23, 42, 0.5);
   padding: 12px;
 }
 
-.dodo-app .artifact-title {
+.bear-doctor-app .artifact-title {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -1973,12 +1973,12 @@ body {
   margin-bottom: 10px;
 }
 
-.dodo-app .artifact-title span {
+.bear-doctor-app .artifact-title span {
   color: var(--accent-light);
   font-size: 12px;
 }
 
-.dodo-app .artifact-download {
+.bear-doctor-app .artifact-download {
   width: fit-content;
   min-height: 34px;
   display: inline-flex;
@@ -1995,12 +1995,12 @@ body {
   text-decoration: none;
 }
 
-.dodo-app .artifact-download:hover {
+.bear-doctor-app .artifact-download:hover {
   background: rgba(6, 182, 212, 0.2);
   border-color: rgba(6, 182, 212, 0.5);
 }
 
-.dodo-app .artifact-card pre {
+.bear-doctor-app .artifact-card pre {
   white-space: pre-wrap;
   overflow-x: auto;
   color: var(--text-primary);
@@ -2009,14 +2009,14 @@ body {
   padding: 12px;
 }
 
-.dodo-app .recommend-section {
+.bear-doctor-app .recommend-section {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
 }
 
-.dodo-app .recommend-section button {
+.bear-doctor-app .recommend-section button {
   min-height: 32px;
   max-width: 100%;
   padding: 0 12px;
@@ -2028,13 +2028,13 @@ body {
   overflow-wrap: anywhere;
 }
 
-.dodo-app .recommend-section button:hover {
+.bear-doctor-app .recommend-section button:hover {
   color: var(--text-primary);
   border-color: rgba(139, 92, 246, 0.48);
   background: rgba(139, 92, 246, 0.2);
 }
 
-.dodo-app .copy-btn {
+.bear-doctor-app .copy-btn {
   margin-top: 16px;
   width: 36px;
   height: 36px;
@@ -2049,29 +2049,29 @@ body {
   transition: all 0.2s ease;
 }
 
-.dodo-app .copy-btn:hover {
+.bear-doctor-app .copy-btn:hover {
   background: rgba(6, 182, 212, 0.15);
   border-color: rgba(6, 182, 212, 0.4);
   color: var(--accent-light);
 }
 
-.dodo-app .copy-btn-user {
+.bear-doctor-app .copy-btn-user {
   margin-top: 12px;
 }
 
-.dodo-app .input-area {
+.bear-doctor-app .input-area {
   padding: 0 80px 30px 80px;
   background: linear-gradient(to top, rgba(10, 15, 30, 0.8) 0%, transparent 100%);
 }
 
-.dodo-app .agent-selector {
+.bear-doctor-app .agent-selector {
   display: flex;
   gap: 12px;
   padding: 16px 0;
   flex-wrap: wrap;
 }
 
-.dodo-app .agent-item {
+.bear-doctor-app .agent-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2084,35 +2084,35 @@ body {
   color: var(--text-primary);
 }
 
-.dodo-app .agent-item:hover {
+.bear-doctor-app .agent-item:hover {
   background: rgba(139, 92, 246, 0.15);
   transform: translateY(-1px);
 }
 
-.dodo-app .agent-item.active {
+.bear-doctor-app .agent-item.active {
   background: rgba(139, 92, 246, 0.25);
   border-color: var(--primary-color);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
-.dodo-app .agent-icon {
+.bear-doctor-app .agent-icon {
   font-size: 20px;
 }
 
-.dodo-app .agent-name {
+.bear-doctor-app .agent-name {
   font-size: 14px;
   font-weight: 600;
 }
 
-.dodo-app .check-icon {
+.bear-doctor-app .check-icon {
   color: var(--primary-light);
 }
 
-.dodo-app .file-preview {
+.bear-doctor-app .file-preview {
   padding: 14px 0;
 }
 
-.dodo-app .file-preview-item {
+.bear-doctor-app .file-preview-item {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -2122,7 +2122,7 @@ body {
   border: 1px solid var(--border-color);
 }
 
-.dodo-app .file-icon-wrapper {
+.bear-doctor-app .file-icon-wrapper {
   width: 48px;
   height: 48px;
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
@@ -2133,12 +2133,12 @@ body {
   flex-shrink: 0;
 }
 
-.dodo-app .file-info {
+.bear-doctor-app .file-info {
   flex: 1;
   min-width: 0;
 }
 
-.dodo-app .file-name {
+.bear-doctor-app .file-name {
   font-size: 14px;
   color: var(--text-primary);
   font-weight: 600;
@@ -2148,12 +2148,12 @@ body {
   margin-bottom: 4px;
 }
 
-.dodo-app .file-size {
+.bear-doctor-app .file-size {
   font-size: 12px;
   color: var(--text-secondary);
 }
 
-.dodo-app .upload-parsing {
+.bear-doctor-app .upload-parsing {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2162,7 +2162,7 @@ body {
   margin-top: 4px;
 }
 
-.dodo-app .remove-file {
+.bear-doctor-app .remove-file {
   background: rgba(239, 68, 68, 0.1);
   border: none;
   color: #ef4444;
@@ -2175,7 +2175,7 @@ body {
   cursor: pointer;
 }
 
-.dodo-app .input-container {
+.bear-doctor-app .input-container {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2188,15 +2188,15 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.dodo-app .input-container:focus-within {
+.bear-doctor-app .input-container:focus-within {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15), 0 4px 20px rgba(0, 0, 0, 0.4);
   transform: translateY(-1px);
 }
 
-.dodo-app .file-btn,
-.dodo-app .send-btn,
-.dodo-app .input-file-icon {
+.bear-doctor-app .file-btn,
+.bear-doctor-app .send-btn,
+.bear-doctor-app .input-file-icon {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
@@ -2207,25 +2207,25 @@ body {
   justify-content: center;
 }
 
-.dodo-app .file-btn {
+.bear-doctor-app .file-btn {
   background: rgba(139, 92, 246, 0.15);
   color: var(--primary-light);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.dodo-app .file-btn:hover:not(:disabled) {
+.bear-doctor-app .file-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: white;
   transform: scale(1.05);
 }
 
-.dodo-app .input-file-icon {
+.bear-doctor-app .input-file-icon {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: white;
 }
 
-.dodo-app textarea {
+.bear-doctor-app textarea {
   flex: 1;
   background: transparent;
   border: none;
@@ -2239,11 +2239,11 @@ body {
   font-family: inherit;
 }
 
-.dodo-app textarea::placeholder {
+.bear-doctor-app textarea::placeholder {
   color: var(--text-secondary);
 }
 
-.dodo-app .send-btn {
+.bear-doctor-app .send-btn {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: white;
   cursor: pointer;
@@ -2251,25 +2251,25 @@ body {
   box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
 }
 
-.dodo-app .send-btn:hover:not(.disabled) {
+.bear-doctor-app .send-btn:hover:not(.disabled) {
   transform: scale(1.05) translateY(-2px);
   box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
 }
 
-.dodo-app .send-btn.disabled {
+.bear-doctor-app .send-btn.disabled {
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
 
-.dodo-app .send-btn.stop {
+.bear-doctor-app .send-btn.stop {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
-.dodo-app .connection-error,
-.dodo-app .toast {
+.bear-doctor-app .connection-error,
+.bear-doctor-app .toast {
   position: fixed;
   bottom: 30px;
   right: 30px;
@@ -2284,13 +2284,13 @@ body {
   z-index: 1000;
 }
 
-.dodo-app .toast {
+.bear-doctor-app .toast {
   background: linear-gradient(135deg, #10b981, #059669);
   box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
 }
 
-.dodo-app .toast button,
-.dodo-app .retry-btn {
+.bear-doctor-app .toast button,
+.bear-doctor-app .retry-btn {
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.9);
   color: #111827;
@@ -2301,7 +2301,7 @@ body {
   font-weight: 600;
 }
 
-.dodo-app .glow-effect {
+.bear-doctor-app .glow-effect {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
@@ -2310,7 +2310,7 @@ body {
   opacity: 0.3;
 }
 
-.dodo-app .glow-effect-1 {
+.bear-doctor-app .glow-effect-1 {
   width: 300px;
   height: 300px;
   background: radial-gradient(circle, rgba(139, 92, 246, 0.2), transparent);
@@ -2318,7 +2318,7 @@ body {
   left: -50px;
 }
 
-.dodo-app .glow-effect-2 {
+.bear-doctor-app .glow-effect-2 {
   width: 400px;
   height: 400px;
   background: radial-gradient(circle, rgba(6, 182, 212, 0.15), transparent);
@@ -2326,7 +2326,7 @@ body {
   right: -100px;
 }
 
-.dodo-app .modal-overlay {
+.bear-doctor-app .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
@@ -2338,17 +2338,17 @@ body {
   padding: 24px;
 }
 
-.dodo-app .auth-dialog,
-.dodo-app .recharge-dialog {
+.bear-doctor-app .auth-dialog,
+.bear-doctor-app .recharge-dialog {
   position: relative;
   background: linear-gradient(135deg, #2a2a2a, #1f1f1f);
   border: 1px solid #3a3a3a;
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: dodoDialogSlideIn 0.25s ease-out;
+  animation: bearDoctorDialogSlideIn 0.25s ease-out;
 }
 
-@keyframes dodoDialogSlideIn {
+@keyframes bearDoctorDialogSlideIn {
   from {
     opacity: 0;
     transform: translateY(-18px) scale(0.96);
@@ -2359,37 +2359,37 @@ body {
   }
 }
 
-.dodo-app .auth-dialog {
+.bear-doctor-app .auth-dialog {
   width: min(380px, 100%);
   padding: 28px;
   display: grid;
   gap: 14px;
 }
 
-.dodo-app .auth-logo {
+.bear-doctor-app .auth-logo {
   font-size: 44px;
   text-align: center;
   filter: drop-shadow(0 0 18px var(--glow-color));
 }
 
-.dodo-app .auth-dialog h3,
-.dodo-app .recharge-dialog h3 {
+.bear-doctor-app .auth-dialog h3,
+.bear-doctor-app .recharge-dialog h3 {
   text-align: center;
   font-size: 20px;
   color: var(--text-primary);
 }
 
-.dodo-app .auth-switch {
+.bear-doctor-app .auth-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
-.dodo-app .auth-switch button,
-.dodo-app .auth-submit,
-.dodo-app .refresh-btn,
-.dodo-app .pkg-actions button,
-.dodo-app .admin-auth-box button {
+.bear-doctor-app .auth-switch button,
+.bear-doctor-app .auth-submit,
+.bear-doctor-app .refresh-btn,
+.bear-doctor-app .pkg-actions button,
+.bear-doctor-app .admin-auth-box button {
   min-height: 38px;
   border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: 10px;
@@ -2398,17 +2398,17 @@ body {
   cursor: pointer;
 }
 
-.dodo-app .auth-switch button.active,
-.dodo-app .auth-submit,
-.dodo-app .pkg-actions .group,
-.dodo-app .admin-auth-box button {
+.bear-doctor-app .auth-switch button.active,
+.bear-doctor-app .auth-submit,
+.bear-doctor-app .pkg-actions .group,
+.bear-doctor-app .admin-auth-box button {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   border-color: transparent;
   font-weight: 700;
 }
 
-.dodo-app .auth-dialog input,
-.dodo-app .admin-auth-box input {
+.bear-doctor-app .auth-dialog input,
+.bear-doctor-app .admin-auth-box input {
   height: 42px;
   border: 1px solid rgba(139, 92, 246, 0.28);
   border-radius: 10px;
@@ -2418,12 +2418,12 @@ body {
   outline: none;
 }
 
-.dodo-app .auth-dialog input:focus,
-.dodo-app .admin-auth-box input:focus {
+.bear-doctor-app .auth-dialog input:focus,
+.bear-doctor-app .admin-auth-box input:focus {
   border-color: var(--primary-light);
 }
 
-.dodo-app .auth-error {
+.bear-doctor-app .auth-error {
   color: #fecaca;
   background: rgba(239, 68, 68, 0.16);
   border: 1px solid rgba(239, 68, 68, 0.32);
@@ -2432,7 +2432,7 @@ body {
   font-size: 13px;
 }
 
-.dodo-app .modal-close {
+.bear-doctor-app .modal-close {
   position: absolute;
   top: 14px;
   right: 14px;
@@ -2447,14 +2447,14 @@ body {
   cursor: pointer;
 }
 
-.dodo-app .recharge-dialog {
+.bear-doctor-app .recharge-dialog {
   width: min(920px, 100%);
   max-height: min(760px, 92vh);
   overflow-y: auto;
   padding: 28px;
 }
 
-.dodo-app .recharge-head {
+.bear-doctor-app .recharge-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -2462,96 +2462,96 @@ body {
   margin-bottom: 18px;
 }
 
-.dodo-app .recharge-head h3 {
+.bear-doctor-app .recharge-head h3 {
   text-align: left;
   margin-bottom: 6px;
 }
 
-.dodo-app .recharge-head p,
-.dodo-app .admin-auth-box span {
+.bear-doctor-app .recharge-head p,
+.bear-doctor-app .admin-auth-box span {
   color: var(--text-secondary);
   font-size: 13px;
 }
 
-.dodo-app .quota-card {
+.bear-doctor-app .quota-card {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   gap: 12px;
   margin-bottom: 18px;
 }
 
-.dodo-app .quota-card div,
-.dodo-app .quota-package,
-.dodo-app .admin-auth-box,
-.dodo-app .flow-details,
-.dodo-app .order-details {
+.bear-doctor-app .quota-card div,
+.bear-doctor-app .quota-package,
+.bear-doctor-app .admin-auth-box,
+.bear-doctor-app .flow-details,
+.bear-doctor-app .order-details {
   background: rgba(15, 23, 42, 0.58);
   border: 1px solid rgba(139, 92, 246, 0.25);
   border-radius: 12px;
 }
 
-.dodo-app .quota-card div {
+.bear-doctor-app .quota-card div {
   padding: 14px;
 }
 
-.dodo-app .quota-card span {
+.bear-doctor-app .quota-card span {
   display: block;
   color: var(--text-secondary);
   font-size: 12px;
   margin-bottom: 6px;
 }
 
-.dodo-app .quota-card strong {
+.bear-doctor-app .quota-card strong {
   font-size: 30px;
   color: var(--accent-light);
 }
 
-.dodo-app .quota-card b {
+.bear-doctor-app .quota-card b {
   font-size: 18px;
   color: var(--text-primary);
 }
 
-.dodo-app .package-grid {
+.bear-doctor-app .package-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
-.dodo-app .quota-package {
+.bear-doctor-app .quota-package {
   padding: 16px;
 }
 
-.dodo-app .quota-package h4 {
+.bear-doctor-app .quota-package h4 {
   font-size: 16px;
   margin-bottom: 8px;
 }
 
-.dodo-app .quota-package p {
+.bear-doctor-app .quota-package p {
   min-height: 44px;
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.6;
 }
 
-.dodo-app .pkg-amount {
+.bear-doctor-app .pkg-amount {
   color: var(--accent-light);
   font-size: 24px;
   font-weight: 800;
   margin: 12px 0;
 }
 
-.dodo-app .pkg-actions {
+.bear-doctor-app .pkg-actions {
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: 8px;
 }
 
-.dodo-app .pkg-actions button:disabled {
+.bear-doctor-app .pkg-actions button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.dodo-app .group-detail-dialog {
+.bear-doctor-app .group-detail-dialog {
   width: min(620px, 100%);
   padding: 0;
   overflow: hidden;
@@ -2560,12 +2560,12 @@ body {
   border: none;
 }
 
-.dodo-app .group-detail-dialog .modal-close {
+.bear-doctor-app .group-detail-dialog .modal-close {
   color: rgba(255, 255, 255, 0.86);
   background: rgba(255, 255, 255, 0.14);
 }
 
-.dodo-app .group-detail-topbar {
+.bear-doctor-app .group-detail-topbar {
   min-height: 54px;
   display: grid;
   grid-template-columns: 48px 1fr 48px;
@@ -2575,12 +2575,12 @@ body {
   background: linear-gradient(90deg, #5f7df2, #314aae);
 }
 
-.dodo-app .group-detail-topbar strong {
+.bear-doctor-app .group-detail-topbar strong {
   text-align: center;
   font-size: 17px;
 }
 
-.dodo-app .group-back {
+.bear-doctor-app .group-back {
   width: 28px;
   height: 28px;
   border: none;
@@ -2592,12 +2592,12 @@ body {
   cursor: pointer;
 }
 
-.dodo-app .group-detail-main {
+.bear-doctor-app .group-detail-main {
   padding: 16px 18px 18px;
   text-align: center;
 }
 
-.dodo-app .group-product-icon {
+.bear-doctor-app .group-product-icon {
   width: 70px;
   height: 70px;
   margin: 0 auto 12px;
@@ -2609,32 +2609,32 @@ body {
   box-shadow: 0 10px 22px rgba(49, 74, 174, 0.28);
 }
 
-.dodo-app .group-detail-main h3 {
+.bear-doctor-app .group-detail-main h3 {
   color: #1f2937;
   font-size: 20px;
   margin: 0 0 6px;
 }
 
-.dodo-app .group-detail-main p,
-.dodo-app .group-detail-tip {
+.bear-doctor-app .group-detail-main p,
+.bear-doctor-app .group-detail-tip {
   color: #7b8190;
   font-size: 13px;
 }
 
-.dodo-app .group-team-panel {
+.bear-doctor-app .group-team-panel {
   margin: 18px auto 18px;
   padding: 14px;
   border-radius: 10px;
   background: #f7f8fb;
 }
 
-.dodo-app .group-team-panel h4 {
+.bear-doctor-app .group-team-panel h4 {
   margin-bottom: 12px;
   color: #2f3747;
   font-size: 15px;
 }
 
-.dodo-app .group-team-card {
+.bear-doctor-app .group-team-card {
   min-height: 58px;
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) auto auto;
@@ -2647,23 +2647,23 @@ body {
   box-shadow: 0 8px 18px rgba(31, 41, 55, 0.07);
 }
 
-.dodo-app .group-team-card b,
-.dodo-app .group-team-card span {
+.bear-doctor-app .group-team-card b,
+.bear-doctor-app .group-team-card span {
   display: block;
 }
 
-.dodo-app .group-team-card b {
+.bear-doctor-app .group-team-card b {
   color: #2f3747;
   font-size: 13px;
 }
 
-.dodo-app .group-team-card span {
+.bear-doctor-app .group-team-card span {
   color: #5d6b82;
   font-size: 12px;
 }
 
-.dodo-app .group-team-card button,
-.dodo-app .group-detail-actions button {
+.bear-doctor-app .group-team-card button,
+.bear-doctor-app .group-detail-actions button {
   min-height: 38px;
   border: none;
   border-radius: 999px;
@@ -2677,39 +2677,39 @@ body {
   box-shadow: 0 6px 14px rgba(49, 74, 174, 0.22);
 }
 
-.dodo-app .group-team-card button {
+.bear-doctor-app .group-team-card button {
   padding: 0 16px;
   font-weight: 700;
 }
 
-.dodo-app .group-detail-actions {
+.bear-doctor-app .group-detail-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-top: 6px;
 }
 
-.dodo-app .group-detail-actions button {
+.bear-doctor-app .group-detail-actions button {
   min-height: 44px;
   background: linear-gradient(90deg, #607ef2, #3752bd);
   font-weight: 700;
 }
 
-.dodo-app .group-detail-actions button:first-child {
+.bear-doctor-app .group-detail-actions button:first-child {
   background: linear-gradient(90deg, #5d7ef4, #314aae);
 }
 
-.dodo-app .group-team-card button:disabled,
-.dodo-app .group-detail-actions button:disabled {
+.bear-doctor-app .group-team-card button:disabled,
+.bear-doctor-app .group-detail-actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.dodo-app .group-detail-tip {
+.bear-doctor-app .group-detail-tip {
   margin-top: 12px;
 }
 
-.dodo-app .empty-package {
+.bear-doctor-app .empty-package {
   grid-column: 1 / -1;
   color: var(--text-secondary);
   background: rgba(15, 23, 42, 0.55);
@@ -2719,19 +2719,19 @@ body {
   text-align: center;
 }
 
-.dodo-app .flow-details {
+.bear-doctor-app .flow-details {
   margin-top: 14px;
   padding: 14px;
 }
 
-.dodo-app .flow-details summary,
-.dodo-app .order-details summary {
+.bear-doctor-app .flow-details summary,
+.bear-doctor-app .order-details summary {
   cursor: pointer;
   color: var(--accent-light);
   margin-bottom: 8px;
 }
 
-.dodo-app .flow-row {
+.bear-doctor-app .flow-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -2739,14 +2739,14 @@ body {
   border-top: 1px solid rgba(148, 163, 184, 0.13);
 }
 
-.dodo-app .flow-row span {
+.bear-doctor-app .flow-row span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-secondary);
 }
 
-.dodo-app .resume-bar {
+.bear-doctor-app .resume-bar {
   min-height: 42px;
   margin-bottom: 12px;
   padding: 8px 10px 8px 14px;
@@ -2761,7 +2761,7 @@ body {
   font-size: 13px;
 }
 
-.dodo-app .resume-bar button {
+.bear-doctor-app .resume-bar button {
   min-height: 32px;
   padding: 0 12px;
   border: none;
@@ -2775,18 +2775,18 @@ body {
   cursor: pointer;
 }
 
-.dodo-app .order-details {
+.bear-doctor-app .order-details {
   margin-top: 14px;
   padding: 14px;
 }
 
-.dodo-app .order-details p,
-.dodo-app .order-row span {
+.bear-doctor-app .order-details p,
+.bear-doctor-app .order-row span {
   color: var(--text-secondary);
   font-size: 12px;
 }
 
-.dodo-app .order-row {
+.bear-doctor-app .order-row {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.7fr) minmax(120px, 0.9fr) auto;
   align-items: center;
@@ -2795,15 +2795,15 @@ body {
   border-top: 1px solid rgba(148, 163, 184, 0.13);
 }
 
-.dodo-app .order-row strong,
-.dodo-app .order-row b,
-.dodo-app .order-row em,
-.dodo-app .order-row span {
+.bear-doctor-app .order-row strong,
+.bear-doctor-app .order-row b,
+.bear-doctor-app .order-row em,
+.bear-doctor-app .order-row span {
   display: block;
 }
 
-.dodo-app .order-row strong,
-.dodo-app .order-row b {
+.bear-doctor-app .order-row strong,
+.bear-doctor-app .order-row b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2811,14 +2811,14 @@ body {
   font-size: 13px;
 }
 
-.dodo-app .order-row em {
+.bear-doctor-app .order-row em {
   color: var(--accent-light);
   font-style: normal;
   font-weight: 700;
   font-size: 13px;
 }
 
-.dodo-app .order-row button {
+.bear-doctor-app .order-row button {
   min-height: 32px;
   padding: 0 12px;
   border: none;
@@ -2828,12 +2828,12 @@ body {
   cursor: pointer;
 }
 
-.dodo-app .order-row button:disabled {
+.bear-doctor-app .order-row button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.dodo-app .admin-auth-box {
+.bear-doctor-app .admin-auth-box {
   margin-top: 14px;
   padding: 14px;
   display: grid;
@@ -2842,81 +2842,81 @@ body {
   gap: 10px;
 }
 
-.dodo-app .admin-auth-box strong,
-.dodo-app .admin-auth-box span {
+.bear-doctor-app .admin-auth-box strong,
+.bear-doctor-app .admin-auth-box span {
   display: block;
 }
 
-.dodo-app .spin {
-  animation: dodoSpin 1s linear infinite;
+.bear-doctor-app .spin {
+  animation: bearDoctorSpin 1s linear infinite;
 }
 
-@keyframes dodoSpin {
+@keyframes bearDoctorSpin {
   to { transform: rotate(360deg); }
 }
 
 @media (max-width: 1024px) {
-  .dodo-app .messages-container,
-  .dodo-app .input-area {
+  .bear-doctor-app .messages-container,
+  .bear-doctor-app .input-area {
     padding-left: 40px;
     padding-right: 40px;
   }
 
-  .dodo-app .package-grid {
+  .bear-doctor-app .package-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dodo-app .admin-auth-box {
+  .bear-doctor-app .admin-auth-box {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
-  .dodo-app .container {
+  .bear-doctor-app .container {
     display: block;
   }
 
-  .dodo-app .sidebar {
+  .bear-doctor-app .sidebar {
     display: none;
   }
 
-  .dodo-app .main-content {
+  .bear-doctor-app .main-content {
     height: 100vh;
   }
 
-  .dodo-app .top-actions {
+  .bear-doctor-app .top-actions {
     position: static;
     justify-content: flex-end;
     padding: 12px 16px 0;
   }
 
-  .dodo-app .messages-container,
-  .dodo-app .input-area {
+  .bear-doctor-app .messages-container,
+  .bear-doctor-app .input-area {
     padding: 20px 24px;
   }
 
-  .dodo-app .empty-icon {
+  .bear-doctor-app .empty-icon {
     font-size: 70px;
   }
 
-  .dodo-app .empty-state h2 {
+  .bear-doctor-app .empty-state h2 {
     font-size: 24px;
   }
 
-  .dodo-app .user-message {
+  .bear-doctor-app .user-message {
     max-width: 86%;
   }
 
-  .dodo-app .agent-selector {
+  .bear-doctor-app .agent-selector {
     gap: 10px;
   }
 
-  .dodo-app .agent-item {
+  .bear-doctor-app .agent-item {
     padding: 10px 14px;
   }
 
-  .dodo-app .quota-card,
-  .dodo-app .package-grid {
+  .bear-doctor-app .quota-card,
+  .bear-doctor-app .package-grid {
     grid-template-columns: 1fr;
   }
 }

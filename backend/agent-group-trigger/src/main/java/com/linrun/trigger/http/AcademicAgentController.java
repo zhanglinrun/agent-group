@@ -33,14 +33,14 @@ import java.util.UUID;
 @RequestMapping("/api/v1/academic")
 public class AcademicAgentController {
 
-    private final AcademicDodoAgentHandler academicDodoAgentHandler;
+    private final AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler;
     private final GuideStreamControlRepository guideStreamControlRepository;
     private final ObjectMapper objectMapper;
 
-    public AcademicAgentController(AcademicDodoAgentHandler academicDodoAgentHandler,
+    public AcademicAgentController(AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler,
                                    GuideStreamControlRepository guideStreamControlRepository,
                                    ObjectMapper objectMapper) {
-        this.academicDodoAgentHandler = academicDodoAgentHandler;
+        this.academicBearDoctorAgentHandler = academicBearDoctorAgentHandler;
         this.guideStreamControlRepository = guideStreamControlRepository;
         this.objectMapper = objectMapper;
     }
@@ -56,7 +56,7 @@ public class AcademicAgentController {
     public Flux<String> resume(@RequestHeader(value = "Authorization", required = false) String token,
                                @RequestBody Map<String, String> request) {
         String sessionId = request == null ? "" : request.get("sessionId");
-        AcademicAgentStreamRequest resumeRequest = academicDodoAgentHandler.resumeRequest(token, sessionId);
+        AcademicAgentStreamRequest resumeRequest = academicBearDoctorAgentHandler.resumeRequest(token, sessionId);
         return startStream(token, resumeRequest);
     }
 
@@ -64,7 +64,7 @@ public class AcademicAgentController {
     public Response<Map<String, Object>> taskStatus(
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam String sessionId) {
-        Map<String, Object> status = academicDodoAgentHandler.queryTaskStatus(token, sessionId);
+        Map<String, Object> status = academicBearDoctorAgentHandler.queryTaskStatus(token, sessionId);
         status.put("stopped", guideStreamControlRepository.isStopped(sessionId));
         return Response.success(status, RequestTraceContext.getRequestId());
     }
@@ -76,7 +76,7 @@ public class AcademicAgentController {
                 : "AS" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
         guideStreamControlRepository.clearStopped(sessionId);
-        return academicDodoAgentHandler.streamEventFlux(
+        return academicBearDoctorAgentHandler.streamEventFlux(
                         token,
                         safeRequest,
                         sessionId,
@@ -88,7 +88,7 @@ public class AcademicAgentController {
     public Response<AcademicFileUploadResponse> upload(@RequestHeader(value = "Authorization", required = false) String token,
                                                        @RequestParam("file") MultipartFile file,
                                                        @RequestParam(required = false) String sessionId) {
-        return Response.success(academicDodoAgentHandler.upload(token, file, sessionId), RequestTraceContext.getRequestId());
+        return Response.success(academicBearDoctorAgentHandler.upload(token, file, sessionId), RequestTraceContext.getRequestId());
     }
 
     @PostMapping("/stop")
@@ -98,7 +98,7 @@ public class AcademicAgentController {
         boolean stopped = true;
         if (StringUtils.hasText(sessionId)) {
             guideStreamControlRepository.markStopped(sessionId);
-            stopped = academicDodoAgentHandler.stop(token, sessionId);
+            stopped = academicBearDoctorAgentHandler.stop(token, sessionId);
         }
         return Response.success(stopped, RequestTraceContext.getRequestId());
     }
@@ -107,14 +107,14 @@ public class AcademicAgentController {
     public Response<List<AcademicSessionSummaryDTO>> sessions(
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam(defaultValue = "20") int limit) {
-        return Response.success(academicDodoAgentHandler.querySessions(token, limit), RequestTraceContext.getRequestId());
+        return Response.success(academicBearDoctorAgentHandler.querySessions(token, limit), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/sessions/{sessionId}")
     public Response<AcademicSessionDetailResponse> detail(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String sessionId) {
-        return Response.success(academicDodoAgentHandler.queryDetail(token, sessionId), RequestTraceContext.getRequestId());
+        return Response.success(academicBearDoctorAgentHandler.queryDetail(token, sessionId), RequestTraceContext.getRequestId());
     }
 
     private String toJson(GuideStreamEvent<?> event) {

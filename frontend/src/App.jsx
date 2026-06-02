@@ -60,10 +60,10 @@ function App() {
 
   if (path === "/admin" || path === "/admin.html") return <AdminDashboard />;
 
-  return <DodoAcademicApp />;
+  return <BearDoctorAcademicApp />;
 }
 
-function DodoAcademicApp() {
+function BearDoctorAcademicApp() {
   const [auth, setAuth] = useState(() => getUserAuth());
   const [loginOpen, setLoginOpen] = useState(() => !getUserAuth()?.token);
   const [rechargeOpen, setRechargeOpen] = useState(false);
@@ -637,7 +637,7 @@ function DodoAcademicApp() {
   };
 
   return (
-    <div className="dodo-app">
+    <div className="bear-doctor-app">
       <div className="glow-effect glow-effect-1" />
       <div className="glow-effect glow-effect-2" />
       <div className="container">
@@ -645,7 +645,7 @@ function DodoAcademicApp() {
           <div className="sidebar-header">
             <div className="app-title">
               <span className="logo-icon">🌱</span>
-              <span className="title-text">豆豆</span>
+              <span className="title-text">熊博士 Agent</span>
             </div>
             <button className="new-chat-btn" onClick={createNewChat}>
               <Plus size={16} />
@@ -703,7 +703,7 @@ function DodoAcademicApp() {
                   <div className="empty-icon">🤖</div>
                   <div className="icon-glow" />
                 </div>
-                <h2>你好，我是豆豆</h2>
+                <h2>你好，我是熊博士 Agent</h2>
                 <p>可以帮你问答、读文件、做 PPT、深度研究和调用技能</p>
                 <div className="quick-actions">
                   <div className="quick-action" onClick={() => quickPrompt("帮我阅读这篇论文，并输出精读笔记")}>
@@ -972,7 +972,7 @@ function AuthDialog({ mode, setMode, form, setForm, error, onSubmit, onClose }) 
       <form className="auth-dialog" onSubmit={onSubmit}>
         <button type="button" className="modal-close" onClick={onClose}><X size={18} /></button>
         <div className="auth-logo">🌱</div>
-        <h3>{mode === "login" ? "登录豆豆" : "注册账号"}</h3>
+        <h3>{mode === "login" ? "登录熊博士 Agent" : "注册账号"}</h3>
         <div className="auth-switch">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>登录</button>
           <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>注册</button>

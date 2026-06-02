@@ -176,17 +176,17 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
      * 获取Python脚本路径
      */
     private String getPythonScriptPath() {
-        return copyClasspathResource("dodo/python/render_ppt.py", "dodo_render_", ".py");
+        return copyClasspathResource("bear-doctor/python/render_ppt.py", "bear_doctor_render_", ".py");
     }
 
     private String resolveTemplateFilePath(String configuredPath) {
         if (configuredPath != null && configuredPath.startsWith("classpath:")) {
-            return copyClasspathResource(configuredPath.substring("classpath:".length()), "dodo_template_", ".pptx");
+            return copyClasspathResource(configuredPath.substring("classpath:".length()), "bear_doctor_template_", ".pptx");
         }
         if (configuredPath != null && new File(configuredPath).exists()) {
             return configuredPath;
         }
-        return copyClasspathResource("dodo/templates/ai.pptx", "dodo_template_", ".pptx");
+        return copyClasspathResource("bear-doctor/templates/ai.pptx", "bear_doctor_template_", ".pptx");
     }
 
     private String copyClasspathResource(String resourcePath, String prefix, String suffix) {

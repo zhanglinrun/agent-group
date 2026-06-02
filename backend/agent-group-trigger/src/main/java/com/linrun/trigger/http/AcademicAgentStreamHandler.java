@@ -322,7 +322,7 @@ public class AcademicAgentStreamHandler {
                     输出要包含：核心结论、依据片段、可执行建议。文件里没有的信息要明确说明。
                     """;
             case "ppt" -> """
-                    你是 PPT 生成 Agent。请按 dodo-agent 的流程工作：需求澄清、资料整理、页面大纲、结构化页面方案。
+                    你是 PPT 生成 Agent。请按 bear-doctor-agent 的流程工作：需求澄清、资料整理、页面大纲、结构化页面方案。
                     输出要适合组会汇报、开题答辩或论文分享，内容保持可编辑、可继续生成幻灯片。
                     """;
             case "deep-research", "deep" -> """

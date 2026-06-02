@@ -10,7 +10,7 @@ import cn.hollis.llm.mentor.agent.agent.skills.manual.config.SkillConfig;
 import cn.hollis.llm.mentor.agent.agent.skills.manual.tool.ReadSkillTool;
 import cn.hollis.llm.mentor.agent.agent.websearch.WebSearchReactAgent;
 import cn.hollis.llm.mentor.agent.context.ContextPolicy;
-import cn.hollis.llm.mentor.agent.context.DodoTokenUsageRecorder;
+import cn.hollis.llm.mentor.agent.context.BearDoctorTokenUsageRecorder;
 import cn.hollis.llm.mentor.agent.context.UsageRecordingChatModel;
 import cn.hollis.llm.mentor.agent.entity.AiSession;
 import cn.hollis.llm.mentor.agent.entity.record.FileInfo;
@@ -64,9 +64,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
-public class DodoNativeAgentService implements InitializingBean {
+public class BearDoctorNativeAgentService implements InitializingBean {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(DodoNativeAgentService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BearDoctorNativeAgentService.class);
 
     private final ObjectProvider<ChatModel> chatModelProvider;
     private final AiSessionService sessionService;
@@ -90,7 +90,7 @@ public class DodoNativeAgentService implements InitializingBean {
 
     private ToolCallback[] webSearchToolCallbacks = new ToolCallback[0];
 
-    public DodoNativeAgentService(ObjectProvider<ChatModel> chatModelProvider,
+    public BearDoctorNativeAgentService(ObjectProvider<ChatModel> chatModelProvider,
                                   AiSessionService sessionService,
                                   AgentTaskManager taskManager,
                                   FileContentService fileContentService,
@@ -127,7 +127,7 @@ public class DodoNativeAgentService implements InitializingBean {
         validateFileAccess(user.getUserId(), internalConversationId, fileId);
         long startNanos = System.nanoTime();
         StringBuilder observedContent = new StringBuilder();
-        DodoTokenUsageRecorder.start(internalConversationId);
+        BearDoctorTokenUsageRecorder.start(internalConversationId);
 
         Flux<String> agentFlux = switch (safeAgentType) {
             case "file" -> withMemory(initFileReactAgent(user.getUserId(), internalConversationId), internalConversationId)
@@ -149,12 +149,12 @@ public class DodoNativeAgentService implements InitializingBean {
                 .doOnComplete(() -> {
             if (consumed.compareAndSet(false, true)) {
                 long latencyMillis = Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
-                DodoTokenUsageRecorder.Snapshot tokenUsage = DodoTokenUsageRecorder.snapshot(internalConversationId);
+                BearDoctorTokenUsageRecorder.Snapshot tokenUsage = BearDoctorTokenUsageRecorder.snapshot(internalConversationId);
                 consumeQuota(user.getUserId(), safeConversationId, safeAgentType, query,
                         observedContent.toString(), latencyMillis, tokenUsage);
                 fillAgentType(internalConversationId, safeAgentType);
             }
-        }).doFinally(signalType -> DodoTokenUsageRecorder.clear(internalConversationId));
+        }).doFinally(signalType -> BearDoctorTokenUsageRecorder.clear(internalConversationId));
     }
 
     public FileInfo upload(String token, MultipartFile file, String conversationId) {
@@ -239,7 +239,7 @@ public class DodoNativeAgentService implements InitializingBean {
             try {
                 fileManageService.deleteFile(file.getFileId());
             } catch (Exception e) {
-                LOGGER.warn("dodo session file cleanup degraded, fileId={}, reason={}", file.getFileId(), e.getClass().getSimpleName());
+                LOGGER.warn("bear-doctor session file cleanup degraded, fileId={}, reason={}", file.getFileId(), e.getClass().getSimpleName());
                 fileInfoService.deleteFileInfo(file.getFileId());
             }
         }
@@ -274,7 +274,7 @@ public class DodoNativeAgentService implements InitializingBean {
 
     private void initWebSearchToolCallbacks() {
         if (!StringUtils.hasText(tavilyApiKey) || tavilyApiKey.contains("XXXXX") || !StringUtils.hasText(tavilyMcpUrl)) {
-            LOGGER.warn("dodo tavily tool init skipped, reason=missing_config");
+            LOGGER.warn("bear-doctor tavily tool init skipped, reason=missing_config");
             webSearchToolCallbacks = new ToolCallback[0];
             return;
         }
@@ -290,7 +290,7 @@ public class DodoNativeAgentService implements InitializingBean {
             SyncMcpToolCallbackProvider provider = new SyncMcpToolCallbackProvider(List.of(tavilyMcp));
             webSearchToolCallbacks = provider.getToolCallbacks();
         } catch (Exception e) {
-            LOGGER.warn("dodo tavily tool init failed, reason={}", e.getClass().getSimpleName());
+            LOGGER.warn("bear-doctor tavily tool init failed, reason={}", e.getClass().getSimpleName());
             webSearchToolCallbacks = new ToolCallback[0];
         }
     }
@@ -387,7 +387,7 @@ public class DodoNativeAgentService implements InitializingBean {
         try {
             return new ToolCallback[]{SkillsTool.builder().addSkillsDirectory(skillsDirectory).build()};
         } catch (IllegalArgumentException e) {
-            LOGGER.warn("dodo skills tool init skipped, reason={}", e.getMessage());
+            LOGGER.warn("bear-doctor skills tool init skipped, reason={}", e.getMessage());
             return new ToolCallback[0];
         }
     }
@@ -402,7 +402,7 @@ public class DodoNativeAgentService implements InitializingBean {
                     .build();
             return SkillManager.create(skillConfig);
         } catch (Exception e) {
-            LOGGER.warn("dodo manual skills init skipped, reason={}", e.getClass().getSimpleName());
+            LOGGER.warn("bear-doctor manual skills init skipped, reason={}", e.getClass().getSimpleName());
             return null;
         }
     }
@@ -447,19 +447,19 @@ public class DodoNativeAgentService implements InitializingBean {
                               String query,
                               String observedContent,
                               long latencyMillis,
-                              DodoTokenUsageRecorder.Snapshot tokenUsage) {
+                              BearDoctorTokenUsageRecorder.Snapshot tokenUsage) {
         GuideTokenUsage usage = hasRealUsage(tokenUsage)
                 ? new GuideTokenUsage(tokenUsage.promptTokens(), tokenUsage.completionTokens(),
                 tokenUsage.totalTokens(), BigDecimal.ZERO)
                 : estimateTokenUsage(query, observedContent);
         String model = hasRealUsage(tokenUsage) && StringUtils.hasText(tokenUsage.model())
                 ? tokenUsage.model()
-                : "dodo-agent-estimated";
+                : "bear-doctor-agent-estimated";
         userQuotaService.consumeForAcademicTask(userId, conversationId, agentType,
                 usage, model, latencyMillis);
     }
 
-    private boolean hasRealUsage(DodoTokenUsageRecorder.Snapshot tokenUsage) {
+    private boolean hasRealUsage(BearDoctorTokenUsageRecorder.Snapshot tokenUsage) {
         return tokenUsage != null && tokenUsage.hasUsage();
     }
 
@@ -557,7 +557,7 @@ public class DodoNativeAgentService implements InitializingBean {
                 assertOwnedFile(userId, fileInfo);
                 return fileContentService.loadContent(fileId, question);
             } catch (Exception e) {
-                LOGGER.warn("dodo file tool access denied or failed, fileId={}, reason={}", fileId, e.getClass().getSimpleName());
+                LOGGER.warn("bear-doctor file tool access denied or failed, fileId={}, reason={}", fileId, e.getClass().getSimpleName());
                 return message(e);
             }
         }

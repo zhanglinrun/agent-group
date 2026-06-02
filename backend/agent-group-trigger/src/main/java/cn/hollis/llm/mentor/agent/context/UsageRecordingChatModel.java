@@ -18,17 +18,17 @@ public class UsageRecordingChatModel implements ChatModel {
 
     @Override
     public ChatResponse call(Prompt prompt) {
-        DodoTokenUsageRecorder.beginCall(conversationId);
+        BearDoctorTokenUsageRecorder.beginCall(conversationId);
         ChatResponse response = delegate.call(prompt);
-        DodoTokenUsageRecorder.record(conversationId, response);
+        BearDoctorTokenUsageRecorder.record(conversationId, response);
         return response;
     }
 
     @Override
     public Flux<ChatResponse> stream(Prompt prompt) {
         return delegate.stream(prompt)
-                .doOnSubscribe(ignored -> DodoTokenUsageRecorder.beginCall(conversationId))
-                .doOnNext(response -> DodoTokenUsageRecorder.record(conversationId, response));
+                .doOnSubscribe(ignored -> BearDoctorTokenUsageRecorder.beginCall(conversationId))
+                .doOnNext(response -> BearDoctorTokenUsageRecorder.record(conversationId, response));
     }
 
     @Override

@@ -22,7 +22,7 @@ import javax.sql.DataSource;
         "cn.hollis.llm.mentor.agent.utils"
 })
 @MapperScan({"cn.hollis.llm.mentor.agent.mapper", "com.linrun.infrastructure.dao"})
-public class DodoAgentRuntimeConfig {
+public class BearDoctorAgentRuntimeConfig {
 
     @Bean
     @Primary
@@ -58,7 +58,7 @@ public class DodoAgentRuntimeConfig {
         dataSource.setDriverClassName("org.postgresql.Driver");
         dataSource.setMaximumPoolSize(10);
         dataSource.setMinimumIdle(1);
-        dataSource.setPoolName("DodoPgVectorPool");
+        dataSource.setPoolName("BearDoctorPgVectorPool");
         return dataSource;
     }
 

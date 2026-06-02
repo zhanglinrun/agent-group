@@ -452,7 +452,7 @@ create table if not exists ai_file_info (
   primary key (id),
   unique key uk_file_id (file_id),
   key idx_conversation_id (conversation_id)
-) engine=InnoDB default charset=utf8mb4 comment='Dodo 文件元数据表';
+) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent 文件元数据表';
 
 create table if not exists ai_session (
   id bigint not null auto_increment comment '主键ID',
@@ -472,7 +472,7 @@ create table if not exists ai_session (
   primary key (id),
   key idx_session_id (session_id),
   key idx_create_time (create_time)
-) engine=InnoDB default charset=utf8mb4 comment='Dodo 智能体会话表';
+) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent 智能体会话表';
 
 create table if not exists ai_ppt_inst (
   id bigint not null auto_increment comment '实例ID',
@@ -492,7 +492,7 @@ create table if not exists ai_ppt_inst (
   key idx_conversation_id (conversation_id),
   key idx_status (status),
   key idx_template_code (template_code)
-) engine=InnoDB default charset=utf8mb4 comment='Dodo PPT 生成实例表';
+) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent PPT 生成实例表';
 
 create table if not exists ai_ppt_template (
   id bigint not null auto_increment comment '模板ID',
@@ -507,7 +507,7 @@ create table if not exists ai_ppt_template (
   primary key (id),
   unique key uk_template_code (template_code),
   key idx_template_code (template_code)
-) engine=InnoDB default charset=utf8mb4 comment='Dodo PPT 模板表';
+) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent PPT 模板表';
 
 insert into ai_ppt_template (
   template_code, template_name, template_desc, template_schema, file_path, style_tags, slide_count
@@ -516,7 +516,7 @@ insert into ai_ppt_template (
   'AI科技风PPT',
   '适用于AI、人工智能、科技风等场景的PPT',
   '{"slides":[{"pageType":"COVER","pageDesc":"封面页","pageIndex":1},{"pageType":"CATALOG","pageDesc":"目录页","pageIndex":2},{"pageType":"COMPARE","pageDesc":"内容页，用于两者对比","pageIndex":3},{"pageType":"CONTENT","pageDesc":"内容页","pageIndex":4},{"pageType":"END","pageDesc":"结束页","pageIndex":5}]}',
-  'classpath:dodo/templates/ai.pptx',
+  'classpath:bear-doctor/templates/ai.pptx',
   '科技、AI、人工智能',
   5
 ) on duplicate key update
