@@ -75,6 +75,11 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
         GroupBuyStock before = queryForUpdate(activityId, goodsId);
         int updated = groupBuyStockDao.releasePaidStock(activityId, goodsId);
         if (updated != 1) {
+            if (stockValue(before.getPaidStock()) <= 0) {
+                insertFlow(activityId, goodsId, orderId, teamId, GroupBuyStockFlowType.RELEASE_PAID,
+                        before.getAvailableStock(), before.getAvailableStock(), "paid stock already released");
+                return before;
+            }
             throw new AppException("GROUP_0015", "拼团已支付库存释放失败");
         }
         GroupBuyStock after = queryForUpdate(activityId, goodsId);
@@ -128,5 +133,9 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
     private String nextFlowId() {
         return "SF" + LocalDateTime.now().format(FLOW_TIME_FORMATTER)
                 + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+    }
+
+    private int stockValue(Integer value) {
+        return value == null ? 0 : value;
     }
 }

@@ -1,0 +1,211 @@
+﻿{
+    "case":  "rabbitmq-load",
+    "result":  "PASS",
+    "runId":  "20260602231716770",
+    "eventPrefix":  "RABBIT_LOAD_20260602231716770",
+    "count":  200,
+    "dispatchCalls":  5,
+    "elapsedSeconds":  11.473,
+    "throughputPerSecond":  17.43,
+    "outbox":  {
+                   "total":  "200",
+                   "success":  "200",
+                   "pending":  "0",
+                   "dead":  "0"
+               },
+    "consume":  {
+                    "total":  "200",
+                    "success":  "200",
+                    "pending":  "0",
+                    "dead":  "0"
+                },
+    "latency":  {
+                    "avgMs":  "6435.00",
+                    "maxMs":  "12000.00"
+                },
+    "queues":  [
+                   {
+                       "name":  "agent.group.trade.event.queue",
+                       "messages":  0,
+                       "ready":  0,
+                       "unacked":  0,
+                       "consumers":  1
+                   },
+                   {
+                       "name":  "agent.group.trade.event.team-success.queue",
+                       "messages":  0,
+                       "ready":  0,
+                       "unacked":  0,
+                       "consumers":  1
+                   },
+                   {
+                       "name":  "agent.group.trade.event.refund-success.queue",
+                       "messages":  0,
+                       "ready":  0,
+                       "unacked":  0,
+                       "consumers":  1
+                   },
+                   {
+                       "name":  "agent.group.trade.event.dlq",
+                       "messages":  0,
+                       "ready":  0,
+                       "unacked":  0,
+                       "consumers":  1
+                   }
+               ],
+    "dispatchResponses":  [
+                              {
+                                  "code":  "0000",
+                                  "info":  "成功",
+                                  "requestId":  "258dbdc7-736f-4749-bd9a-e4ad4c9abd45",
+                                  "data":  {
+                                               "waitCount":  50,
+                                               "successCount":  50,
+                                               "retryCount":  0,
+                                               "deadLetterCount":  0
+                                           }
+                              },
+                              {
+                                  "code":  "0000",
+                                  "info":  "成功",
+                                  "requestId":  "3171e35a-9a27-4e48-b5f4-b1ef279bd58f",
+                                  "data":  {
+                                               "waitCount":  50,
+                                               "successCount":  50,
+                                               "retryCount":  0,
+                                               "deadLetterCount":  0
+                                           }
+                              },
+                              {
+                                  "code":  "0000",
+                                  "info":  "成功",
+                                  "requestId":  "6b249671-5aa8-4791-aeac-b5c0a55e8527",
+                                  "data":  {
+                                               "waitCount":  50,
+                                               "successCount":  50,
+                                               "retryCount":  0,
+                                               "deadLetterCount":  0
+                                           }
+                              },
+                              {
+                                  "code":  "0000",
+                                  "info":  "成功",
+                                  "requestId":  "84c9fd79-5b64-4925-bc52-842defa584c0",
+                                  "data":  {
+                                               "waitCount":  50,
+                                               "successCount":  50,
+                                               "retryCount":  0,
+                                               "deadLetterCount":  0
+                                           }
+                              },
+                              {
+                                  "code":  "0000",
+                                  "info":  "成功",
+                                  "requestId":  "54b9e686-469a-48ed-be9d-afa2d40d5fcc",
+                                  "data":  {
+                                               "waitCount":  0,
+                                               "successCount":  0,
+                                               "retryCount":  0,
+                                               "deadLetterCount":  0
+                                           }
+                              }
+                          ],
+    "samples":  [
+                    {
+                        "at":  "23:17:19.802",
+                        "outbox":  {
+                                       "total":  "200",
+                                       "success":  "50",
+                                       "pending":  "150",
+                                       "dead":  "0"
+                                   },
+                        "consume":  {
+                                        "total":  "47",
+                                        "success":  "47",
+                                        "pending":  "0",
+                                        "dead":  "0"
+                                    },
+                        "latency":  {
+                                        "avgMs":  "1346.94",
+                                        "maxMs":  "3000.00"
+                                    }
+                    },
+                    {
+                        "at":  "23:17:22.411",
+                        "outbox":  {
+                                       "total":  "200",
+                                       "success":  "100",
+                                       "pending":  "100",
+                                       "dead":  "0"
+                                   },
+                        "consume":  {
+                                        "total":  "97",
+                                        "success":  "97",
+                                        "pending":  "0",
+                                        "dead":  "0"
+                                    },
+                        "latency":  {
+                                        "avgMs":  "3474.75",
+                                        "maxMs":  "7000.00"
+                                    }
+                    },
+                    {
+                        "at":  "23:17:24.990",
+                        "outbox":  {
+                                       "total":  "200",
+                                       "success":  "150",
+                                       "pending":  "50",
+                                       "dead":  "0"
+                                   },
+                        "consume":  {
+                                        "total":  "146",
+                                        "success":  "145",
+                                        "pending":  "1",
+                                        "dead":  "0"
+                                    },
+                        "latency":  {
+                                        "avgMs":  "5000.00",
+                                        "maxMs":  "9000.00"
+                                    }
+                    },
+                    {
+                        "at":  "23:17:27.659",
+                        "outbox":  {
+                                       "total":  "200",
+                                       "success":  "200",
+                                       "pending":  "0",
+                                       "dead":  "0"
+                                   },
+                        "consume":  {
+                                        "total":  "195",
+                                        "success":  "194",
+                                        "pending":  "1",
+                                        "dead":  "0"
+                                    },
+                        "latency":  {
+                                        "avgMs":  "6350.25",
+                                        "maxMs":  "12000.00"
+                                    }
+                    },
+                    {
+                        "at":  "23:17:28.576",
+                        "outbox":  {
+                                       "total":  "200",
+                                       "success":  "200",
+                                       "pending":  "0",
+                                       "dead":  "0"
+                                   },
+                        "consume":  {
+                                        "total":  "200",
+                                        "success":  "200",
+                                        "pending":  "0",
+                                        "dead":  "0"
+                                    },
+                        "latency":  {
+                                        "avgMs":  "6435.00",
+                                        "maxMs":  "12000.00"
+                                    }
+                    }
+                ],
+    "createdAt":  "2026-06-02 23:17:28"
+}

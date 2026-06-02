@@ -20,6 +20,7 @@ import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.domain.AlipayTradeRefundModel;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.dto.PaymentGatewayStatusResponse;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.model.payment.PaymentBillDownloadCommand;
 import com.linrun.domain.trade.model.payment.PaymentBillDownloadResult;
@@ -238,6 +239,59 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                     false,
                     "检查本地模拟支付参数");
         };
+    }
+
+    @Override
+    public PaymentGatewayStatusResponse gatewayStatus() {
+        PaymentGatewayStatusResponse response = new PaymentGatewayStatusResponse();
+        PaymentGatewayStatusResponse.ChannelStatus mock = channelStatus(
+                PaymentChannel.MOCK_PAY.name(),
+                "MOCK",
+                true,
+                true,
+                "mock://pay",
+                Map.of("localMock", true),
+                "local mock payment is ready");
+        PaymentGatewayStatusResponse.ChannelStatus alipay = channelStatus(
+                PaymentChannel.ALIPAY.name(),
+                alipayMode(),
+                alipayReady(),
+                alipaySandboxMode(),
+                alipayGatewayUrl,
+                Map.of(
+                        "gatewayUrl", StringUtils.hasText(alipayGatewayUrl),
+                        "appId", StringUtils.hasText(alipayAppId),
+                        "privateKey", StringUtils.hasText(alipayPrivateKey),
+                        "publicKey", StringUtils.hasText(alipayPublicKey)
+                ),
+                alipayReady()
+                        ? alipaySandboxMode() ? "alipay sandbox gateway is configured" : "alipay official gateway is configured"
+                        : "alipay gateway config is incomplete");
+        PaymentGatewayStatusResponse.ChannelStatus wechat = channelStatus(
+                PaymentChannel.WECHAT_PAY.name(),
+                wechatReady() ? "OFFICIAL" : "MISSING",
+                wechatReady(),
+                false,
+                "",
+                Map.of(
+                        "appId", StringUtils.hasText(wechatAppId),
+                        "merchantId", StringUtils.hasText(wechatMerchantId),
+                        "privateKeyPath", StringUtils.hasText(wechatPrivateKeyPath),
+                        "merchantSerialNo", StringUtils.hasText(wechatMerchantSerialNo),
+                        "apiV3Key", StringUtils.hasText(wechatApiV3Key)
+                ),
+                wechatReady()
+                        ? "wechat pay config is complete; sandbox depends on platform merchant setup"
+                        : "wechat pay config is incomplete");
+
+        response.setMockReady(true);
+        response.setOfficialGatewayReady(alipayReady() || wechatReady());
+        response.setOfficialSandboxReady(alipay.isSandboxMode());
+        response.setChannels(java.util.List.of(mock, alipay, wechat));
+        response.setMessage(response.isOfficialSandboxReady()
+                ? "official payment sandbox is ready"
+                : "official payment sandbox is not ready; local mock payment remains available");
+        return response;
     }
 
     private PaymentCreateResult createMockPayment(PaymentCreateCommand command) {
@@ -885,6 +939,39 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 && StringUtils.hasText(wechatPrivateKeyPath)
                 && StringUtils.hasText(wechatMerchantSerialNo)
                 && StringUtils.hasText(wechatApiV3Key);
+    }
+
+    private String alipayMode() {
+        if (!alipayReady()) {
+            return "MISSING";
+        }
+        return alipaySandboxMode() ? "SANDBOX" : "OFFICIAL";
+    }
+
+    private boolean alipaySandboxMode() {
+        if (!StringUtils.hasText(alipayGatewayUrl)) {
+            return false;
+        }
+        String normalized = alipayGatewayUrl.toLowerCase(Locale.ROOT);
+        return normalized.contains("sandbox") || normalized.contains("alipaydev");
+    }
+
+    private PaymentGatewayStatusResponse.ChannelStatus channelStatus(String payChannel,
+                                                                     String mode,
+                                                                     boolean configured,
+                                                                     boolean sandboxMode,
+                                                                     String gatewayUrl,
+                                                                     Map<String, Boolean> requiredItems,
+                                                                     String message) {
+        PaymentGatewayStatusResponse.ChannelStatus status = new PaymentGatewayStatusResponse.ChannelStatus();
+        status.setPayChannel(payChannel);
+        status.setMode(mode);
+        status.setConfigured(configured);
+        status.setSandboxMode(sandboxMode);
+        status.setGatewayUrl(gatewayUrl);
+        status.setRequiredItems(new java.util.LinkedHashMap<>(requiredItems));
+        status.setMessage(message);
+        return status;
     }
 
     private String amountText(BigDecimal amount) {

@@ -7,6 +7,8 @@ import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.types.exception.AppException;
 import cn.hollis.llm.mentor.agent.entity.AiSession;
 import cn.hollis.llm.mentor.agent.entity.record.FileInfo;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -27,6 +29,7 @@ import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "*")
+@Tag(name = "Dodo Agent Compatibility")
 public class DodoAgentCompatibilityController {
 
     private static final int SUCCESS = 200;
@@ -74,11 +77,27 @@ public class DodoAgentCompatibilityController {
     }
 
     @GetMapping(value = "/agent/skills/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
+    @Operation(summary = "Skills stream")
     public Flux<String> skillsStream(@RequestHeader(value = "Authorization", required = false) String token,
                                      @RequestParam String query,
                                      @RequestParam String conversationId,
                                      @RequestParam(required = false) String fileId) {
         return stream(token, "skills", query, conversationId, fileId);
+    }
+
+    @GetMapping(value = "/agent/skills/manual/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
+    @Operation(summary = "Manual skills stream")
+    public Flux<String> manualSkillsStream(@RequestHeader(value = "Authorization", required = false) String token,
+                                           @RequestParam String query,
+                                           @RequestParam String conversationId,
+                                           @RequestParam(required = false) String fileId) {
+        return stream(token, "manual-skills", query, conversationId, fileId);
+    }
+
+    @GetMapping("/agent/capabilities")
+    @Operation(summary = "Agent capability status")
+    public DodoResult<Map<String, Object>> capabilities() {
+        return DodoResult.success(dodoNativeAgentService.capabilities());
     }
 
     @GetMapping("/agent/stop")

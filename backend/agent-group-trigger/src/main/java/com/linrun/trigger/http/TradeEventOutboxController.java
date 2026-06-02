@@ -5,9 +5,12 @@ import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.domain.trade.service.TradeEventOutboxDispatchService;
 import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -23,5 +26,10 @@ public class TradeEventOutboxController {
     @PostMapping("/exec_job")
     public Response<TradeEventOutboxDispatchResponse> execJob() {
         return Response.success(tradeEventOutboxDispatchService.execDispatchJob(), RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/status")
+    public Response<Map<String, Object>> status() {
+        return Response.success(tradeEventOutboxDispatchService.queryStatus(), RequestTraceContext.getRequestId());
     }
 }

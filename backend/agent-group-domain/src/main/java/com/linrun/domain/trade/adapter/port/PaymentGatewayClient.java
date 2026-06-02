@@ -1,5 +1,6 @@
 package com.linrun.domain.trade.adapter.port;
 
+import com.linrun.api.dto.PaymentGatewayStatusResponse;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
 import com.linrun.domain.trade.model.payment.PaymentBillDownloadCommand;
@@ -44,6 +45,12 @@ public interface PaymentGatewayClient {
 
     default PaymentGatewayErrorMapping mapGatewayError(String payChannel, String gatewayCode) {
         throw new UnsupportedOperationException("payment gateway error mapping is not implemented");
+    }
+
+    default PaymentGatewayStatusResponse gatewayStatus() {
+        PaymentGatewayStatusResponse response = new PaymentGatewayStatusResponse();
+        response.setMessage("payment gateway status is not implemented");
+        return response;
     }
 
     default PaymentWebhookResult queryPayment(PaymentReconcileCommand command) {

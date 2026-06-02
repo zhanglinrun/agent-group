@@ -81,6 +81,34 @@
         limit #{limit}
     </select>
 
+    <select id="countByStatus" resultType="long">
+        select count(1)
+        from trade_event_outbox
+        where send_status = #{sendStatus}
+    </select>
+
+    <select id="queryRecentByStatus" resultMap="TradeEventOutboxMap">
+        select id,
+               event_id,
+               order_id,
+               biz_type,
+               biz_id,
+               event_type,
+               routing_key,
+               from_status,
+               to_status,
+               remark,
+               send_count,
+               send_status,
+               last_error,
+               create_time,
+               update_time
+        from trade_event_outbox
+        where send_status = #{sendStatus}
+        order by update_time desc, id desc
+        limit #{limit}
+    </select>
+
     <update id="updateStatusProcessing" parameterType="com.linrun.infrastructure.po.TradeEventOutboxPO">
         update trade_event_outbox
         set send_status = 4,

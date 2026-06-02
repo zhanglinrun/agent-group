@@ -10,6 +10,14 @@ public interface TradeEventOutboxRepository {
 
     List<TradeEventOutboxEntity> queryPending(int limit);
 
+    default long countByStatus(int sendStatus) {
+        return 0L;
+    }
+
+    default List<TradeEventOutboxEntity> queryRecentByStatus(int sendStatus, int limit) {
+        return List.of();
+    }
+
     int updateStatusProcessing(TradeEventOutboxEntity outbox);
 
     int updateStatusSuccess(TradeEventOutboxEntity outbox);

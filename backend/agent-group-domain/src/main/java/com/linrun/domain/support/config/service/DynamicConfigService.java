@@ -1,8 +1,11 @@
 package com.linrun.domain.support.config.service;
 
 import com.linrun.domain.support.config.adapter.DynamicConfigRepository;
+import com.linrun.domain.support.config.event.DynamicConfigChangedEvent;
 import com.linrun.domain.support.config.model.DynamicConfig;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -54,10 +57,18 @@ public class DynamicConfigService {
     );
 
     private final DynamicConfigRepository dynamicConfigRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final Map<String, String> localCache = new ConcurrentHashMap<>();
 
     public DynamicConfigService(DynamicConfigRepository dynamicConfigRepository) {
+        this(dynamicConfigRepository, null);
+    }
+
+    @Autowired
+    public DynamicConfigService(DynamicConfigRepository dynamicConfigRepository,
+                                ApplicationEventPublisher eventPublisher) {
         this.dynamicConfigRepository = dynamicConfigRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public DynamicConfig updateConfig(String key, String value) {
@@ -70,7 +81,19 @@ public class DynamicConfigService {
         DynamicConfig config = DynamicConfig.of(key, value, "");
         dynamicConfigRepository.saveOrUpdate(config);
         localCache.put(key, value);
+        publishConfigChanged(key, value);
         return queryConfig(key).orElse(config);
+    }
+
+    public void applyRemoteConfig(String key, String value) {
+        if (!StringUtils.hasText(key)) {
+            return;
+        }
+        if (value == null) {
+            localCache.remove(key);
+        } else {
+            localCache.put(key, value);
+        }
     }
 
     public Optional<DynamicConfig> queryConfig(String key) {
@@ -169,6 +192,12 @@ public class DynamicConfigService {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return fallback;
+        }
+    }
+
+    private void publishConfigChanged(String key, String value) {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new DynamicConfigChangedEvent(key, value));
         }
     }
 }

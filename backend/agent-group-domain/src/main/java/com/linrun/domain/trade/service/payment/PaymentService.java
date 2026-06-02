@@ -4,6 +4,7 @@ import com.linrun.api.dto.CreatePaymentRequest;
 import com.linrun.api.dto.DownloadPaymentBillRequest;
 import com.linrun.api.dto.DownloadPaymentBillResponse;
 import com.linrun.api.dto.PaymentGatewayErrorMapResponse;
+import com.linrun.api.dto.PaymentGatewayStatusResponse;
 import com.linrun.api.dto.PaymentWebhookRequest;
 import com.linrun.api.dto.QueryPaymentRefundRequest;
 import com.linrun.api.dto.QueryPaymentRefundResponse;
@@ -295,6 +296,10 @@ public class PaymentService {
         response.setRetryable(mapping.retryable());
         response.setSuggestion(mapping.suggestion());
         return response;
+    }
+
+    public PaymentGatewayStatusResponse gatewayStatus() {
+        return paymentGatewayClient.gatewayStatus();
     }
 
     @Transactional(rollbackFor = Exception.class)

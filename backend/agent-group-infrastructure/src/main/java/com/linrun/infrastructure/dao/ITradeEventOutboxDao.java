@@ -13,6 +13,11 @@ public interface ITradeEventOutboxDao {
 
     List<TradeEventOutboxPO> queryPending(@Param("limit") int limit);
 
+    long countByStatus(@Param("sendStatus") int sendStatus);
+
+    List<TradeEventOutboxPO> queryRecentByStatus(@Param("sendStatus") int sendStatus,
+                                                 @Param("limit") int limit);
+
     int updateStatusProcessing(TradeEventOutboxPO outbox);
 
     int updateStatusSuccess(TradeEventOutboxPO outbox);

@@ -4,6 +4,7 @@ import com.linrun.api.dto.CreatePaymentRequest;
 import com.linrun.api.dto.DownloadPaymentBillRequest;
 import com.linrun.api.dto.DownloadPaymentBillResponse;
 import com.linrun.api.dto.PaymentGatewayErrorMapResponse;
+import com.linrun.api.dto.PaymentGatewayStatusResponse;
 import com.linrun.api.dto.PaymentWebhookRequest;
 import com.linrun.api.dto.QueryPaymentRefundRequest;
 import com.linrun.api.dto.QueryPaymentRefundResponse;
@@ -112,6 +113,11 @@ public class PaymentController {
     public Response<PaymentGatewayErrorMapResponse> errorMap(@RequestParam String payChannel,
                                                              @RequestParam String gatewayCode) {
         return Response.success(paymentService.mapGatewayError(payChannel, gatewayCode), RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/gateway/status")
+    public Response<PaymentGatewayStatusResponse> gatewayStatus() {
+        return Response.success(paymentService.gatewayStatus(), RequestTraceContext.getRequestId());
     }
 
     private String formBody(Map<String, String> params) {

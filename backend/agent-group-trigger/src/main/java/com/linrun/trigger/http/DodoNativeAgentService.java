@@ -5,12 +5,19 @@ import cn.hollis.llm.mentor.agent.agent.deepresearch.PlanExecuteAgent;
 import cn.hollis.llm.mentor.agent.agent.file.FileReactAgent;
 import cn.hollis.llm.mentor.agent.agent.pptx.PPTBuilderAgent;
 import cn.hollis.llm.mentor.agent.agent.skills.SkillsReactAgent;
+import cn.hollis.llm.mentor.agent.agent.skills.manual.SkillManager;
+import cn.hollis.llm.mentor.agent.agent.skills.manual.config.SkillConfig;
+import cn.hollis.llm.mentor.agent.agent.skills.manual.tool.ReadSkillTool;
 import cn.hollis.llm.mentor.agent.agent.websearch.WebSearchReactAgent;
 import cn.hollis.llm.mentor.agent.context.ContextPolicy;
+import cn.hollis.llm.mentor.agent.context.DodoTokenUsageRecorder;
+import cn.hollis.llm.mentor.agent.context.UsageRecordingChatModel;
 import cn.hollis.llm.mentor.agent.entity.AiSession;
 import cn.hollis.llm.mentor.agent.entity.record.FileInfo;
+import cn.hollis.llm.mentor.agent.entity.record.pptx.AiPptInst;
 import cn.hollis.llm.mentor.agent.mapper.AiSessionMapper;
 import cn.hollis.llm.mentor.agent.service.AgentTaskManager;
+import cn.hollis.llm.mentor.agent.service.AiPptInstService;
 import cn.hollis.llm.mentor.agent.service.AiSessionService;
 import cn.hollis.llm.mentor.agent.service.FileInfoService;
 import cn.hollis.llm.mentor.agent.service.FileManageService;
@@ -42,6 +49,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
@@ -50,7 +58,9 @@ import java.math.BigDecimal;
 import java.net.http.HttpRequest;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
@@ -64,6 +74,7 @@ public class DodoNativeAgentService implements InitializingBean {
     private final FileContentService fileContentService;
     private final FileManageService fileManageService;
     private final FileInfoService fileInfoService;
+    private final AiPptInstService aiPptInstService;
     private final AiSessionMapper aiSessionMapper;
     private final UserAccountService userAccountService;
     private final UserQuotaService userQuotaService;
@@ -85,6 +96,7 @@ public class DodoNativeAgentService implements InitializingBean {
                                   FileContentService fileContentService,
                                   FileManageService fileManageService,
                                   FileInfoService fileInfoService,
+                                  AiPptInstService aiPptInstService,
                                   AiSessionMapper aiSessionMapper,
                                   UserAccountService userAccountService,
                                   UserQuotaService userQuotaService) {
@@ -94,6 +106,7 @@ public class DodoNativeAgentService implements InitializingBean {
         this.fileContentService = fileContentService;
         this.fileManageService = fileManageService;
         this.fileInfoService = fileInfoService;
+        this.aiPptInstService = aiPptInstService;
         this.aiSessionMapper = aiSessionMapper;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
@@ -112,22 +125,36 @@ public class DodoNativeAgentService implements InitializingBean {
         BigDecimal quotaCost = userQuotaService.estimatePreCheckCost(safeAgentType);
         userQuotaService.assertEnoughQuota(user.getUserId(), quotaCost);
         validateFileAccess(user.getUserId(), internalConversationId, fileId);
+        long startNanos = System.nanoTime();
+        StringBuilder observedContent = new StringBuilder();
+        DodoTokenUsageRecorder.start(internalConversationId);
 
         Flux<String> agentFlux = switch (safeAgentType) {
-            case "file" -> withMemory(initFileReactAgent(user.getUserId()), internalConversationId).stream(internalConversationId, query, fileId);
-            case "ppt" -> withMemory(initPPTBuilderAgent(), internalConversationId).execute(internalConversationId, query);
-            case "deep" -> withMemory(initPlanExecuteAgent(), internalConversationId).stream(internalConversationId, query);
-            case "skills" -> withMemory(initSkillsReactAgent(user.getUserId()), internalConversationId).stream(internalConversationId, query, fileId);
-            default -> withMemory(initWebSearchAgent(), internalConversationId).stream(internalConversationId, query);
+            case "file" -> withMemory(initFileReactAgent(user.getUserId(), internalConversationId), internalConversationId)
+                    .stream(internalConversationId, query, fileId);
+            case "ppt" -> withMemory(initPPTBuilderAgent(internalConversationId), internalConversationId)
+                    .execute(internalConversationId, query);
+            case "deep" -> withMemory(initPlanExecuteAgent(internalConversationId), internalConversationId)
+                    .stream(internalConversationId, query);
+            case "skills" -> withMemory(initSkillsReactAgent(user.getUserId(), internalConversationId), internalConversationId)
+                    .stream(internalConversationId, query, fileId);
+            case "manual-skills" -> withMemory(initManualSkillsReactAgent(user.getUserId(), internalConversationId), internalConversationId)
+                    .stream(internalConversationId, query, fileId);
+            default -> withMemory(initWebSearchAgent(internalConversationId), internalConversationId)
+                    .stream(internalConversationId, query);
         };
 
         AtomicBoolean consumed = new AtomicBoolean(false);
-        return agentFlux.doOnComplete(() -> {
+        return agentFlux.doOnNext(observedContent::append)
+                .doOnComplete(() -> {
             if (consumed.compareAndSet(false, true)) {
-                consumeQuota(user.getUserId(), safeConversationId, safeAgentType);
+                long latencyMillis = Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
+                DodoTokenUsageRecorder.Snapshot tokenUsage = DodoTokenUsageRecorder.snapshot(internalConversationId);
+                consumeQuota(user.getUserId(), safeConversationId, safeAgentType, query,
+                        observedContent.toString(), latencyMillis, tokenUsage);
                 fillAgentType(internalConversationId, safeAgentType);
             }
-        });
+        }).doFinally(signalType -> DodoTokenUsageRecorder.clear(internalConversationId));
     }
 
     public FileInfo upload(String token, MultipartFile file, String conversationId) {
@@ -201,10 +228,43 @@ public class DodoNativeAgentService implements InitializingBean {
         return sessionService.list(wrapper);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void deleteSession(String token, String conversationId) {
         UserAccount user = user(token);
         String internalConversationId = internalConversationId(user.getUserId(), conversationId);
+        List<FileInfo> relatedFiles = fileInfoService.getAllFiles().stream()
+                .filter(file -> internalConversationId.equals(file.getConversationId()))
+                .toList();
+        for (FileInfo file : relatedFiles) {
+            try {
+                fileManageService.deleteFile(file.getFileId());
+            } catch (Exception e) {
+                LOGGER.warn("dodo session file cleanup degraded, fileId={}, reason={}", file.getFileId(), e.getClass().getSimpleName());
+                fileInfoService.deleteFileInfo(file.getFileId());
+            }
+        }
+        aiPptInstService.remove(new LambdaQueryWrapper<AiPptInst>()
+                .eq(AiPptInst::getConversationId, internalConversationId));
         sessionService.remove(new LambdaQueryWrapper<AiSession>().eq(AiSession::getSessionId, internalConversationId));
+    }
+
+    public Map<String, Object> capabilities() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        SkillManager skillManager = manualSkillManager();
+        int manualSkillCount = skillManager == null ? 0 : skillManager.getSkillCount();
+        result.put("chatModelAvailable", chatModelProvider.getIfAvailable() != null);
+        result.put("tavilyConfigured", isTavilyConfigured());
+        result.put("webSearchAvailable", webSearchToolCallbacks.length > 0);
+        result.put("webSearchToolCount", webSearchToolCallbacks.length);
+        result.put("webSearchStatus", webSearchStatus());
+        result.put("skillsDirectoryConfigured", StringUtils.hasText(skillsDirectory));
+        result.put("skillsToolAvailable", skillsToolCallbacks().length > 0);
+        result.put("manualSkillsAvailable", manualSkillCount > 0);
+        result.put("manualSkillCount", manualSkillCount);
+        result.put("manualSkillsEndpoint", "/agent/skills/manual/stream");
+        result.put("quotaMode", "spring-ai-usage-with-estimated-fallback");
+        result.put("apiDocs", "/swagger-ui/index.html");
+        return result;
     }
 
     public String externalConversationId(String userId, String sessionId) {
@@ -214,6 +274,7 @@ public class DodoNativeAgentService implements InitializingBean {
 
     private void initWebSearchToolCallbacks() {
         if (!StringUtils.hasText(tavilyApiKey) || tavilyApiKey.contains("XXXXX") || !StringUtils.hasText(tavilyMcpUrl)) {
+            LOGGER.warn("dodo tavily tool init skipped, reason=missing_config");
             webSearchToolCallbacks = new ToolCallback[0];
             return;
         }
@@ -234,10 +295,10 @@ public class DodoNativeAgentService implements InitializingBean {
         }
     }
 
-    private WebSearchReactAgent initWebSearchAgent() {
+    private WebSearchReactAgent initWebSearchAgent(String conversationId) {
         return WebSearchReactAgent.builder()
                 .name("web react")
-                .chatModel(chatModel())
+                .chatModel(chatModel(conversationId))
                 .tools(webSearchToolCallbacks)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
@@ -245,24 +306,24 @@ public class DodoNativeAgentService implements InitializingBean {
                 .build();
     }
 
-    private FileReactAgent initFileReactAgent(String userId) {
+    private FileReactAgent initFileReactAgent(String userId, String conversationId) {
         List<ToolCallback> tools = Arrays.asList(fileContentToolCallbacks(userId));
         return FileReactAgent.builder()
                 .name("file react")
-                .chatModel(chatModel())
+                .chatModel(chatModel(conversationId))
                 .tools(tools)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .build();
     }
 
-    private PPTBuilderAgent initPPTBuilderAgent() {
-        return new PPTBuilderAgent(chatModel(), Arrays.asList(webSearchToolCallbacks), sessionService, taskManager);
+    private PPTBuilderAgent initPPTBuilderAgent(String conversationId) {
+        return new PPTBuilderAgent(chatModel(conversationId), Arrays.asList(webSearchToolCallbacks), sessionService, taskManager);
     }
 
-    private PlanExecuteAgent initPlanExecuteAgent() {
+    private PlanExecuteAgent initPlanExecuteAgent(String conversationId) {
         return PlanExecuteAgent.builder()
-                .chatModel(chatModel())
+                .chatModel(chatModel(conversationId))
                 .tools(webSearchToolCallbacks)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
@@ -270,7 +331,7 @@ public class DodoNativeAgentService implements InitializingBean {
                 .build();
     }
 
-    private SkillsReactAgent initSkillsReactAgent(String userId) {
+    private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId) {
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 webSearchToolCallbacks,
                 fileContentToolCallbacks(userId),
@@ -281,10 +342,36 @@ public class DodoNativeAgentService implements InitializingBean {
         );
         return SkillsReactAgent.builder()
                 .name("skills")
-                .chatModel(chatModel())
+                .chatModel(chatModel(conversationId))
                 .tools(tools)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
+                .contextPolicy(ContextPolicy.defaults())
+                .build();
+    }
+
+    private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId) {
+        SkillManager skillManager = manualSkillManager();
+        ToolCallback[] readSkillTools = skillManager == null
+                ? new ToolCallback[0]
+                : new ToolCallback[]{ReadSkillTool.create(skillManager.getRegistry())};
+        String skillsPrompt = skillManager == null ? "" : skillManager.formatPrompt();
+        ToolCallback[] tools = ToolMergeUtils.mergeTools(
+                webSearchToolCallbacks,
+                fileContentToolCallbacks(userId),
+                readSkillTools,
+                FileSystemTools.create(),
+                GrepTool.create(),
+                BashTool.create()
+        );
+        return SkillsReactAgent.builder()
+                .name("manual-skills")
+                .chatModel(chatModel(conversationId))
+                .tools(tools)
+                .systemPrompt(skillsPrompt)
+                .sessionService(sessionService)
+                .taskManager(taskManager)
+                .maxRounds(10)
                 .contextPolicy(ContextPolicy.defaults())
                 .build();
     }
@@ -305,18 +392,33 @@ public class DodoNativeAgentService implements InitializingBean {
         }
     }
 
+    private SkillManager manualSkillManager() {
+        if (!StringUtils.hasText(skillsDirectory)) {
+            return null;
+        }
+        try {
+            SkillConfig skillConfig = SkillConfig.builder()
+                    .addDirectory(skillsDirectory)
+                    .build();
+            return SkillManager.create(skillConfig);
+        } catch (Exception e) {
+            LOGGER.warn("dodo manual skills init skipped, reason={}", e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
     private <T extends BaseAgent> T withMemory(T agent, String conversationId) {
         ChatMemory persistentMemory = agent.createPersistentChatMemory(conversationId, 30);
         agent.setChatMemory(persistentMemory);
         return agent;
     }
 
-    private ChatModel chatModel() {
+    private ChatModel chatModel(String conversationId) {
         ChatModel chatModel = chatModelProvider.getIfAvailable();
         if (chatModel == null) {
             throw new AppException("AGENT_0007", "模型客户端不可用，请检查大模型配置");
         }
-        return chatModel;
+        return new UsageRecordingChatModel(chatModel, conversationId);
     }
 
     private UserAccount user(String token) {
@@ -339,9 +441,56 @@ public class DodoNativeAgentService implements InitializingBean {
         }
     }
 
-    private void consumeQuota(String userId, String conversationId, String agentType) {
+    private void consumeQuota(String userId,
+                              String conversationId,
+                              String agentType,
+                              String query,
+                              String observedContent,
+                              long latencyMillis,
+                              DodoTokenUsageRecorder.Snapshot tokenUsage) {
+        GuideTokenUsage usage = hasRealUsage(tokenUsage)
+                ? new GuideTokenUsage(tokenUsage.promptTokens(), tokenUsage.completionTokens(),
+                tokenUsage.totalTokens(), BigDecimal.ZERO)
+                : estimateTokenUsage(query, observedContent);
+        String model = hasRealUsage(tokenUsage) && StringUtils.hasText(tokenUsage.model())
+                ? tokenUsage.model()
+                : "dodo-agent-estimated";
         userQuotaService.consumeForAcademicTask(userId, conversationId, agentType,
-                GuideTokenUsage.empty(), "dodo-agent", 0L);
+                usage, model, latencyMillis);
+    }
+
+    private boolean hasRealUsage(DodoTokenUsageRecorder.Snapshot tokenUsage) {
+        return tokenUsage != null && tokenUsage.hasUsage();
+    }
+
+    private GuideTokenUsage estimateTokenUsage(String query, String observedContent) {
+        long promptTokens = estimateTokens(query);
+        long completionTokens = estimateTokens(observedContent);
+        return new GuideTokenUsage(promptTokens, completionTokens, promptTokens + completionTokens, BigDecimal.ZERO);
+    }
+
+    private long estimateTokens(String text) {
+        if (!StringUtils.hasText(text)) {
+            return 0L;
+        }
+        long cjkTokens = 0L;
+        long otherChars = 0L;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (Character.isWhitespace(ch)) {
+                continue;
+            }
+            Character.UnicodeScript script = Character.UnicodeScript.of(ch);
+            if (script == Character.UnicodeScript.HAN
+                    || script == Character.UnicodeScript.HIRAGANA
+                    || script == Character.UnicodeScript.KATAKANA
+                    || script == Character.UnicodeScript.HANGUL) {
+                cjkTokens++;
+            } else {
+                otherChars++;
+            }
+        }
+        return cjkTokens + (long) Math.ceil(otherChars / 4.0d);
     }
 
     private void fillAgentType(String internalConversationId, String agentType) {
@@ -367,8 +516,25 @@ public class DodoNativeAgentService implements InitializingBean {
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
             case "skills" -> "skills";
+            case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";
         };
+    }
+
+    private boolean isTavilyConfigured() {
+        return StringUtils.hasText(tavilyApiKey)
+                && !tavilyApiKey.contains("XXXXX")
+                && StringUtils.hasText(tavilyMcpUrl);
+    }
+
+    private String webSearchStatus() {
+        if (!isTavilyConfigured()) {
+            return "missing-config";
+        }
+        if (webSearchToolCallbacks.length == 0) {
+            return "configured-but-no-tools";
+        }
+        return "available";
     }
 
     private String message(Throwable error) {

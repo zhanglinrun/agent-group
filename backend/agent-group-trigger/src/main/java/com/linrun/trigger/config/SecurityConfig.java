@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(registry -> registry
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/health", "/actuator/health", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/agent/**", "/file/**", "/session/**").permitAll()
                         .requestMatchers("/api/v1/auth/**", "/api/v1/quota/**", "/api/v1/academic/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").permitAll()
@@ -62,7 +63,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/payment/refund", "/api/v1/payment/reconcile",
                                 "/api/v1/payment/bill/download", "/api/v1/payment/refund/query",
                                 "/api/v1/payment/refund/webhook/**", "/api/v1/payment/certificate/refresh",
-                                "/api/v1/payment/error-map").hasRole("ADMIN")
+                                "/api/v1/payment/error-map", "/api/v1/payment/gateway/status").hasRole("ADMIN")
                         .anyRequest().authenticated());
         return http.build();
     }

@@ -6,7 +6,9 @@ import com.linrun.domain.trade.adapter.repository.TradeEventPublisher;
 import com.linrun.domain.trade.model.entity.TradeEventOutboxEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class TradeEventOutboxDispatchService {
@@ -26,6 +28,21 @@ public class TradeEventOutboxDispatchService {
 
     public TradeEventOutboxDispatchResponse execDispatchJob() {
         return execDispatchTasks(tradeEventOutboxRepository.queryPending(DEFAULT_BATCH_SIZE));
+    }
+
+    public Map<String, Object> queryStatus() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        List<TradeEventOutboxEntity> pendingSamples = tradeEventOutboxRepository.queryPending(10);
+        status.put("initCount", tradeEventOutboxRepository.countByStatus(TradeEventOutboxEntity.STATUS_INIT));
+        status.put("successCount", tradeEventOutboxRepository.countByStatus(TradeEventOutboxEntity.STATUS_SUCCESS));
+        status.put("retryCount", tradeEventOutboxRepository.countByStatus(TradeEventOutboxEntity.STATUS_RETRY));
+        status.put("deadLetterCount", tradeEventOutboxRepository.countByStatus(TradeEventOutboxEntity.STATUS_DEAD_LETTER));
+        status.put("processingCount", tradeEventOutboxRepository.countByStatus(TradeEventOutboxEntity.STATUS_PROCESSING));
+        status.put("pendingSampleCount", pendingSamples.size());
+        status.put("pendingSamples", samples(pendingSamples));
+        status.put("deadLetterSamples", samples(tradeEventOutboxRepository.queryRecentByStatus(
+                TradeEventOutboxEntity.STATUS_DEAD_LETTER, 5)));
+        return status;
     }
 
     private TradeEventOutboxDispatchResponse execDispatchTasks(List<TradeEventOutboxEntity> outboxes) {
@@ -66,5 +83,22 @@ public class TradeEventOutboxDispatchService {
             return message;
         }
         return message.substring(0, MAX_ERROR_MESSAGE_LENGTH);
+    }
+
+    private List<Map<String, Object>> samples(List<TradeEventOutboxEntity> outboxes) {
+        return outboxes.stream().map(this::sample).toList();
+    }
+
+    private Map<String, Object> sample(TradeEventOutboxEntity outbox) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("eventId", outbox.getEventId());
+        item.put("orderId", outbox.getOrderId());
+        item.put("eventType", outbox.getEventType());
+        item.put("routingKey", outbox.getRoutingKey());
+        item.put("sendStatus", outbox.getSendStatus());
+        item.put("sendCount", outbox.getSendCount());
+        item.put("lastError", outbox.getLastError());
+        item.put("updateTime", outbox.getUpdateTime());
+        return item;
     }
 }

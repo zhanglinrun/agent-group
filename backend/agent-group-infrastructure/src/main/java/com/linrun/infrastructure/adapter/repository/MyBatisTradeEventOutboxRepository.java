@@ -28,6 +28,17 @@ public class MyBatisTradeEventOutboxRepository implements TradeEventOutboxReposi
     }
 
     @Override
+    public long countByStatus(int sendStatus) {
+        return tradeEventOutboxDao.countByStatus(sendStatus);
+    }
+
+    @Override
+    public List<TradeEventOutboxEntity> queryRecentByStatus(int sendStatus, int limit) {
+        return TradePOConverter.toTradeEventOutboxEntities(
+                tradeEventOutboxDao.queryRecentByStatus(sendStatus, Math.max(1, limit)));
+    }
+
+    @Override
     public int updateStatusProcessing(TradeEventOutboxEntity outbox) {
         return tradeEventOutboxDao.updateStatusProcessing(TradePOConverter.toPO(outbox));
     }
