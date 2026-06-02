@@ -35,7 +35,7 @@ public class GroupBuyTeam {
 
     public void assertCanJoin(String activityId, String goodsId, LocalDateTime now) {
         if (!this.activityId.equals(activityId) || !this.goodsId.equals(goodsId)) {
-            throw new AppException("GROUP_0004", "拼团队伍和活动商品不匹配");
+            throw new AppException("GROUP_0004", "拼团队伍和活动额度包不匹配");
         }
         if (!GroupBuyTeamStatus.PROCESSING.equals(teamStatus)) {
             throw new AppException("GROUP_0005", "拼团队伍不可加入");

@@ -15,7 +15,7 @@ spring:
   ai:
     openai:
       base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-      api-key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:not-configured}}
+      api-key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:${AI_BAILIAN_API_KEY:not-configured}}}
       chat:
         completions-path: /chat/completions
         options:
@@ -165,8 +165,23 @@ agent:
         callback-base-url: ${AGENT_GROUP_WECHAT_CALLBACK_BASE_URL:http://localhost:8080}
         qr-expire-seconds: ${AGENT_GROUP_WECHAT_QR_EXPIRE_SECONDS:900}
 
+tavily:
+  api-key: ${TAVILY_API_KEY:}
+  mcp-url: ${TAVILY_MCP_URL:https://mcp.tavily.com/mcp/}
+
+grsai:
+  nanobanana:
+    api-key: ${GRSAI_NANOBANANA_API_KEY:}
+
+skills:
+  directory: ${AGENT_GROUP_SKILLS_DIRECTORY:}
+
 mybatis:
-  mapper-locations: classpath:/mybatis/mapper/*.xml
+  mapper-locations: classpath*:/mybatis/mapper/*.xml
+  config-location: classpath:/mybatis/config/mybatis-config.xml
+
+mybatis-plus:
+  mapper-locations: classpath*:/mybatis/mapper/*.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml
 
 management:

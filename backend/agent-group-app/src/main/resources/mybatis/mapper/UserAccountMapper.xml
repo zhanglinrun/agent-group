@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IUserAccountDao">
+
+    <resultMap id="UserAccountMap" type="com.linrun.infrastructure.po.UserAccountPO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="password_hash" property="passwordHash"/>
+        <result column="password_salt" property="passwordSalt"/>
+        <result column="nickname" property="nickname"/>
+        <result column="email" property="email"/>
+        <result column="role" property="role"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="UserLoginSessionMap" type="com.linrun.infrastructure.po.UserLoginSessionPO">
+        <id column="token" property="token"/>
+        <result column="user_id" property="userId"/>
+        <result column="expire_time" property="expireTime"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insertUser">
+        insert into user_account (
+          user_id, username, password_hash, password_salt, nickname, email, role, status, create_time, update_time
+        ) values (
+          #{userId}, #{username}, #{passwordHash}, #{passwordSalt}, #{nickname}, #{email}, #{role}, #{status},
+          #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <select id="queryByUsername" resultMap="UserAccountMap">
+        select id, user_id, username, password_hash, password_salt, nickname, email, role, status, create_time, update_time
+        from user_account
+        where username = #{username}
+        limit 1
+    </select>
+
+    <select id="queryByUserId" resultMap="UserAccountMap">
+        select id, user_id, username, password_hash, password_salt, nickname, email, role, status, create_time, update_time
+        from user_account
+        where user_id = #{userId}
+        limit 1
+    </select>
+
+    <insert id="insertSession">
+        insert into user_login_session (
+          token, user_id, expire_time, status, create_time
+        ) values (
+          #{token}, #{userId}, #{expireTime}, #{status}, #{createTime}
+        )
+    </insert>
+
+    <select id="querySessionByToken" resultMap="UserLoginSessionMap">
+        select token, user_id, expire_time, status, create_time
+        from user_login_session
+        where token = #{token}
+        limit 1
+    </select>
+
+    <update id="invalidSession">
+        update user_login_session
+        set status = 'INVALID'
+        where token = #{token}
+    </update>
+</mapper>

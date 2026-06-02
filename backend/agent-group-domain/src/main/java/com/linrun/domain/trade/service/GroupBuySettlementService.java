@@ -57,7 +57,7 @@ public class GroupBuySettlementService {
         this(groupBuyOrderLockRepository, groupBuyStockRepository, tradeOrderRepository, tradeStatusFlowService, null);
     }
 
-    public void settlePaySuccess(TradeOrderEntity tradeOrder) {
-        settlementRuleChain.settlePaySuccess(tradeOrder);
+    public List<String> settlePaySuccess(TradeOrderEntity tradeOrder) {
+        return settlementRuleChain.settlePaySuccess(tradeOrder);
     }
 }

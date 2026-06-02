@@ -10,6 +10,8 @@ create table if not exists guide_goods (
   goods_name varchar(128) not null comment '商品名称',
   image_url varchar(512) not null default '' comment '商品图片',
   origin_price decimal(10, 2) not null comment '原价',
+  quota_amount decimal(10, 2) not null default 0.00 comment '额度数量',
+  product_type varchar(32) not null default 'PHYSICAL' comment '商品类型',
   spec_summary varchar(512) not null comment '规格摘要',
   after_sale_policy varchar(512) not null comment '售后政策',
   recommend_reason varchar(512) not null comment '推荐理由',
@@ -20,7 +22,27 @@ create table if not exists guide_goods (
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
   primary key (id),
   unique key uk_goods_id (goods_id)
-) engine=InnoDB default charset=utf8mb4 comment='导购商品表';
+) engine=InnoDB default charset=utf8mb4 comment='额度包表';
+
+set @sql := if(
+  (select count(*) from information_schema.columns
+   where table_schema = database() and table_name = 'guide_goods' and column_name = 'quota_amount') = 0,
+  'alter table guide_goods add column quota_amount decimal(10, 2) not null default 0.00 comment ''额度数量'' after origin_price',
+  'select 1'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql := if(
+  (select count(*) from information_schema.columns
+   where table_schema = database() and table_name = 'guide_goods' and column_name = 'product_type') = 0,
+  'alter table guide_goods add column product_type varchar(32) not null default ''PHYSICAL'' comment ''商品类型'' after quota_amount',
+  'select 1'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
 
 create table if not exists group_activity (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -280,6 +302,231 @@ create table if not exists trade_status_flow (
   key idx_order_time (order_id, create_time)
 ) engine=InnoDB default charset=utf8mb4 comment='交易状态流水表';
 
+create table if not exists user_account (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  user_id varchar(64) not null comment '用户编号',
+  username varchar(64) not null comment '登录账号',
+  password_hash varchar(128) not null comment '密码摘要',
+  password_salt varchar(128) not null comment '密码盐',
+  nickname varchar(64) not null default '' comment '昵称',
+  email varchar(128) not null default '' comment '邮箱',
+  role varchar(32) not null default 'USER' comment '角色',
+  status varchar(32) not null default 'ENABLED' comment '状态',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_user_id (user_id),
+  unique key uk_username (username)
+) engine=InnoDB default charset=utf8mb4 comment='用户账号表';
+
+create table if not exists user_login_session (
+  token varchar(128) not null comment '登录令牌',
+  user_id varchar(64) not null comment '用户编号',
+  expire_time datetime not null comment '过期时间',
+  status varchar(32) not null default 'ACTIVE' comment '状态',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (token),
+  key idx_user_status (user_id, status)
+) engine=InnoDB default charset=utf8mb4 comment='用户登录会话表';
+
+create table if not exists user_quota_account (
+  user_id varchar(64) not null comment '用户编号',
+  quota_balance decimal(12, 2) not null default 0.00 comment '可用额度',
+  frozen_quota decimal(12, 2) not null default 0.00 comment '冻结额度',
+  used_quota decimal(12, 2) not null default 0.00 comment '已用额度',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (user_id)
+) engine=InnoDB default charset=utf8mb4 comment='用户额度账户表';
+
+create table if not exists user_quota_flow (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  flow_id varchar(40) not null comment '流水编号',
+  user_id varchar(64) not null comment '用户编号',
+  flow_type varchar(32) not null comment '流水类型',
+  biz_id varchar(64) not null default '' comment '业务编号',
+  quota_amount decimal(12, 2) not null default 0.00 comment '额度变动',
+  before_balance decimal(12, 2) not null default 0.00 comment '变动前余额',
+  after_balance decimal(12, 2) not null default 0.00 comment '变动后余额',
+  remark varchar(256) not null default '' comment '说明',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_flow_id (flow_id),
+  unique key uk_user_biz_flow (user_id, flow_type, biz_id),
+  key idx_user_time (user_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='用户额度流水表';
+
+create table if not exists model_usage_record (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  usage_id varchar(40) not null comment '用量编号',
+  user_id varchar(64) not null comment '用户编号',
+  session_id varchar(64) not null default '' comment '会话编号',
+  task_type varchar(32) not null default '' comment '任务类型',
+  model varchar(64) not null default '' comment '模型',
+  prompt_tokens bigint not null default 0 comment '提示词 token',
+  completion_tokens bigint not null default 0 comment '回答 token',
+  total_tokens bigint not null default 0 comment '总 token',
+  quota_cost decimal(12, 2) not null default 0.00 comment '消耗额度',
+  latency_millis bigint not null default 0 comment '耗时',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_usage_id (usage_id),
+  key idx_user_time (user_id, create_time),
+  key idx_session_time (session_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='模型用量记录表';
+
+create table if not exists academic_agent_session (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  session_id varchar(64) not null comment '会话编号',
+  user_id varchar(64) not null comment '用户编号',
+  title varchar(128) not null default '' comment '标题',
+  task_type varchar(32) not null default '' comment '任务类型',
+  last_message varchar(256) not null default '' comment '最后消息',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_session_id (session_id),
+  key idx_user_time (user_id, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体会话表';
+
+create table if not exists academic_agent_message (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  message_id varchar(40) not null comment '消息编号',
+  session_id varchar(64) not null comment '会话编号',
+  user_id varchar(64) not null comment '用户编号',
+  role varchar(32) not null comment '角色',
+  content mediumtext not null comment '消息内容',
+  image_url varchar(2048) not null default '' comment '图片地址',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_message_id (message_id),
+  key idx_user_session_time (user_id, session_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体消息表';
+
+create table if not exists academic_agent_file (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  file_id varchar(40) not null comment '文件编号',
+  user_id varchar(64) not null comment '用户编号',
+  session_id varchar(64) not null default '' comment '会话编号',
+  file_name varchar(160) not null comment '文件名',
+  file_type varchar(32) not null default '' comment '文件类型',
+  file_size bigint not null default 0 comment '文件大小',
+  object_url varchar(512) not null default '' comment '对象存储地址',
+  content mediumtext not null comment '解析文本',
+  summary varchar(1024) not null default '' comment '摘要',
+  status varchar(32) not null default 'PARSED' comment '状态',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_file_id (file_id),
+  key idx_user_time (user_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体文件表';
+
+create table if not exists academic_agent_artifact (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  artifact_id varchar(40) not null comment '产物编号',
+  session_id varchar(64) not null comment '会话编号',
+  user_id varchar(64) not null comment '用户编号',
+  artifact_type varchar(32) not null comment '产物类型',
+  title varchar(128) not null default '' comment '标题',
+  content mediumtext not null comment '产物内容',
+  download_url varchar(512) not null default '' comment '下载地址',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  primary key (id),
+  unique key uk_artifact_id (artifact_id),
+  key idx_user_session_time (user_id, session_id, create_time)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体产物表';
+
+create table if not exists ai_file_info (
+  id bigint not null auto_increment comment '主键ID',
+  file_id varchar(255) not null comment '文件唯一标识',
+  file_name varchar(500) not null comment '原始文件名',
+  file_type varchar(50) default null comment '文件类型',
+  file_size bigint default null comment '文件大小',
+  minio_path varchar(1000) default null comment '对象存储路径',
+  extracted_text longtext comment '解析后的纯文本内容',
+  created_at datetime default current_timestamp comment '创建时间',
+  conversation_id varchar(255) default null comment '会话ID',
+  status varchar(50) default 'PENDING' comment '文件状态',
+  update_time datetime default current_timestamp on update current_timestamp comment '更新时间',
+  embed tinyint default 0 comment '是否向量化',
+  primary key (id),
+  unique key uk_file_id (file_id),
+  key idx_conversation_id (conversation_id)
+) engine=InnoDB default charset=utf8mb4 comment='Dodo 文件元数据表';
+
+create table if not exists ai_session (
+  id bigint not null auto_increment comment '主键ID',
+  session_id varchar(255) not null comment '会话ID',
+  question longtext comment '用户问题',
+  answer longtext comment 'AI回复',
+  tools varchar(1024) default null comment '工具名称',
+  first_response_time bigint default null comment '首次响应时间',
+  total_response_time bigint default null comment '整体回复时间',
+  create_time datetime default current_timestamp comment '创建时间',
+  update_time datetime default current_timestamp on update current_timestamp comment '更新时间',
+  reference longtext comment '参考链接',
+  agent_type varchar(255) default null comment '智能体类型',
+  thinking longtext comment '思考过程',
+  fileid varchar(255) default null comment '文件ID',
+  recommend varchar(1000) default null comment '推荐问题',
+  primary key (id),
+  key idx_session_id (session_id),
+  key idx_create_time (create_time)
+) engine=InnoDB default charset=utf8mb4 comment='Dodo 智能体会话表';
+
+create table if not exists ai_ppt_inst (
+  id bigint not null auto_increment comment '实例ID',
+  conversation_id varchar(64) default null comment '会话ID',
+  template_code varchar(50) default null comment '模板编码',
+  status varchar(32) default 'INIT' comment '状态',
+  query text comment '用户原始需求',
+  requirement longtext comment '需求澄清',
+  search_info longtext comment '搜索信息',
+  outline longtext comment '大纲',
+  ppt_schema longtext comment 'PPT 规划 JSON',
+  file_url varchar(1000) default null comment '生成文件URL',
+  error_msg text comment '失败原因',
+  create_time datetime default current_timestamp,
+  update_time datetime default current_timestamp on update current_timestamp,
+  primary key (id),
+  key idx_conversation_id (conversation_id),
+  key idx_status (status),
+  key idx_template_code (template_code)
+) engine=InnoDB default charset=utf8mb4 comment='Dodo PPT 生成实例表';
+
+create table if not exists ai_ppt_template (
+  id bigint not null auto_increment comment '模板ID',
+  template_code varchar(50) not null comment '模板唯一编码',
+  template_name varchar(100) not null comment '模板名称',
+  template_desc text comment '模板说明',
+  template_schema longtext not null comment '模板结构 JSON',
+  file_path varchar(500) not null comment 'PPT 模板文件路径',
+  style_tags varchar(200) default null comment '风格标签',
+  slide_count int default null comment '模板页数',
+  create_time datetime default current_timestamp,
+  primary key (id),
+  unique key uk_template_code (template_code),
+  key idx_template_code (template_code)
+) engine=InnoDB default charset=utf8mb4 comment='Dodo PPT 模板表';
+
+insert into ai_ppt_template (
+  template_code, template_name, template_desc, template_schema, file_path, style_tags, slide_count
+) values (
+  'ai',
+  'AI科技风PPT',
+  '适用于AI、人工智能、科技风等场景的PPT',
+  '{"slides":[{"pageType":"COVER","pageDesc":"封面页","pageIndex":1},{"pageType":"CATALOG","pageDesc":"目录页","pageIndex":2},{"pageType":"COMPARE","pageDesc":"内容页，用于两者对比","pageIndex":3},{"pageType":"CONTENT","pageDesc":"内容页","pageIndex":4},{"pageType":"END","pageDesc":"结束页","pageIndex":5}]}',
+  'classpath:dodo/templates/ai.pptx',
+  '科技、AI、人工智能',
+  5
+) on duplicate key update
+  template_name = values(template_name),
+  template_desc = values(template_desc),
+  template_schema = values(template_schema),
+  file_path = values(file_path),
+  style_tags = values(style_tags),
+  slide_count = values(slide_count);
+
 create table if not exists trade_event_outbox (
   id bigint unsigned not null auto_increment comment 'auto id',
   event_id varchar(128) not null comment 'event id',
@@ -401,7 +648,7 @@ create table if not exists guide_conversation_memory (
 
 create table if not exists guide_decision_snapshot (
   id bigint unsigned not null auto_increment comment '自增主键',
-  decision_id varchar(40) not null comment '导购决策编号',
+  decision_id varchar(40) not null comment '价格快照编号',
   session_id varchar(64) not null default '' comment '会话编号',
   request_id varchar(64) not null default '' comment '请求编号',
   user_id varchar(64) not null default '' comment '用户编号',
@@ -409,17 +656,17 @@ create table if not exists guide_decision_snapshot (
   goods_id varchar(32) not null comment '商品编号',
   goods_name varchar(128) not null default '' comment '商品名称',
   activity_id varchar(32) not null default '' comment '活动编号',
-  origin_amount decimal(10, 2) not null comment '导购原价',
-  group_amount decimal(10, 2) not null comment '导购拼团价',
+  origin_amount decimal(10, 2) not null comment '额度包原价',
+  group_amount decimal(10, 2) not null comment '额度包拼团价',
   reference_ids varchar(256) not null default '' comment '引用知识片段',
   tool_names varchar(256) not null default '' comment '工具调用列表',
-  quote_expire_time datetime not null comment '报价过期时间',
+  quote_expire_time datetime not null comment '价格快照过期时间',
   create_time datetime not null default current_timestamp comment '创建时间',
   primary key (id),
   unique key uk_decision_id (decision_id),
   key idx_user_time (user_id, create_time),
   key idx_quote_expire_time (quote_expire_time)
-) engine=InnoDB default charset=utf8mb4 comment='导购决策快照表';
+) engine=InnoDB default charset=utf8mb4 comment='额度包价格快照表';
 
 create table if not exists guide_evaluation_report (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -429,7 +676,7 @@ create table if not exists guide_evaluation_report (
   total_count int not null comment '用例总数',
   retrieval_hit_rate decimal(5, 2) not null comment '检索命中率',
   answer_accuracy_rate decimal(5, 2) not null comment '回答准确率',
-  recommendation_reasonable_rate decimal(5, 2) not null comment '推荐合理率',
+  recommendation_reasonable_rate decimal(5, 2) not null comment '任务匹配率',
   context_consistency_rate decimal(5, 2) not null comment '多轮一致率',
   tool_call_accuracy_rate decimal(5, 2) not null default 0.00 comment '工具调用正确率',
   tool_argument_accuracy_rate decimal(5, 2) not null default 0.00 comment '工具参数正确率',
@@ -443,13 +690,13 @@ create table if not exists guide_evaluation_report (
   baseline_batch_no varchar(40) default null comment '对比基线批次',
   retrieval_hit_rate_delta decimal(6, 2) not null default 0.00 comment '检索命中率变化',
   answer_accuracy_rate_delta decimal(6, 2) not null default 0.00 comment '回答准确率变化',
-  recommendation_reasonable_rate_delta decimal(6, 2) not null default 0.00 comment '推荐合理率变化',
+  recommendation_reasonable_rate_delta decimal(6, 2) not null default 0.00 comment '任务匹配率变化',
   context_consistency_rate_delta decimal(6, 2) not null default 0.00 comment '多轮一致率变化',
   create_time datetime not null default current_timestamp comment '创建时间',
   primary key (id),
   unique key uk_batch_no (batch_no),
   key idx_version_time (knowledge_version, prompt_version, create_time)
-) engine=InnoDB default charset=utf8mb4 comment='导购评测报告表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 评测报告表';
 
 create table if not exists guide_evaluation_item (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -480,7 +727,7 @@ create table if not exists guide_evaluation_item (
   primary key (id),
   unique key uk_batch_case (batch_no, case_id),
   key idx_batch_score (batch_no, score)
-) engine=InnoDB default charset=utf8mb4 comment='导购评测明细表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 评测明细表';
 
 create table if not exists guide_evaluation_feedback (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -491,7 +738,7 @@ create table if not exists guide_evaluation_feedback (
   create_time datetime not null default current_timestamp comment '创建时间',
   primary key (id),
   key idx_batch_priority (batch_no, priority)
-) engine=InnoDB default charset=utf8mb4 comment='导购评测反馈表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 评测反馈表';
 
 insert into dynamic_config (
   config_key, config_value, remark
@@ -532,19 +779,21 @@ on duplicate key update
   status = values(status);
 
 insert into guide_goods (
-  goods_id, goods_name, image_url, origin_price, spec_summary, after_sale_policy,
+  goods_id, goods_name, image_url, origin_price, quota_amount, product_type, spec_summary, after_sale_policy,
   recommend_reason, not_suitable_for, enabled, sort_order
 ) values
-('G10001', '轻薄学习平板标准版', '', 2399.00, '10.9 英寸屏幕，128GB 存储，支持手写笔', '7 天无理由退货，1 年质保', '预算有限、学习和网课场景下性价比更高', '长期剪视频或运行大型应用的用户', 1, 10),
-('G10002', '高配创作平板', '', 3299.00, '12.1 英寸高刷屏，256GB 存储，适合多任务', '7 天无理由退货，1 年质保', '适合剪视频、绘图和大型应用，但预算压力更大', '只做笔记和看网课且预算有限的用户', 1, 20),
-('G10003', '通勤办公二合一平板', '', 3699.00, '11.5 英寸护眼屏，256GB 存储，磁吸键盘套装，适合文档编辑和会议记录', '7 天无理由退货，1 年质保；键盘套装单独保修 6 个月', '适合研究生论文写作、轻办公和通勤携带，输入效率高于普通学习平板', '重度游戏、专业视频剪辑和预算低于 2500 元的用户', 1, 30),
-('G10004', '游戏影音高刷平板', '', 2999.00, '12 英寸高刷屏，四扬声器，散热增强，适合影音娱乐和中大型游戏', '7 天无理由退货，1 年质保；人为进液和摔损不在质保范围', '适合高刷屏、影音和游戏诉求，性能强于标准版，价格低于创作平板', '主要写论文、网课和课堂笔记的预算敏感用户', 1, 40),
-('G10005', '儿童学习护眼平板', '', 1899.00, '10.4 英寸护眼屏，家长管控，学习内容分级，适合儿童学习', '7 天无理由退货，1 年质保；学习内容权益按激活规则处理', '适合家长为儿童学习、网课和阅读购买，价格低且管控能力完整', '大学生论文写作、专业绘图和大型应用用户', 1, 50),
-('G10006', '手写笔记套装平板', '', 2699.00, '11 英寸屏幕，标配手写笔和类纸膜，适合课堂笔记、资料批注和考研复习', '7 天无理由退货，1 年质保；手写笔耗材不参与无理由退货', '适合笔记、批注和复习场景，配件一次配齐，长期学习成本更可控', '剪视频、绘图渲染和重度游戏用户', 1, 60)
+('G10001', '基础额度包', '', 19.90, 40.00, 'QUOTA_PACKAGE', '适合普通对话、论文摘要和轻量问答', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合刚开始体验学术助手的用户', '需要批量生成 PPT 或长时间深度研究的用户', 1, 10),
+('G10002', '论文阅读额度包', '', 49.90, 120.00, 'QUOTA_PACKAGE', '适合上传论文、生成精读笔记和实验复现清单', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合研究生读论文、整理相关工作和复现实验', '只进行普通短对话的用户', 1, 20),
+('G10003', 'PPT 创作额度包', '', 69.90, 180.00, 'QUOTA_PACKAGE', '适合生成组会汇报、开题答辩和论文分享 PPT', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合需要多次生成和修改学术演示稿的用户', '只需要偶尔问答的用户', 1, 30),
+('G10004', '图表重建额度包', '', 39.90, 90.00, 'QUOTA_PACKAGE', '适合图片、流程图和架构图转可编辑草稿', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合论文图、实验流程和系统架构图的重建编辑', '要求严格 1:1 商业级复刻的用户', 1, 40),
+('G10005', '深度研究额度包', '', 99.90, 260.00, 'QUOTA_PACKAGE', '适合复杂主题拆解、多轮调研和报告生成', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合秋招项目调研、论文选题和技术路线规划', '只需要单轮短问答的用户', 1, 50),
+('G10006', '团队拼团额度包', '', 129.90, 360.00, 'QUOTA_PACKAGE', '适合实验室小组共享演示，额度更多且拼团优惠更明显', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合组会、课题组内部演示和多人拼团充值', '个人轻量体验用户', 1, 60)
 on duplicate key update
   goods_name = values(goods_name),
   image_url = values(image_url),
   origin_price = values(origin_price),
+  quota_amount = values(quota_amount),
+  product_type = values(product_type),
   spec_summary = values(spec_summary),
   after_sale_policy = values(after_sale_policy),
   recommend_reason = values(recommend_reason),
@@ -557,12 +806,12 @@ insert into group_activity (
   group_type, take_limit_count, target, valid_time, status, start_time, end_time,
   tag_id, tag_scope, enabled
 ) values
-('A10001', 'G10001', 2099.00, 3, '学习平板标准版拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
-('A10002', 'G10002', 2899.00, 5, '高配创作平板拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1),
-('A10003', 'G10003', 3299.00, 3, '通勤办公套装拼团', 'D10002', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
-('A10004', 'G10004', 2599.00, 4, '游戏影音平板拼团', 'D10002', 0, 1, 4, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
-('A10005', 'G10005', 1699.00, 2, '儿童护眼平板拼团', 'D10001', 0, 2, 2, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 10 day), null, null, 1),
-('A10006', 'G10006', 2399.00, 3, '手写笔记套装拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1)
+('A10001', 'G10001', 16.90, 3, '基础额度包拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
+('A10002', 'G10002', 42.90, 5, '论文阅读额度包拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1),
+('A10003', 'G10003', 59.90, 3, 'PPT 创作额度包拼团', 'D10002', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
+('A10004', 'G10004', 33.90, 4, '图表重建额度包拼团', 'D10002', 0, 1, 4, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
+('A10005', 'G10005', 84.90, 2, '深度研究额度包拼团', 'D10001', 0, 2, 2, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 10 day), null, null, 1),
+('A10006', 'G10006', 109.90, 3, '团队拼团额度包拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1)
 on duplicate key update
   goods_id = values(goods_id),
   group_price = values(group_price),
@@ -583,8 +832,8 @@ on duplicate key update
 insert into group_buy_discount (
   discount_id, discount_name, discount_desc, discount_type, market_plan, market_expr, tag_id
 ) values
-('D10001', '直减 300', '标准版拼团直减 300 元', 0, 'ZJ', '300', null),
-('D10002', '满 3000 减 400', '高配版满减优惠', 0, 'MJ', '3000,400', null),
+('D10001', '额度包直减', '基础额度包拼团直减 3 元', 0, 'ZJ', '3', null),
+('D10002', '额度包满减', '高阶额度包拼团优惠', 0, 'MJ', '30,7', null),
 ('D10003', '八折优惠', '折扣算法示例', 0, 'ZK', '0.8', null),
 ('D10004', 'N 元购', '固定金额算法示例', 0, 'N', '1.99', null)
 on duplicate key update
@@ -598,12 +847,12 @@ on duplicate key update
 insert into sku (
   source, channel, goods_id, goods_name, original_price
 ) values
-('s01', 'c01', 'G10001', '学习平板标准版', 2399.00),
-('s01', 'c01', 'G10002', '高配创作平板', 3299.00),
-('s01', 'c01', 'G10003', '通勤办公二合一平板', 3699.00),
-('s01', 'c01', 'G10004', '游戏影音高刷平板', 2999.00),
-('s01', 'c01', 'G10005', '儿童学习护眼平板', 1899.00),
-('s01', 'c01', 'G10006', '手写笔记套装平板', 2699.00)
+('s01', 'c01', 'G10001', '基础额度包', 19.90),
+('s01', 'c01', 'G10002', '论文阅读额度包', 49.90),
+('s01', 'c01', 'G10003', 'PPT 创作额度包', 69.90),
+('s01', 'c01', 'G10004', '图表重建额度包', 39.90),
+('s01', 'c01', 'G10005', '深度研究额度包', 99.90),
+('s01', 'c01', 'G10006', '团队拼团额度包', 129.90)
 on duplicate key update
   source = values(source),
   channel = values(channel),
@@ -639,10 +888,10 @@ on duplicate key update
 insert into knowledge_document (
   document_id, document_name, document_type, knowledge_version, source_type, source_name, document_status, enabled
 ) values
-('DOC10001', '学习平板商品详情说明', '商品详情', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10002', '学习平板拼团活动规则', '营销规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10003', '学习平板售后政策', '售后政策', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10005', '多商品导购规则说明', '导购规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
+('DOC10001', '学术额度包说明', '额度包资料', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10002', '学术额度包拼团规则', '拼团规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10003', '学术额度包退款规则', '退款规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10005', '学术 Agent 任务说明', 'Agent 任务规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
 on duplicate key update
   document_name = values(document_name),
   document_type = values(document_type),
@@ -655,14 +904,14 @@ on duplicate key update
 insert into knowledge_fragment (
   fragment_id, document_id, goods_id, document_type, knowledge_version, content, rank_no, fragment_status, enabled
 ) values
-('KF10001', 'DOC10001', 'G10001', '商品详情', 'v1', '轻薄学习平板标准版适合写论文、看网课和日常笔记。', 1, 'ENABLED', 1),
-('KF10002', 'DOC10002', 'G10001', '营销规则', 'v1', '标准版支持 3 人拼团，拼团价比原价低 300 元。', 2, 'ENABLED', 1),
-('KF10003', 'DOC10003', 'G10001', '售后政策', 'v1', '拼团商品成团后支持 7 天无理由退货，未成团时系统自动退款。', 3, 'ENABLED', 1),
-('KF10011', 'DOC10005', 'G10003', '导购规则', 'v1', '通勤办公二合一平板适合论文写作、会议记录和文档编辑，标配键盘套装，拼团价 3299 元。', 11, 'ENABLED', 1),
-('KF10012', 'DOC10005', 'G10004', '导购规则', 'v1', '游戏影音高刷平板适合高刷屏、影音和中大型游戏，拼团价 2599 元，不优先推荐给只看网课的预算敏感学生。', 12, 'ENABLED', 1),
-('KF10013', 'DOC10005', 'G10005', '导购规则', 'v1', '儿童学习护眼平板适合儿童网课、阅读和家长管控，拼团价 1699 元，不适合大学生论文和专业绘图。', 13, 'ENABLED', 1),
-('KF10014', 'DOC10005', 'G10006', '导购规则', 'v1', '手写笔记套装平板适合课堂笔记、资料批注和考研复习，拼团价 2399 元，手写笔耗材不参与无理由退货。', 14, 'ENABLED', 1),
-('KF10015', 'DOC10005', 'G10001', '导购规则', 'v1', '导购回答生成下单入口前必须生成导购报价凭证，凭证内部包含导购决策编号、商品、活动、报价和有效期；订单金额要和商品卡片、支付单保持一致。', 15, 'ENABLED', 1)
+('KF10001', 'DOC10001', 'G10001', '额度包资料', 'v1', '基础额度包包含 40 点额度，适合普通学术问答、论文摘要和轻量资料整理。', 1, 'ENABLED', 1),
+('KF10002', 'DOC10002', 'G10001', '拼团规则', 'v1', '基础额度包支持 3 人拼团，拼团价 16.90 元，直接购买价 19.90 元，支付成功后自动发放额度。', 2, 'ENABLED', 1),
+('KF10003', 'DOC10003', 'G10001', '退款规则', 'v1', '额度属于虚拟商品，到账后不支持无理由退款；未使用额度退款时系统会回滚已发放额度。', 3, 'ENABLED', 1),
+('KF10011', 'DOC10005', 'G10003', 'Agent 任务规则', 'v1', 'PPT 创作额度包适合组会汇报、开题答辩和论文分享，支持生成演示稿结构、页面大纲和讲稿草稿。', 11, 'ENABLED', 1),
+('KF10012', 'DOC10005', 'G10004', 'Agent 任务规则', 'v1', '图表重建额度包适合把论文图、流程图和架构图转换成可编辑 Mermaid 或结构化草稿。', 12, 'ENABLED', 1),
+('KF10013', 'DOC10005', 'G10005', 'Agent 任务规则', 'v1', '深度研究额度包适合复杂主题拆解、技术路线规划、相关工作整理和长报告生成。', 13, 'ENABLED', 1),
+('KF10014', 'DOC10005', 'G10006', 'Agent 任务规则', 'v1', '团队拼团额度包适合实验室小组共享演示，拼团价 109.90 元，可获得 360 点额度。', 14, 'ENABLED', 1),
+('KF10015', 'DOC10005', 'G10001', '交易规则', 'v1', '购买入口由后端交易系统创建订单，订单金额、支付单金额和额度发放数量都以后端交易系统为准。', 15, 'ENABLED', 1)
 on duplicate key update
   document_id = values(document_id),
   goods_id = values(goods_id),

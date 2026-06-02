@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -53,6 +55,15 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
 
     @Override
     public List<KnowledgeFragment> searchSimilar(String question, int limit) {
+        return searchSimilarInternal(question, null, limit);
+    }
+
+    @Override
+    public List<KnowledgeFragment> searchSimilar(String question, String goodsId, int limit) {
+        return searchSimilarInternal(question, goodsId, limit);
+    }
+
+    private List<KnowledgeFragment> searchSimilarInternal(String question, String goodsId, int limit) {
         VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
         if (vectorStore == null || !StringUtils.hasText(question)) {
             metrics.recordVectorIssue("spring_ai_vector_not_available");
@@ -60,11 +71,15 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
         }
         long startNanos = System.nanoTime();
         try {
-            List<Document> documents = vectorStore.similaritySearch(SearchRequest.builder()
+            SearchRequest.Builder builder = SearchRequest.builder()
                     .query(question)
                     .topK(Math.max(1, limit))
-                    .similarityThresholdAll()
-                    .build());
+                    .similarityThresholdAll();
+            if (StringUtils.hasText(goodsId)) {
+                Filter.Expression filter = new FilterExpressionBuilder().eq("goodsId", goodsId).build();
+                builder.filterExpression(filter);
+            }
+            List<Document> documents = vectorStore.similaritySearch(builder.build());
             metrics.recordPgvectorSearch(true, elapsedMillis(startNanos));
             if (documents == null || documents.isEmpty()) {
                 metrics.recordVectorIssue("spring_ai_vector_empty");

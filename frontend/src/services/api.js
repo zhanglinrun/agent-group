@@ -1,6 +1,7 @@
 export const DEMO_USER_ID = "U10001";
 
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
+const USER_AUTH_KEY = "agentGroupUserAuth";
 
 export class ApiError extends Error {
   constructor(message, status, payload) {
@@ -36,6 +37,22 @@ export function clearAdminAuth() {
   localStorage.removeItem(ADMIN_AUTH_KEY);
 }
 
+export function getUserAuth() {
+  try {
+    return JSON.parse(localStorage.getItem(USER_AUTH_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+export function saveUserAuth(auth) {
+  localStorage.setItem(USER_AUTH_KEY, JSON.stringify(auth));
+}
+
+export function clearUserAuth() {
+  localStorage.removeItem(USER_AUTH_KEY);
+}
+
 function authHeader() {
   const auth = getAdminAuth();
   if (!auth?.username || !auth?.password) {
@@ -43,6 +60,16 @@ function authHeader() {
   }
   return {
     Authorization: `Basic ${window.btoa(`${auth.username}:${auth.password}`)}`
+  };
+}
+
+function userAuthHeader() {
+  const auth = getUserAuth();
+  if (!auth?.token) {
+    return {};
+  }
+  return {
+    Authorization: `Bearer ${auth.token}`
   };
 }
 
@@ -63,40 +90,147 @@ async function parseResponse(response) {
 }
 
 async function request(path, options = {}) {
-  const { auth = false, headers, ...rest } = options;
+  const { auth = false, userAuth = false, headers, ...rest } = options;
   const response = await fetch(path, {
     ...rest,
     headers: {
       ...(auth ? authHeader() : {}),
+      ...(userAuth ? userAuthHeader() : {}),
       ...(headers || {})
     }
   });
   return parseResponse(response);
 }
 
-export function requestGuideStream(message, imageUrl, imageName, onEvent, onDone, onError, sessionId = getSessionId()) {
+export async function login(username, password) {
+  const res = await request("/api/v1/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  if (res.code === "0000" && res.data?.token) {
+    saveUserAuth(res.data);
+  }
+  return res;
+}
+
+export async function register({ username, password, nickname, email }) {
+  const res = await request("/api/v1/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password, nickname, email })
+  });
+  if (res.code === "0000" && res.data?.token) {
+    saveUserAuth(res.data);
+  }
+  return res;
+}
+
+export async function logout() {
+  try {
+    await request("/api/v1/auth/logout", { userAuth: true, method: "POST" });
+  } finally {
+    clearUserAuth();
+  }
+}
+
+export async function getProfile() {
+  return request("/api/v1/auth/profile", {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function getQuotaSummary(limit = 20) {
+  return request(`/api/v1/quota/summary?limit=${encodeURIComponent(limit)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function getQuotaAccount() {
+  return request("/api/v1/quota/account", {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function uploadAcademicFile(file, sessionId = getSessionId()) {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (sessionId) formData.append("sessionId", sessionId);
+  return request("/api/v1/academic/file/upload", {
+    userAuth: true,
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function queryAcademicSessions(limit = 20) {
+  return request(`/api/v1/academic/sessions?limit=${encodeURIComponent(limit)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function queryAcademicSessionDetail(sessionId) {
+  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function stopAcademicStream(sessionId = getSessionId()) {
+  return request("/api/v1/academic/stop", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId })
+  }).catch(error => {
+    console.warn("停止学术智能体流失败", error);
+  });
+}
+
+export async function queryAcademicTaskStatus(sessionId = getSessionId()) {
+  return request(`/api/v1/academic/task/status?sessionId=${encodeURIComponent(sessionId)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId() }, onEvent, onDone, onError) {
+  return requestAcademicStreamInternal("/api/v1/academic/stream", {
+    sessionId,
+    question,
+    taskType,
+    fileId: fileId || "",
+    imageUrl: imageUrl || "",
+    imageName: imageName || ""
+  }, onEvent, onDone, onError);
+}
+
+export function requestAcademicResumeStream(sessionId = getSessionId(), onEvent, onDone, onError) {
+  return requestAcademicStreamInternal("/api/v1/academic/resume", { sessionId }, onEvent, onDone, onError);
+}
+
+function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) {
   const abortController = new AbortController();
 
   const run = async () => {
     try {
-      const response = await fetch("/api/v1/agent/guide/stream", {
+      const response = await fetch(path, {
         method: "POST",
         headers: {
           Accept: "text/event-stream",
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...userAuthHeader()
         },
-        body: JSON.stringify({
-          sessionId,
-          userId: DEMO_USER_ID,
-          question: message,
-          imageUrl: imageUrl || "",
-          imageName: imageName || ""
-        }),
+        body: JSON.stringify(payload),
         signal: abortController.signal
       });
 
       if (!response.ok) {
-        throw new ApiError(`导购流请求失败：${response.status}`, response.status);
+        throw new ApiError(`学术智能体请求失败：${response.status}`, response.status);
       }
 
       const reader = response.body.getReader();
@@ -124,7 +258,7 @@ export function requestGuideStream(message, imageUrl, imageName, onEvent, onDone
           try {
             onEvent(JSON.parse(data));
           } catch (error) {
-            console.warn("解析 SSE 数据失败", error, data);
+            console.warn("解析学术 SSE 数据失败", error, data);
           }
         }
       }
@@ -143,40 +277,28 @@ export function requestGuideStream(message, imageUrl, imageName, onEvent, onDone
   return abortController;
 }
 
-export async function stopGuideStream(sessionId = getSessionId()) {
-  return request("/api/v1/agent/stop", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId })
-  }).catch(error => {
-    console.warn("停止导购流失败", error);
-  });
-}
-
-export async function createDirectOrder(product) {
+export async function createDirectOrder(product, userId = DEMO_USER_ID) {
   return request("/api/v1/trade/order/direct", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      goodsId: product.id,
-      decisionId: product.decisionId,
+      userId,
+      goodsId: product.id || product.goodsId,
       idempotentKey: `IDEMP_${Date.now()}`,
       payChannel: "MOCK_PAY"
     })
   });
 }
 
-export async function lockGroupBuyOrder(product) {
+export async function lockGroupBuyOrder(product, userId = DEMO_USER_ID) {
   return request("/api/v1/group/trade/lock", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      goodsId: product.id,
-      decisionId: product.decisionId,
+      userId,
+      goodsId: product.id || product.goodsId,
       activityId: product.activityId,
-      teamId: "",
+      teamId: product.teamId || "",
       idempotentKey: `IDEMP_${Date.now()}`,
       payChannel: "MOCK_PAY"
     })
@@ -233,15 +355,15 @@ export async function getKnowledgeDocuments() {
   });
 }
 
-export async function runGuideEvaluation() {
-  return request("/api/v1/evaluate/guide/run", {
+export async function runAgentEvaluation() {
+  return request("/api/v1/evaluate/agent/run", {
     auth: true,
     method: "POST"
   });
 }
 
-export async function getLatestGuideEvaluation() {
-  return request("/api/v1/evaluate/guide/latest", {
+export async function getLatestAgentEvaluation() {
+  return request("/api/v1/evaluate/agent/latest", {
     auth: true,
     method: "GET"
   });
@@ -249,18 +371,15 @@ export async function getLatestGuideEvaluation() {
 
 export async function queryUserOrderList(options = 10) {
   const params = typeof options === "number" ? { pageSize: options } : (options || {});
-  return request("/api/v1/alipay/query_user_order_list", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      pageSize: params.pageSize || 10,
-      lastId: params.lastId,
-      marketType: params.marketType === "" || params.marketType === undefined ? undefined : Number(params.marketType),
-      orderStatus: params.orderStatus || undefined,
-      keyword: params.keyword || undefined
-    })
+  const query = new URLSearchParams();
+  query.set("pageSize", String(params.pageSize || 10));
+  if (params.lastId) query.set("lastId", String(params.lastId));
+  if (params.marketType !== "" && params.marketType !== undefined) query.set("marketType", String(params.marketType));
+  if (params.orderStatus) query.set("orderStatus", params.orderStatus);
+  if (params.keyword) query.set("keyword", params.keyword);
+  return request(`/api/v1/trade/order/my?${query.toString()}`, {
+    userAuth: true,
+    method: "GET"
   });
 }
 
@@ -312,111 +431,12 @@ export async function queryPaymentErrorMap(payChannel, gatewayCode) {
   });
 }
 
-export async function queryProductCatalog(keyword = "", limit = 20) {
+export async function queryQuotaPackages(keyword = "", limit = 20) {
   const params = new URLSearchParams();
   if (keyword) params.set("keyword", keyword);
   params.set("limit", String(limit));
-  return request(`/api/v1/mall/products?${params.toString()}`, {
+  return request(`/api/v1/quota/packages?${params.toString()}`, {
     method: "GET"
-  });
-}
-
-export async function queryProductDetail(goodsId) {
-  return request(`/api/v1/mall/products/${encodeURIComponent(goodsId)}`, {
-    method: "GET"
-  });
-}
-
-export async function validateCart(items) {
-  return request("/api/v1/mall/cart/validate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      items: (items || []).map((item) => ({
-        goodsId: item.goodsId,
-        quantity: item.quantity || 1,
-        marketType: item.marketType,
-        activityId: item.activityId
-      }))
-    })
-  });
-}
-
-export async function createLegacyPayOrder({ productId, decisionId, marketType, activityId, teamId }) {
-  return request("/api/v1/alipay/create_pay_order", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      productId,
-      decisionId,
-      marketType: Number(marketType || 0),
-      activityId,
-      teamId,
-      payChannel: "MOCK_PAY",
-      idempotentKey: `IDEMP_${Date.now()}`
-    })
-  });
-}
-
-export async function refundOrder(orderId, refundReason = "用户申请售后退款") {
-  return request("/api/v1/alipay/refund_order", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      orderId,
-      refundReason
-    })
-  });
-}
-
-export async function activePayNotify(orderId) {
-  return request(`/api/v1/alipay/active_pay_notify?outTradeNo=${encodeURIComponent(orderId)}`, {
-    auth: true,
-    method: "POST"
-  });
-}
-
-export async function createWeixinLoginQr() {
-  return request("/api/v1/weixin/login/qr", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: DEMO_USER_ID,
-      redirectUrl: "/"
-    })
-  });
-}
-
-export async function queryWeixinLoginStatus(sceneId) {
-  return request(`/api/v1/weixin/login/status?sceneId=${encodeURIComponent(sceneId)}`, {
-    method: "GET"
-  });
-}
-
-export async function simulateWeixinScan(sceneId) {
-  return request("/api/v1/weixin/login/simulate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sceneId,
-      userId: DEMO_USER_ID,
-      openId: `mock_openid_${DEMO_USER_ID}`,
-      nickname: "演示用户"
-    })
-  });
-}
-
-export async function sendWeixinTemplateMessage(payload) {
-  return request("/api/v1/weixin/template/send", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
   });
 }
 

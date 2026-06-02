@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IUserQuotaDao">
+
+    <resultMap id="UserQuotaAccountMap" type="com.linrun.infrastructure.po.UserQuotaAccountPO">
+        <id column="user_id" property="userId"/>
+        <result column="quota_balance" property="quotaBalance"/>
+        <result column="frozen_quota" property="frozenQuota"/>
+        <result column="used_quota" property="usedQuota"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="UserQuotaFlowMap" type="com.linrun.infrastructure.po.UserQuotaFlowPO">
+        <id column="flow_id" property="flowId"/>
+        <result column="user_id" property="userId"/>
+        <result column="flow_type" property="flowType"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="quota_amount" property="quotaAmount"/>
+        <result column="before_balance" property="beforeBalance"/>
+        <result column="after_balance" property="afterBalance"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="createAccountIfAbsent">
+        insert into user_quota_account (
+          user_id, quota_balance, frozen_quota, used_quota, create_time, update_time
+        ) values (
+          #{userId}, 0.00, 0.00, 0.00, now(), now()
+        )
+        on duplicate key update user_id = values(user_id)
+    </insert>
+
+    <select id="queryAccount" resultMap="UserQuotaAccountMap">
+        select user_id, quota_balance, frozen_quota, used_quota, create_time, update_time
+        from user_quota_account
+        where user_id = #{userId}
+        limit 1
+    </select>
+
+    <update id="increaseQuota">
+        update user_quota_account
+        set quota_balance = quota_balance + #{amount},
+            update_time = now()
+        where user_id = #{userId}
+    </update>
+
+    <update id="decreaseQuota">
+        update user_quota_account
+        set quota_balance = quota_balance - #{amount},
+            used_quota = used_quota + #{amount},
+            update_time = now()
+        where user_id = #{userId}
+          and quota_balance &gt;= #{amount}
+    </update>
+
+    <update id="decreaseQuotaAllowNegative">
+        update user_quota_account
+        set quota_balance = quota_balance - #{amount},
+            used_quota = used_quota + #{amount},
+            update_time = now()
+        where user_id = #{userId}
+    </update>
+
+    <insert id="insertFlow">
+        insert into user_quota_flow (
+          flow_id, user_id, flow_type, biz_id, quota_amount, before_balance, after_balance, remark, create_time
+        ) values (
+          #{flowId}, #{userId}, #{flowType}, #{bizId}, #{quotaAmount}, #{beforeBalance}, #{afterBalance}, #{remark}, #{createTime}
+        )
+    </insert>
+
+    <select id="queryFlow" resultMap="UserQuotaFlowMap">
+        select flow_id, user_id, flow_type, biz_id, quota_amount, before_balance, after_balance, remark, create_time
+        from user_quota_flow
+        where user_id = #{userId}
+          and flow_type = #{flowType}
+          and biz_id = #{bizId}
+        limit 1
+    </select>
+
+    <select id="queryRecentFlows" resultMap="UserQuotaFlowMap">
+        select flow_id, user_id, flow_type, biz_id, quota_amount, before_balance, after_balance, remark, create_time
+        from user_quota_flow
+        where user_id = #{userId}
+        order by create_time desc, flow_id desc
+        limit #{limit}
+    </select>
+
+    <insert id="insertUsage">
+        insert into model_usage_record (
+          usage_id, user_id, session_id, task_type, model, prompt_tokens, completion_tokens,
+          total_tokens, quota_cost, latency_millis, create_time
+        ) values (
+          #{usageId}, #{userId}, #{sessionId}, #{taskType}, #{model}, #{promptTokens}, #{completionTokens},
+          #{totalTokens}, #{quotaCost}, #{latencyMillis}, #{createTime}
+        )
+    </insert>
+</mapper>

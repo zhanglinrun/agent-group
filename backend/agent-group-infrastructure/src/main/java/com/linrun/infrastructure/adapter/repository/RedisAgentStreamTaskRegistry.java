@@ -124,6 +124,22 @@ public class RedisAgentStreamTaskRegistry implements AgentStreamTaskRegistry, In
         clearRedisIfOwner(sessionId, taskInfo);
     }
 
+    @Override
+    public boolean isRunning(String sessionId) {
+        if (!StringUtils.hasText(sessionId)) {
+            return false;
+        }
+        if (localTasks.containsKey(sessionId)) {
+            return true;
+        }
+        try {
+            return bucket(sessionId).isExists();
+        } catch (Exception e) {
+            LOGGER.warn("agent stream task status fallback, reason={}", e.getClass().getSimpleName());
+            return false;
+        }
+    }
+
     private void handleRemoteStop(String sessionId) {
         if (!StringUtils.hasText(sessionId)) {
             return;

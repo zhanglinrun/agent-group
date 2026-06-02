@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IAcademicAgentDao">
+
+    <resultMap id="AcademicSessionMap" type="com.linrun.infrastructure.po.AcademicSessionPO">
+        <id column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="task_type" property="taskType"/>
+        <result column="last_message" property="lastMessage"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicMessageMap" type="com.linrun.infrastructure.po.AcademicMessagePO">
+        <id column="message_id" property="messageId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="role" property="role"/>
+        <result column="content" property="content"/>
+        <result column="image_url" property="imageUrl"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicFileMap" type="com.linrun.infrastructure.po.AcademicFilePO">
+        <id column="file_id" property="fileId"/>
+        <result column="user_id" property="userId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_type" property="fileType"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="object_url" property="objectUrl"/>
+        <result column="content" property="content"/>
+        <result column="summary" property="summary"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicArtifactMap" type="com.linrun.infrastructure.po.AcademicArtifactPO">
+        <id column="artifact_id" property="artifactId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="artifact_type" property="artifactType"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="download_url" property="downloadUrl"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insertSessionIfAbsent">
+        insert into academic_agent_session (
+          session_id, user_id, title, task_type, last_message, create_time, update_time
+        ) values (
+          #{sessionId}, #{userId}, #{title}, #{taskType}, #{lastMessage}, #{createTime}, #{updateTime}
+        )
+        on duplicate key update session_id = values(session_id)
+    </insert>
+
+    <update id="updateSession">
+        update academic_agent_session
+        set title = #{title},
+            task_type = #{taskType},
+            last_message = #{lastMessage},
+            update_time = #{updateTime}
+        where session_id = #{sessionId}
+          and user_id = #{userId}
+    </update>
+
+    <insert id="insertMessage">
+        insert into academic_agent_message (
+          message_id, session_id, user_id, role, content, image_url, create_time
+        ) values (
+          #{messageId}, #{sessionId}, #{userId}, #{role}, #{content}, #{imageUrl}, #{createTime}
+        )
+    </insert>
+
+    <select id="queryMessages" resultMap="AcademicMessageMap">
+        select message_id, session_id, user_id, role, content, image_url, create_time
+        from academic_agent_message
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+        order by create_time asc, id asc
+    </select>
+
+    <select id="querySession" resultMap="AcademicSessionMap">
+        select session_id, user_id, title, task_type, last_message, create_time, update_time
+        from academic_agent_session
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+        limit 1
+    </select>
+
+    <select id="querySessions" resultMap="AcademicSessionMap">
+        select session_id, user_id, title, task_type, last_message, create_time, update_time
+        from academic_agent_session
+        where user_id = #{userId}
+        order by update_time desc
+        limit #{limit}
+    </select>
+
+    <delete id="deleteSession">
+        delete from academic_agent_session
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+    </delete>
+
+    <delete id="deleteMessagesBySession">
+        delete from academic_agent_message
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+    </delete>
+
+    <delete id="deleteFilesBySession">
+        delete from academic_agent_file
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+    </delete>
+
+    <delete id="deleteArtifactsBySession">
+        delete from academic_agent_artifact
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+    </delete>
+
+    <insert id="insertFile">
+        insert into academic_agent_file (
+          file_id, user_id, session_id, file_name, file_type, file_size, object_url, content, summary, status, create_time
+        ) values (
+          #{fileId}, #{userId}, #{sessionId}, #{fileName}, #{fileType}, #{fileSize}, #{objectUrl}, #{content},
+          #{summary}, #{status}, #{createTime}
+        )
+    </insert>
+
+    <select id="queryFile" resultMap="AcademicFileMap">
+        select file_id, user_id, session_id, file_name, file_type, file_size, object_url, content, summary, status, create_time
+        from academic_agent_file
+        where user_id = #{userId}
+          and file_id = #{fileId}
+        limit 1
+    </select>
+
+    <select id="queryFiles" resultMap="AcademicFileMap">
+        select file_id, user_id, session_id, file_name, file_type, file_size, object_url, content, summary, status, create_time
+        from academic_agent_file
+        where user_id = #{userId}
+        order by create_time desc, id desc
+        limit #{limit}
+    </select>
+
+    <select id="queryFilesBySession" resultMap="AcademicFileMap">
+        select file_id, user_id, session_id, file_name, file_type, file_size, object_url, content, summary, status, create_time
+        from academic_agent_file
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+        order by create_time desc, id desc
+    </select>
+
+    <delete id="deleteFile">
+        delete from academic_agent_file
+        where user_id = #{userId}
+          and file_id = #{fileId}
+    </delete>
+
+    <insert id="insertArtifact">
+        insert into academic_agent_artifact (
+          artifact_id, session_id, user_id, artifact_type, title, content, download_url, create_time
+        ) values (
+          #{artifactId}, #{sessionId}, #{userId}, #{artifactType}, #{title}, #{content}, #{downloadUrl}, #{createTime}
+        )
+    </insert>
+
+    <select id="queryArtifacts" resultMap="AcademicArtifactMap">
+        select artifact_id, session_id, user_id, artifact_type, title, content, download_url, create_time
+        from academic_agent_artifact
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+        order by create_time desc, id desc
+    </select>
+</mapper>

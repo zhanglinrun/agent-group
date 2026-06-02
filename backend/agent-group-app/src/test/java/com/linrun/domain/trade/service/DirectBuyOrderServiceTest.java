@@ -66,7 +66,7 @@ class DirectBuyOrderServiceTest {
         assertTrue(response.getPayOrderId().startsWith("P"));
         assertEquals("U10001", response.getUserId());
         assertEquals("G10001", response.getGoodsId());
-        assertEquals("轻薄学习平板标准版", response.getGoodsName());
+        assertEquals("基础学术额度包", response.getGoodsName());
         assertEquals(TradeBuyTypeEnumVO.DIRECT.name(), response.getBuyType());
         assertEquals(TradeOrderStatusEnumVO.PAY_WAIT.name(), response.getOrderStatus());
         assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
@@ -121,7 +121,7 @@ class DirectBuyOrderServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
         assertEquals("DATA_0003", exception.getCode());
-        assertEquals("商品不存在或已下架", exception.getMessage());
+        assertEquals("额度包不存在或已下架", exception.getMessage());
     }
 
     @Test
@@ -144,7 +144,7 @@ class DirectBuyOrderServiceTest {
     }
 
     @Test
-    void shouldRejectOrderWithoutDecisionId() {
+    void shouldCreateOrderWithoutDecisionId() {
         DirectBuyOrderService service = new DirectBuyOrderService(
                 new FakeGuideDataRepository(),
                 new FakeTradeOrderRepository(),
@@ -156,9 +156,10 @@ class DirectBuyOrderServiceTest {
         request.setGoodsId("G10001");
         request.setIdempotentKey("IDEM-10005");
 
-        AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
+        CreateDirectOrderResponse response = service.createDirectOrder(request);
 
-        assertEquals("GUIDE_0005", exception.getCode());
+        assertTrue(response.getOrderId().startsWith("O"));
+        assertEquals("G10001", response.getGoodsId());
     }
 
     @Test
@@ -257,11 +258,11 @@ class DirectBuyOrderServiceTest {
         public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             GuideProduct product = new GuideProduct();
             product.setGoodsId(goodsId);
-            product.setGoodsName("轻薄学习平板标准版");
+            product.setGoodsName("基础学术额度包");
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
-            product.setSpecSummary("10.9 英寸屏幕，128GB 存储，支持手写笔");
-            product.setRecommendReason("预算有限、学习和网课场景下性价比更高");
+            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整理");
+            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更高");
             return Optional.of(product);
         }
     }

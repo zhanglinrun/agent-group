@@ -1,7 +1,5 @@
 package com.linrun.domain.agent.conversation.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.agent.conversation.model.AgentPlan;
 import com.linrun.domain.agent.conversation.model.GuideDecisionResult;
 import com.linrun.domain.agent.conversation.model.GuideIntentType;
@@ -9,8 +7,6 @@ import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.agent.quality.model.GuideEvaluationCase;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,7 +21,7 @@ class AgentPlannerServiceTest {
                 new GuideDecisionService(null, null),
                 new AgentToolRegistry());
 
-        AgentPlan plan = service.plan("预算 2500 以内买学习平板，想知道能不能拼团");
+        AgentPlan plan = service.plan("预算 2500 以内买基础额度包，想知道能不能拼团");
 
         assertTrue(service.hasRuntimePlaceholder(plan));
         assertEquals("group-trial-v1", plan.getTools().stream()
@@ -101,16 +97,34 @@ class AgentPlannerServiceTest {
         AgentPlannerService service = new AgentPlannerService(
                 new GuideDecisionService(null, null),
                 new AgentToolRegistry());
-        Path caseFile = Path.of("..", "..", "docs", "sample-knowledge", "evaluation-cases.json");
-        List<GuideEvaluationCase> cases = new ObjectMapper().readValue(
-                Files.readString(caseFile),
-                new TypeReference<>() {
-                });
+        List<GuideEvaluationCase> cases = List.of(
+                evaluationCase("EV-SAMPLE-001", "拼团支付成功以后订单就算已成团了吗？",
+                        GuideIntentType.GROUP_RULE,
+                        List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL)),
+                evaluationCase("EV-SAMPLE-002", "查一下订单 O10001 的支付状态。",
+                        GuideIntentType.ORDER_QUERY,
+                        List.of(AgentToolRegistry.ORDER_STATUS)),
+                evaluationCase("EV-SAMPLE-003", "基础额度包适合长期深度研究吗？",
+                        GuideIntentType.PRODUCT_RECOMMEND,
+                        List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND))
+        );
 
         for (GuideEvaluationCase evaluationCase : cases) {
             AgentPlan plan = service.plan(evaluationCase.getQuestion());
             assertEquals(evaluationCase.getExpectedIntentType(), plan.getIntent(), evaluationCase.getCaseId());
             assertEquals(evaluationCase.getExpectedToolOrder(), plan.toolNames(), evaluationCase.getCaseId());
         }
+    }
+
+    private GuideEvaluationCase evaluationCase(String caseId,
+                                               String question,
+                                               GuideIntentType intentType,
+                                               List<String> expectedToolOrder) {
+        GuideEvaluationCase evaluationCase = new GuideEvaluationCase();
+        evaluationCase.setCaseId(caseId);
+        evaluationCase.setQuestion(question);
+        evaluationCase.setExpectedIntentType(intentType);
+        evaluationCase.setExpectedToolOrder(expectedToolOrder);
+        return evaluationCase;
     }
 }

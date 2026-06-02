@@ -69,7 +69,7 @@ class KnowledgeVectorMaintenanceServiceTest {
     private static class FakeKnowledgeDocumentRepository implements KnowledgeDocumentRepository {
 
         private final List<KnowledgeFragment> fragments = List.of(
-                fragment("KF10001", "轻薄学习平板标准版适合写论文和网课。"),
+                fragment("KF10001", "基础学术额度包适合论文摘要和普通问答。"),
                 fragment("KF10002", "拼团失败后系统自动退款。"));
 
         @Override

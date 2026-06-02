@@ -48,24 +48,24 @@ E:\javaproject\agent-group\frontend\index.html
 E:\javaproject\agent-group\frontend\admin.html
 ```
 
-建议先在用户端上传 `docs\sample-knowledge`（样本知识资料）下的三份文档，再提问：
-
 如果需要手动刷新演示数据，请带上 `utf8mb4`（四字节 UTF-8 编码）：
 
 ```powershell
 docker exec agent-group-mysql sh -c "mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < /docker-entrypoint-initdb.d/00-schema-upgrade.sql && mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < /docker-entrypoint-initdb.d/01-agent-group.sql && mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < /docker-entrypoint-initdb.d/02-demo-data.sql"
 ```
 
+建议提问：
+
 ```text
-我是学生，预算有限，主要写论文和看网课，哪款平板更合适？
+我是研究生，想读论文和整理相关工作，基础额度包和论文阅读额度包怎么选？
 ```
 
 验收时看四件事：
 
-- 文档上传后，提示已进入对象存储和向量化。
-- 回答区出现流式回答。
-- 右侧出现知识依据、商品卡片和导购报价凭证。
-- 点击直接购买或拼团购买后，购买状态时间线会更新，订单金额来自后端校验后的商品和活动数据。
+- 注册登录后能看到额度余额和额度流水。
+- 额度中心能展示额度包，并支持直接购买和拼团购买。
+- 支付成功后，直接购买额度到账；拼团购买需要成团后到账。
+- 使用 `Agent`（智能体）后能看到流式回答和额度消耗记录。
 
 ## 监控验收
 

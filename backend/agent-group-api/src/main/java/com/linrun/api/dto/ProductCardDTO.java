@@ -13,13 +13,13 @@ import java.math.BigDecimal;
 @Data
 public class ProductCardDTO implements Serializable {
 
-    private String decisionId;
-    private java.time.LocalDateTime quoteExpireTime;
     private String goodsId;
     private String goodsName;
     private String imageUrl;
     private BigDecimal originPrice;
     private BigDecimal groupPrice;
+    private BigDecimal quotaAmount;
+    private String productType;
     private String specSummary;
     private String afterSalePolicy;
     private String recommendReason;

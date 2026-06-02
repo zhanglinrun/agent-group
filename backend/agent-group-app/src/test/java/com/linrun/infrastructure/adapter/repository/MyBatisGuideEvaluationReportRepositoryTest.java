@@ -48,8 +48,8 @@ class MyBatisGuideEvaluationReportRepositoryTest {
     private GuideEvaluationReport report() {
         GuideEvaluationItemResult item = new GuideEvaluationItemResult();
         item.setCaseId("EV10001");
-        item.setCaseName("student budget guide");
-        item.setQuestion("limited budget tablet");
+        item.setCaseName("student budget quota");
+        item.setQuestion("limited budget quota package");
         item.setExpectedGoodsId("G10001");
         item.setActualGoodsId("G10001");
         item.setReferencePassed(true);

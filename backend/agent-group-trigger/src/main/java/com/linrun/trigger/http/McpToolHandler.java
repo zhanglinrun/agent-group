@@ -9,7 +9,6 @@ import com.linrun.trigger.support.tool.ToolExecution;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.CreatePayRequest;
-import com.linrun.api.dto.MallProductDTO;
 import com.linrun.api.dto.OrderDeltaDTO;
 import com.linrun.api.dto.RefundOrderRequest;
 import com.linrun.domain.agent.conversation.model.GuideDecisionResult;
@@ -23,6 +22,7 @@ import com.linrun.domain.agent.conversation.service.AgentToolRegistry;
 import com.linrun.domain.agent.conversation.service.GuideIntentRecognitionService;
 import com.linrun.domain.agent.conversation.service.GuideDecisionService;
 import com.linrun.domain.agent.conversation.service.KnowledgeSearchToolService;
+import com.linrun.domain.agent.conversation.service.QuotaPackageCatalogService;
 import com.linrun.domain.activity.model.GroupBuyTrialResult;
 import com.linrun.domain.activity.service.GroupBuyActivityService;
 import com.linrun.trigger.support.json.JsonRepairUtil;
@@ -42,8 +42,8 @@ public class McpToolHandler {
     public static final String JSON_REPAIR = "json_repair";
     public static final String DOCUMENT_COMPENSATION = "document_compensation";
     public static final String INTENT_RECOGNITION = "intent_recognition";
-    public static final String PRODUCT_CATALOG = "product_catalog";
-    public static final String PRODUCT_DETAIL = "product_detail";
+    public static final String QUOTA_PACKAGE_CATALOG = "quota_package_catalog";
+    public static final String QUOTA_PACKAGE_DETAIL = "quota_package_detail";
     public static final String CREATE_PAY_ORDER = "create_pay_order";
     public static final String REFUND_ORDER = "refund_order";
 
@@ -53,7 +53,7 @@ public class McpToolHandler {
     private final GroupBuyActivityService groupBuyActivityService;
     private final OrderStatusToolService orderStatusToolService;
     private final KnowledgeVectorOpsHandler knowledgeVectorOpsService;
-    private final MallProductCatalogHandler mallProductCatalogHandler;
+    private final QuotaPackageCatalogService quotaPackageCatalogService;
     private final LegacyMallPayHandler legacyMallPayHandler;
     private final ToolExecutor toolExecutor;
     private final ObjectMapper objectMapper;
@@ -64,7 +64,7 @@ public class McpToolHandler {
                           GroupBuyActivityService groupBuyActivityService,
                           OrderStatusToolService orderStatusToolService,
                           KnowledgeVectorOpsHandler knowledgeVectorOpsService,
-                          MallProductCatalogHandler mallProductCatalogHandler,
+                          QuotaPackageCatalogService quotaPackageCatalogService,
                           LegacyMallPayHandler legacyMallPayHandler,
                           ToolExecutor toolExecutor,
                           ObjectMapper objectMapper) {
@@ -74,7 +74,7 @@ public class McpToolHandler {
         this.groupBuyActivityService = groupBuyActivityService;
         this.orderStatusToolService = orderStatusToolService;
         this.knowledgeVectorOpsService = knowledgeVectorOpsService;
-        this.mallProductCatalogHandler = mallProductCatalogHandler;
+        this.quotaPackageCatalogService = quotaPackageCatalogService;
         this.legacyMallPayHandler = legacyMallPayHandler;
         this.toolExecutor = toolExecutor;
         this.objectMapper = objectMapper;
@@ -86,28 +86,28 @@ public class McpToolHandler {
                         Map.of("question", stringSchema("User question."))),
                 tool(QUERY_ROUTE, "Route a user question to trade data, market data, knowledge base, or hybrid retrieval.",
                         Map.of("question", stringSchema("User question."))),
-                tool(AgentToolRegistry.KNOWLEDGE_SEARCH, "Search product, campaign, and after-sale knowledge fragments.",
+                tool(AgentToolRegistry.KNOWLEDGE_SEARCH, "Search quota package, campaign, and after-sale knowledge fragments.",
                         Map.of("question", stringSchema("User question."))),
-                tool(AgentToolRegistry.GUIDE_RECOMMEND, "Return guide recommendation, product card, and evidence.",
+                tool(AgentToolRegistry.GUIDE_RECOMMEND, "Return quota package recommendation and evidence.",
                         Map.of("question", stringSchema("User question."))),
-                tool(PRODUCT_CATALOG, "List mall products with current group-buy campaign fields.",
+                tool(QUOTA_PACKAGE_CATALOG, "List quota packages with current group-buy campaign fields.",
                         Map.of(
-                                "keyword", stringSchema("Optional product search keyword."),
-                                "limit", integerSchema("Max products to return.")),
+                                "keyword", stringSchema("Optional quota package search keyword."),
+                                "limit", integerSchema("Max packages to return.")),
                         List.of()),
-                tool(PRODUCT_DETAIL, "Return a mall product detail with current group-buy campaign fields.",
-                        Map.of("goodsId", stringSchema("Goods id."))),
+                tool(QUOTA_PACKAGE_DETAIL, "Return a quota package detail with current group-buy campaign fields.",
+                        Map.of("goodsId", stringSchema("Quota package id."))),
                 tool(AgentToolRegistry.GROUP_TRIAL, "Return group-buy trial result by goods id.",
                         Map.of("goodsId", stringSchema("Goods id."))),
                 tool(CREATE_PAY_ORDER, "Create a direct-buy or group-buy pay order through the trade facade.",
                         Map.of(
                                 "userId", stringSchema("User id."),
-                                "productId", stringSchema("Product id."),
+                                "goodsId", stringSchema("Quota package id."),
                                 "marketType", integerSchema("0 for direct buy, 1 for group buy."),
                                 "activityId", stringSchema("Activity id for group buy."),
-                                "decisionId", stringSchema("Guide decision id."),
+                                "decisionId", stringSchema("Quote decision id."),
                                 "teamId", stringSchema("Optional team id.")),
-                        List.of("userId", "productId", "marketType")),
+                        List.of("userId", "goodsId", "marketType")),
                 tool(AgentToolRegistry.ORDER_STATUS, "Return trade order and payment status.",
                         Map.of(
                                 "orderId", stringSchema("Order id."),
@@ -119,7 +119,7 @@ public class McpToolHandler {
                                 "orderId", stringSchema("Order id."),
                                 "userId", stringSchema("User id.")),
                         List.of("orderId")),
-                tool(REFUND_ORDER, "Refund or close a mall order by order id.",
+                tool(REFUND_ORDER, "Refund or close an order by order id.",
                         Map.of(
                                 "orderId", stringSchema("Order id."),
                                 "userId", stringSchema("User id."),
@@ -150,8 +150,8 @@ public class McpToolHandler {
             case QUERY_ROUTE -> queryRoute(text(arguments.get("question")));
             case AgentToolRegistry.KNOWLEDGE_SEARCH -> knowledgeSearch(text(arguments.get("question")));
             case AgentToolRegistry.GUIDE_RECOMMEND -> guideRecommend(text(arguments.get("question")));
-            case PRODUCT_CATALOG -> productCatalog(text(arguments.get("keyword")), integer(arguments.get("limit"), 20));
-            case PRODUCT_DETAIL -> productDetail(text(arguments.get("goodsId")));
+            case QUOTA_PACKAGE_CATALOG -> quotaPackageCatalog(text(arguments.get("keyword")), integer(arguments.get("limit"), 20));
+            case QUOTA_PACKAGE_DETAIL -> quotaPackageDetail(text(arguments.get("goodsId")));
             case AgentToolRegistry.GROUP_TRIAL -> groupTrial(text(arguments.get("goodsId")));
             case CREATE_PAY_ORDER -> createPayOrder(arguments);
             case AgentToolRegistry.ORDER_STATUS -> orderStatus(
@@ -217,15 +217,16 @@ public class McpToolHandler {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("intentType", decisionResult.getIntent().getIntentType().name());
-        Map<String, Object> productMap = new LinkedHashMap<>();
-        productMap.put("goodsId", product.getGoodsId());
-        productMap.put("goodsName", product.getGoodsName());
-        productMap.put("originPrice", product.getOriginPrice());
-        productMap.put("groupPrice", product.getGroupPrice());
-        productMap.put("activityId", nullToBlank(product.getActivityId()));
-        productMap.put("teamSize", product.getTeamSize());
-        productMap.put("remainingSeconds", product.getRemainingSeconds());
-        result.put("product", productMap);
+        Map<String, Object> packageMap = new LinkedHashMap<>();
+        packageMap.put("goodsId", product.getGoodsId());
+        packageMap.put("goodsName", product.getGoodsName());
+        packageMap.put("originPrice", product.getOriginPrice());
+        packageMap.put("groupPrice", product.getGroupPrice());
+        packageMap.put("activityId", nullToBlank(product.getActivityId()));
+        packageMap.put("teamSize", product.getTeamSize());
+        packageMap.put("remainingSeconds", product.getRemainingSeconds());
+        packageMap.put("quotaAmount", product.getQuotaAmount());
+        result.put("package", packageMap);
         result.put("reasons", recommendation.getReasons().stream()
                 .map(reason -> Map.of(
                         "reasonType", reason.getReasonType(),
@@ -236,22 +237,23 @@ public class McpToolHandler {
         return result;
     }
 
-    private Map<String, Object> productCatalog(String keyword, int limit) {
+    private Map<String, Object> quotaPackageCatalog(String keyword, int limit) {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("products", mallProductCatalogHandler.queryProductOptions(keyword, limit).stream()
-                .map(this::product)
+        result.put("packages", quotaPackageCatalogService.listPackages(keyword, limit).stream()
+                .map(this::quotaPackage)
                 .toList());
         return result;
     }
 
-    private Map<String, Object> productDetail(String goodsId) {
+    private Map<String, Object> quotaPackageDetail(String goodsId) {
         if (!StringUtils.hasText(goodsId)) {
             throw new AppException("0001", "goodsId cannot be blank");
         }
-        return product(mallProductCatalogHandler.queryProductDetail(goodsId));
+        GuideProduct product = quotaPackageCatalogService.queryPackageDetail(goodsId);
+        return quotaPackage(product);
     }
 
-    private Map<String, Object> product(MallProductDTO product) {
+    private Map<String, Object> quotaPackage(GuideProduct product) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("goodsId", product.getGoodsId());
         result.put("goodsName", product.getGoodsName());
@@ -261,8 +263,8 @@ public class McpToolHandler {
         result.put("activityId", nullToBlank(product.getActivityId()));
         result.put("teamSize", product.getTeamSize());
         result.put("remainingSeconds", product.getRemainingSeconds());
-        result.put("groupBuyAvailable", product.isGroupBuyAvailable());
-        result.put("marketMessage", nullToBlank(product.getMarketMessage()));
+        result.put("productType", nullToBlank(product.getProductType()));
+        result.put("quotaAmount", product.getQuotaAmount());
         result.put("specSummary", nullToBlank(product.getSpecSummary()));
         result.put("afterSalePolicy", nullToBlank(product.getAfterSalePolicy()));
         result.put("recommendReason", nullToBlank(product.getRecommendReason()));
@@ -329,7 +331,10 @@ public class McpToolHandler {
     private Map<String, Object> createPayOrder(Map<String, Object> arguments) {
         CreatePayRequest request = new CreatePayRequest();
         request.setUserId(text(arguments.get("userId")));
-        request.setProductId(text(arguments.get("productId")));
+        String goodsId = StringUtils.hasText(text(arguments.get("goodsId")))
+                ? text(arguments.get("goodsId"))
+                : text(arguments.get("productId"));
+        request.setProductId(goodsId);
         request.setMarketType(integer(arguments.get("marketType"), 0));
         request.setActivityId(text(arguments.get("activityId")));
         request.setDecisionId(text(arguments.get("decisionId")));

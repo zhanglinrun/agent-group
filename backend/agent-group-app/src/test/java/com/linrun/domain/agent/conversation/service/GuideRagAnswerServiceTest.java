@@ -34,7 +34,7 @@ class GuideRagAnswerServiceTest {
 
         List<String> segments = service.answer("拼团失败会退款吗", GuideRagPromptBuilderTest.decisionResult());
 
-        assertEquals("我先结合商品资料、拼团试算和知识片段给你结论。", segments.get(0));
+        assertEquals("我先结合额度包资料、拼团试算和知识片段给你结论。", segments.get(0));
         assertTrue(segments.stream().anyMatch(segment -> segment.contains("当前拼团价是 2099.00")));
     }
 }

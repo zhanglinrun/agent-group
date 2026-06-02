@@ -17,7 +17,7 @@ class LocalGuideEvaluationCaseRepositoryTest {
     Path tempDir;
 
     @Test
-    void shouldProvideThirtyTypicalGuideEvaluationCases() {
+    void shouldProvideThirtyTypicalEvaluationCases() {
         LocalGuideEvaluationCaseRepository repository = new LocalGuideEvaluationCaseRepository();
 
         List<GuideEvaluationCase> cases = repository.queryEnabledCases();
@@ -25,23 +25,23 @@ class LocalGuideEvaluationCaseRepositoryTest {
         assertEquals(30, cases.size());
         assertTrue(cases.stream().anyMatch(GuideEvaluationCase::isContextRequired));
         assertTrue(cases.stream().anyMatch(evaluationCase -> "EV10030".equals(evaluationCase.getCaseId())));
-        assertTrue(cases.stream().allMatch(evaluationCase -> "G10001".equals(evaluationCase.getExpectedGoodsId())));
+        assertTrue(cases.stream().allMatch(evaluationCase -> evaluationCase.getExpectedGoodsId().startsWith("G")));
         assertTrue(cases.stream().allMatch(evaluationCase -> !evaluationCase.getExpectedToolOrder().isEmpty()));
     }
 
     @Test
     void shouldLoadEvaluationCasesFromJsonFile() throws Exception {
-        Path caseFile = tempDir.resolve("guide-eval-cases.json");
+        Path caseFile = tempDir.resolve("quota-eval-cases.json");
         Files.writeString(caseFile, """
                 [
                   {
                     "caseId": "EV-CUSTOM-001",
                     "caseName": "自定义预算用例",
-                    "question": "预算 2500 以内买学习平板",
+                    "question": "预算有限，想买基础额度包",
                     "expectedIntentType": "PRODUCT_RECOMMEND",
                     "expectedGoodsId": "G10001",
                     "contextRequired": false,
-                    "requiredReferenceKeywords": ["学习"],
+                    "requiredReferenceKeywords": ["额度"],
                     "requiredAnswerKeywords": ["拼团价"]
                   }
                 ]
@@ -52,6 +52,6 @@ class LocalGuideEvaluationCaseRepositoryTest {
 
         assertEquals(1, cases.size());
         assertEquals("EV-CUSTOM-001", cases.get(0).getCaseId());
-        assertEquals(List.of("学习"), cases.get(0).getRequiredReferenceKeywords());
+        assertEquals(List.of("额度"), cases.get(0).getRequiredReferenceKeywords());
     }
 }

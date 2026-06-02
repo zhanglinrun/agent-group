@@ -193,14 +193,15 @@ class GroupBuyLockOrderServiceTest {
     }
 
     @Test
-    void shouldRejectLockWithoutDecisionId() {
+    void shouldLockWithoutDecisionId() {
         GroupBuyLockOrderService service = service(new FakeGroupBuyOrderLockRepository(), new FakeTradeOrderRepository());
         LockGroupBuyOrderRequest request = request(null, "IDEM_DECISION_10001");
         request.setDecisionId("");
 
-        AppException exception = assertThrows(AppException.class, () -> service.lock(request));
+        LockGroupBuyOrderResponse response = service.lock(request);
 
-        assertEquals("GUIDE_0005", exception.getCode());
+        assertTrue(response.getOrderId().startsWith("O"));
+        assertEquals("G10001", response.getGoodsId());
     }
 
     @Test
@@ -653,7 +654,7 @@ class GroupBuyLockOrderServiceTest {
         public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
             GuideProduct product = new GuideProduct();
             product.setGoodsId(goodsId);
-            product.setGoodsName("轻薄学习平板标准版");
+            product.setGoodsName("基础学术额度包");
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
             return Optional.of(product);

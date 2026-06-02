@@ -35,7 +35,7 @@ public class AgentPlanExecuteService {
                 "用户意图、约束和当前会话上下文"));
         stages.add(new AgentExecutionStage(
                 "topic",
-                "识别导购、售后或订单查询主题",
+                "识别额度、退款或订单查询主题",
                 "PASS",
                 plan.getIntent() == null ? "意图分类结果" : plan.getIntent().name()));
         stages.add(new AgentExecutionStage(
@@ -55,9 +55,9 @@ public class AgentPlanExecuteService {
                 "高风险字段来源"));
         stages.add(new AgentExecutionStage(
                 "summarize",
-                "生成带依据的导购回答和自检结果",
+                "生成带依据的额度包回答和自检结果",
                 "READY",
-                "推荐理由、商品卡片和引用"));
+                "推荐理由、额度包信息和引用"));
         return stages;
     }
 

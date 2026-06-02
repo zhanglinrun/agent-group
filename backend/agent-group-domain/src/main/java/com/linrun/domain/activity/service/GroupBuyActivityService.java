@@ -21,7 +21,7 @@ public class GroupBuyActivityService {
 
     public GroupBuyTrialResult trial(String goodsId) {
         if (!StringUtils.hasText(goodsId)) {
-            throw new AppException("0001", "商品编号不能为空");
+            throw new AppException("0001", "额度包编号不能为空");
         }
         return groupBuyActivityRepository.queryByGoodsId(goodsId)
                 .map(activity -> buildTrialResult(activity, LocalDateTime.now()))
@@ -49,7 +49,7 @@ public class GroupBuyActivityService {
             case NOT_STARTED -> "拼团活动未开始";
             case ENDED -> "拼团活动已结束";
             case DISABLED -> "拼团活动已停用";
-            case MISSING -> "当前商品没有配置拼团活动";
+            case MISSING -> "当前额度包没有配置拼团活动";
         };
     }
 }

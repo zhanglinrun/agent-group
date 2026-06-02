@@ -176,7 +176,7 @@ public class GroupBuyLockOrderService {
         }
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
-                .orElseThrow(() -> new AppException("DATA_0003", "商品不存在或已下架"));
+                .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         GroupBuyActivity activity = groupBuyActivityRepository.queryByActivityId(request.getActivityId())
                 .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存在"));
 
@@ -264,16 +264,13 @@ public class GroupBuyLockOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "商品编号不能为空");
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (!StringUtils.hasText(request.getActivityId())) {
             throw new AppException("0001", "活动编号不能为空");
         }
         if (!StringUtils.hasText(request.getIdempotentKey())) {
             throw new AppException("0001", "幂等键不能为空");
-        }
-        if (!StringUtils.hasText(request.getDecisionId())) {
-            throw new AppException("GUIDE_0005", "导购决策编号不能为空，请先完成导购推荐后再下单");
         }
     }
 

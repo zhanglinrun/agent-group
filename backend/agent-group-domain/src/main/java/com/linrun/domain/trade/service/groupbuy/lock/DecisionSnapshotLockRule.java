@@ -2,6 +2,7 @@ package com.linrun.domain.trade.service.groupbuy.lock;
 
 import cn.bugstack.wrench.design.framework.link.model2.handler.ILogicHandler;
 import com.linrun.domain.agent.conversation.service.GuideDecisionSnapshotValidator;
+import org.springframework.util.StringUtils;
 
 public class DecisionSnapshotLockRule implements ILogicHandler<GroupBuyLockContext, GroupBuyLockDynamicContext, GroupBuyLockContext> {
 
@@ -13,6 +14,9 @@ public class DecisionSnapshotLockRule implements ILogicHandler<GroupBuyLockConte
 
     @Override
     public GroupBuyLockContext apply(GroupBuyLockContext context, GroupBuyLockDynamicContext dynamicContext) throws Exception {
+        if (!StringUtils.hasText(context.getRequest().getDecisionId())) {
+            return next(context, dynamicContext);
+        }
         guideDecisionSnapshotValidator.validateGroup(
                 context.getRequest().getDecisionId(),
                 context.getRequest().getUserId(),

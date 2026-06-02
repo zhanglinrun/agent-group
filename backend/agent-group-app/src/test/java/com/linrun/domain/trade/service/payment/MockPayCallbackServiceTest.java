@@ -137,7 +137,7 @@ class MockPayCallbackServiceTest {
         order.setOrderId("O10001");
         order.setUserId("U10001");
         order.setGoodsId("G10001");
-        order.setGoodsName("轻薄学习平板标准版");
+        order.setGoodsName("基础学术额度包");
         order.setBuyType(TradeBuyTypeEnumVO.DIRECT);
         order.setOriginAmount(new BigDecimal("2399.00"));
         order.setPayAmount(new BigDecimal("2399.00"));

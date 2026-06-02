@@ -36,7 +36,7 @@ public class GuideRagPromptBuilder {
                 意图识别：
                 %s
 
-                商品信息：
+                额度包信息：
                 %s
 
                 推荐理由：
@@ -50,7 +50,7 @@ public class GuideRagPromptBuilder {
 
                 回答硬约束：
                 1. 必须先给结论，再说明后端工具结果和知识依据。
-                2. 涉及价格、活动、成团、库存、退款、支付、订单金额时，必须写出商品名称、原价、拼团价、成团人数和依据片段。
+                2. 涉及价格、活动、成团、名额、退款、支付、订单金额时，必须写出额度包名称、原价、拼团价、成团人数和依据片段。
                 3. 不能把模型判断当成库存、价格或订单状态；这些高风险信息必须以后端工具结果为准。
                 4. 对“不适合、不能、不会重复、需要重新校验、等待成团、补偿、幂等、防重放、Outbox”等边界结论，必须直接说清楚。
 
@@ -68,12 +68,12 @@ public class GuideRagPromptBuilder {
 
     private String productContext(GuideProduct product) {
         return """
-                商品编号：%s
-                商品名称：%s
+                额度包编号：%s
+                额度包名称：%s
                 原价：%s
                 拼团价：%s
-                规格：%s
-                售后：%s
+                额度说明：%s
+                退款规则：%s
                 活动编号：%s
                 成团人数：%s
                 剩余秒数：%s
@@ -115,7 +115,7 @@ public class GuideRagPromptBuilder {
                 .limit(2)
                 .collect(Collectors.joining(" "));
         return String.join("\n",
-                "我先结合商品资料、拼团试算和知识片段给你结论。",
+                "我先结合额度包资料、拼团试算和知识片段给你结论。",
                 "更建议优先看 " + product.getGoodsName() + "，当前拼团价是 " + product.getGroupPrice() + "，原价是 " + product.getOriginPrice() + "。",
                 product.getRecommendReason(),
                 "依据是：" + firstReference + " " + reasons);

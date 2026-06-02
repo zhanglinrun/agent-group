@@ -145,7 +145,7 @@ public class GuideEvaluationService {
             item.setSuggestion(suggestion(item));
             return item;
         } catch (Exception e) {
-            item.setSuggestion("用例执行失败，需要检查商品、活动或知识库数据：" + e.getMessage());
+            item.setSuggestion("用例执行失败，需要检查额度包、活动或知识库数据：" + e.getMessage());
             item.setScore(0);
             return item;
         } finally {
@@ -235,7 +235,7 @@ public class GuideEvaluationService {
             return "调整回答模板，确保关键规则和价格信息进入答案。";
         }
         if (!item.isRecommendationPassed()) {
-            return "检查推荐商品选择和商品资料完整性。";
+            return "检查推荐额度包选择和资料完整性。";
         }
         return "补充多轮上下文提示，减少追问时的信息丢失。";
     }
@@ -328,9 +328,9 @@ public class GuideEvaluationService {
         }
         if (agentPlan.hasTool(AgentToolRegistry.GROUP_TRIAL)
                 && !containsAny(answerText,
-                "拼团价", "成团", "活动", "原价", "2099", "2899", "3299", "2599", "1699", "2399",
-                "后端", "工具", "金额", "订单金额", "商品卡片", "支付单", "锁单", "库存",
-                "报价", "凭证", "退款", "幂等", "防重放", "补偿", "Outbox")) {
+                "拼团价", "成团", "活动", "原价", "额度", "额度包", "19.90", "29.90", "59.90", "109.90",
+                "后端", "工具", "金额", "订单金额", "支付单", "锁单", "库存",
+                "退款", "幂等", "防重放", "补偿", "Outbox")) {
             return false;
         }
         return true;
@@ -352,15 +352,15 @@ public class GuideEvaluationService {
         }
         if (referenceFailed > 0) {
             feedbacks.add(new GuideEvaluationFeedback("KNOWLEDGE", "HIGH",
-                    "有" + referenceFailed + "个用例检索依据未命中，优先补充商品详情、营销规则或售后政策片段。"));
+                    "有" + referenceFailed + "个用例检索依据未命中，优先补充额度包说明、活动规则或退款规则片段。"));
         }
         if (answerFailed > 0) {
             feedbacks.add(new GuideEvaluationFeedback("PROMPT", "HIGH",
-                    "有" + answerFailed + "个用例回答缺少关键结论，建议调整导购回答模板，强制输出价格、规则和适用边界。"));
+                    "有" + answerFailed + "个用例回答缺少关键结论，建议调整额度包回答模板，强制输出价格、规则和适用边界。"));
         }
         if (recommendationFailed > 0) {
             feedbacks.add(new GuideEvaluationFeedback("RECOMMENDATION", "MEDIUM",
-                    "有" + recommendationFailed + "个用例推荐商品不符合预期，建议复核商品标签、候选排序和自检规则。"));
+                    "有" + recommendationFailed + "个用例推荐额度包不符合预期，建议复核额度包标签、候选排序和自检规则。"));
         }
         if (contextFailed > 0) {
             feedbacks.add(new GuideEvaluationFeedback("CONTEXT", "MEDIUM",
@@ -372,7 +372,7 @@ public class GuideEvaluationService {
         }
         if (feedbacks.isEmpty()) {
             feedbacks.add(new GuideEvaluationFeedback("QUALITY", "LOW",
-                    "本批次评测全部通过，保留当前提示词和知识版本，继续扩展更复杂的真实导购用例。"));
+                    "本批次评测全部通过，保留当前提示词和知识版本，继续扩展更复杂的真实额度用例。"));
         }
         return feedbacks;
     }

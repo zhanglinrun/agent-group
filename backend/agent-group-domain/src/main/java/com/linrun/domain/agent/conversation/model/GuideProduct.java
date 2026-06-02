@@ -9,6 +9,8 @@ public class GuideProduct {
     private String imageUrl;
     private BigDecimal originPrice;
     private BigDecimal groupPrice;
+    private BigDecimal quotaAmount;
+    private String productType;
     private String specSummary;
     private String afterSalePolicy;
     private String recommendReason;
@@ -55,6 +57,22 @@ public class GuideProduct {
 
     public void setGroupPrice(BigDecimal groupPrice) {
         this.groupPrice = groupPrice;
+    }
+
+    public BigDecimal getQuotaAmount() {
+        return quotaAmount;
+    }
+
+    public void setQuotaAmount(BigDecimal quotaAmount) {
+        this.quotaAmount = quotaAmount;
+    }
+
+    public String getProductType() {
+        return productType;
+    }
+
+    public void setProductType(String productType) {
+        this.productType = productType;
     }
 
     public String getSpecSummary() {

@@ -18,13 +18,13 @@ class KnowledgeDocumentParserTest {
 
         List<CreateKnowledgeFragmentCommand> fragments = parser.parse(
                 "G10001",
-                "第一段商品详情。\n\n第二段售后政策。");
+                "第一段额度说明。\n\n第二段退款规则。");
 
         assertEquals(2, fragments.size());
         assertEquals("G10001", fragments.get(0).getGoodsId());
-        assertEquals("第一段商品详情。", fragments.get(0).getContent());
+        assertEquals("第一段额度说明。", fragments.get(0).getContent());
         assertEquals(1, fragments.get(0).getRankNo());
-        assertEquals("第二段售后政策。", fragments.get(1).getContent());
+        assertEquals("第二段退款规则。", fragments.get(1).getContent());
         assertEquals(2, fragments.get(1).getRankNo());
     }
 
@@ -52,11 +52,11 @@ class KnowledgeDocumentParserTest {
 
         List<CreateKnowledgeFragmentCommand> fragments = parser.parse(
                 "G10001",
-                "# 商品详情\n适合学习\n## 售后政策\n支持退款");
+                "# 额度说明\n适合学术问答\n## 退款规则\n支持未成团退款");
 
         assertEquals(2, fragments.size());
-        assertTrue(fragments.get(0).getContent().startsWith("# 商品详情"));
-        assertTrue(fragments.get(1).getContent().startsWith("## 售后政策"));
+        assertTrue(fragments.get(0).getContent().startsWith("# 额度说明"));
+        assertTrue(fragments.get(1).getContent().startsWith("## 退款规则"));
     }
 
     @Test

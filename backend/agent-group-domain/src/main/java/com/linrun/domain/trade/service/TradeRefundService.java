@@ -4,6 +4,7 @@ import com.linrun.api.dto.RefundGroupBuyOrderRequest;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
 import com.linrun.api.dto.RefundPaymentRequest;
 import com.linrun.api.dto.RefundPaymentResponse;
+import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
@@ -25,22 +26,25 @@ public class TradeRefundService {
     private final GroupBuyRefundStrategyRouter groupBuyRefundStrategyRouter;
     private final GroupBuyRefundRuleChain groupBuyRefundRuleChain;
     private final NotifyTaskService notifyTaskService;
+    private final UserQuotaService userQuotaService;
 
     public TradeRefundService(TradeOrderRepository tradeOrderRepository,
                               PaymentService paymentService,
                               GroupBuyCompensationService groupBuyCompensationService) {
-        this(tradeOrderRepository, paymentService, groupBuyCompensationService, null);
+        this(tradeOrderRepository, paymentService, groupBuyCompensationService, null, null);
     }
 
     @Autowired
     public TradeRefundService(TradeOrderRepository tradeOrderRepository,
                               PaymentService paymentService,
                               GroupBuyCompensationService groupBuyCompensationService,
-                              NotifyTaskService notifyTaskService) {
+                              NotifyTaskService notifyTaskService,
+                              UserQuotaService userQuotaService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.paymentService = paymentService;
         this.groupBuyCompensationService = groupBuyCompensationService;
         this.notifyTaskService = notifyTaskService;
+        this.userQuotaService = userQuotaService;
         this.groupBuyRefundStrategyRouter = new GroupBuyRefundStrategyRouter(paymentService, groupBuyCompensationService);
         this.groupBuyRefundRuleChain = new GroupBuyRefundRuleChain(
                 tradeOrderRepository,
@@ -52,6 +56,7 @@ public class TradeRefundService {
     @Transactional(rollbackFor = Exception.class)
     public RefundPaymentResponse refund(RefundPaymentRequest request) {
         RefundPaymentResponse response = paymentService.refund(request);
+        rollbackQuotaIfAvailable(response.getOrderId());
         releaseGroupBuyIfNeeded(response.getOrderId(), request == null ? null : request.getRefundReason());
         return response;
     }
@@ -72,6 +77,12 @@ public class TradeRefundService {
         GroupBuyCompensationResponse response = groupBuyCompensationService.releaseRefundedOrder(groupRequest);
         if (notifyTaskService != null) {
             notifyTaskService.createGroupRefundTask(response);
+        }
+    }
+
+    private void rollbackQuotaIfAvailable(String orderId) {
+        if (userQuotaService != null) {
+            userQuotaService.rollbackQuotaForRefundedOrder(queryTradeOrder(orderId));
         }
     }
 

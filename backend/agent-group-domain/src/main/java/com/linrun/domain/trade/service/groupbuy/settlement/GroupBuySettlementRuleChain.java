@@ -36,10 +36,11 @@ public class GroupBuySettlementRuleChain {
         this.ruleFilter = linkArmory.getLogicLink();
     }
 
-    public void settlePaySuccess(TradeOrderEntity tradeOrder) {
+    public List<String> settlePaySuccess(TradeOrderEntity tradeOrder) {
         GroupBuySettlementContext context = new GroupBuySettlementContext(tradeOrder);
         try {
-            ruleFilter.apply(context, new DynamicContext());
+            GroupBuySettlementContext result = ruleFilter.apply(context, new DynamicContext());
+            return result == null ? List.of() : result.getSettledOrderIds();
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

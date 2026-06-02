@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, Bell, Boxes, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, ShoppingCart, Tags, Upload } from "lucide-react";
+import { Activity, AlertTriangle, Bell, Boxes, CreditCard, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, Tags, Upload } from "lucide-react";
 import AdminAuthBar from "./AdminAuthBar";
 import {
   compensateKnowledgeVector,
   downloadPaymentBill,
   getKnowledgeDocuments,
-  getLatestGuideEvaluation,
+  getLatestAgentEvaluation,
   queryOpsDashboard,
   queryOperationalRules,
   queryPaymentErrorMap,
@@ -14,7 +14,7 @@ import {
   queryUserOrderList,
   rebuildKnowledgeVector,
   refreshPaymentCertificate,
-  runGuideEvaluation,
+  runAgentEvaluation,
   updateOperationalRule,
   uploadKnowledgeDocument
 } from "../services/api";
@@ -22,7 +22,7 @@ import {
 async function fetchAdminData() {
   const [docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult] = await Promise.allSettled([
     getKnowledgeDocuments(),
-    getLatestGuideEvaluation(),
+    getLatestAgentEvaluation(),
     queryUserOrderList({ pageSize: 20 }),
     queryRefundOrderList({ userId: null, pageSize: 20 }),
     queryOperationalRules(),
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
       <header className="admin-header">
         <div>
           <h2>系统管理后台</h2>
-          <span>企业级 AI 导购控制台</span>
+          <span>额度与智能体控制台</span>
         </div>
         <a className="admin-exit" href="/">
           <LogOut size={16} /> 返回前台
@@ -219,7 +219,7 @@ export default function AdminDashboard() {
           </div>
           <div className="admin-card-body">
             <p className="admin-desc">
-              管理本地及 pgvector 中的非结构化文档，更新导购话术、商品规则等上下文。
+              管理本地和向量库中的非结构化文档，更新额度包说明、使用规则等上下文。
             </p>
             <div className="admin-actions">
               <button className="admin-btn primary" onClick={() => document.getElementById("file-upload").click()}>
@@ -266,14 +266,14 @@ export default function AdminDashboard() {
           <div className="admin-card-header">
             <div className="admin-title-line">
               <Activity size={18} color="#16a34a" />
-              <h3>导购效果自动化评测</h3>
+              <h3>智能体效果自动化评测</h3>
             </div>
           </div>
           <div className="admin-card-body">
             <p className="admin-desc">
-              针对 RAG 检索召回率、大模型推荐合理性进行批量 Case 测试打分。
+              针对知识检索召回率、回答合理性进行批量测试打分。
             </p>
-            <button className="admin-btn success" onClick={() => handleAction("执行自动化评测", runGuideEvaluation)}>
+            <button className="admin-btn success" onClick={() => handleAction("执行自动化评测", runAgentEvaluation)}>
               <PlayCircle size={16} /> 运行全量评测
             </button>
 
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <strong>{formatRate(evaluation.recommendationReasonableRate)}</strong>
-                    <span>推荐合理率</span>
+                    <span>任务匹配率</span>
                   </div>
                   <div>
                     <strong>{evaluation.totalCount || 0}</strong>
@@ -304,7 +304,7 @@ export default function AdminDashboard() {
         <section className="admin-card full-width">
           <div className="admin-card-header">
             <div className="admin-title-line">
-              <ShoppingCart size={18} color="#ea580c" />
+              <CreditCard size={18} color="#ea580c" />
               <h3>交易订单监控</h3>
             </div>
           </div>
@@ -314,7 +314,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr>
                     <th>订单号</th>
-                    <th>商品名称</th>
+                    <th>额度包</th>
                     <th>类型</th>
                     <th>金额</th>
                     <th>状态</th>
@@ -325,7 +325,7 @@ export default function AdminDashboard() {
                   {orders.map((order) => (
                     <tr key={order.id || order.orderId}>
                       <td className="mono">{order.orderId}</td>
-                      <td>{order.productName}</td>
+                      <td>{order.productName || order.goodsName || order.productId || order.goodsId || "-"}</td>
                       <td>
                         <span className={`badge ${order.marketType === 1 ? "badge-orange" : "badge-gray"}`}>
                           {order.marketType === 1 ? "拼团" : "单独购买"}
@@ -454,7 +454,7 @@ export default function AdminDashboard() {
                 <div className="admin-title-line ops-title"><Activity size={16} /><h4>活动配置</h4></div>
                 <div className="table-wrap compact">
                   <table className="admin-table compact">
-                    <thead><tr><th>活动</th><th>商品</th><th>团价</th><th>状态</th><th>人群</th></tr></thead>
+                    <thead><tr><th>活动</th><th>额度包</th><th>团价</th><th>状态</th><th>人群</th></tr></thead>
                     <tbody>
                       {(opsDashboard.activities || []).map((item) => (
                         <tr key={item.activityId}>
@@ -472,10 +472,10 @@ export default function AdminDashboard() {
               </div>
 
               <div className="ops-block">
-                <div className="admin-title-line ops-title"><Tags size={16} /><h4>渠道商品</h4></div>
+                <div className="admin-title-line ops-title"><Tags size={16} /><h4>渠道额度包</h4></div>
                 <div className="table-wrap compact">
                   <table className="admin-table compact">
-                    <thead><tr><th>来源</th><th>渠道</th><th>商品</th><th>活动</th></tr></thead>
+                    <thead><tr><th>来源</th><th>渠道</th><th>额度包</th><th>活动</th></tr></thead>
                     <tbody>
                       {(opsDashboard.channels || []).map((item) => (
                         <tr key={`${item.source}-${item.channel}-${item.goodsId}`}>
@@ -515,7 +515,7 @@ export default function AdminDashboard() {
                 <div className="admin-title-line ops-title"><Boxes size={16} /><h4>库存水位</h4></div>
                 <div className="table-wrap compact">
                   <table className="admin-table compact">
-                    <thead><tr><th>活动</th><th>商品</th><th>可用</th><th>锁定</th><th>已付</th></tr></thead>
+                    <thead><tr><th>活动</th><th>额度包</th><th>可用</th><th>锁定</th><th>已付</th></tr></thead>
                     <tbody>
                       {(opsDashboard.stocks || []).map((item) => (
                         <tr key={`${item.activityId}-${item.goodsId}`}>

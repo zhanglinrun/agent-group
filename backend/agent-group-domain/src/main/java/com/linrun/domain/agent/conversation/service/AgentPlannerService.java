@@ -73,10 +73,10 @@ public class AgentPlannerService {
 
         tools.add(AgentToolCall.of(AgentToolRegistry.KNOWLEDGE_SEARCH,
                 arguments("question", question, "limit", "3"),
-                "先检索商品详情、活动规则和售后政策，保证回答有依据。"));
+                "先检索额度包说明、活动规则和退款规则，保证回答有依据。"));
         tools.add(AgentToolCall.of(AgentToolRegistry.GUIDE_RECOMMEND,
                 arguments("question", question),
-                "结合用户预算、场景和知识片段完成商品排序。"));
+                "结合用户任务、额度需求和知识片段完成额度包推荐。"));
         if (shouldTrialGroup(question, intent)) {
             tools.add(AgentToolCall.of(AgentToolRegistry.GROUP_TRIAL,
                     arguments("goodsId", RECOMMENDED_GOODS_ID_PLACEHOLDER),
@@ -113,18 +113,18 @@ public class AgentPlannerService {
                 || intent.isBudgetSensitive()
                 || intent.isCompareConcerned()
                 || containsAny(normalized,
-                "价格", "报价", "优惠", "省钱", "划算", "直接买", "直接购买", "原价",
-                "锁单", "下单", "支付", "支付单", "订单金额", "商品卡片", "金额", "凭证", "决策编号",
+                "价格", "优惠", "省钱", "划算", "直接买", "直接购买", "原价",
+                "锁单", "下单", "支付", "支付单", "订单金额", "支付单金额", "前端金额", "金额",
                 "活动过期", "过期", "下架", "库存", "名额", "队伍", "满了", "队伍已满",
                 "幂等", "重复", "重复点", "重复下单", "防重放", "回调", "补偿", "outbox",
-                "儿童", "小孩", "家长管控", "护眼", "考研", "配件", "一次配齐", "办公套装", "键盘套装");
+                "余额不足", "充值", "购买额度", "买额度");
     }
 
     private String answerPolicy(GuideIntentType intentType) {
         if (GuideIntentType.ORDER_QUERY.equals(intentType)) {
             return "只基于订单工具结果回答订单、支付和退款状态，不编造状态。";
         }
-        return "基于知识检索、商品推荐和拼团试算结果回答；价格、库存、活动和售后规则必须来自工具结果。";
+        return "基于知识检索、额度包推荐和拼团试算结果回答；价格、名额、活动和退款规则必须来自工具结果。";
     }
 
     private Map<String, String> arguments(String... pairs) {

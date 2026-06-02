@@ -1,8 +1,6 @@
 package com.linrun.infrastructure.converter;
 
-import com.linrun.domain.agent.conversation.model.GuideConversationMessage;
 import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
-import com.linrun.domain.agent.conversation.model.GuideMessageRole;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.agent.conversation.model.GuideReference;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
@@ -12,7 +10,6 @@ import com.linrun.domain.agent.knowledge.model.KnowledgeFragmentStatus;
 import com.linrun.domain.agent.quality.model.GuideEvaluationFeedback;
 import com.linrun.domain.agent.quality.model.GuideEvaluationItemResult;
 import com.linrun.domain.agent.quality.model.GuideEvaluationReport;
-import com.linrun.infrastructure.po.GuideConversationMessagePO;
 import com.linrun.infrastructure.po.GuideDecisionSnapshotPO;
 import com.linrun.infrastructure.po.GuideEvaluationFeedbackPO;
 import com.linrun.infrastructure.po.GuideEvaluationItemResultPO;
@@ -28,36 +25,6 @@ import java.util.List;
 public final class AgentPOConverter {
 
     private AgentPOConverter() {
-    }
-
-    public static GuideConversationMessagePO toPO(GuideConversationMessage entity) {
-        if (entity == null) {
-            return null;
-        }
-        GuideConversationMessagePO po = new GuideConversationMessagePO();
-        BeanUtils.copyProperties(entity, po, "role");
-        po.setRole(enumName(entity.getRole()));
-        if (po.getImageUrl() == null) {
-            po.setImageUrl("");
-        }
-        return po;
-    }
-
-    public static GuideConversationMessage toEntity(GuideConversationMessagePO po) {
-        if (po == null) {
-            return null;
-        }
-        GuideConversationMessage entity = new GuideConversationMessage();
-        BeanUtils.copyProperties(po, entity, "role");
-        entity.setRole(enumValue(GuideMessageRole.class, po.getRole()));
-        return entity;
-    }
-
-    public static List<GuideConversationMessage> toGuideConversationMessages(List<GuideConversationMessagePO> poList) {
-        if (poList == null || poList.isEmpty()) {
-            return List.of();
-        }
-        return poList.stream().map(AgentPOConverter::toEntity).toList();
     }
 
     public static GuideDecisionSnapshotPO toPO(GuideDecisionSnapshot entity) {

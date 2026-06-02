@@ -15,4 +15,7 @@ public class GuideUsageMetricsDTO implements Serializable {
     private Long llmLatencyMillis;
     private Long totalLatencyMillis;
     private Boolean fallbackUsed;
+    private BigDecimal consumedQuota;
+    private BigDecimal remainingQuota;
+    private String model;
 }

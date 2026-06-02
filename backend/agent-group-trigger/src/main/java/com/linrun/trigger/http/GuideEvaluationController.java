@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @CrossOrigin(origins = "*")
-@RequestMapping("/api/v1/evaluate/guide")
+@RequestMapping("/api/v1/evaluate/agent")
 public class GuideEvaluationController {
 
     private final GuideEvaluationTriggerHandler guideEvaluationTriggerService;
@@ -22,12 +22,12 @@ public class GuideEvaluationController {
     }
 
     @PostMapping("/run")
-    public Response<GuideEvaluationReportResponse> runGuideEvaluation() {
+    public Response<GuideEvaluationReportResponse> runAgentEvaluation() {
         return Response.success(guideEvaluationTriggerService.runGuideEvaluation(), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/latest")
-    public Response<GuideEvaluationReportResponse> latestGuideEvaluation() {
+    public Response<GuideEvaluationReportResponse> latestAgentEvaluation() {
         return Response.success(guideEvaluationTriggerService.queryLatestReport(), RequestTraceContext.getRequestId());
     }
 }

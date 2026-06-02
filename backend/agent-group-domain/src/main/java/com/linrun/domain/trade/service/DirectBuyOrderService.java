@@ -71,15 +71,11 @@ public class DirectBuyOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "商品编号不能为空");
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (!StringUtils.hasText(request.getIdempotentKey())) {
             throw new AppException("0001", "幂等键不能为空");
         }
-        if (!StringUtils.hasText(request.getDecisionId())) {
-            throw new AppException("GUIDE_0005", "导购决策编号不能为空，请先完成导购推荐后再下单");
-        }
-
         TradeOrderEntity existed = tradeOrderRepository.queryTradeOrderByIdempotentKey(request.getIdempotentKey())
                 .orElse(null);
         if (existed != null) {
@@ -90,13 +86,15 @@ public class DirectBuyOrderService {
         }
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
-                .orElseThrow(() -> new AppException("DATA_0003", "商品不存在或已下架"));
-        guideDecisionSnapshotValidator.validateDirect(
-                request.getDecisionId(),
-                request.getUserId(),
-                request.getGoodsId(),
-                product.getOriginPrice(),
-                LocalDateTime.now());
+                .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
+        if (StringUtils.hasText(request.getDecisionId())) {
+            guideDecisionSnapshotValidator.validateDirect(
+                    request.getDecisionId(),
+                    request.getUserId(),
+                    request.getGoodsId(),
+                    product.getOriginPrice(),
+                    LocalDateTime.now());
+        }
 
         CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId(request.getUserId());

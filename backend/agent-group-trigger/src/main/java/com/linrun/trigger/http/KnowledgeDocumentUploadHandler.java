@@ -143,7 +143,7 @@ public class KnowledgeDocumentUploadHandler {
                 content);
         UploadKnowledgeDocumentRequest request = new UploadKnowledgeDocumentRequest();
         request.setDocumentName(StringUtils.hasText(documentName) ? documentName : file.getOriginalFilename());
-        request.setDocumentType(StringUtils.hasText(documentType) ? documentType : "商品资料");
+        request.setDocumentType(StringUtils.hasText(documentType) ? documentType : "知识资料");
         request.setKnowledgeVersion(knowledgeVersion);
         request.setSourceType("MINIO_OBJECT");
         request.setSourceName(storedObject.getObjectKey());

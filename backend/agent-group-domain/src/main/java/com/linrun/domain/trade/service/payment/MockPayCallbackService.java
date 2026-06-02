@@ -2,6 +2,7 @@ package com.linrun.domain.trade.service.payment;
 
 import com.linrun.api.dto.MockPayCallbackRequest;
 import com.linrun.api.dto.MockPayCallbackResponse;
+import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
@@ -14,8 +15,10 @@ import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class MockPayCallbackService {
@@ -24,15 +27,26 @@ public class MockPayCallbackService {
     private final TradeOrderService tradeOrderService;
     private final GroupBuySettlementService groupBuySettlementService;
     private final TradeStatusFlowService tradeStatusFlowService;
+    private final UserQuotaService userQuotaService;
 
     public MockPayCallbackService(TradeOrderRepository tradeOrderRepository,
                                   TradeOrderService tradeOrderService,
                                   GroupBuySettlementService groupBuySettlementService,
                                   TradeStatusFlowService tradeStatusFlowService) {
+        this(tradeOrderRepository, tradeOrderService, groupBuySettlementService, tradeStatusFlowService, null);
+    }
+
+    @Autowired
+    public MockPayCallbackService(TradeOrderRepository tradeOrderRepository,
+                                  TradeOrderService tradeOrderService,
+                                  GroupBuySettlementService groupBuySettlementService,
+                                  TradeStatusFlowService tradeStatusFlowService,
+                                  UserQuotaService userQuotaService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuySettlementService = groupBuySettlementService;
         this.tradeStatusFlowService = tradeStatusFlowService;
+        this.userQuotaService = userQuotaService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -53,6 +67,7 @@ public class MockPayCallbackService {
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
         if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
+            grantQuotaIfAvailable(tradeOrder);
             return toResponse(tradeOrder, payOrder);
         }
 
@@ -62,9 +77,27 @@ public class MockPayCallbackService {
         tradeOrderService.markPaySuccess(tradeOrder, payOrder, request.getOutTradeNo(), payTime);
         tradeOrderRepository.updatePaySuccess(tradeOrder, payOrder);
         recordPaySuccessFlow(tradeOrder, payOrder, fromOrderStatus, fromPayStatus);
-        groupBuySettlementService.settlePaySuccess(tradeOrder);
+        List<String> settledOrderIds = groupBuySettlementService.settlePaySuccess(tradeOrder);
+        grantQuotaIfAvailable(tradeOrder, settledOrderIds);
 
         return toResponse(tradeOrder, payOrder);
+    }
+
+    private void grantQuotaIfAvailable(TradeOrderEntity tradeOrder) {
+        if (userQuotaService != null) {
+            userQuotaService.grantQuotaForPaidOrder(tradeOrder);
+        }
+    }
+
+    private void grantQuotaIfAvailable(TradeOrderEntity tradeOrder, List<String> settledOrderIds) {
+        if (userQuotaService == null) {
+            return;
+        }
+        if (settledOrderIds != null && !settledOrderIds.isEmpty()) {
+            userQuotaService.grantQuotaForOrderIds(settledOrderIds);
+            return;
+        }
+        userQuotaService.grantQuotaForPaidOrder(tradeOrder);
     }
 
     private void recordPaySuccessFlow(TradeOrderEntity tradeOrder,

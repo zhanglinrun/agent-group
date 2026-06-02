@@ -79,7 +79,7 @@ class GroupBuyActivityServiceTest {
         assertEquals("G10099", result.getGoodsId());
         assertEquals(GroupBuyActivityStatus.MISSING, result.getStatus());
         assertFalse(result.isAvailable());
-        assertEquals("当前商品没有配置拼团活动", result.getMessage());
+        assertEquals("当前额度包没有配置拼团活动", result.getMessage());
     }
 
     @Test
@@ -89,7 +89,7 @@ class GroupBuyActivityServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.trial(" "));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("商品编号不能为空", exception.getMessage());
+        assertEquals("额度包编号不能为空", exception.getMessage());
     }
 
     private GroupBuyActivity activity(boolean enabled, LocalDateTime startTime, LocalDateTime endTime) {

@@ -8,6 +8,10 @@ public interface AgentStreamTaskRegistry {
 
     void complete(String sessionId, String requestId);
 
+    default boolean isRunning(String sessionId) {
+        return false;
+    }
+
     static AgentStreamTaskRegistry noop() {
         return new AgentStreamTaskRegistry() {
             @Override

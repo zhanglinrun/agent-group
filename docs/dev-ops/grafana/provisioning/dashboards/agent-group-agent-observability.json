@@ -123,7 +123,7 @@
           "refId": "B"
         }
       ],
-      "title": "导购端到端耗时",
+      "title": "Agent 端到端耗时",
       "type": "timeseries"
     },
     {
@@ -162,7 +162,7 @@
         },
         {
           "expr": "sum(rate(agent_group_guide_fallback_total[5m]))",
-          "legendFormat": "guide fallback",
+          "legendFormat": "agent fallback",
           "refId": "C"
         }
       ],
@@ -261,7 +261,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "基于 Spring AI 的电商 Agent 导购与拼团交易系统运行观测",
+  "title": "基于 Spring AI 的学术 Agent 额度与拼团支付系统运行观测",
   "uid": "agent-group-agent-observability",
   "version": 1,
   "weekStart": ""

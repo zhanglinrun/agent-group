@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimiterAccessFilter extends OncePerRequestFilter {
 
     private static final List<String> PROTECTED_PATHS = List.of(
-            "/api/v1/agent/guide/stream",
+            "/api/v1/academic/stream",
             "/api/v1/group/trade/lock",
             "/api/v1/group/trade/refund",
             "/api/v1/payment/webhook/**",

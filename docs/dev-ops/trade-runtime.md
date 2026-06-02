@@ -83,9 +83,9 @@ execNotifyTask(uuid)
 
 按 `uuid`（任务编号）执行时会先加分布式锁，适合演示“单任务重试”和交易通知闭环。
 
-## 导购检索进度
+## Agent 检索进度
 
-导购流式接口新增 `retrieval_progress`（检索进度）事件。一次知识检索会先返回 `route`（查询路由）阶段，再返回 `aggregate`（聚合排序）阶段：
+`Agent`（智能体）流式接口新增 `retrieval_progress`（检索进度）事件。一次知识检索会先返回 `route`（查询路由）阶段，再返回 `aggregate`（聚合排序）阶段：
 
 ```text
 route -> query routed
@@ -107,7 +107,7 @@ POST /api/v1/knowledge/vector/compensate-failed-embedding?limit=20
 ```text
 query_route
 knowledge_search
-guide_recommend
+quota_recommend
 group_trial
 order_status
 refund_status

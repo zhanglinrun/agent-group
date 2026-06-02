@@ -240,7 +240,7 @@ create table if not exists guide_conversation_memory (
 
 create table if not exists guide_decision_snapshot (
   id bigint unsigned not null auto_increment comment '自增主键',
-  decision_id varchar(40) not null comment '导购决策编号',
+  decision_id varchar(40) not null comment '价格快照编号',
   session_id varchar(64) not null default '' comment '会话编号',
   request_id varchar(64) not null default '' comment '请求编号',
   user_id varchar(64) not null default '' comment '用户编号',
@@ -248,17 +248,17 @@ create table if not exists guide_decision_snapshot (
   goods_id varchar(32) not null comment '商品编号',
   goods_name varchar(128) not null default '' comment '商品名称',
   activity_id varchar(32) not null default '' comment '活动编号',
-  origin_amount decimal(10, 2) not null comment '导购原价',
-  group_amount decimal(10, 2) not null comment '导购拼团价',
+  origin_amount decimal(10, 2) not null comment '额度包原价',
+  group_amount decimal(10, 2) not null comment '额度包拼团价',
   reference_ids varchar(256) not null default '' comment '引用知识片段',
   tool_names varchar(256) not null default '' comment '工具调用列表',
-  quote_expire_time datetime not null comment '报价过期时间',
+  quote_expire_time datetime not null comment '价格快照过期时间',
   create_time datetime not null default current_timestamp comment '创建时间',
   primary key (id),
   unique key uk_decision_id (decision_id),
   key idx_user_time (user_id, create_time),
   key idx_quote_expire_time (quote_expire_time)
-) engine=InnoDB default charset=utf8mb4 comment='导购决策快照表';
+) engine=InnoDB default charset=utf8mb4 comment='额度包价格快照表';
 
 create table if not exists guide_evaluation_report (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -268,7 +268,7 @@ create table if not exists guide_evaluation_report (
   total_count int not null comment '用例总数',
   retrieval_hit_rate decimal(5, 2) not null comment '检索命中率',
   answer_accuracy_rate decimal(5, 2) not null comment '回答准确率',
-  recommendation_reasonable_rate decimal(5, 2) not null comment '推荐合理率',
+  recommendation_reasonable_rate decimal(5, 2) not null comment '任务匹配率',
   context_consistency_rate decimal(5, 2) not null comment '多轮一致率',
   tool_call_accuracy_rate decimal(5, 2) not null default 0.00 comment '工具调用正确率',
   tool_argument_accuracy_rate decimal(5, 2) not null default 0.00 comment '工具参数正确率',
@@ -282,13 +282,13 @@ create table if not exists guide_evaluation_report (
   baseline_batch_no varchar(40) default null comment '对比基线批次',
   retrieval_hit_rate_delta decimal(6, 2) not null default 0.00 comment '检索命中率变化',
   answer_accuracy_rate_delta decimal(6, 2) not null default 0.00 comment '回答准确率变化',
-  recommendation_reasonable_rate_delta decimal(6, 2) not null default 0.00 comment '推荐合理率变化',
+  recommendation_reasonable_rate_delta decimal(6, 2) not null default 0.00 comment '任务匹配率变化',
   context_consistency_rate_delta decimal(6, 2) not null default 0.00 comment '多轮一致率变化',
   create_time datetime not null default current_timestamp comment '创建时间',
   primary key (id),
   unique key uk_batch_no (batch_no),
   key idx_version_time (knowledge_version, prompt_version, create_time)
-) engine=InnoDB default charset=utf8mb4 comment='导购评测报告表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 评测报告表';
 
 create table if not exists guide_evaluation_item (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -319,7 +319,7 @@ create table if not exists guide_evaluation_item (
   primary key (id),
   unique key uk_batch_case (batch_no, case_id),
   key idx_batch_score (batch_no, score)
-) engine=InnoDB default charset=utf8mb4 comment='导购评测明细表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 评测明细表';
 
 create table if not exists guide_evaluation_feedback (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -330,7 +330,7 @@ create table if not exists guide_evaluation_feedback (
   create_time datetime not null default current_timestamp comment '创建时间',
   primary key (id),
   key idx_batch_priority (batch_no, priority)
-) engine=InnoDB default charset=utf8mb4 comment='导购评测反馈表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 评测反馈表';
 
 set @sql = (
   select if(count(*) = 0,

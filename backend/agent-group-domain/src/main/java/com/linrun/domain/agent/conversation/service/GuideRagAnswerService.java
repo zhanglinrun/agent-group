@@ -128,8 +128,8 @@ public class GuideRagAnswerService {
         String normalizedAnswer = answer == null ? "" : answer;
         String normalizedQuestion = question == null ? "" : question.toLowerCase();
         List<String> segments = new ArrayList<>();
-        String toolFacts = "工具结果校验：推荐商品 " + safe(product.getGoodsName())
-                + "，商品编号 " + safe(product.getGoodsId())
+        String toolFacts = "工具结果校验：推荐额度包 " + safe(product.getGoodsName())
+                + "，额度包编号 " + safe(product.getGoodsId())
                 + "，原价 " + product.getOriginPrice()
                 + "，拼团价 " + product.getGroupPrice()
                 + "，成团人数 " + product.getTeamSize()
@@ -141,9 +141,9 @@ public class GuideRagAnswerService {
                 || !normalizedAnswer.contains("拼团价")) {
             segments.add(toolFacts);
         }
-        String riskFacts = "边界提醒：售后政策是" + safe(product.getAfterSalePolicy())
+        String riskFacts = "边界提醒：退款规则是" + safe(product.getAfterSalePolicy())
                 + "；不适合场景是" + safe(product.getNotSuitableFor())
-                + "；价格、库存、活动和订单金额以后端工具与交易系统为准。";
+                + "；价格、名额、活动和订单金额以后端工具与交易系统为准。";
         if (!containsAny(normalizedAnswer, "售后", "不适合", "后端")) {
             segments.add(riskFacts);
         }
@@ -161,14 +161,26 @@ public class GuideRagAnswerService {
                 containsAny(question, "拼团失败", "未成团", "重复扣款"),
                 "交易规则：拼团未成团会自动退款；支付和回调按幂等处理，不会重复扣款。");
         addIfRelevant(facts, answer,
-                containsAny(question, "几天内退货", "不合适", "退货"),
-                "售后规则：标准版支持 7 天无理由退货，同时享受 1 年质保。");
+                containsAny(question, "退款", "退货", "不用了", "额度回滚"),
+                "退款规则：额度属于虚拟权益，已使用部分不能退款；未使用额度退款时需要同步回滚额度账户。");
         addIfRelevant(facts, answer,
                 containsAny(question, "直接购买", "直接买", "拼团购买"),
                 "价格区别：直接购买按原价 " + product.getOriginPrice() + " 创建订单，拼团购买按拼团价 " + product.getGroupPrice() + " 锁单并等待成团。");
         addIfRelevant(facts, answer,
-                containsAny(question, "标准版适合长期剪视频", "长期剪视频", "大型游戏"),
-                "适用边界：不建议用标准版长期剪视频、绘图或大型游戏，更建议高配创作平板。");
+                containsAny(question, "普通问答", "摘要", "轻量"),
+                "适用建议：轻量学术问答、论文摘要和资料整理优先选择基础额度包，避免一次性购买过多额度。");
+        addIfRelevant(facts, answer,
+                containsAny(question, "论文", "文献", "pdf", "精读"),
+                "适用建议：论文阅读类任务通常需要上传文件、生成精读笔记和复现清单，优先选择论文阅读额度包。");
+        addIfRelevant(facts, answer,
+                containsAny(question, "ppt", "汇报", "答辩", "组会"),
+                "适用建议：PPT 创作类任务会消耗更多生成额度，优先选择 PPT 创作额度包。");
+        addIfRelevant(facts, answer,
+                containsAny(question, "图表", "流程图", "架构图", "mermaid"),
+                "适用建议：图表重建类任务优先选择图表重建额度包，便于生成可编辑结构化草稿。");
+        addIfRelevant(facts, answer,
+                containsAny(question, "深度研究", "调研", "长报告", "技术路线"),
+                "适用建议：深度研究、复杂主题拆解和长报告生成优先选择深度研究额度包。");
         addIfRelevant(facts, answer,
                 containsAny(question, "支付成功") && containsAny(question, "成团"),
                 "状态边界：拼团支付成功后仍要等待成团结算，支付成功不等于已成团。");
@@ -182,14 +194,14 @@ public class GuideRagAnswerService {
                 containsAny(question, "没有查到", "还有多少名额", "剩余名额"),
                 "工具校验：没有通过后端工具查到活动库存或队伍名额时，不能直接给出剩余名额，也不能编造库存。");
         addIfRelevant(facts, answer,
-                containsAny(question, "商品卡片", "订单金额", "支付单金额", "导购卡片", "导购报价凭证", "决策编号", "金额改低"),
-                "一致性规则：导购报价凭证、商品卡片、订单金额和支付单金额必须一致；不一致时以后端交易系统校验结果为准，并重新校验。");
+                containsAny(question, "订单金额", "支付单金额", "前端金额", "金额改低", "价格篡改"),
+                "一致性规则：额度包价格、活动价格、订单金额和支付单金额必须由后端交易系统统一校验；不一致时以后端校验结果为准。");
         addIfRelevant(facts, answer,
                 containsAny(question, "隔很久", "之前的价格"),
-                "报价有效期：之前的导购报价凭证可能过期，需要重新校验活动、商品和价格后再下单。");
+                "价格有效期：之前看到的活动价可能已经变化，下单前需要重新校验活动、额度包和价格。");
         addIfRelevant(facts, answer,
-                containsAny(question, "活动过期", "商品下架", "队伍满", "队伍已满", "库存不足", "活动库存"),
-                "异常处理：活动过期、商品下架、库存不足或队伍已满时，后端不能继续锁单，不能创建支付单，也不能编造剩余名额。");
+                containsAny(question, "活动过期", "额度包下架", "队伍满", "队伍已满", "库存不足", "活动库存"),
+                "异常处理：活动过期、额度包下架、库存不足或队伍已满时，后端不能继续锁单，不能创建支付单，也不能编造剩余名额。");
         addIfRelevant(facts, answer,
                 containsAny(question, "库存不足", "活动库存"),
                 "库存规则：库存不足时不能建议先支付保留名额，后端必须先校验库存和活动状态。");
@@ -203,18 +215,8 @@ public class GuideRagAnswerService {
                 containsAny(question, "结算消息发送失败", "一直卡住", "outbox", "补偿"),
                 "补偿规则：支付成功但成团结算消息发送失败时，通过 Outbox 事件表和补偿任务继续推进订单状态。");
         addIfRelevant(facts, answer,
-                containsAny(question, "给小孩", "儿童", "家长管控", "护眼")
-                        && !containsAny(question, "不是给小孩", "不是给儿童", "不是儿童", "不给小孩"),
-                "儿童场景：推荐儿童学习护眼平板，拼团价 1699 元，重点看网课、阅读、家长管控和护眼。");
-        addIfRelevant(facts, answer,
-                containsAny(question, "不是给小孩", "不是给儿童"),
-                "排除项：这个需求不是儿童场景，应排除儿童学习护眼平板，优先看通勤办公二合一平板。");
-        addIfRelevant(facts, answer,
-                containsAny(question, "手写笔坏了", "耗材"),
-                "配件售后：手写笔耗材不参与无理由退货，售后边界和整机不同。");
-        addIfRelevant(facts, answer,
-                containsAny(question, "三年不卡", "一定三年不卡"),
-                "防幻觉边界：知识依据只覆盖商品详情和适用场景，不能保证三年持续流畅，不能编造性能承诺。");
+                containsAny(question, "额度不够", "余额不足", "消耗完"),
+                "额度规则：使用 Agent 前会校验额度余额，余额不足时需要先购买或拼团购买额度包。");
         return facts;
     }
 
@@ -236,9 +238,6 @@ public class GuideRagAnswerService {
         if (containsAny(normalizedQuestion, "先付款占位")) {
             sanitized = sanitized.replace("先付款占位", "先支付保留名额");
         }
-        if (containsAny(normalizedQuestion, "三年不卡", "一定三年不卡")) {
-            sanitized = sanitized.replace("一定三年不卡", "三年持续流畅");
-        }
         if (containsAny(normalizedQuestion, "支付平台重复通知", "重复推进", "防重放")) {
             sanitized = sanitized.replace("重复扣款", "二次扣费");
         }
@@ -247,9 +246,6 @@ public class GuideRagAnswerService {
         }
         if (containsAny(normalizedQuestion, "活动库存", "名额", "库存")) {
             sanitized = sanitized.replace("还有 10 个名额", "固定剩余名额");
-        }
-        if (containsAny(normalizedQuestion, "给小孩", "儿童", "家长管控", "护眼")) {
-            sanitized = sanitized.replace("大学生论文", "成人论文");
         }
         return sanitized;
     }

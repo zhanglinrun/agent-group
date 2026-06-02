@@ -14,7 +14,7 @@ import java.util.Map;
 @Service
 public class AgentSkillRegistry {
 
-    private static final String PRE_SALES_GUIDE = "pre_sales_guide";
+    private static final String QUOTA_PACKAGE_ADVICE = "quota_package_advice";
     private static final String AFTER_SALE_POLICY = "after_sale_policy";
     private static final String TRADE_RISK_CONTROL = "trade_risk_control";
 
@@ -22,10 +22,10 @@ public class AgentSkillRegistry {
 
     public AgentSkillRegistry() {
         register(new AgentSkill(
-                PRE_SALES_GUIDE,
-                "售前导购技能",
-                "把用户需求转成商品候选、知识依据和推荐理由",
-                "价格、库存和活动口径只能来自工具结果",
+                QUOTA_PACKAGE_ADVICE,
+                "额度包建议技能",
+                "把用户任务转成额度包候选、知识依据和推荐理由",
+                "价格、名额和活动口径只能来自工具结果",
                 List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL)));
         register(new AgentSkill(
                 AFTER_SALE_POLICY,
@@ -53,7 +53,7 @@ public class AgentSkillRegistry {
         if (containsAny(question, "支付", "下单", "订单", "锁单", "拼团", "成团", "库存", "名额")) {
             selected.add(skills.get(TRADE_RISK_CONTROL));
         }
-        selected.add(0, skills.get(PRE_SALES_GUIDE));
+        selected.add(0, skills.get(QUOTA_PACKAGE_ADVICE));
         return selected.stream().distinct().toList();
     }
 

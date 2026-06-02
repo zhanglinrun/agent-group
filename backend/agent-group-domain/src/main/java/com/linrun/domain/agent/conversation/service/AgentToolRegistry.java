@@ -16,7 +16,9 @@ import java.util.Optional;
 public class AgentToolRegistry {
 
     public static final String KNOWLEDGE_SEARCH = "knowledge_search";
-    public static final String GUIDE_RECOMMEND = "guide_recommend";
+    public static final String QUOTA_RECOMMEND = "quota_recommend";
+    @Deprecated
+    public static final String GUIDE_RECOMMEND = QUOTA_RECOMMEND;
     public static final String GROUP_TRIAL = "group_trial";
     public static final String ORDER_STATUS = "order_status";
 
@@ -24,13 +26,13 @@ public class AgentToolRegistry {
 
     public AgentToolRegistry() {
         this.definitions = new LinkedHashMap<>();
-        register(new AgentToolDefinition(KNOWLEDGE_SEARCH, "检索商品详情、营销规则和售后政策知识片段",
+        register(new AgentToolDefinition(KNOWLEDGE_SEARCH, "检索额度包说明、活动规则和退款规则知识片段",
                 List.of("question"), List.of("limit"), "knowledge-search-v1", "MEDIUM",
                 2000L, 1, true, false));
-        register(new AgentToolDefinition(GUIDE_RECOMMEND, "根据用户需求生成商品推荐和推荐理由",
-                List.of("question"), List.of(), "guide-recommend-v1", "MEDIUM",
+        register(new AgentToolDefinition(QUOTA_RECOMMEND, "根据用户需求生成额度包推荐和使用依据",
+                List.of("question"), List.of(), "quota-recommend-v1", "MEDIUM",
                 3000L, 0, true, false));
-        register(new AgentToolDefinition(GROUP_TRIAL, "按商品编号查询当前拼团价、成团人数和剩余时间",
+        register(new AgentToolDefinition(GROUP_TRIAL, "按额度包编号查询当前拼团价、成团人数和剩余时间",
                 List.of("goodsId"), List.of(), "group-trial-v1", "HIGH",
                 1500L, 1, true, false));
         register(new AgentToolDefinition(ORDER_STATUS, "按订单问题查询交易订单和支付状态",

@@ -93,10 +93,10 @@ public class TradeOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(command.getGoodsId())) {
-            throw new AppException("0001", "商品编号不能为空");
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (!StringUtils.hasText(command.getGoodsName())) {
-            throw new AppException("0001", "商品名称不能为空");
+            throw new AppException("0001", "额度包名称不能为空");
         }
         if (command.getBuyType() == null) {
             throw new AppException("0001", "购买类型不能为空");

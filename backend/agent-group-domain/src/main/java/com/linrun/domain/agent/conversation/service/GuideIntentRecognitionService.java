@@ -31,11 +31,11 @@ public class GuideIntentRecognitionService {
         intent.setBudgetSensitive(budgetUpperLimit != null
                 || containsAny(normalized, "预算", "便宜", "性价比", "省钱", "价格", "划算", "低价"));
         intent.setGroupBuyConcerned(containsAny(normalized, "拼团", "成团", "团购"));
-        intent.setAfterSaleConcerned(containsAny(normalized, "售后", "退货", "退款", "质保", "保修", "拼团失败", "未成团"));
-        intent.setCompareConcerned(containsAny(normalized, "对比", "比较", "哪款", "区别", "更合适", "怎么选", "应该选"));
-        intent.setPerformanceSensitive(containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作", "游戏", "影音", "高配"));
-        intent.setPortabilitySensitive(containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂", "会议", "键盘"));
-        intent.setUserIdentity(containsAny(normalized, "学生", "大学生", "研究生") ? "学生" : "普通用户");
+        intent.setAfterSaleConcerned(containsAny(normalized, "售后", "退货", "退款", "拼团失败", "未成团", "额度回滚"));
+        intent.setCompareConcerned(containsAny(normalized, "对比", "比较", "哪个", "哪种", "区别", "更合适", "怎么选", "应该选"));
+        intent.setPerformanceSensitive(containsAny(normalized, "论文精读", "长文档", "多文件", "ppt", "图表", "深度研究", "批量", "复现", "复杂"));
+        intent.setPortabilitySensitive(containsAny(normalized, "轻量", "普通问答", "摘要", "临时", "少量", "简单"));
+        intent.setUserIdentity(containsAny(normalized, "学生", "大学生", "研究生", "老师", "导师") ? "学术用户" : "普通用户");
         intent.setUsageScenarios(recognizeScenarios(normalized));
         intent.setOrderId(extractFirst(ORDER_ID_PATTERN, question));
         intent.setGoodsId(extractFirst(GOODS_ID_PATTERN, question));
@@ -46,30 +46,26 @@ public class GuideIntentRecognitionService {
 
     private List<String> recognizeScenarios(String normalized) {
         List<String> scenarios = new ArrayList<>();
-        if (containsAny(normalized, "论文", "文档", "办公", "会议", "键盘")) {
-            scenarios.add("文档写作");
+        if (containsAny(normalized, "论文", "文献", "pdf", "精读", "综述", "相关工作")) {
+            scenarios.add("论文阅读");
         }
-        if (containsAny(normalized, "网课", "学习", "课堂")) {
-            scenarios.add("网课学习");
+        if (containsAny(normalized, "ppt", "汇报", "答辩", "组会", "演示稿", "讲稿")) {
+            scenarios.add("PPT 创作");
         }
-        if (containsAny(normalized, "笔记", "手写")) {
-            scenarios.add("手写笔记");
+        if (containsAny(normalized, "图表", "流程图", "架构图", "mermaid", "重建")) {
+            scenarios.add("图表重建");
         }
-        if (containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用", "创作", "高配")) {
-            scenarios.add("创作应用");
+        if (containsAny(normalized, "深度研究", "技术路线", "调研", "长报告", "复现", "复杂主题")) {
+            scenarios.add("深度研究");
         }
-        if (containsAny(normalized, "游戏", "高刷", "影音", "追剧")) {
-            scenarios.add("游戏影音");
+        if (containsAny(normalized, "团队", "实验室", "小组", "多人", "共享")) {
+            scenarios.add("团队共享");
         }
-        if (containsAny(normalized, "儿童", "小孩", "家长", "护眼", "管控")
-                && !containsAny(normalized, "不是给小孩", "不是给儿童", "不是儿童", "不给小孩", "不用给小孩")) {
-            scenarios.add("儿童学习");
-        }
-        if (containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂")) {
-            scenarios.add("便携学习");
+        if (containsAny(normalized, "普通问答", "摘要", "资料整理", "轻量", "简单", "日常")) {
+            scenarios.add("普通学术问答");
         }
         if (scenarios.isEmpty()) {
-            scenarios.add("日常使用");
+            scenarios.add("普通学术问答");
         }
         return scenarios;
     }
@@ -107,12 +103,9 @@ public class GuideIntentRecognitionService {
     }
 
     private boolean isTransactionRuleQuestion(String normalized) {
-        if (normalized.contains("导购回答") && normalized.contains("商品卡片")) {
-            return false;
-        }
         return containsAny(normalized,
                 "活动库存", "库存不足", "名额", "队伍满", "队伍已满", "活动过期",
-                "锁单", "支付单", "支付金额", "前端金额", "导购报价凭证", "决策编号",
+                "锁单", "支付单", "支付金额", "前端金额", "订单金额", "价格篡改",
                 "重复下单", "重复推进", "重复通知", "连续点", "确认下单", "生成两个订单", "幂等", "防重放", "补偿", "outbox",
                 "结算消息发送失败", "一直卡住");
     }

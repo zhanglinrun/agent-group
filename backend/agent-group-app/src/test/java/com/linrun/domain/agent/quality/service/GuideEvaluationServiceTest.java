@@ -125,7 +125,7 @@ class GuideEvaluationServiceTest {
         GuideEvaluationCase evaluationCase = new GuideEvaluationCase();
         evaluationCase.setCaseId("EV90001");
         evaluationCase.setCaseName("错误答案门禁");
-        evaluationCase.setQuestion("我是学生，预算有限，想买适合看网课的平板");
+        evaluationCase.setQuestion("我是研究生，预算有限，想买适合普通学术问答的额度包");
         evaluationCase.setExpectedIntentType(GuideIntentType.PRODUCT_RECOMMEND);
         evaluationCase.setExpectedGoodsId("G10001");
         evaluationCase.setRequiredReferenceKeywords(List.of("不存在的依据"));
@@ -138,10 +138,10 @@ class GuideEvaluationServiceTest {
         @Override
         public List<GuideEvaluationCase> queryEnabledCases() {
             return List.of(
-                    evaluationCase("EV10001", "学生预算导购", "我是学生，预算有限，想买适合看网课的平板",
-                            GuideIntentType.PRODUCT_RECOMMEND, false, List.of("学习"), List.of("2099")),
-                    evaluationCase("EV10002", "售后追问", "那上一轮推荐的商品售后怎么样",
-                            GuideIntentType.AFTER_SALE, true, List.of("售后"), List.of("售后"))
+                    evaluationCase("EV10001", "学生预算额度包", "我是研究生，预算有限，想买适合普通学术问答的额度包",
+                            GuideIntentType.PRODUCT_RECOMMEND, false, List.of("普通学术问答"), List.of("2099")),
+                    evaluationCase("EV10002", "退款追问", "那上一轮推荐的额度包退款规则怎么样",
+                            GuideIntentType.AFTER_SALE, true, List.of("退款"), List.of("退款"))
             );
         }
 
@@ -173,9 +173,9 @@ class GuideEvaluationServiceTest {
             reference.setFragmentId("KF10001");
             reference.setDocumentId("DOC10001");
             reference.setGoodsId("G10001");
-            reference.setDocumentType("商品详情");
+            reference.setDocumentType("额度包资料");
             reference.setKnowledgeVersion("v1");
-            reference.setContent("轻薄学习平板标准版适合学习、网课、论文和笔记，售后支持退货和质保。");
+            reference.setContent("基础学术额度包适合普通学术问答、论文摘要和资料整理，拼团失败支持退款。");
             reference.setRank(1);
             return List.of(reference);
         }
@@ -189,13 +189,13 @@ class GuideEvaluationServiceTest {
         public Optional<GuideProduct> queryRecommendProduct(String question) {
             GuideProduct product = new GuideProduct();
             product.setGoodsId("G10001");
-            product.setGoodsName("轻薄学习平板标准版");
+            product.setGoodsName("基础学术额度包");
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
-            product.setSpecSummary("10.9 英寸屏幕，128GB 存储，支持手写笔");
-            product.setAfterSalePolicy("7 天无理由退货，1 年质保");
-            product.setRecommendReason("预算有限、学习和网课场景下性价比更高");
-            product.setNotSuitableFor("长期剪视频或运行大型应用的用户");
+            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整理");
+            product.setAfterSalePolicy("直接购买支付成功后发放额度，拼团需成团后发放额度；拼团失败自动退款");
+            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更高");
+            product.setNotSuitableFor("长文档批量精读、复杂复现或团队共享场景");
             return Optional.of(product);
         }
 

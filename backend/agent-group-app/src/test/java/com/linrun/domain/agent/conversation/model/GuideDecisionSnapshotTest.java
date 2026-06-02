@@ -13,14 +13,14 @@ class GuideDecisionSnapshotTest {
     void shouldUseDatabaseSafeDefaultsWhenActivityMissing() {
         GuideProduct product = new GuideProduct();
         product.setGoodsId("G10001");
-        product.setGoodsName("轻薄学习平板标准版");
+        product.setGoodsName("基础学术额度包");
         product.setOriginPrice(new BigDecimal("2399.00"));
         product.setGroupPrice(new BigDecimal("2399.00"));
         GuideDecisionResult decisionResult = new GuideDecisionResult();
         decisionResult.setProduct(product);
 
         GuideDecisionSnapshot snapshot = GuideDecisionSnapshot.capture(
-                "S10001", "R10001", "U10001", "推荐平板", decisionResult, List.of(), new AgentPlan());
+                "S10001", "R10001", "U10001", "推荐额度包", decisionResult, List.of(), new AgentPlan());
 
         assertEquals("", snapshot.getActivityId());
         assertEquals("G10001", snapshot.getGoodsId());

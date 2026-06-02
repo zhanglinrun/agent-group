@@ -25,17 +25,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GuideDecisionServiceTest {
 
     @Test
-    void shouldRecognizeBudgetStudentAndRecommendProduct() {
+    void shouldRecognizeAcademicUserAndRecommendQuotaPackage() {
         GuideDecisionService service = new GuideDecisionService(new FakeGuideDataRepository(), groupBuyService());
 
-        GuideDecisionResult result = service.decide("我是学生，预算有限，想买适合写论文和看网课的平板，哪款更合适？");
+        GuideDecisionResult result = service.decide("我是研究生，预算有限，想用 Agent 做资料整理和日常学术问答，基础额度包哪款更合适？");
 
         assertEquals(GuideIntentType.PRODUCT_COMPARE, result.getIntent().getIntentType());
-        assertEquals("学生", result.getIntent().getUserIdentity());
+        assertEquals("学术用户", result.getIntent().getUserIdentity());
         assertTrue(result.getIntent().isBudgetSensitive());
         assertTrue(result.getIntent().isCompareConcerned());
-        assertEquals(List.of("文档写作", "网课学习"), result.getIntent().getUsageScenarios());
-        assertEquals("学生", result.getUserRequirement().getUserIdentity());
+        assertEquals(List.of("普通学术问答"), result.getIntent().getUsageScenarios());
+        assertEquals("学术用户", result.getUserRequirement().getUserIdentity());
         assertTrue(result.getUserRequirement().isBudgetSensitive());
         assertEquals("G10001", result.getProduct().getGoodsId());
         assertEquals("A10001", result.getProduct().getActivityId());
@@ -79,10 +79,10 @@ class GuideDecisionServiceTest {
     }
 
     @Test
-    void shouldRankCreativeProductWhenUserNeedsPerformance() {
+    void shouldRankPaperReadingPackageWhenUserNeedsAcademicTask() {
         GuideDecisionService service = new GuideDecisionService(new CreativeGuideDataRepository(), groupBuyService());
 
-        GuideDecisionResult result = service.decide("我想剪视频和绘图，预算 3500 以内，标准版和高配版哪个更合适？");
+        GuideDecisionResult result = service.decide("我是研究生，预算 3500 以内，想做论文精读和整理相关工作，基础包和论文阅读包哪个更合适？");
 
         assertEquals("G10002", result.getProduct().getGoodsId());
         assertTrue(result.getIntent().isPerformanceSensitive());
@@ -91,20 +91,20 @@ class GuideDecisionServiceTest {
         assertTrue(result.getRecommendationResult().getReasons().stream()
                 .map(RecommendationReason::getReasonType)
                 .toList()
-                .containsAll(List.of("PERSONALIZED_RANK", "PERFORMANCE_MATCH", "BUDGET_LIMIT_MATCH")));
+                .containsAll(List.of("PERSONALIZED_RANK", "HIGH_USAGE_MATCH", "BUDGET_LIMIT_MATCH")));
     }
 
     @Test
     void shouldReturnFailedSelfCheckWhenProductInfoIsIncomplete() {
         GuideDecisionService service = new GuideDecisionService(new IncompleteGuideDataRepository(), groupBuyService());
 
-        GuideDecisionResult result = service.decide("推荐一款学习平板");
+        GuideDecisionResult result = service.decide("推荐一款基础额度包");
 
         assertEquals("G10003", result.getProduct().getGoodsId());
         assertEquals(1, result.getRecommendationResult().getCandidates().size());
         assertFalse(result.getRecommendationResult().isPassedSelfCheck());
         assertTrue(result.getAnswerSegments().stream().anyMatch(item -> item.contains("资料待补全")));
-        assertEquals("推荐商品信息不完整，需要运营侧补全商品资料", result.getRecommendationResult().getSelfCheckMessage());
+        assertEquals("推荐额度包信息不完整，需要运营侧补全额度包资料", result.getRecommendationResult().getSelfCheckMessage());
     }
 
     @Test
@@ -121,7 +121,7 @@ class GuideDecisionServiceTest {
     void shouldThrowWhenProductIsMissing() {
         GuideDecisionService service = new GuideDecisionService(new EmptyGuideDataRepository(), groupBuyService());
 
-        AppException exception = assertThrows(AppException.class, () -> service.decide("推荐一款平板"));
+        AppException exception = assertThrows(AppException.class, () -> service.decide("推荐一款额度包"));
 
         assertEquals("DATA_0002", exception.getCode());
     }
@@ -137,13 +137,13 @@ class GuideDecisionServiceTest {
         public Optional<GuideProduct> queryRecommendProduct(String question) {
             GuideProduct product = new GuideProduct();
             product.setGoodsId("G10001");
-            product.setGoodsName("轻薄学习平板标准版");
+            product.setGoodsName("基础学术额度包");
             product.setImageUrl("");
             product.setOriginPrice(new BigDecimal("2399.00"));
-            product.setSpecSummary("10.9 英寸屏幕，128GB 存储，支持手写笔");
-            product.setAfterSalePolicy("7 天无理由退货，1 年质保");
-            product.setRecommendReason("预算有限、学习和网课场景下性价比更高");
-            product.setNotSuitableFor("长期剪视频或运行大型应用的用户");
+            product.setSpecSummary("40 次普通学术问答额度，适合摘要、资料整理和日常问答");
+            product.setAfterSalePolicy("直接购买支付成功后发放额度，拼团需成团后发放额度");
+            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更高");
+            product.setNotSuitableFor("长文档批量精读、复杂复现或团队共享场景");
             return Optional.of(product);
         }
 
@@ -157,9 +157,9 @@ class GuideDecisionServiceTest {
             reference.setFragmentId(fragmentId);
             reference.setDocumentId("DOC10001");
             reference.setGoodsId("G10001");
-            reference.setDocumentType("商品详情");
+            reference.setDocumentType("额度包资料");
             reference.setKnowledgeVersion("v1");
-            reference.setContent("轻薄学习平板标准版适合写论文、看网课和日常笔记。");
+            reference.setContent("基础学术额度包适合普通问答、摘要和资料整理。");
             reference.setRank(rank);
             return reference;
         }
@@ -190,13 +190,13 @@ class GuideDecisionServiceTest {
             GuideProduct standard = queryRecommendProduct(question).orElseThrow();
             GuideProduct creative = new GuideProduct();
             creative.setGoodsId("G10002");
-            creative.setGoodsName("高配创作平板");
+            creative.setGoodsName("论文阅读额度包");
             creative.setImageUrl("");
             creative.setOriginPrice(new BigDecimal("3299.00"));
-            creative.setSpecSummary("12.1 英寸高刷屏，256GB 存储，适合剪视频、绘图和多任务");
-            creative.setAfterSalePolicy("7 天无理由退货，1 年质保");
-            creative.setRecommendReason("性能更强，适合创作类应用");
-            creative.setNotSuitableFor("只做笔记和看网课且预算有限的用户");
+            creative.setSpecSummary("80 次论文阅读额度，适合论文精读、文献总结、相关工作整理和复现分析");
+            creative.setAfterSalePolicy("直接购买支付成功后发放额度，拼团需成团后发放额度");
+            creative.setRecommendReason("额度更多，适合论文、文献、精读和相关工作等高消耗学术任务");
+            creative.setNotSuitableFor("只做普通问答和摘要且预算有限的用户");
             return List.of(standard, creative);
         }
     }
@@ -238,10 +238,10 @@ class GuideDecisionServiceTest {
         public Optional<GuideProduct> queryRecommendProduct(String question) {
             GuideProduct product = new GuideProduct();
             product.setGoodsId("G10003");
-            product.setGoodsName("资料待补全平板");
+            product.setGoodsName("资料待补全额度包");
             product.setImageUrl("");
             product.setOriginPrice(new BigDecimal("1999.00"));
-            product.setRecommendReason("资料待补全，暂时只能作为候选商品");
+            product.setRecommendReason("资料待补全，暂时只能作为候选额度包");
             return Optional.of(product);
         }
 
@@ -255,9 +255,9 @@ class GuideDecisionServiceTest {
             reference.setFragmentId(fragmentId);
             reference.setDocumentId("DOC10003");
             reference.setGoodsId("G10003");
-            reference.setDocumentType("商品详情");
+            reference.setDocumentType("额度包资料");
             reference.setKnowledgeVersion("v1");
-            reference.setContent("资料待补全平板只有基础价格信息。");
+            reference.setContent("资料待补全额度包只有基础价格信息。");
             reference.setRank(rank);
             return reference;
         }

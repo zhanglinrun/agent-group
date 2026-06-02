@@ -21,22 +21,22 @@ class TikaKnowledgeDocumentTextExtractorTest {
     @Test
     void shouldExtractTextFromDocx() throws Exception {
         String text = extractor.extract(
-                "guide.docx",
+                "quota-policy.docx",
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                docx("DOCX product detail supports group buy and refund policy"));
+                docx("DOCX quota package detail supports group buy and refund policy"));
 
-        assertTrue(text.contains("DOCX product detail"));
+        assertTrue(text.contains("DOCX quota package detail"));
         assertTrue(text.contains("refund policy"));
     }
 
     @Test
     void shouldExtractTextFromPdf() throws Exception {
         String text = extractor.extract(
-                "guide.pdf",
+                "quota-policy.pdf",
                 "application/pdf",
-                pdf("PDF guide policy supports group buy refund"));
+                pdf("PDF quota policy supports group buy refund"));
 
-        assertTrue(text.contains("PDF guide policy"));
+        assertTrue(text.contains("PDF quota policy"));
         assertTrue(text.contains("refund"));
     }
 

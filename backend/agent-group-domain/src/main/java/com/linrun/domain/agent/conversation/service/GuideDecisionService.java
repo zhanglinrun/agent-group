@@ -20,13 +20,9 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class GuideDecisionService {
-
-    private static final Pattern ORDER_ID_PATTERN = Pattern.compile("[OP]-?[A-Z0-9-]*\\d{4,}[A-Z0-9-]*", Pattern.CASE_INSENSITIVE);
 
     private final GuideDataRepository guideDataRepository;
     private final GroupBuyActivityService groupBuyActivityService;
@@ -59,7 +55,7 @@ public class GuideDecisionService {
         candidates.forEach(candidate -> enrichProductWithGroupBuy(candidate, groupBuyActivityService.trial(candidate.getGoodsId())));
         GuideProduct product = candidates.stream()
                 .max(Comparator.comparingInt(candidate -> scoreProduct(requirement, candidate, question)))
-                .orElseThrow(() -> new AppException("DATA_0002", "没有可推荐商品，请先初始化商品数据"));
+                .orElseThrow(() -> new AppException("DATA_0002", "没有可推荐额度包，请先初始化额度包数据"));
         GroupBuyTrialResult groupBuyTrialResult = groupBuyActivityService.trial(product.getGoodsId());
         enrichProductWithGroupBuy(product, groupBuyTrialResult);
         RecommendationResult recommendationResult = buildRecommendation(question, requirement, product, groupBuyTrialResult, candidates);
@@ -76,80 +72,6 @@ public class GuideDecisionService {
 
     GuideIntent recognizeIntent(String question) {
         return guideIntentRecognitionService.recognize(question);
-    }
-
-    private List<String> recognizeScenarios(String normalized) {
-        List<String> scenarios = new ArrayList<>();
-        if (containsAny(normalized, "论文", "文档", "办公", "会议", "键盘")) {
-            scenarios.add("文档写作");
-        }
-        if (containsAny(normalized, "网课", "学习", "课堂")) {
-            scenarios.add("网课学习");
-        }
-        if (containsAny(normalized, "笔记", "手写")) {
-            scenarios.add("手写笔记");
-        }
-        if (containsAny(normalized, "剪视频", "剪辑", "绘图", "大型应用", "创作", "高配")) {
-            scenarios.add("创作应用");
-        }
-        if (containsAny(normalized, "游戏", "高刷", "影音", "追剧")) {
-            scenarios.add("游戏影音");
-        }
-        if (containsAny(normalized, "儿童", "小孩", "家长", "护眼", "管控")
-                && !containsAny(normalized, "不是给小孩", "不是给儿童", "不是儿童", "不给小孩", "不用给小孩")) {
-            scenarios.add("儿童学习");
-        }
-        if (containsAny(normalized, "轻薄", "便携", "携带", "通勤", "宿舍", "课堂")) {
-            scenarios.add("便携学习");
-        }
-        if (scenarios.isEmpty()) {
-            scenarios.add("日常使用");
-        }
-        return scenarios;
-    }
-
-    private GuideIntentType resolveIntentType(GuideIntent intent, String normalized) {
-        if (isConcreteOrderQuery(normalized)) {
-            return GuideIntentType.ORDER_QUERY;
-        }
-        if (intent.isAfterSaleConcerned()) {
-            return GuideIntentType.AFTER_SALE;
-        }
-        if (intent.isGroupBuyConcerned()) {
-            return GuideIntentType.GROUP_RULE;
-        }
-        if (isTransactionRuleQuestion(normalized)) {
-            return GuideIntentType.GROUP_RULE;
-        }
-        if (intent.isBudgetSensitive() && intent.isPerformanceSensitive()) {
-            return GuideIntentType.PRODUCT_COMPARE;
-        }
-        if (intent.isCompareConcerned()) {
-            return GuideIntentType.PRODUCT_COMPARE;
-        }
-        return GuideIntentType.PRODUCT_RECOMMEND;
-    }
-
-    private boolean isTransactionRuleQuestion(String normalized) {
-        if (normalized.contains("导购回答") && normalized.contains("商品卡片")) {
-            return false;
-        }
-        return containsAny(normalized,
-                "活动库存", "库存不足", "名额", "队伍满", "队伍已满", "活动过期",
-                "锁单", "支付单", "支付金额", "前端金额", "导购报价凭证", "决策编号",
-                "重复下单", "重复推进", "重复通知", "连续点", "确认下单", "生成两个订单", "幂等", "防重放", "补偿", "outbox",
-                "结算消息发送失败", "一直卡住");
-    }
-
-    private boolean isConcreteOrderQuery(String normalized) {
-        if (!containsAny(normalized, "订单", "支付状态", "物流", "退款状态")) {
-            return false;
-        }
-        Matcher matcher = ORDER_ID_PATTERN.matcher(normalized);
-        if (matcher.find()) {
-            return true;
-        }
-        return containsAny(normalized, "查订单", "查询订单", "看下订单", "看看订单", "订单状态", "物流到哪");
     }
 
     private void enrichProductWithGroupBuy(GuideProduct product, GroupBuyTrialResult trialResult) {
@@ -182,8 +104,8 @@ public class GuideDecisionService {
                 .sorted((left, right) -> Integer.compare(scoreProduct(requirement, right, question), scoreProduct(requirement, left, question)))
                 .forEach(result::addCandidate);
 
-        result.addReason("SCENARIO_MATCH", "这款商品和" + String.join("、", requirement.getUsageScenarios()) + "场景匹配。", 90);
-        result.addReason("PERSONALIZED_RANK", "本轮已按你的身份、预算、用途和购买限制对候选商品重新排序。", 92);
+        result.addReason("SCENARIO_MATCH", "这款额度包和" + String.join("、", requirement.getUsageScenarios()) + "场景匹配。", 90);
+        result.addReason("PERSONALIZED_RANK", "本轮已按你的任务、预算和额度需求对候选额度包重新排序。", 92);
         if (requirement.isBudgetSensitive()) {
             result.addReason("BUDGET_MATCH", "你提到了预算或价格因素，所以优先比较拼团价、直接购买价和长期使用成本。", 95);
         }
@@ -192,10 +114,10 @@ public class GuideDecisionService {
                     + "元，推荐时会优先排除超预算过多的方案。", 96);
         }
         if (requirement.isPerformanceSensitive()) {
-            result.addReason("PERFORMANCE_MATCH", "你提到了创作或性能场景，系统会优先检查高刷、多任务、剪辑和绘图能力。", 90);
+            result.addReason("HIGH_USAGE_MATCH", "你提到了高消耗学术任务，系统会优先检查额度数量和适用任务边界。", 90);
         }
         if (requirement.isPortabilitySensitive()) {
-            result.addReason("PORTABILITY_MATCH", "你提到了课堂、宿舍或携带场景，系统会优先关注尺寸、重量和学习使用便利性。", 82);
+            result.addReason("LIGHT_USAGE_MATCH", "你提到了轻量任务，系统会优先控制购买成本和额度数量。", 82);
         }
         if (requirement.isAfterSaleConcerned()) {
             result.addReason("AFTER_SALE_MATCH", "你关注售后时，需要同时看退货规则、质保周期和未成团退款规则。", 85);
@@ -221,15 +143,15 @@ public class GuideDecisionService {
                 && StringUtils.hasText(product.getRecommendReason());
         result.setPassedSelfCheck(passed);
         result.setSelfCheckMessage(passed
-                ? "推荐商品、价格、规格和推荐理由完整"
-                : "推荐商品信息不完整，需要运营侧补全商品资料");
+                ? "推荐额度包、价格、额度数量和推荐理由完整"
+                : "推荐额度包信息不完整，需要运营侧补全额度包资料");
         return result;
     }
 
     private List<String> buildAnswerSegments(RecommendationResult recommendationResult) {
         List<String> segments = new ArrayList<>();
         GuideProduct product = recommendationResult.getPrimaryProduct();
-        segments.add("我先从已入库的商品、活动和知识片段里筛选，并结合你的预算、用途和限制重新排序，本轮优先推荐" + product.getGoodsName() + "。");
+        segments.add("我先从已入库的额度包、活动和知识片段里筛选，并结合你的预算、任务和额度需求重新排序，本轮优先推荐" + product.getGoodsName() + "。");
         segments.add(product.getRecommendReason());
         recommendationResult.getReasons().forEach(reason -> segments.add(reason.getContent()));
         return segments;
@@ -250,18 +172,18 @@ public class GuideDecisionService {
         String normalizedQuestion = question == null ? "" : question.toLowerCase();
         int score = 50;
         score += preferredGoodsScore(requirement, product, normalizedQuestion);
-        if ("学生".equals(requirement.getUserIdentity()) && containsAny(text, "学生", "学习", "网课", "论文", "笔记", "轻办公")) {
+        if ("学术用户".equals(requirement.getUserIdentity()) && containsAny(text, "学术", "论文", "文献", "PPT", "图表", "研究")) {
             score += 24;
         }
-        if (requirement.isBudgetSensitive() && containsAny(text, "性价比", "预算", "省钱", "低价", "拼团价")) {
+        if (requirement.isBudgetSensitive() && containsAny(text, "性价比", "预算", "省钱", "低价", "拼团价", "基础额度")) {
             score += 18;
         }
         if (requirement.isPerformanceSensitive()) {
-            score += containsAny(text, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "性能", "多任务", "创作", "游戏", "影音") ? 34 : -12;
-            score += containsAny(nullToBlank(product.getNotSuitableFor()), "剪视频", "绘图", "大型应用") ? -42 : 0;
+            score += containsAny(text, "论文阅读", "ppt", "图表", "深度研究", "长报告", "批量", "复现", "团队") ? 34 : -12;
+            score += containsAny(nullToBlank(product.getNotSuitableFor()), "长文档", "批量", "复杂") ? -42 : 0;
         }
         if (requirement.isPortabilitySensitive()) {
-            score += containsAny(text, "轻薄", "便携", "课堂", "网课", "笔记") ? 20 : 0;
+            score += containsAny(text, "基础", "轻量", "普通", "摘要", "资料整理") ? 20 : 0;
         }
         for (String scenario : requirement.getUsageScenarios()) {
             score += scenarioMatchScore(scenario, text);
@@ -276,73 +198,62 @@ public class GuideDecisionService {
         String goodsId = nullToBlank(product.getGoodsId());
         List<String> scenarios = requirement.getUsageScenarios();
         int score = 0;
-        if (containsAny(normalizedQuestion, "高配", "创作平板") && "G10002".equals(goodsId)) {
+        if (containsAny(normalizedQuestion, "论文", "文献", "pdf", "精读", "相关工作") && "G10002".equals(goodsId)) {
             score += 90;
         }
-        if (containsAny(normalizedQuestion, "标准版", "学生", "网课", "预算有限") && "G10001".equals(goodsId)) {
+        if (containsAny(normalizedQuestion, "普通问答", "摘要", "轻量", "预算有限", "便宜") && "G10001".equals(goodsId)) {
             score += 40;
         }
-        if (containsAny(normalizedQuestion, "二合一", "键盘", "会议", "通勤", "办公套装") && "G10003".equals(goodsId)) {
+        if (containsAny(normalizedQuestion, "ppt", "汇报", "答辩", "组会", "演示稿") && "G10003".equals(goodsId)) {
             score += 90;
         }
-        if (containsAny(normalizedQuestion, "追剧", "玩游戏", "游戏影音") && "G10004".equals(goodsId)) {
+        if (containsAny(normalizedQuestion, "图表", "流程图", "架构图", "mermaid", "重建") && "G10004".equals(goodsId)) {
             score += 90;
         }
-        if (containsAny(normalizedQuestion, "小孩", "儿童", "家长管控", "护眼") && "G10005".equals(goodsId)) {
+        if (containsAny(normalizedQuestion, "深度研究", "调研", "技术路线", "长报告", "复现") && "G10005".equals(goodsId)) {
             score += 90;
         }
-        if (containsAny(normalizedQuestion, "考研", "配件", "一次配齐", "手写笔记套装") && "G10006".equals(goodsId)) {
+        if (containsAny(normalizedQuestion, "团队", "实验室", "小组", "多人", "共享") && "G10006".equals(goodsId)) {
             score += 90;
         }
-        if (containsAny(normalizedQuestion, "不是给小孩", "不是给儿童", "不是儿童") && "G10005".equals(goodsId)) {
-            score -= 120;
-        }
-        if (scenarios.contains("创作应用") && "G10002".equals(goodsId)) {
+        if (scenarios.contains("论文阅读") && "G10002".equals(goodsId)) {
             score += 70;
         }
-        if (scenarios.contains("游戏影音") && "G10004".equals(goodsId)) {
+        if (scenarios.contains("PPT 创作") && "G10003".equals(goodsId)) {
             score += 64;
         }
-        if (scenarios.contains("儿童学习") && "G10005".equals(goodsId)) {
+        if (scenarios.contains("图表重建") && "G10004".equals(goodsId)) {
             score += 70;
         }
-        if (scenarios.contains("手写笔记") && !requirement.isBudgetSensitive() && "G10006".equals(goodsId)
-                && containsAny(productText(product), "套装", "考研", "配件", "类纸膜")) {
+        if (scenarios.contains("深度研究") && "G10005".equals(goodsId)) {
             score += 46;
         }
-        if (scenarios.contains("文档写作") && requirement.isPortabilitySensitive() && "G10003".equals(goodsId)) {
+        if (scenarios.contains("团队共享") && "G10006".equals(goodsId)) {
             score += 58;
         }
-        if ((scenarios.contains("网课学习") || scenarios.contains("文档写作"))
-                && requirement.isBudgetSensitive() && "G10001".equals(goodsId)) {
+        if (scenarios.contains("普通学术问答") && requirement.isBudgetSensitive() && "G10001".equals(goodsId)) {
             score += 44;
         }
         return score;
     }
 
     private int scenarioMatchScore(String scenario, String text) {
-        if ("文档写作".equals(scenario)) {
-            return containsAny(text, "论文", "文档", "办公", "轻办公", "会议", "键盘") ? 18 : 0;
+        if ("论文阅读".equals(scenario)) {
+            return containsAny(text, "论文", "文献", "精读", "相关工作", "复现") ? 22 : 0;
         }
-        if ("网课学习".equals(scenario)) {
-            return containsAny(text, "网课", "学习", "课堂") ? 18 : 0;
+        if ("PPT 创作".equals(scenario)) {
+            return containsAny(text, "ppt", "汇报", "答辩", "演示稿", "讲稿") ? 22 : 0;
         }
-        if ("手写笔记".equals(scenario)) {
-            return containsAny(text, "手写", "笔记", "手写笔") ? 16 : 0;
+        if ("图表重建".equals(scenario)) {
+            return containsAny(text, "图表", "流程图", "架构图", "mermaid", "重建") ? 24 : 0;
         }
-        if ("创作应用".equals(scenario)) {
-            return containsAny(text, "剪视频", "剪辑", "绘图", "大型应用", "高刷", "多任务") ? 28 : -10;
+        if ("深度研究".equals(scenario)) {
+            return containsAny(text, "深度研究", "调研", "技术路线", "长报告", "复杂主题") ? 30 : -8;
         }
-        if ("游戏影音".equals(scenario)) {
-            return containsAny(text, "游戏", "影音", "高刷", "扬声器", "散热") ? 30 : -8;
+        if ("团队共享".equals(scenario)) {
+            return containsAny(text, "团队", "实验室", "共享", "多人", "小组") ? 26 : 0;
         }
-        if ("儿童学习".equals(scenario)) {
-            return containsAny(text, "儿童", "家长", "护眼", "管控", "阅读") ? 32 : -12;
-        }
-        if ("便携学习".equals(scenario)) {
-            return containsAny(text, "轻薄", "便携", "10.9", "学习") ? 12 : 0;
-        }
-        return containsAny(text, "日常", "学习", "办公") ? 6 : 0;
+        return containsAny(text, "基础", "普通", "摘要", "资料整理", "轻量") ? 8 : 0;
     }
 
     private int budgetScore(BigDecimal budgetUpperLimit, GuideProduct product) {
@@ -362,20 +273,6 @@ public class GuideDecisionService {
             return -24;
         }
         return -45;
-    }
-
-    private BigDecimal recognizeBudgetUpperLimit(String normalized) {
-        List<Pattern> patterns = List.of(
-                Pattern.compile("(?:预算|不超过|控制在|低于|少于|最多|以内|以下)[^0-9]{0,8}(\\d{3,5})"),
-                Pattern.compile("(\\d{3,5})\\s*(?:元|块|以内|以下|左右)")
-        );
-        for (Pattern pattern : patterns) {
-            Matcher matcher = pattern.matcher(normalized);
-            if (matcher.find()) {
-                return new BigDecimal(matcher.group(1));
-            }
-        }
-        return null;
     }
 
     private String productText(GuideProduct product) {

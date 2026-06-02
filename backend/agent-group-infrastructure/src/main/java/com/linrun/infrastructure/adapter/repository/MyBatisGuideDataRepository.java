@@ -238,7 +238,7 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
             score += 15;
         }
         if (containsAny(normalizedQuestion, "隔很久", "之前的价格", "报价")
-                && containsAny(content, "导购报价凭证", "有效期", "过期", "重新校验", "活动")) {
+                && containsAny(content, "报价凭证", "有效期", "过期", "重新校验", "活动")) {
             score += 30;
         }
         return score;
