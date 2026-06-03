@@ -2,11 +2,28 @@ export const DEMO_USER_ID = "U10001";
 
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 const USER_AUTH_KEY = "agentGroupUserAuth";
+const MODEL_CONFIG_KEY = "agentGroupModelConfig";
+
+const DEFAULT_MODEL_CONFIG = {
+  enabled: false,
+  baseUrl: "https://dashscope.aliyuncs.com/compatible-mode",
+  apiKey: "",
+  model: "qwen3.6-plus"
+};
 
 export function normalizeApiMessage(message, fallback = "操作失败") {
   const text = String(message || "").trim();
   if (!text) return fallback;
   const lower = text.toLowerCase();
+  if ((lower.includes("401 unauthorized") || lower.includes("unauthorized"))
+    && (lower.includes("dashscope") || lower.includes("chat/completions") || lower.includes("openai") || lower.includes("api key"))) {
+    return "模型密钥无效或权限不足，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+  }
+  if (lower.includes("api key") && (lower.includes("invalid") || lower.includes("not configured"))) {
+    return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+  }
+  if (lower.includes("自定义 api 地址仅支持 https")) return "自定义 API 地址仅支持 HTTPS";
+  if (lower.includes("自定义 api 地址不能指向本地或内网地址")) return "自定义 API 地址不能指向本地或内网地址";
   if (lower.includes("user group buy take limit reached")) return "你已达到该拼团活动的参与次数上限";
   if (lower.includes("group team slot is full") || lower.includes("group team quota is full")) return "拼团队伍名额已满";
   if (lower.includes("group team not found") || lower.includes("group lock not found") || lower.includes("group order lock not found")) return "拼团队伍不存在或已失效";
@@ -82,6 +99,48 @@ export function saveUserAuth(auth) {
 
 export function clearUserAuth() {
   localStorage.removeItem(USER_AUTH_KEY);
+}
+
+function normalizeModelConfig(config = {}) {
+  return {
+    ...DEFAULT_MODEL_CONFIG,
+    ...config,
+    enabled: Boolean(config.enabled),
+    baseUrl: String(config.baseUrl || DEFAULT_MODEL_CONFIG.baseUrl).trim(),
+    apiKey: String(config.apiKey || "").trim(),
+    model: String(config.model || DEFAULT_MODEL_CONFIG.model).trim()
+  };
+}
+
+export function getModelConfig() {
+  try {
+    return normalizeModelConfig(JSON.parse(localStorage.getItem(MODEL_CONFIG_KEY) || "null") || {});
+  } catch {
+    return { ...DEFAULT_MODEL_CONFIG };
+  }
+}
+
+export function saveModelConfig(config) {
+  const normalized = normalizeModelConfig(config);
+  localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
+export function modelConfigReady(config) {
+  const normalized = normalizeModelConfig(config);
+  return !normalized.enabled || (Boolean(normalized.baseUrl) && Boolean(normalized.apiKey));
+}
+
+function modelConfigPayload(config) {
+  const normalized = normalizeModelConfig(config);
+  if (!normalized.enabled) {
+    return {};
+  }
+  return {
+    llmBaseUrl: normalized.baseUrl,
+    llmApiKey: normalized.apiKey,
+    llmModel: normalized.model
+  };
 }
 
 function authHeader() {
@@ -211,6 +270,13 @@ export async function queryAcademicSessionDetail(sessionId) {
   });
 }
 
+export async function deleteAcademicSession(sessionId) {
+  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}`, {
+    userAuth: true,
+    method: "DELETE"
+  });
+}
+
 export async function stopAcademicStream(sessionId = getSessionId()) {
   return request("/api/v1/academic/stop", {
     userAuth: true,
@@ -229,19 +295,23 @@ export async function queryAcademicTaskStatus(sessionId = getSessionId()) {
   });
 }
 
-export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId() }, onEvent, onDone, onError) {
+export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId(), modelConfig }, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/stream", {
     sessionId,
     question,
     taskType,
     fileId: fileId || "",
     imageUrl: imageUrl || "",
-    imageName: imageName || ""
+    imageName: imageName || "",
+    ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicResumeStream(sessionId = getSessionId(), onEvent, onDone, onError) {
-  return requestAcademicStreamInternal("/api/v1/academic/resume", { sessionId }, onEvent, onDone, onError);
+export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, onEvent, onDone, onError) {
+  return requestAcademicStreamInternal("/api/v1/academic/resume", {
+    sessionId,
+    ...modelConfigPayload(modelConfig)
+  }, onEvent, onDone, onError);
 }
 
 function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) {

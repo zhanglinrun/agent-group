@@ -65,7 +65,8 @@ public class AcademicBearDoctorAgentHandler {
             String fileId = nullToBlank(safeRequest.getFileId());
             AtomicInteger sequence = new AtomicInteger(1);
 
-            return bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId)
+            return bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
+                            safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(), safeRequest.getLlmModel())
                     .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence))
                     .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(user, sessionId, requestId, sequence, taskType))))
                     .onErrorResume(error -> Flux.just(errorEvent(sessionId, requestId, sequence, error)));
@@ -113,6 +114,10 @@ public class AcademicBearDoctorAgentHandler {
 
     public boolean stop(String token, String sessionId) {
         return bearDoctorNativeAgentService.stop(token, sessionId);
+    }
+
+    public void deleteSession(String token, String sessionId) {
+        bearDoctorNativeAgentService.deleteSession(token, sessionId);
     }
 
     public List<AcademicSessionSummaryDTO> querySessions(String token, int limit) {
@@ -269,7 +274,25 @@ public class AcademicBearDoctorAgentHandler {
 
     private Map<String, String> error(String code, String message) {
         return Map.of("code", StringUtils.hasText(code) ? code : "AGENT_0001",
-                "message", StringUtils.hasText(message) ? message : "处理失败");
+                "message", normalizeErrorMessage(message));
+    }
+
+    private String normalizeErrorMessage(String message) {
+        if (!StringUtils.hasText(message)) {
+            return "处理失败";
+        }
+        String lower = message.toLowerCase();
+        if ((lower.contains("401 unauthorized") || lower.contains("unauthorized"))
+                && (lower.contains("dashscope")
+                || lower.contains("chat/completions")
+                || lower.contains("openai")
+                || lower.contains("api key"))) {
+            return "模型密钥无效或权限不足，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+        }
+        if (lower.contains("api key") && (lower.contains("invalid") || lower.contains("not configured"))) {
+            return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+        }
+        return message;
     }
 
     private AcademicSessionSummaryDTO toSummary(UserAccount user, AiSession session) {

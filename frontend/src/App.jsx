@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Send,
+  Settings,
   Square,
   Trash2,
   UserPlus,
@@ -25,13 +26,16 @@ import AdminDashboard from "./components/AdminDashboard";
 import ThemeToggle from "./components/ThemeToggle";
 import {
   createDirectOrder,
+  deleteAcademicSession,
   getAdminAuth,
+  getModelConfig,
   getQuotaSummary,
   getSessionId,
   getUserAuth,
   lockMarketPayOrder,
   login,
   logout,
+  modelConfigReady,
   mockPaySuccess,
   normalizeApiMessage,
   queryAcademicTaskStatus,
@@ -44,6 +48,7 @@ import {
   requestAcademicResumeStream,
   requestAcademicStream,
   saveAdminAuth,
+  saveModelConfig,
   stopAcademicStream,
   uploadAcademicFile
 } from "./services/api";
@@ -79,6 +84,8 @@ function BearDoctorAcademicApp() {
   const [groupMarketConfig, setGroupMarketConfig] = useState(null);
   const [groupTeamsLoading, setGroupTeamsLoading] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(null);
+  const [modelConfigOpen, setModelConfigOpen] = useState(false);
+  const [modelConfig, setModelConfig] = useState(() => getModelConfig());
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({ username: "", password: "", nickname: "", email: "" });
   const [authError, setAuthError] = useState("");
@@ -235,16 +242,37 @@ function BearDoctorAcademicApp() {
     setChatList((prev) => [{ id, title: "新对话", messages: EMPTY_MESSAGES, isNew: true }, ...prev]);
   };
 
-  const deleteChat = (chatId) => {
-    setChatList((prev) => prev.filter((item) => item.id !== chatId));
+  const deleteChat = async (chatId) => {
+    const target = chatList.find((item) => item.id === chatId);
+    if (!target) return;
+    setConnectionError("");
+    try {
+      if (auth?.token && !target.isNew) {
+        if (taskStatusByChat[chatId]?.running) {
+          await stopAcademicStream(chatId);
+        }
+        const res = await deleteAcademicSession(chatId);
+        if (res.code !== "0000") throw new Error(normalizeUserMessage(res.info, "会话删除失败"));
+      }
+    } catch (error) {
+      setConnectionError(normalizeUserMessage(error.message, "会话删除失败"));
+      return;
+    }
+    const nextList = chatList.filter((item) => item.id !== chatId);
     if (currentChatId === chatId) {
-      const next = chatList.find((item) => item.id !== chatId);
+      const next = nextList[0];
       if (next) {
         setCurrentChatId(next.id);
+        localStorage.setItem("agentGroupSessionId", next.id);
       } else {
-        createNewChat();
+        const id = `AS${Date.now()}`;
+        localStorage.setItem("agentGroupSessionId", id);
+        setCurrentChatId(id);
+        nextList.push({ id, title: "新对话", messages: EMPTY_MESSAGES, isNew: true });
       }
     }
+    setChatList(nextList);
+    setToast("会话已删除");
   };
 
   const selectChat = async (chatId) => {
@@ -383,6 +411,11 @@ function BearDoctorAcademicApp() {
       setLoginOpen(true);
       return;
     }
+    if (!modelConfigReady(modelConfig)) {
+      setConnectionError("请先补全自定义模型的 API 地址和密钥");
+      setModelConfigOpen(true);
+      return;
+    }
 
     const userMsg = {
       id: `U${Date.now()}`,
@@ -421,7 +454,8 @@ function BearDoctorAcademicApp() {
         sessionId: currentChatId,
         question: text || "请分析这个文件",
         taskType: selectedAgent,
-        fileId: selectedFile?.fileId || ""
+        fileId: selectedFile?.fileId || "",
+        modelConfig
       },
       (event) => processStreamEvent(assistantId, event),
       () => {
@@ -554,6 +588,11 @@ function BearDoctorAcademicApp() {
 
   const resumeMessage = () => {
     if (isSending || !auth?.token) return;
+    if (!modelConfigReady(modelConfig)) {
+      setConnectionError("请先补全自定义模型的 API 地址和密钥");
+      setModelConfigOpen(true);
+      return;
+    }
     const assistantId = `A${Date.now()}`;
     const assistantMsg = {
       id: assistantId,
@@ -576,6 +615,7 @@ function BearDoctorAcademicApp() {
     setIsSending(true);
     streamControllerRef.current = requestAcademicResumeStream(
       currentChatId,
+      modelConfig,
       (event) => processStreamEvent(assistantId, event),
       () => {
         setIsSending(false);
@@ -611,6 +651,12 @@ function BearDoctorAcademicApp() {
   const handleSaveAdminAuth = () => {
     saveAdminAuth(adminForm.username, adminForm.password);
     setToast("模拟支付授权已保存");
+  };
+
+  const handleSaveModelConfig = (nextConfig) => {
+    setModelConfig(saveModelConfig(nextConfig));
+    setModelConfigOpen(false);
+    setToast("模型配置已保存");
   };
 
   const buyPackage = async (pkg, buyType, options = {}) => {
@@ -732,6 +778,10 @@ function BearDoctorAcademicApp() {
             <div className="decoration-line" />
             <div className="top-actions">
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
+              <button className="account-btn" onClick={() => setModelConfigOpen(true)}>
+                <Settings size={15} />
+                <span>模型</span>
+              </button>
               <button className="quota-chip" onClick={openRecharge}>
                 <Wallet size={15} />
                 <span>{Number(quota?.quotaBalance || 0).toFixed(2)} 点</span>
@@ -918,6 +968,14 @@ function BearDoctorAcademicApp() {
         />
       )}
 
+      {modelConfigOpen && (
+        <ModelConfigDialog
+          config={modelConfig}
+          onSave={handleSaveModelConfig}
+          onClose={() => setModelConfigOpen(false)}
+        />
+      )}
+
       {paymentDialog && (
         <PaymentConfirmDialog
           payment={paymentDialog}
@@ -1058,6 +1116,75 @@ function AuthDialog({ mode, setMode, form, setForm, error, onSubmit, onClose }) 
         )}
         {error && <div className="auth-error">{error}</div>}
         <button className="auth-submit" type="submit">{mode === "login" ? "登录" : "注册并登录"}</button>
+      </form>
+    </div>
+  );
+}
+
+function ModelConfigDialog({ config, onSave, onClose }) {
+  const [draft, setDraft] = useState(() => getModelConfig());
+
+  useEffect(() => {
+    setDraft({ ...getModelConfig(), ...config });
+  }, [config]);
+
+  const update = (field, value) => {
+    setDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    onSave(draft);
+  };
+
+  return (
+    <div className="modal-overlay model-config-overlay">
+      <form className="model-config-dialog" onSubmit={submit}>
+        <button type="button" className="modal-close" onClick={onClose}><X size={18} /></button>
+        <div className="model-config-head">
+          <Settings size={20} />
+          <h3>模型配置</h3>
+        </div>
+        <label className="model-config-toggle">
+          <input
+            type="checkbox"
+            checked={Boolean(draft.enabled)}
+            onChange={(event) => update("enabled", event.target.checked)}
+          />
+          <span>使用自定义模型</span>
+        </label>
+        <label>
+          <span>API 地址</span>
+          <input
+            value={draft.baseUrl || ""}
+            onChange={(event) => update("baseUrl", event.target.value)}
+            placeholder="https://dashscope.aliyuncs.com/compatible-mode"
+            disabled={!draft.enabled}
+          />
+        </label>
+        <label>
+          <span>API 密钥</span>
+          <input
+            value={draft.apiKey || ""}
+            onChange={(event) => update("apiKey", event.target.value)}
+            type="password"
+            placeholder="sk-..."
+            disabled={!draft.enabled}
+          />
+        </label>
+        <label>
+          <span>模型名称</span>
+          <input
+            value={draft.model || ""}
+            onChange={(event) => update("model", event.target.value)}
+            placeholder="qwen3.6-plus"
+            disabled={!draft.enabled}
+          />
+        </label>
+        <div className="model-config-actions">
+          <button type="button" onClick={onClose}>取消</button>
+          <button type="submit" className="primary">保存</button>
+        </div>
       </form>
     </div>
   );

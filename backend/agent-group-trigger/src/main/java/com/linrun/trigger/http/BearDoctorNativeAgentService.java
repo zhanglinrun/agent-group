@@ -40,7 +40,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.model.SimpleApiKey;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.annotation.Tool;
@@ -56,6 +60,7 @@ import reactor.core.publisher.Flux;
 
 import java.math.BigDecimal;
 import java.net.http.HttpRequest;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -88,6 +93,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     @Value("${skills.directory:}")
     private String skillsDirectory;
 
+    @Value("${spring.ai.openai.chat.options.model:qwen3.6-plus}")
+    private String defaultChatModel;
+
     private ToolCallback[] webSearchToolCallbacks = new ToolCallback[0];
 
     public BearDoctorNativeAgentService(ObjectProvider<ChatModel> chatModelProvider,
@@ -117,11 +125,19 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         initWebSearchToolCallbacks();
     }
 
-    public Flux<String> stream(String token, String agentType, String query, String conversationId, String fileId) {
+    public Flux<String> stream(String token,
+                               String agentType,
+                               String query,
+                               String conversationId,
+                               String fileId,
+                               String llmBaseUrl,
+                               String llmApiKey,
+                               String llmModel) {
         UserAccount user = user(token);
         String safeAgentType = normalizeAgentType(agentType);
         String safeConversationId = StringUtils.hasText(conversationId) ? conversationId.trim() : "S" + System.currentTimeMillis();
         String internalConversationId = internalConversationId(user.getUserId(), safeConversationId);
+        ChatModel runtimeChatModel = chatModel(internalConversationId, llmBaseUrl, llmApiKey, llmModel);
         BigDecimal quotaCost = userQuotaService.estimatePreCheckCost(safeAgentType);
         userQuotaService.assertEnoughQuota(user.getUserId(), quotaCost);
         validateFileAccess(user.getUserId(), internalConversationId, fileId);
@@ -130,17 +146,17 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         BearDoctorTokenUsageRecorder.start(internalConversationId);
 
         Flux<String> agentFlux = switch (safeAgentType) {
-            case "file" -> withMemory(initFileReactAgent(user.getUserId(), internalConversationId), internalConversationId)
+            case "file" -> withMemory(initFileReactAgent(user.getUserId(), internalConversationId, runtimeChatModel), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            case "ppt" -> withMemory(initPPTBuilderAgent(internalConversationId), internalConversationId)
+            case "ppt" -> withMemory(initPPTBuilderAgent(internalConversationId, runtimeChatModel), internalConversationId)
                     .execute(internalConversationId, query);
-            case "deep" -> withMemory(initPlanExecuteAgent(internalConversationId), internalConversationId)
+            case "deep" -> withMemory(initPlanExecuteAgent(internalConversationId, runtimeChatModel), internalConversationId)
                     .stream(internalConversationId, query);
-            case "skills" -> withMemory(initSkillsReactAgent(user.getUserId(), internalConversationId), internalConversationId)
+            case "skills" -> withMemory(initSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            case "manual-skills" -> withMemory(initManualSkillsReactAgent(user.getUserId(), internalConversationId), internalConversationId)
+            case "manual-skills" -> withMemory(initManualSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            default -> withMemory(initWebSearchAgent(internalConversationId), internalConversationId)
+            default -> withMemory(initWebSearchAgent(internalConversationId, runtimeChatModel), internalConversationId)
                     .stream(internalConversationId, query);
         };
 
@@ -295,10 +311,10 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         }
     }
 
-    private WebSearchReactAgent initWebSearchAgent(String conversationId) {
+    private WebSearchReactAgent initWebSearchAgent(String conversationId, ChatModel chatModel) {
         return WebSearchReactAgent.builder()
                 .name("web react")
-                .chatModel(chatModel(conversationId))
+                .chatModel(chatModel)
                 .tools(webSearchToolCallbacks)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
@@ -306,24 +322,24 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .build();
     }
 
-    private FileReactAgent initFileReactAgent(String userId, String conversationId) {
+    private FileReactAgent initFileReactAgent(String userId, String conversationId, ChatModel chatModel) {
         List<ToolCallback> tools = Arrays.asList(fileContentToolCallbacks(userId));
         return FileReactAgent.builder()
                 .name("file react")
-                .chatModel(chatModel(conversationId))
+                .chatModel(chatModel)
                 .tools(tools)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .build();
     }
 
-    private PPTBuilderAgent initPPTBuilderAgent(String conversationId) {
-        return new PPTBuilderAgent(chatModel(conversationId), Arrays.asList(webSearchToolCallbacks), sessionService, taskManager);
+    private PPTBuilderAgent initPPTBuilderAgent(String conversationId, ChatModel chatModel) {
+        return new PPTBuilderAgent(chatModel, Arrays.asList(webSearchToolCallbacks), sessionService, taskManager);
     }
 
-    private PlanExecuteAgent initPlanExecuteAgent(String conversationId) {
+    private PlanExecuteAgent initPlanExecuteAgent(String conversationId, ChatModel chatModel) {
         return PlanExecuteAgent.builder()
-                .chatModel(chatModel(conversationId))
+                .chatModel(chatModel)
                 .tools(webSearchToolCallbacks)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
@@ -331,7 +347,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .build();
     }
 
-    private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId) {
+    private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 webSearchToolCallbacks,
                 fileContentToolCallbacks(userId),
@@ -342,7 +358,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         );
         return SkillsReactAgent.builder()
                 .name("skills")
-                .chatModel(chatModel(conversationId))
+                .chatModel(chatModel)
                 .tools(tools)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
@@ -350,7 +366,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .build();
     }
 
-    private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId) {
+    private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
         SkillManager skillManager = manualSkillManager();
         ToolCallback[] readSkillTools = skillManager == null
                 ? new ToolCallback[0]
@@ -366,7 +382,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         );
         return SkillsReactAgent.builder()
                 .name("manual-skills")
-                .chatModel(chatModel(conversationId))
+                .chatModel(chatModel)
                 .tools(tools)
                 .systemPrompt(skillsPrompt)
                 .sessionService(sessionService)
@@ -413,12 +429,68 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         return agent;
     }
 
-    private ChatModel chatModel(String conversationId) {
+    private ChatModel chatModel(String conversationId,
+                                String llmBaseUrl,
+                                String llmApiKey,
+                                String llmModel) {
+        if (hasCustomModelConfig(llmBaseUrl, llmApiKey, llmModel)) {
+            ChatModel chatModel = customChatModel(llmBaseUrl, llmApiKey, llmModel);
+            return new UsageRecordingChatModel(chatModel, conversationId);
+        }
         ChatModel chatModel = chatModelProvider.getIfAvailable();
         if (chatModel == null) {
             throw new AppException("AGENT_0007", "模型客户端不可用，请检查大模型配置");
         }
         return new UsageRecordingChatModel(chatModel, conversationId);
+    }
+
+    private ChatModel customChatModel(String llmBaseUrl, String llmApiKey, String llmModel) {
+        if (!StringUtils.hasText(llmBaseUrl) || !StringUtils.hasText(llmApiKey)) {
+            throw new AppException("AGENT_0010", "自定义模型配置不完整，请填写 API 地址和密钥");
+        }
+        String baseUrl = normalizeCustomBaseUrl(llmBaseUrl);
+        String model = StringUtils.hasText(llmModel) ? llmModel.trim() : defaultChatModel;
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .temperature(0.2d)
+                .model(model)
+                .build();
+        return OpenAiChatModel.builder()
+                .openAiApi(OpenAiApi.builder()
+                        .baseUrl(baseUrl)
+                        .apiKey(new SimpleApiKey(llmApiKey.trim()))
+                        .build())
+                .defaultOptions(options)
+                .build();
+    }
+
+    private String normalizeCustomBaseUrl(String llmBaseUrl) {
+        String text = llmBaseUrl == null ? "" : llmBaseUrl.trim();
+        URI uri;
+        try {
+            uri = URI.create(text);
+        } catch (Exception e) {
+            throw new AppException("AGENT_0011", "自定义 API 地址格式不正确");
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (!"https".equalsIgnoreCase(scheme) || !StringUtils.hasText(host)) {
+            throw new AppException("AGENT_0011", "自定义 API 地址仅支持 HTTPS");
+        }
+        String lowerHost = host.toLowerCase();
+        if ("localhost".equals(lowerHost)
+                || lowerHost.endsWith(".local")
+                || lowerHost.startsWith("127.")
+                || lowerHost.startsWith("10.")
+                || lowerHost.startsWith("192.168.")
+                || lowerHost.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\..*")) {
+            throw new AppException("AGENT_0011", "自定义 API 地址不能指向本地或内网地址");
+        }
+        String normalized = text.replaceAll("/+$", "");
+        return normalized.endsWith("/v1") ? normalized.substring(0, normalized.length() - 3) : normalized;
+    }
+
+    private boolean hasCustomModelConfig(String llmBaseUrl, String llmApiKey, String llmModel) {
+        return StringUtils.hasText(llmBaseUrl) || StringUtils.hasText(llmApiKey) || StringUtils.hasText(llmModel);
     }
 
     private UserAccount user(String token) {

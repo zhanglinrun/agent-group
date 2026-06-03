@@ -13,6 +13,7 @@ import com.linrun.types.common.Response;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -54,9 +55,10 @@ public class AcademicAgentController {
 
     @PostMapping(value = "/resume", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
     public Flux<String> resume(@RequestHeader(value = "Authorization", required = false) String token,
-                               @RequestBody Map<String, String> request) {
-        String sessionId = request == null ? "" : request.get("sessionId");
+                               @RequestBody(required = false) AcademicAgentStreamRequest request) {
+        String sessionId = request == null ? "" : request.getSessionId();
         AcademicAgentStreamRequest resumeRequest = academicBearDoctorAgentHandler.resumeRequest(token, sessionId);
+        copyRuntimeLlmConfig(request, resumeRequest);
         return startStream(token, resumeRequest);
     }
 
@@ -115,6 +117,23 @@ public class AcademicAgentController {
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String sessionId) {
         return Response.success(academicBearDoctorAgentHandler.queryDetail(token, sessionId), RequestTraceContext.getRequestId());
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    public Response<Boolean> deleteSession(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String sessionId) {
+        academicBearDoctorAgentHandler.deleteSession(token, sessionId);
+        return Response.success(true, RequestTraceContext.getRequestId());
+    }
+
+    private void copyRuntimeLlmConfig(AcademicAgentStreamRequest source, AcademicAgentStreamRequest target) {
+        if (source == null || target == null) {
+            return;
+        }
+        target.setLlmBaseUrl(source.getLlmBaseUrl());
+        target.setLlmApiKey(source.getLlmApiKey());
+        target.setLlmModel(source.getLlmModel());
     }
 
     private String toJson(GuideStreamEvent<?> event) {
