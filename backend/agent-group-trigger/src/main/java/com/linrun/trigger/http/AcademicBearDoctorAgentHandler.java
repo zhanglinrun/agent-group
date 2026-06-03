@@ -1,10 +1,10 @@
 package com.linrun.trigger.http;
 
-import cn.hollis.llm.mentor.agent.entity.AiSession;
-import cn.hollis.llm.mentor.agent.entity.record.FileInfo;
-import cn.hollis.llm.mentor.agent.entity.record.pptx.AiPptInst;
-import cn.hollis.llm.mentor.agent.service.AgentTaskManager;
-import cn.hollis.llm.mentor.agent.service.AiPptInstService;
+import com.linrun.trigger.agent.entity.AiSession;
+import com.linrun.trigger.agent.entity.record.FileInfo;
+import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
+import com.linrun.trigger.agent.service.AgentTaskManager;
+import com.linrun.trigger.agent.service.AiPptInstService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.AcademicAgentStreamRequest;

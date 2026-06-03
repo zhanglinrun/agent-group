@@ -55,7 +55,13 @@ public class TradeOrderController {
     }
 
     @PostMapping("/direct")
-    public Response<CreateDirectOrderResponse> createDirectOrder(@RequestBody CreateDirectOrderRequest request) {
+    public Response<CreateDirectOrderResponse> createDirectOrder(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody CreateDirectOrderRequest request) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        if (request != null) {
+            request.setUserId(user.getUserId());
+        }
         return Response.success(directBuyOrderService.createDirectOrder(request), RequestTraceContext.getRequestId());
     }
 

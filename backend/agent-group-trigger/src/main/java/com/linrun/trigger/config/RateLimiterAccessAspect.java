@@ -156,6 +156,9 @@ public class RateLimiterAccessAspect {
             if (arg instanceof Map<?, ?> map && map.containsKey(propertyName)) {
                 return String.valueOf(map.get(propertyName));
             }
+            if (arg instanceof String value && isTokenKey(propertyName) && StringUtils.hasText(value)) {
+                return value;
+            }
             BeanWrapper wrapper = new BeanWrapperImpl(arg);
             if (wrapper.isReadableProperty(propertyName)) {
                 Object value = wrapper.getPropertyValue(propertyName);
@@ -165,6 +168,11 @@ public class RateLimiterAccessAspect {
             }
         }
         return "global";
+    }
+
+    private boolean isTokenKey(String propertyName) {
+        return "token".equalsIgnoreCase(propertyName)
+                || "authorization".equalsIgnoreCase(propertyName);
     }
 
     private String redisKey(String key) {

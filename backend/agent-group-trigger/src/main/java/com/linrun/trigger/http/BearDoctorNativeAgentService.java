@@ -1,32 +1,32 @@
 package com.linrun.trigger.http;
 
-import cn.hollis.llm.mentor.agent.agent.BaseAgent;
-import cn.hollis.llm.mentor.agent.agent.deepresearch.PlanExecuteAgent;
-import cn.hollis.llm.mentor.agent.agent.file.FileReactAgent;
-import cn.hollis.llm.mentor.agent.agent.pptx.PPTBuilderAgent;
-import cn.hollis.llm.mentor.agent.agent.skills.SkillsReactAgent;
-import cn.hollis.llm.mentor.agent.agent.skills.manual.SkillManager;
-import cn.hollis.llm.mentor.agent.agent.skills.manual.config.SkillConfig;
-import cn.hollis.llm.mentor.agent.agent.skills.manual.tool.ReadSkillTool;
-import cn.hollis.llm.mentor.agent.agent.websearch.WebSearchReactAgent;
-import cn.hollis.llm.mentor.agent.context.ContextPolicy;
-import cn.hollis.llm.mentor.agent.context.BearDoctorTokenUsageRecorder;
-import cn.hollis.llm.mentor.agent.context.UsageRecordingChatModel;
-import cn.hollis.llm.mentor.agent.entity.AiSession;
-import cn.hollis.llm.mentor.agent.entity.record.FileInfo;
-import cn.hollis.llm.mentor.agent.entity.record.pptx.AiPptInst;
-import cn.hollis.llm.mentor.agent.mapper.AiSessionMapper;
-import cn.hollis.llm.mentor.agent.service.AgentTaskManager;
-import cn.hollis.llm.mentor.agent.service.AiPptInstService;
-import cn.hollis.llm.mentor.agent.service.AiSessionService;
-import cn.hollis.llm.mentor.agent.service.FileInfoService;
-import cn.hollis.llm.mentor.agent.service.FileManageService;
-import cn.hollis.llm.mentor.agent.tool.BashTool;
-import cn.hollis.llm.mentor.agent.tool.FileContentService;
-import cn.hollis.llm.mentor.agent.tool.FileSystemTools;
-import cn.hollis.llm.mentor.agent.tool.GrepTool;
-import cn.hollis.llm.mentor.agent.tool.SkillsTool;
-import cn.hollis.llm.mentor.agent.tool.ToolMergeUtils;
+import com.linrun.trigger.agent.agent.BaseAgent;
+import com.linrun.trigger.agent.agent.deepresearch.PlanExecuteAgent;
+import com.linrun.trigger.agent.agent.file.FileReactAgent;
+import com.linrun.trigger.agent.agent.pptx.PPTBuilderAgent;
+import com.linrun.trigger.agent.agent.skills.SkillsReactAgent;
+import com.linrun.trigger.agent.agent.skills.manual.SkillManager;
+import com.linrun.trigger.agent.agent.skills.manual.config.SkillConfig;
+import com.linrun.trigger.agent.agent.skills.manual.tool.ReadSkillTool;
+import com.linrun.trigger.agent.agent.websearch.WebSearchReactAgent;
+import com.linrun.trigger.agent.context.ContextPolicy;
+import com.linrun.trigger.agent.context.BearDoctorTokenUsageRecorder;
+import com.linrun.trigger.agent.context.UsageRecordingChatModel;
+import com.linrun.trigger.agent.entity.AiSession;
+import com.linrun.trigger.agent.entity.record.FileInfo;
+import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
+import com.linrun.trigger.agent.mapper.AiSessionMapper;
+import com.linrun.trigger.agent.service.AgentTaskManager;
+import com.linrun.trigger.agent.service.AiPptInstService;
+import com.linrun.trigger.agent.service.AiSessionService;
+import com.linrun.trigger.agent.service.FileInfoService;
+import com.linrun.trigger.agent.service.FileManageService;
+import com.linrun.trigger.agent.tool.BashTool;
+import com.linrun.trigger.agent.tool.FileContentService;
+import com.linrun.trigger.agent.tool.FileSystemTools;
+import com.linrun.trigger.agent.tool.GrepTool;
+import com.linrun.trigger.agent.tool.SkillsTool;
+import com.linrun.trigger.agent.tool.ToolMergeUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -57,6 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 
 import java.math.BigDecimal;
 import java.net.http.HttpRequest;
@@ -168,15 +169,20 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
         AtomicBoolean consumed = new AtomicBoolean(false);
         return agentFlux.doOnNext(observedContent::append)
-                .doOnComplete(() -> {
-            if (consumed.compareAndSet(false, true)) {
-                long latencyMillis = Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
-                BearDoctorTokenUsageRecorder.Snapshot tokenUsage = BearDoctorTokenUsageRecorder.snapshot(internalConversationId);
-                consumeQuota(user.getUserId(), safeConversationId, safeAgentType, query,
-                        observedContent.toString(), latencyMillis, tokenUsage);
-                fillAgentType(internalConversationId, safeAgentType);
-            }
-        }).doFinally(signalType -> BearDoctorTokenUsageRecorder.clear(internalConversationId));
+                .doFinally(signalType -> {
+                    try {
+                        BearDoctorTokenUsageRecorder.Snapshot tokenUsage = BearDoctorTokenUsageRecorder.snapshot(internalConversationId);
+                        if (consumed.compareAndSet(false, true)
+                                && shouldConsumeQuota(signalType, observedContent, tokenUsage)) {
+                            long latencyMillis = Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
+                            consumeQuota(user.getUserId(), safeConversationId, safeAgentType, query,
+                                    observedContent.toString(), latencyMillis, tokenUsage);
+                            fillAgentType(internalConversationId, safeAgentType);
+                        }
+                    } finally {
+                        BearDoctorTokenUsageRecorder.clear(internalConversationId);
+                    }
+                });
     }
 
     public FileInfo upload(String token, MultipartFile file, String conversationId) {
@@ -615,6 +621,14 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private boolean hasRealUsage(BearDoctorTokenUsageRecorder.Snapshot tokenUsage) {
         return tokenUsage != null && tokenUsage.hasUsage();
+    }
+
+    private boolean shouldConsumeQuota(SignalType signalType,
+                                       StringBuilder observedContent,
+                                       BearDoctorTokenUsageRecorder.Snapshot tokenUsage) {
+        return SignalType.ON_COMPLETE.equals(signalType)
+                || (observedContent != null && !observedContent.isEmpty())
+                || hasRealUsage(tokenUsage);
     }
 
     private GuideTokenUsage estimateTokenUsage(String query, String observedContent) {

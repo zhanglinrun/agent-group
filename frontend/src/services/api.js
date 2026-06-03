@@ -430,6 +430,7 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
 
 export async function createDirectOrder(product, userId = DEMO_USER_ID) {
   return request("/api/v1/trade/order/direct", {
+    userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -443,6 +444,7 @@ export async function createDirectOrder(product, userId = DEMO_USER_ID) {
 
 export async function lockGroupBuyOrder(product, userId = DEMO_USER_ID) {
   return request("/api/v1/group/trade/lock", {
+    userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -458,6 +460,7 @@ export async function lockGroupBuyOrder(product, userId = DEMO_USER_ID) {
 
 export async function queryGroupBuyMarketConfig(product, userId = DEMO_USER_ID) {
   return request("/api/v1/gbm/index/query_group_buy_market_config", {
+    userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -472,6 +475,7 @@ export async function queryGroupBuyMarketConfig(product, userId = DEMO_USER_ID) 
 export async function lockMarketPayOrder(product, userId = DEMO_USER_ID, options = {}) {
   const outTradeNo = options.outTradeNo || `GBM_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
   return request("/api/v1/gbm/trade/lock_market_pay_order", {
+    userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

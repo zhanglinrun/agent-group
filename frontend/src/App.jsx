@@ -68,6 +68,18 @@ const EMPTY_MESSAGES = [];
 
 const normalizeUserMessage = normalizeApiMessage;
 
+function createRuntimeId(prefix) {
+  return `${prefix}${Date.now()}`;
+}
+
+function mergeThinking(timeline = [], content) {
+  const last = timeline[timeline.length - 1];
+  if (last?.type === "thinking") {
+    return [...timeline.slice(0, -1), { ...last, content }];
+  }
+  return [...timeline, { type: "thinking", content }];
+}
+
 function toUiArtifact(data = {}) {
   return {
     id: data.artifactId || `${data.fileName || data.title || "artifact"}_${data.downloadUrl || ""}`,
@@ -157,10 +169,6 @@ function BearDoctorAcademicApp() {
     }));
   }, []);
 
-  const updateCurrentChat = useCallback((updater) => {
-    updateChat(currentChatId, updater);
-  }, [currentChatId, updateChat]);
-
   const setChatRunning = useCallback((sessionId, running, extraStatus = {}) => {
     setRunningChatIds((prev) => {
       const next = { ...prev };
@@ -233,7 +241,7 @@ function BearDoctorAcademicApp() {
   }, []);
 
   const toUiMessages = useCallback((items = []) => items.map((item, index) => ({
-    id: `${item.role || "MSG"}_${index}_${item.createTime || Date.now()}`,
+    id: `${item.role || "MSG"}_${index}_${item.createTime || "local"}`,
     role: item.role === "USER" ? "user" : "assistant",
     content: item.content || "",
     timeline: [],
@@ -263,9 +271,106 @@ function BearDoctorAcademicApp() {
     }));
   }, [toUiMessages]);
 
+  const updateAssistantInChat = useCallback((chatId, messageId, updater) => {
+    updateChat(chatId, (chat) => ({
+      ...chat,
+      messages: chat.messages.map((message) => message.id === messageId ? updater(message) : message)
+    }));
+  }, [updateChat]);
+
+  const updateAssistant = useCallback((messageId, updater) => {
+    updateAssistantInChat(currentChatId, messageId, updater);
+  }, [currentChatId, updateAssistantInChat]);
+
+  const appendAssistantTextInChat = useCallback((chatId, messageId, text) => {
+    updateAssistantInChat(chatId, messageId, (message) => ({ ...message, content: `${message.content}${text}` }));
+  }, [updateAssistantInChat]);
+
+  const closeAssistantTimelineInChat = useCallback((chatId, messageId) => {
+    updateAssistantInChat(chatId, messageId, (message) => {
+      const hasError = (message.timeline || []).some((item) => item.type === "error");
+      return { ...message, showTimeline: hasError };
+    });
+  }, [updateAssistantInChat]);
+
+  const processStreamEvent = useCallback((chatId, messageId, event) => {
+    const data = event.data || {};
+    if (event.event === "answer_delta") {
+      appendAssistantTextInChat(chatId, messageId, data.content || "");
+      return;
+    }
+    if (event.event === "task_status") {
+      const statusMessage = normalizeUserMessage(data.message || data.stage, "正在处理");
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        timeline: mergeThinking(message.timeline, statusMessage)
+      }));
+      return;
+    }
+    if (event.event === "reference_delta") {
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        reference: [...(message.reference || []), {
+          title: data.title || data.fileId || "参考资料",
+          text: data.content || ""
+        }],
+        showReference: true
+      }));
+      return;
+    }
+    if (event.event === "artifact_delta") {
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        artifacts: [...(message.artifacts || []), toUiArtifact(data)]
+      }));
+      return;
+    }
+    if (event.event === "recommend_delta") {
+      const items = normalizeRecommendItems(data.items ?? data.content ?? data);
+      if (!items.length) return;
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        recommend: [...(message.recommend || []), ...items]
+      }));
+      return;
+    }
+    if (event.event === "quota_delta") {
+      setQuota(data);
+      return;
+    }
+    if (event.event === "usage_metric") {
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        timeline: [...(message.timeline || []), {
+          type: "tool",
+          toolName: `额度消耗 ${data.consumedQuota ?? "-"}，剩余额度 ${data.remainingQuota ?? "-"}`,
+          status: "completed"
+        }]
+      }));
+      return;
+    }
+    if (event.event === "error") {
+      const errorMessage = normalizeUserMessage(data.message, "处理失败");
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        timeline: [...(message.timeline || []), { type: "error", message: errorMessage }]
+      }));
+      appendAssistantTextInChat(chatId, messageId, `\n\n${errorMessage}`);
+    }
+  }, [appendAssistantTextInChat, updateAssistantInChat]);
+
+  const refreshTaskStatus = useCallback(async (sessionId) => {
+    if (!getUserAuth()?.token || !sessionId) return null;
+    const res = await queryAcademicTaskStatus(sessionId);
+    if (res.code !== "0000") return null;
+    const status = res.data || {};
+    setTaskStatusByChat((prev) => ({ ...prev, [sessionId]: status }));
+    return status;
+  }, []);
+
   const attachRunningStream = useCallback((sessionId) => {
     if (!sessionId || streamControllersRef.current[sessionId]) return;
-    const assistantId = `A_ATTACH_${Date.now()}`;
+    const assistantId = createRuntimeId("A_ATTACH_");
     const assistantMsg = {
       id: assistantId,
       role: "assistant",
@@ -295,28 +400,34 @@ function BearDoctorAcademicApp() {
         closeAssistantTimelineInChat(sessionId, assistantId);
         loadQuota().catch(() => {});
         loadSessions().catch(() => {});
-        loadTaskStatus(sessionId).catch(() => {});
+        refreshTaskStatus(sessionId).catch(() => {});
         refreshSessionDetail(sessionId).catch(() => {});
       },
       (error) => {
         delete streamControllersRef.current[sessionId];
         setChatRunning(sessionId, false);
         appendAssistantTextInChat(sessionId, assistantId, `\n\n接回后台任务失败：${normalizeUserMessage(error.message, "服务暂不可用")}`);
-        loadTaskStatus(sessionId).catch(() => {});
+        refreshTaskStatus(sessionId).catch(() => {});
       }
     );
-  }, [loadQuota, loadSessions, refreshSessionDetail, setChatRunning, updateChat]);
+  }, [
+    appendAssistantTextInChat,
+    closeAssistantTimelineInChat,
+    loadQuota,
+    loadSessions,
+    processStreamEvent,
+    refreshSessionDetail,
+    refreshTaskStatus,
+    setChatRunning,
+    updateChat
+  ]);
 
   const loadTaskStatus = useCallback(async (sessionId = currentChatId) => {
-    if (!getUserAuth()?.token || !sessionId) return;
-    const res = await queryAcademicTaskStatus(sessionId);
-    if (res.code === "0000") {
-      setTaskStatusByChat((prev) => ({ ...prev, [sessionId]: res.data || {} }));
-      if (res.data?.running && !streamControllersRef.current[sessionId]) {
-        attachRunningStream(sessionId);
-      }
+    const status = await refreshTaskStatus(sessionId);
+    if (status?.running && !streamControllersRef.current[sessionId]) {
+      attachRunningStream(sessionId);
     }
-  }, [attachRunningStream, currentChatId]);
+  }, [attachRunningStream, currentChatId, refreshTaskStatus]);
 
   const refreshRecharge = useCallback(async () => {
     await Promise.all([
@@ -338,7 +449,7 @@ function BearDoctorAcademicApp() {
     loadQuota().catch((error) => setConnectionError(normalizeUserMessage(error.message, "额度读取失败")));
     loadSessions().catch(() => {});
     loadOrders().catch(() => {});
-  }, [auth, loadQuota, loadSessions]);
+  }, [auth, loadOrders, loadQuota, loadSessions]);
 
   useEffect(() => {
     if (!auth?.token) return;
@@ -351,7 +462,7 @@ function BearDoctorAcademicApp() {
   }, [chatList, currentChatId, isSending]);
 
   const createNewChat = () => {
-    const id = `AS${Date.now()}`;
+    const id = createRuntimeId("AS");
     localStorage.setItem("agentGroupSessionId", id);
     setCurrentChatId(id);
     setSelectedFile(null);
@@ -383,7 +494,7 @@ function BearDoctorAcademicApp() {
         setCurrentChatId(next.id);
         localStorage.setItem("agentGroupSessionId", next.id);
       } else {
-        const id = `AS${Date.now()}`;
+        const id = createRuntimeId("AS");
         localStorage.setItem("agentGroupSessionId", id);
         setCurrentChatId(id);
         nextList.push({ id, title: "新对话", messages: EMPTY_MESSAGES, isNew: true });
@@ -529,13 +640,13 @@ function BearDoctorAcademicApp() {
     }
 
     const userMsg = {
-      id: `U${Date.now()}`,
+      id: createRuntimeId("U"),
       role: "user",
       content: text || "请分析这个文件",
       file: Boolean(file),
       fileName: file?.name || ""
     };
-    const assistantId = `A${Date.now()}`;
+    const assistantId = createRuntimeId("A");
     const assistantMsg = {
       id: assistantId,
       role: "assistant",
@@ -585,112 +696,6 @@ function BearDoctorAcademicApp() {
     );
   };
 
-  const processStreamEvent = (chatId, messageId, event) => {
-    const data = event.data || {};
-    if (event.event === "answer_delta") {
-      appendAssistantTextInChat(chatId, messageId, data.content || "");
-      return;
-    }
-    if (event.event === "task_status") {
-      const statusMessage = normalizeUserMessage(data.message || data.stage, "正在处理");
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        timeline: mergeThinking(message.timeline, statusMessage)
-      }));
-      return;
-    }
-    if (event.event === "reference_delta") {
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        reference: [...(message.reference || []), {
-          title: data.title || data.fileId || "参考资料",
-          text: data.content || ""
-        }],
-        showReference: true
-      }));
-      return;
-    }
-    if (event.event === "artifact_delta") {
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        artifacts: [...(message.artifacts || []), toUiArtifact(data)]
-      }));
-      return;
-    }
-    if (event.event === "recommend_delta") {
-      const items = normalizeRecommendItems(data.items ?? data.content ?? data);
-      if (!items.length) return;
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        recommend: [...(message.recommend || []), ...items]
-      }));
-      return;
-    }
-    if (event.event === "quota_delta") {
-      setQuota(data);
-      return;
-    }
-    if (event.event === "usage_metric") {
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        timeline: [...(message.timeline || []), {
-          type: "tool",
-          toolName: `额度消耗 ${data.consumedQuota ?? "-"}，剩余额度 ${data.remainingQuota ?? "-"}`,
-          status: "completed"
-        }]
-      }));
-      return;
-    }
-    if (event.event === "error") {
-      const errorMessage = normalizeUserMessage(data.message, "处理失败");
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        timeline: [...(message.timeline || []), { type: "error", message: errorMessage }]
-      }));
-      appendAssistantTextInChat(chatId, messageId, `\n\n${errorMessage}`);
-    }
-  };
-
-  const updateAssistantInChat = (chatId, messageId, updater) => {
-    updateChat(chatId, (chat) => ({
-      ...chat,
-      messages: chat.messages.map((message) => message.id === messageId ? updater(message) : message)
-    }));
-  };
-
-  const updateAssistant = (messageId, updater) => {
-    updateAssistantInChat(currentChatId, messageId, updater);
-  };
-
-  const appendAssistantTextInChat = (chatId, messageId, text) => {
-    updateAssistantInChat(chatId, messageId, (message) => ({ ...message, content: `${message.content}${text}` }));
-  };
-
-  const appendAssistantText = (messageId, text) => {
-    appendAssistantTextInChat(currentChatId, messageId, text);
-  };
-
-  const closeAssistantTimelineInChat = (chatId, messageId) => {
-    updateAssistantInChat(chatId, messageId, (message) => {
-      const hasError = (message.timeline || []).some((item) => item.type === "error");
-      return { ...message, showTimeline: hasError };
-    });
-  };
-
-  const closeAssistantTimeline = (messageId) => {
-    closeAssistantTimelineInChat(currentChatId, messageId);
-  };
-
-  const mergeThinking = (timeline = [], content) => {
-    const next = [...timeline];
-    const last = next[next.length - 1];
-    if (last?.type === "thinking") {
-      last.content = content;
-      return next;
-    }
-    return [...next, { type: "thinking", content }];
-  };
-
   const stopMessage = async () => {
     const sessionId = currentChatId;
     streamControllersRef.current[sessionId]?.abort();
@@ -708,7 +713,7 @@ function BearDoctorAcademicApp() {
       setModelConfigOpen(true);
       return;
     }
-    const assistantId = `A${Date.now()}`;
+    const assistantId = createRuntimeId("A");
     const assistantMsg = {
       id: assistantId,
       role: "assistant",

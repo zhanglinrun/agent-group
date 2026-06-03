@@ -60,7 +60,6 @@
     <update id="decreaseQuotaAllowNegative">
         update user_quota_account
         set quota_balance = quota_balance - #{amount},
-            used_quota = used_quota + #{amount},
             update_time = now()
         where user_id = #{userId}
     </update>

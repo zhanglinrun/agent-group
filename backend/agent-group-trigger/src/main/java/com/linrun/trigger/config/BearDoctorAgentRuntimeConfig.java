@@ -17,11 +17,11 @@ import javax.sql.DataSource;
 
 @Configuration
 @ComponentScan(basePackages = {
-        "cn.hollis.llm.mentor.agent.service",
-        "cn.hollis.llm.mentor.agent.tool",
-        "cn.hollis.llm.mentor.agent.utils"
+        "com.linrun.trigger.agent.service",
+        "com.linrun.trigger.agent.tool",
+        "com.linrun.trigger.agent.utils"
 })
-@MapperScan({"cn.hollis.llm.mentor.agent.mapper", "com.linrun.infrastructure.dao"})
+@MapperScan({"com.linrun.trigger.agent.mapper", "com.linrun.infrastructure.dao"})
 public class BearDoctorAgentRuntimeConfig {
 
     @Bean
