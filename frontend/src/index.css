@@ -1997,6 +1997,8 @@ body {
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .bear-doctor-app .artifact-download:hover {
@@ -2011,6 +2013,11 @@ body {
   background: rgba(10, 15, 30, 0.8);
   border-radius: 10px;
   padding: 12px;
+}
+
+.bear-doctor-app .artifact-card small {
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .bear-doctor-app .recommend-section {

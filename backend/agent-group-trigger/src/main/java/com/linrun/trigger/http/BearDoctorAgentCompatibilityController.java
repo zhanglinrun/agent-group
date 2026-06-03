@@ -298,7 +298,16 @@ public class BearDoctorAgentCompatibilityController {
     }
 
     private String message(Throwable error) {
-        return error == null || !StringUtils.hasText(error.getMessage()) ? "处理失败" : error.getMessage();
+        if (error == null || !StringUtils.hasText(error.getMessage())) {
+            return "处理失败";
+        }
+        String message = error.getMessage();
+        String lower = message.toLowerCase();
+        if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
+                && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
+            return "本次请求已处理，请勿重复提交或刷新后重试";
+        }
+        return message;
     }
 
     public record BearDoctorResult<T>(int code, String message, T data) {

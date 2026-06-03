@@ -17,10 +17,20 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
   const lower = text.toLowerCase();
   if ((lower.includes("401 unauthorized") || lower.includes("unauthorized"))
     && (lower.includes("dashscope") || lower.includes("chat/completions") || lower.includes("openai") || lower.includes("api key"))) {
+    if (!lower.includes("dashscope")) {
+      return "自定义模型接口认证失败，请检查模型配置里的 API 地址、密钥和模型名";
+    }
     return "模型密钥无效或权限不足，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
   }
   if (lower.includes("api key") && (lower.includes("invalid") || lower.includes("not configured"))) {
+    if (!lower.includes("dashscope")) {
+      return "自定义模型配置不可用，请检查模型配置里的 API 地址、密钥和模型名";
+    }
     return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+  }
+  if ((lower.includes("duplicate entry") || lower.includes("sqlintegrityconstraintviolationexception"))
+    && (lower.includes("uk_user_biz_flow") || lower.includes("user_quota_flow"))) {
+    return "本次请求已处理，请勿重复提交或刷新后重试";
   }
   if (lower.includes("自定义 api 地址仅支持 https")) return "自定义 API 地址仅支持 HTTPS";
   if (lower.includes("自定义 api 地址不能指向本地或内网地址")) return "自定义 API 地址不能指向本地或内网地址";
@@ -270,6 +280,33 @@ export async function queryAcademicSessionDetail(sessionId) {
   });
 }
 
+export async function downloadAcademicArtifact(downloadUrl, fallbackName = "artifact") {
+  const response = await fetch(downloadUrl, {
+    method: "GET",
+    headers: {
+      ...userAuthHeader()
+    }
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new ApiError(normalizeApiMessage(text, "文件下载失败"), response.status, text);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+  const fileName = match
+    ? decodeURIComponent(match[1] || match[2] || fallbackName)
+    : fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export async function deleteAcademicSession(sessionId) {
   return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}`, {
     userAuth: true,
@@ -311,6 +348,12 @@ export function requestAcademicResumeStream(sessionId = getSessionId(), modelCon
   return requestAcademicStreamInternal("/api/v1/academic/resume", {
     sessionId,
     ...modelConfigPayload(modelConfig)
+  }, onEvent, onDone, onError);
+}
+
+export function requestAcademicAttachStream(sessionId = getSessionId(), onEvent, onDone, onError) {
+  return requestAcademicStreamInternal("/api/v1/academic/stream/attach", {
+    sessionId
   }, onEvent, onDone, onError);
 }
 

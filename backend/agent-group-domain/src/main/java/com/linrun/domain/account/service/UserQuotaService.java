@@ -85,7 +85,22 @@ public class UserQuotaService {
                                                        GuideTokenUsage tokenUsage,
                                                        String model,
                                                        long latencyMillis) {
+        return consumeForAcademicTask(userId, sessionId, buildTaskConsumeBizId(sessionId), taskType,
+                tokenUsage, model, latencyMillis);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public QuotaAccountResponse consumeForAcademicTask(String userId,
+                                                       String sessionId,
+                                                       String taskConsumeBizId,
+                                                       String taskType,
+                                                       GuideTokenUsage tokenUsage,
+                                                       String model,
+                                                       long latencyMillis) {
         validateUserId(userId);
+        String safeTaskConsumeBizId = StringUtils.hasText(taskConsumeBizId)
+                ? taskConsumeBizId.trim()
+                : buildTaskConsumeBizId(sessionId);
         BigDecimal quotaCost = estimateTaskCost(taskType, tokenUsage);
         assertEnoughQuota(userId, quotaCost);
         UserQuotaAccount before = queryAccount(userId);
@@ -94,7 +109,7 @@ public class UserQuotaService {
             throw new AppException("QUOTA_0001", "额度不足，请先购买或拼团充值额度");
         }
         UserQuotaAccount after = queryAccount(userId);
-        UserQuotaFlow flow = flow(userId, FLOW_TASK_CONSUME, sessionId, quotaCost.negate(), before.getQuotaBalance(),
+        UserQuotaFlow flow = flow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId, quotaCost.negate(), before.getQuotaBalance(),
                 after.getQuotaBalance(), "学术任务消耗额度：" + safe(taskType));
         userQuotaRepository.saveFlow(flow);
         userQuotaRepository.saveUsage(usage(userId, sessionId, taskType, tokenUsage, model, quotaCost, latencyMillis));
@@ -301,5 +316,14 @@ public class UserQuotaService {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private String buildTaskConsumeBizId(String sessionId) {
+        String prefix = safe(sessionId).trim();
+        if (prefix.length() > 36) {
+            prefix = prefix.substring(0, 36);
+        }
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 18).toUpperCase();
+        return (StringUtils.hasText(prefix) ? prefix + "-" : "TASK-") + suffix;
     }
 }

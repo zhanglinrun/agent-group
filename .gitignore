@@ -42,9 +42,18 @@ frontend/dist/
 logs/
 docs/performance/jmeter/results/
 docs/performance/jmeter/reports/
+outputs/*
+
+### Runtime tools ###
+!tools/
+!tools/runtime-bin/
+!tools/runtime-bin/ffmpeg.cmd
+!tools/runtime-bin/ffmpeg.exe
+backend/agent-group-app/ffmpeg.exe
 
 ### Mac OS ###
 .DS_Store
 doc/design/
+example/
 
 study

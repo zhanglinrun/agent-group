@@ -38,7 +38,7 @@ import java.util.List;
  * 负责解析不同类型文件的内容
  * - PDF: 使用 Apache PDFBox 解析
  * - DOC/DOCX: 使用 Apache POI 解析
- * - TXT: 直接读取
+ * - TXT/Markdown: 直接读取
  * - 图片: 使用 Qwen-VL 进行 OCR 识别
  */
 @Service
@@ -103,6 +103,8 @@ public class FileParserService {
                 case "doc":
                     throw new IllegalArgumentException("暂不支持 .doc 格式，请转换为 .docx");
                 case "txt":
+                case "md":
+                case "markdown":
                     content = parseTxt(file);
                     break;
                 default:

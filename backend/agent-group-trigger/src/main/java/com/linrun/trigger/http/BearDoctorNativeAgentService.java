@@ -61,7 +61,10 @@ import reactor.core.publisher.Flux;
 import java.math.BigDecimal;
 import java.net.http.HttpRequest;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,6 +95,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     @Value("${skills.directory:}")
     private String skillsDirectory;
+
+    @Value("${skills.output-directory:outputs}")
+    private String skillsOutputDirectory;
 
     @Value("${spring.ai.openai.chat.options.model:qwen3.6-plus}")
     private String defaultChatModel;
@@ -266,6 +272,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     public Map<String, Object> capabilities() {
         Map<String, Object> result = new LinkedHashMap<>();
+        String resolvedSkillsDirectory = resolvedSkillsDirectory();
         SkillManager skillManager = manualSkillManager();
         int manualSkillCount = skillManager == null ? 0 : skillManager.getSkillCount();
         result.put("chatModelAvailable", chatModelProvider.getIfAvailable() != null);
@@ -273,7 +280,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         result.put("webSearchAvailable", webSearchToolCallbacks.length > 0);
         result.put("webSearchToolCount", webSearchToolCallbacks.length);
         result.put("webSearchStatus", webSearchStatus());
-        result.put("skillsDirectoryConfigured", StringUtils.hasText(skillsDirectory));
+        result.put("skillsDirectoryConfigured", StringUtils.hasText(resolvedSkillsDirectory));
+        result.put("skillsDirectory", resolvedSkillsDirectory);
+        result.put("skillsOutputDirectory", resolvedSkillsOutputDirectory());
         result.put("skillsToolAvailable", skillsToolCallbacks().length > 0);
         result.put("manualSkillsAvailable", manualSkillCount > 0);
         result.put("manualSkillCount", manualSkillCount);
@@ -348,18 +357,20 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
+        String outputDirectory = resolvedSkillsOutputDirectory();
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 webSearchToolCallbacks,
                 fileContentToolCallbacks(userId),
                 skillsToolCallbacks(),
-                FileSystemTools.create(),
+                FileSystemTools.create(outputDirectory),
                 GrepTool.create(),
-                BashTool.create()
+                BashTool.create(outputDirectory)
         );
         return SkillsReactAgent.builder()
                 .name("skills")
                 .chatModel(chatModel)
                 .tools(tools)
+                .systemPrompt(skillRuntimePrompt(outputDirectory))
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .contextPolicy(ContextPolicy.defaults())
@@ -367,24 +378,26 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
+        String outputDirectory = resolvedSkillsOutputDirectory();
         SkillManager skillManager = manualSkillManager();
         ToolCallback[] readSkillTools = skillManager == null
                 ? new ToolCallback[0]
                 : new ToolCallback[]{ReadSkillTool.create(skillManager.getRegistry())};
         String skillsPrompt = skillManager == null ? "" : skillManager.formatPrompt();
+        String runtimePrompt = skillRuntimePrompt(outputDirectory);
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 webSearchToolCallbacks,
                 fileContentToolCallbacks(userId),
                 readSkillTools,
-                FileSystemTools.create(),
+                FileSystemTools.create(outputDirectory),
                 GrepTool.create(),
-                BashTool.create()
+                BashTool.create(outputDirectory)
         );
         return SkillsReactAgent.builder()
                 .name("manual-skills")
                 .chatModel(chatModel)
                 .tools(tools)
-                .systemPrompt(skillsPrompt)
+                .systemPrompt((skillsPrompt + "\n" + runtimePrompt).trim())
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .maxRounds(10)
@@ -397,11 +410,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private ToolCallback[] skillsToolCallbacks() {
-        if (!StringUtils.hasText(skillsDirectory)) {
+        String directory = resolvedSkillsDirectory();
+        if (!StringUtils.hasText(directory)) {
             return new ToolCallback[0];
         }
         try {
-            return new ToolCallback[]{SkillsTool.builder().addSkillsDirectory(skillsDirectory).build()};
+            return new ToolCallback[]{SkillsTool.builder().addSkillsDirectory(directory).build()};
         } catch (IllegalArgumentException e) {
             LOGGER.warn("bear-doctor skills tool init skipped, reason={}", e.getMessage());
             return new ToolCallback[0];
@@ -409,18 +423,86 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private SkillManager manualSkillManager() {
-        if (!StringUtils.hasText(skillsDirectory)) {
+        String directory = resolvedSkillsDirectory();
+        if (!StringUtils.hasText(directory)) {
             return null;
         }
         try {
             SkillConfig skillConfig = SkillConfig.builder()
-                    .addDirectory(skillsDirectory)
+                    .addDirectory(directory)
                     .build();
             return SkillManager.create(skillConfig);
         } catch (Exception e) {
             LOGGER.warn("bear-doctor manual skills init skipped, reason={}", e.getClass().getSimpleName());
             return null;
         }
+    }
+
+    private String resolvedSkillsDirectory() {
+        if (!StringUtils.hasText(skillsDirectory)) {
+            return "";
+        }
+        String configured = skillsDirectory.trim();
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        List<Path> candidates = new ArrayList<>();
+        candidates.add(Path.of(configured));
+        candidates.add(cwd.resolve(configured).normalize());
+        candidates.add(cwd.resolve("skills").normalize());
+        candidates.add(cwd.resolve("..").resolve("skills").normalize());
+        candidates.add(cwd.resolve("..").resolve("..").resolve("skills").normalize());
+        for (Path candidate : candidates) {
+            if (Files.isDirectory(candidate)) {
+                return candidate.toAbsolutePath().normalize().toString();
+            }
+        }
+        return configured;
+    }
+
+    private String resolvedSkillsOutputDirectory() {
+        String configured = StringUtils.hasText(skillsOutputDirectory) ? skillsOutputDirectory.trim() : "outputs";
+        Path outputPath = Path.of(configured);
+        if (!outputPath.isAbsolute()) {
+            Path projectRoot = projectRoot();
+            outputPath = projectRoot.resolve(configured).normalize();
+        }
+        try {
+            Files.createDirectories(outputPath);
+        } catch (Exception e) {
+            LOGGER.warn("bear-doctor skills output directory create failed, path={}, reason={}",
+                    outputPath, e.getClass().getSimpleName());
+        }
+        return outputPath.toAbsolutePath().normalize().toString();
+    }
+
+    private Path projectRoot() {
+        String resolvedSkillsDirectory = resolvedSkillsDirectory();
+        if (StringUtils.hasText(resolvedSkillsDirectory)) {
+            Path skillsPath = Path.of(resolvedSkillsDirectory).toAbsolutePath().normalize();
+            if (Files.isDirectory(skillsPath) && skillsPath.getParent() != null) {
+                return skillsPath.getParent();
+            }
+        }
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        if ("backend".equalsIgnoreCase(cwd.getFileName() == null ? "" : cwd.getFileName().toString())
+                && cwd.getParent() != null) {
+            return cwd.getParent();
+        }
+        if ("agent-group-app".equalsIgnoreCase(cwd.getFileName() == null ? "" : cwd.getFileName().toString())
+                && cwd.getParent() != null
+                && cwd.getParent().getParent() != null) {
+            return cwd.getParent().getParent();
+        }
+        return cwd;
+    }
+
+    private String skillRuntimePrompt(String outputDirectory) {
+        return """
+                ## 技能产物输出规则
+                - 所有生成文件必须写入当前工作目录或当前工作目录的子目录。当前工作目录是：%s
+                - 不要把文件生成到项目根目录、后端 app 目录、用户目录或系统临时目录。
+                - 最终回答中不要暴露服务器本地绝对路径，例如 Windows 盘符路径或 Linux 绝对路径。
+                - 只需要说明文件已经生成，PDF、LaTeX、字幕等文件会由前端下载按钮提供给用户。
+                """.formatted(outputDirectory);
     }
 
     private <T extends BaseAgent> T withMemory(T agent, String conversationId) {
@@ -610,7 +692,16 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private String message(Throwable error) {
-        return error == null || !StringUtils.hasText(error.getMessage()) ? "处理失败" : error.getMessage();
+        if (error == null || !StringUtils.hasText(error.getMessage())) {
+            return "处理失败";
+        }
+        String message = error.getMessage();
+        String lower = message.toLowerCase();
+        if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
+                && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
+            return "本次请求已处理，请勿重复提交或刷新后重试";
+        }
+        return message;
     }
 
     private class OwnedFileContentTool {

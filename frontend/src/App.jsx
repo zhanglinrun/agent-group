@@ -27,6 +27,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import {
   createDirectOrder,
   deleteAcademicSession,
+  downloadAcademicArtifact,
   getAdminAuth,
   getModelConfig,
   getQuotaSummary,
@@ -45,6 +46,7 @@ import {
   queryQuotaPackages,
   queryUserOrderList,
   register,
+  requestAcademicAttachStream,
   requestAcademicResumeStream,
   requestAcademicStream,
   saveAdminAuth,
@@ -65,6 +67,18 @@ const AGENTS = [
 const EMPTY_MESSAGES = [];
 
 const normalizeUserMessage = normalizeApiMessage;
+
+function toUiArtifact(data = {}) {
+  return {
+    id: data.artifactId || `${data.fileName || data.title || "artifact"}_${data.downloadUrl || ""}`,
+    title: data.title || data.fileName || "生成文件",
+    type: data.artifactType || data.type || "ARTIFACT",
+    fileName: data.fileName || data.title || "artifact",
+    fileSize: data.fileSize || 0,
+    content: data.content || data.fileName || "",
+    downloadUrl: data.downloadUrl || ""
+  };
+}
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
@@ -99,7 +113,7 @@ function BearDoctorAcademicApp() {
   const [selectedAgent, setSelectedAgent] = useState("chat");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [runningChatIds, setRunningChatIds] = useState({});
   const [connectionError, setConnectionError] = useState("");
   const [quota, setQuota] = useState(null);
   const [quotaFlows, setQuotaFlows] = useState([]);
@@ -112,11 +126,12 @@ function BearDoctorAcademicApp() {
   const [copiedId, setCopiedId] = useState("");
   const messagesContainer = useRef(null);
   const fileInputRef = useRef(null);
-  const streamControllerRef = useRef(null);
+  const streamControllersRef = useRef({});
 
   const currentChat = useMemo(() => chatList.find((item) => item.id === currentChatId), [chatList, currentChatId]);
   const backendText = auth?.token ? `已登录：${auth.nickname || auth.username || auth.userId}` : "未登录";
   const currentTaskStatus = taskStatusByChat[currentChatId] || {};
+  const isSending = Boolean(runningChatIds[currentChatId]);
   const canResumeCurrentChat = Boolean((currentTaskStatus.stopped || currentChat?.stopped) && !isSending);
   const canUseFile = selectedAgent === "file" || selectedAgent === "skills";
 
@@ -135,12 +150,32 @@ function BearDoctorAcademicApp() {
     });
   }, [currentChatId]);
 
-  const updateCurrentChat = useCallback((updater) => {
+  const updateChat = useCallback((chatId, updater) => {
     setChatList((prev) => prev.map((chat) => {
-      if (chat.id !== currentChatId) return chat;
+      if (chat.id !== chatId) return chat;
       return typeof updater === "function" ? updater(chat) : { ...chat, ...updater };
     }));
-  }, [currentChatId]);
+  }, []);
+
+  const updateCurrentChat = useCallback((updater) => {
+    updateChat(currentChatId, updater);
+  }, [currentChatId, updateChat]);
+
+  const setChatRunning = useCallback((sessionId, running, extraStatus = {}) => {
+    setRunningChatIds((prev) => {
+      const next = { ...prev };
+      if (running) {
+        next[sessionId] = true;
+      } else {
+        delete next[sessionId];
+      }
+      return next;
+    });
+    setTaskStatusByChat((prev) => ({
+      ...prev,
+      [sessionId]: { ...(prev[sessionId] || {}), ...extraStatus, running }
+    }));
+  }, []);
 
   const loadQuota = useCallback(async () => {
     if (!getUserAuth()?.token) return;
@@ -156,7 +191,8 @@ function BearDoctorAcademicApp() {
     const res = await queryAcademicSessions(30);
     if (res.code !== "0000") return;
     setChatList((prev) => {
-      const current = prev.find((item) => item.id === currentChatId) || {
+      const previousById = new Map(prev.map((item) => [item.id, item]));
+      const current = previousById.get(currentChatId) || {
         id: currentChatId,
         title: "新对话",
         messages: EMPTY_MESSAGES,
@@ -166,10 +202,12 @@ function BearDoctorAcademicApp() {
         id: item.sessionId,
         title: item.title || "学术会话",
         lastMessage: item.lastMessage || "",
-        messages: item.sessionId === current.id ? current.messages : EMPTY_MESSAGES,
+        messages: previousById.get(item.sessionId)?.messages || EMPTY_MESSAGES,
         isNew: false
       }));
-      const merged = [current, ...remote].filter((item, index, list) => list.findIndex((other) => other.id === item.id) === index);
+      const remoteIds = new Set(remote.map((item) => item.id));
+      const localOnly = prev.filter((item) => !remoteIds.has(item.id));
+      const merged = [current, ...localOnly, ...remote].filter((item, index, list) => list.findIndex((other) => other.id === item.id) === index);
       return merged;
     });
   }, [currentChatId]);
@@ -194,13 +232,91 @@ function BearDoctorAcademicApp() {
     }
   }, []);
 
+  const toUiMessages = useCallback((items = []) => items.map((item, index) => ({
+    id: `${item.role || "MSG"}_${index}_${item.createTime || Date.now()}`,
+    role: item.role === "USER" ? "user" : "assistant",
+    content: item.content || "",
+    timeline: [],
+    reference: [],
+    recommend: [],
+    artifacts: (item.artifacts || []).map(toUiArtifact),
+    showTimeline: false,
+    showReference: false
+  })), []);
+
+  const refreshSessionDetail = useCallback(async (sessionId, keepMessageId = "") => {
+    if (!getUserAuth()?.token || !sessionId) return;
+    const res = await queryAcademicSessionDetail(sessionId);
+    if (res.code !== "0000") return;
+    const remoteMessages = toUiMessages(res.data?.messages || []);
+    setChatList((prev) => prev.map((chat) => {
+      if (chat.id !== sessionId) return chat;
+      const runningMessage = keepMessageId
+        ? chat.messages.find((message) => message.id === keepMessageId)
+        : null;
+      const shouldKeepRunning = runningMessage && runningMessage.content;
+      return {
+        ...chat,
+        isNew: false,
+        messages: shouldKeepRunning ? [...remoteMessages, runningMessage] : remoteMessages
+      };
+    }));
+  }, [toUiMessages]);
+
+  const attachRunningStream = useCallback((sessionId) => {
+    if (!sessionId || streamControllersRef.current[sessionId]) return;
+    const assistantId = `A_ATTACH_${Date.now()}`;
+    const assistantMsg = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      timeline: [{ type: "thinking", content: "正在接回后台任务..." }],
+      reference: [],
+      recommend: [],
+      artifacts: [],
+      showTimeline: true,
+      showReference: false
+    };
+    updateChat(sessionId, (chat) => ({
+      ...chat,
+      isNew: false,
+      messages: chat.messages.some((message) => message.id === assistantId)
+        ? chat.messages
+        : [...chat.messages, assistantMsg]
+    }));
+    refreshSessionDetail(sessionId, assistantId).catch(() => {});
+    setChatRunning(sessionId, true, { stopped: false });
+    streamControllersRef.current[sessionId] = requestAcademicAttachStream(
+      sessionId,
+      (event) => processStreamEvent(sessionId, assistantId, event),
+      () => {
+        delete streamControllersRef.current[sessionId];
+        setChatRunning(sessionId, false);
+        closeAssistantTimelineInChat(sessionId, assistantId);
+        loadQuota().catch(() => {});
+        loadSessions().catch(() => {});
+        loadTaskStatus(sessionId).catch(() => {});
+        refreshSessionDetail(sessionId).catch(() => {});
+      },
+      (error) => {
+        delete streamControllersRef.current[sessionId];
+        setChatRunning(sessionId, false);
+        appendAssistantTextInChat(sessionId, assistantId, `\n\n接回后台任务失败：${normalizeUserMessage(error.message, "服务暂不可用")}`);
+        loadTaskStatus(sessionId).catch(() => {});
+      }
+    );
+  }, [loadQuota, loadSessions, refreshSessionDetail, setChatRunning, updateChat]);
+
   const loadTaskStatus = useCallback(async (sessionId = currentChatId) => {
     if (!getUserAuth()?.token || !sessionId) return;
     const res = await queryAcademicTaskStatus(sessionId);
     if (res.code === "0000") {
       setTaskStatusByChat((prev) => ({ ...prev, [sessionId]: res.data || {} }));
+      if (res.data?.running && !streamControllersRef.current[sessionId]) {
+        attachRunningStream(sessionId);
+      }
     }
-  }, [currentChatId]);
+  }, [attachRunningStream, currentChatId]);
 
   const refreshRecharge = useCallback(async () => {
     await Promise.all([
@@ -248,7 +364,9 @@ function BearDoctorAcademicApp() {
     setConnectionError("");
     try {
       if (auth?.token && !target.isNew) {
-        if (taskStatusByChat[chatId]?.running) {
+        if (runningChatIds[chatId] || taskStatusByChat[chatId]?.running) {
+          streamControllersRef.current[chatId]?.abort();
+          delete streamControllersRef.current[chatId];
           await stopAcademicStream(chatId);
         }
         const res = await deleteAcademicSession(chatId);
@@ -281,20 +399,7 @@ function BearDoctorAcademicApp() {
     const chat = chatList.find((item) => item.id === chatId);
     if (!chat || chat.isNew || chat.messages.length > 0) return;
     try {
-      const res = await queryAcademicSessionDetail(chatId);
-      if (res.code !== "0000") return;
-      const messages = (res.data?.messages || []).map((item, index) => ({
-        id: `${item.role || "MSG"}_${index}_${item.createTime || Date.now()}`,
-        role: item.role === "USER" ? "user" : "assistant",
-        content: item.content || "",
-        timeline: [],
-        reference: [],
-        recommend: [],
-        artifacts: [],
-        showTimeline: false,
-        showReference: false
-      }));
-      setChatList((prev) => prev.map((item) => item.id === chatId ? { ...item, messages } : item));
+      await refreshSessionDetail(chatId);
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "会话详情读取失败"));
     }
@@ -363,6 +468,9 @@ function BearDoctorAcademicApp() {
   };
 
   const handleLogout = async () => {
+    Object.values(streamControllersRef.current).forEach((controller) => controller?.abort?.());
+    streamControllersRef.current = {};
+    setRunningChatIds({});
     await logout();
     setAuth(null);
     setQuota(null);
@@ -406,7 +514,10 @@ function BearDoctorAcademicApp() {
 
   const sendMessage = () => {
     const text = inputMessage.trim();
-    if (isSending || isUploading || (!text && !selectedFile)) return;
+    const sessionId = currentChatId;
+    const taskType = selectedAgent;
+    const file = selectedFile;
+    if (runningChatIds[sessionId] || isUploading || (!text && !file)) return;
     if (!auth?.token) {
       setLoginOpen(true);
       return;
@@ -421,8 +532,8 @@ function BearDoctorAcademicApp() {
       id: `U${Date.now()}`,
       role: "user",
       content: text || "请分析这个文件",
-      file: Boolean(selectedFile),
-      fileName: selectedFile?.name || ""
+      file: Boolean(file),
+      fileName: file?.name || ""
     };
     const assistantId = `A${Date.now()}`;
     const assistantMsg = {
@@ -437,60 +548,59 @@ function BearDoctorAcademicApp() {
       showReference: false
     };
 
-    updateCurrentChat((chat) => ({
+    updateChat(sessionId, (chat) => ({
       ...chat,
       title: chat.isNew && text ? `${text.slice(0, 20)}${text.length > 20 ? "..." : ""}` : chat.title,
       isNew: false,
       stopped: false,
       messages: [...chat.messages, userMsg, assistantMsg]
     }));
-    setTaskStatusByChat((prev) => ({ ...prev, [currentChatId]: { ...(prev[currentChatId] || {}), stopped: false, running: true } }));
+    setChatRunning(sessionId, true, { stopped: false });
     setInputMessage("");
     setConnectionError("");
-    setIsSending(true);
 
-    streamControllerRef.current = requestAcademicStream(
+    streamControllersRef.current[sessionId] = requestAcademicStream(
       {
-        sessionId: currentChatId,
+        sessionId,
         question: text || "请分析这个文件",
-        taskType: selectedAgent,
-        fileId: selectedFile?.fileId || "",
+        taskType,
+        fileId: file?.fileId || "",
         modelConfig
       },
-      (event) => processStreamEvent(assistantId, event),
+      (event) => processStreamEvent(sessionId, assistantId, event),
       () => {
-        setIsSending(false);
-        streamControllerRef.current = null;
-        closeAssistantTimeline(assistantId);
+        delete streamControllersRef.current[sessionId];
+        setChatRunning(sessionId, false);
+        closeAssistantTimelineInChat(sessionId, assistantId);
         loadQuota().catch(() => {});
         loadSessions().catch(() => {});
-        loadTaskStatus(currentChatId).catch(() => {});
+        loadTaskStatus(sessionId).catch(() => {});
       },
       (error) => {
-        setIsSending(false);
-        streamControllerRef.current = null;
-        appendAssistantText(assistantId, `\n\n请求出错：${normalizeUserMessage(error.message, "服务暂不可用")}`);
-        loadTaskStatus(currentChatId).catch(() => {});
+        delete streamControllersRef.current[sessionId];
+        setChatRunning(sessionId, false);
+        appendAssistantTextInChat(sessionId, assistantId, `\n\n请求出错：${normalizeUserMessage(error.message, "服务暂不可用")}`);
+        loadTaskStatus(sessionId).catch(() => {});
       }
     );
   };
 
-  const processStreamEvent = (messageId, event) => {
+  const processStreamEvent = (chatId, messageId, event) => {
     const data = event.data || {};
     if (event.event === "answer_delta") {
-      appendAssistantText(messageId, data.content || "");
+      appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
     if (event.event === "task_status") {
       const statusMessage = normalizeUserMessage(data.message || data.stage, "正在处理");
-      updateAssistant(messageId, (message) => ({
+      updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
         timeline: mergeThinking(message.timeline, statusMessage)
       }));
       return;
     }
     if (event.event === "reference_delta") {
-      updateAssistant(messageId, (message) => ({
+      updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
         reference: [...(message.reference || []), {
           title: data.title || data.fileId || "参考资料",
@@ -501,21 +611,16 @@ function BearDoctorAcademicApp() {
       return;
     }
     if (event.event === "artifact_delta") {
-      updateAssistant(messageId, (message) => ({
+      updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
-        artifacts: [...(message.artifacts || []), {
-          title: data.title || "可编辑产物",
-          type: data.artifactType || "ARTIFACT",
-          content: data.content || "",
-          downloadUrl: data.downloadUrl || data.content || ""
-        }]
+        artifacts: [...(message.artifacts || []), toUiArtifact(data)]
       }));
       return;
     }
     if (event.event === "recommend_delta") {
       const items = normalizeRecommendItems(data.items ?? data.content ?? data);
       if (!items.length) return;
-      updateAssistant(messageId, (message) => ({
+      updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
         recommend: [...(message.recommend || []), ...items]
       }));
@@ -526,7 +631,7 @@ function BearDoctorAcademicApp() {
       return;
     }
     if (event.event === "usage_metric") {
-      updateAssistant(messageId, (message) => ({
+      updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
         timeline: [...(message.timeline || []), {
           type: "tool",
@@ -538,30 +643,42 @@ function BearDoctorAcademicApp() {
     }
     if (event.event === "error") {
       const errorMessage = normalizeUserMessage(data.message, "处理失败");
-      updateAssistant(messageId, (message) => ({
+      updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
         timeline: [...(message.timeline || []), { type: "error", message: errorMessage }]
       }));
-      appendAssistantText(messageId, `\n\n${errorMessage}`);
+      appendAssistantTextInChat(chatId, messageId, `\n\n${errorMessage}`);
     }
   };
 
-  const updateAssistant = (messageId, updater) => {
-    updateCurrentChat((chat) => ({
+  const updateAssistantInChat = (chatId, messageId, updater) => {
+    updateChat(chatId, (chat) => ({
       ...chat,
       messages: chat.messages.map((message) => message.id === messageId ? updater(message) : message)
     }));
   };
 
-  const appendAssistantText = (messageId, text) => {
-    updateAssistant(messageId, (message) => ({ ...message, content: `${message.content}${text}` }));
+  const updateAssistant = (messageId, updater) => {
+    updateAssistantInChat(currentChatId, messageId, updater);
   };
 
-  const closeAssistantTimeline = (messageId) => {
-    updateAssistant(messageId, (message) => {
+  const appendAssistantTextInChat = (chatId, messageId, text) => {
+    updateAssistantInChat(chatId, messageId, (message) => ({ ...message, content: `${message.content}${text}` }));
+  };
+
+  const appendAssistantText = (messageId, text) => {
+    appendAssistantTextInChat(currentChatId, messageId, text);
+  };
+
+  const closeAssistantTimelineInChat = (chatId, messageId) => {
+    updateAssistantInChat(chatId, messageId, (message) => {
       const hasError = (message.timeline || []).some((item) => item.type === "error");
       return { ...message, showTimeline: hasError };
     });
+  };
+
+  const closeAssistantTimeline = (messageId) => {
+    closeAssistantTimelineInChat(currentChatId, messageId);
   };
 
   const mergeThinking = (timeline = [], content) => {
@@ -575,19 +692,17 @@ function BearDoctorAcademicApp() {
   };
 
   const stopMessage = async () => {
-    streamControllerRef.current?.abort();
-    streamControllerRef.current = null;
-    await stopAcademicStream(currentChatId);
-    updateCurrentChat((chat) => ({ ...chat, stopped: true }));
-    setTaskStatusByChat((prev) => ({
-      ...prev,
-      [currentChatId]: { ...(prev[currentChatId] || {}), running: false, stopped: true, resumable: true }
-    }));
-    setIsSending(false);
+    const sessionId = currentChatId;
+    streamControllersRef.current[sessionId]?.abort();
+    delete streamControllersRef.current[sessionId];
+    await stopAcademicStream(sessionId);
+    updateChat(sessionId, (chat) => ({ ...chat, stopped: true }));
+    setChatRunning(sessionId, false, { stopped: true, resumable: true });
   };
 
   const resumeMessage = () => {
-    if (isSending || !auth?.token) return;
+    const sessionId = currentChatId;
+    if (runningChatIds[sessionId] || !auth?.token) return;
     if (!modelConfigReady(modelConfig)) {
       setConnectionError("请先补全自定义模型的 API 地址和密钥");
       setModelConfigOpen(true);
@@ -605,31 +720,30 @@ function BearDoctorAcademicApp() {
       showTimeline: true,
       showReference: false
     };
-    updateCurrentChat((chat) => ({
+    updateChat(sessionId, (chat) => ({
       ...chat,
       stopped: false,
       messages: [...chat.messages, assistantMsg]
     }));
-    setTaskStatusByChat((prev) => ({ ...prev, [currentChatId]: { ...(prev[currentChatId] || {}), stopped: false, running: true } }));
+    setChatRunning(sessionId, true, { stopped: false });
     setConnectionError("");
-    setIsSending(true);
-    streamControllerRef.current = requestAcademicResumeStream(
-      currentChatId,
+    streamControllersRef.current[sessionId] = requestAcademicResumeStream(
+      sessionId,
       modelConfig,
-      (event) => processStreamEvent(assistantId, event),
+      (event) => processStreamEvent(sessionId, assistantId, event),
       () => {
-        setIsSending(false);
-        streamControllerRef.current = null;
-        closeAssistantTimeline(assistantId);
+        delete streamControllersRef.current[sessionId];
+        setChatRunning(sessionId, false);
+        closeAssistantTimelineInChat(sessionId, assistantId);
         loadQuota().catch(() => {});
         loadSessions().catch(() => {});
-        loadTaskStatus(currentChatId).catch(() => {});
+        loadTaskStatus(sessionId).catch(() => {});
       },
       (error) => {
-        setIsSending(false);
-        streamControllerRef.current = null;
-        appendAssistantText(assistantId, `\n\n继续生成失败：${normalizeUserMessage(error.message, "服务暂不可用")}`);
-        loadTaskStatus(currentChatId).catch(() => {});
+        delete streamControllersRef.current[sessionId];
+        setChatRunning(sessionId, false);
+        appendAssistantTextInChat(sessionId, assistantId, `\n\n继续生成失败：${normalizeUserMessage(error.message, "服务暂不可用")}`);
+        loadTaskStatus(sessionId).catch(() => {});
       }
     );
   };
@@ -646,6 +760,15 @@ function BearDoctorAcademicApp() {
     await navigator.clipboard.writeText(message.content || "");
     setCopiedId(message.id);
     setTimeout(() => setCopiedId(""), 1400);
+  };
+
+  const handleArtifactDownload = async (artifact) => {
+    try {
+      await downloadAcademicArtifact(artifact.downloadUrl, artifact.fileName || artifact.title || "artifact");
+      setToast("文件已开始下载");
+    } catch (error) {
+      setConnectionError(normalizeUserMessage(error.message, "文件下载失败"));
+    }
   };
 
   const handleSaveAdminAuth = () => {
@@ -836,6 +959,7 @@ function BearDoctorAcademicApp() {
                   onToggleTimeline={toggleTimeline}
                   onToggleReference={toggleReference}
                   onRecommendClick={quickPrompt}
+                  onDownloadArtifact={handleArtifactDownload}
                 />
               ))
             )}
@@ -988,7 +1112,7 @@ function BearDoctorAcademicApp() {
   );
 }
 
-function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick }) {
+function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick, onDownloadArtifact }) {
   const isUser = msg.role === "user";
   return (
     <div className={`message ${msg.role}`}>
@@ -1064,12 +1188,13 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                   <div className="artifact-card" key={`${artifact.title}-${index}`}>
                     <div className="artifact-title">{artifact.title}<span>{artifact.type}</span></div>
                     {artifact.downloadUrl && (
-                      <a className="artifact-download" href={artifact.downloadUrl} target="_blank" rel="noreferrer" download>
+                      <button type="button" className="artifact-download" onClick={() => onDownloadArtifact(artifact)}>
                         <Download size={15} />
-                        <span>下载 PPTX</span>
-                      </a>
+                        <span>下载 {artifact.type || "文件"}</span>
+                      </button>
                     )}
-                    <pre>{artifact.content}</pre>
+                    <pre>{artifact.fileName || artifact.content}</pre>
+                    {artifact.fileSize ? <small>{formatFileSize(artifact.fileSize)}</small> : null}
                   </div>
                 ))}
               </div>

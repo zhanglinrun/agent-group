@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -49,9 +50,18 @@ public class GlobalExceptionHandler {
         log.error("系统异常", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Response.fail(
                 ResponseCode.SYSTEM_ERROR.getCode(),
-                "系统繁忙，请稍后再试",
+                normalizeSystemMessage(e),
                 RequestTraceContext.getRequestId()
         ));
+    }
+
+    private String normalizeSystemMessage(Exception e) {
+        String message = e == null ? "" : e.getMessage();
+        if (!StringUtils.hasText(message)) {
+            return "系统繁忙，请稍后再试";
+        }
+        String normalized = normalizeMessage(message);
+        return normalized.equals(message) ? "系统繁忙，请稍后再试" : normalized;
     }
 
     private String normalizeMessage(String message) {
@@ -130,6 +140,10 @@ public class GlobalExceptionHandler {
         }
         if (lower.contains("human approval not found")) {
             return "人工确认记录不存在";
+        }
+        if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
+                && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
+            return "本次请求已处理，请勿重复提交或刷新后重试";
         }
         return message;
     }

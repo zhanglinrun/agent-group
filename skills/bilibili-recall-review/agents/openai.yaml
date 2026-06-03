@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bilibili Recall Review"
+  short_description: "Check Bilibili notes for subtitle omissions."
+  default_prompt: "Use $bilibili-recall-review to review the generated .tex notes against the original subtitle file and report missing useful content only."

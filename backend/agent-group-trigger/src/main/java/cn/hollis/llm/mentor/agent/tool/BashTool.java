@@ -48,7 +48,20 @@ public class BashTool {
      * @return ToolCallback 数组，包含 bash 工具
      */
     public static ToolCallback[] create() {
-        BashTool tool = builder().build();
+        return create(null);
+    }
+
+    public static ToolCallback[] create(String workingDirectory) {
+        Builder builder = builder();
+        if (workingDirectory != null && !workingDirectory.isBlank()) {
+            builder.sessionManager(ShellSessionManager.builder()
+                    .initialDirectory(workingDirectory)
+                    .timeoutMs(builder.timeoutMs)
+                    .maxLines(builder.maxLines)
+                    .maxBytes(builder.maxBytes)
+                    .build());
+        }
+        BashTool tool = builder.build();
         String dynamicDescription = buildDynamicDescription();
         return new ToolCallback[]{
             FunctionToolCallback.builder("bash", new BashToolFunction(tool))

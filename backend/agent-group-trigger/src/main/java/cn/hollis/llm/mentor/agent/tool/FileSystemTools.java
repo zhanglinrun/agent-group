@@ -694,6 +694,10 @@ public class FileSystemTools {
         return ToolCallbacks.from(new FileSystemTools());
     }
 
+    public static ToolCallback[] create(String rootDir) {
+        return ToolCallbacks.from(new FileSystemTools(rootDir, false, DEFAULT_MAX_FILE_SIZE_MB));
+    }
+
     /**
      * 创建 Builder 实例。
      *

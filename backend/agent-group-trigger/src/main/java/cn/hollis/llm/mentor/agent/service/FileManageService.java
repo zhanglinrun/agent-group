@@ -58,6 +58,7 @@ public class FileManageService {
      * 大文件阈值（字符数）
      */
     private static final int LARGE_FILE_THRESHOLD = 5000;
+    private static final int MAX_RECOVERED_TEXT_LENGTH = 20000;
 
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
@@ -235,6 +236,7 @@ public class FileManageService {
         if (fileInfo == null) {
             throw new IllegalArgumentException("文件不存在: " + fileId);
         }
+        recoverExtractedTextIfNeeded(fileInfo);
         return fileInfo;
     }
 
@@ -384,7 +386,41 @@ public class FileManageService {
         return ("pdf".equalsIgnoreCase(fileType) ||
                 "docx".equalsIgnoreCase(fileType) ||
                 "doc".equalsIgnoreCase(fileType) ||
-                "txt".equalsIgnoreCase(fileType));
+                "txt".equalsIgnoreCase(fileType) ||
+                "md".equalsIgnoreCase(fileType) ||
+                "markdown".equalsIgnoreCase(fileType));
+    }
+
+    private boolean isPlainTextFile(String fileType) {
+        return ("txt".equalsIgnoreCase(fileType) ||
+                "md".equalsIgnoreCase(fileType) ||
+                "markdown".equalsIgnoreCase(fileType));
+    }
+
+    private void recoverExtractedTextIfNeeded(FileInfo fileInfo) {
+        if (fileInfo == null
+                || fileInfo.getStatus() != FileInfo.FileStatus.SUCCESS
+                || StringUtils.isNotBlank(fileInfo.getExtractedText())
+                || !isPlainTextFile(fileInfo.getFileType())) {
+            return;
+        }
+        String objectName = StringUtils.isNotBlank(fileInfo.getMinioPath())
+                ? extractObjectName(fileInfo.getMinioPath())
+                : generateObjectName(fileInfo.getFileId(), fileInfo.getFileType());
+        try (InputStream inputStream = minioService.downloadFile(objectName)) {
+            String text = IOUtils.toString(inputStream, java.nio.charset.StandardCharsets.UTF_8).trim();
+            if (StringUtils.isBlank(text)) {
+                return;
+            }
+            String recoveredText = text.length() > MAX_RECOVERED_TEXT_LENGTH
+                    ? text.substring(0, MAX_RECOVERED_TEXT_LENGTH) + "\n\n... (内容已截断，文件过长)"
+                    : text;
+            fileInfo.setExtractedText(recoveredText);
+            fileInfoService.updateFileInfo(fileInfo);
+            log.info("文件文本内容已补充恢复: fileId={}, 文本长度: {}", fileInfo.getFileId(), recoveredText.length());
+        } catch (Exception e) {
+            log.warn("文件文本内容恢复失败: fileId={}, reason={}", fileInfo.getFileId(), e.getClass().getSimpleName());
+        }
     }
 
     /**

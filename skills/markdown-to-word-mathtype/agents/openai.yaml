@@ -1,0 +1,4 @@
+interface:
+  display_name: "Markdown To Word"
+  short_description: "Convert Markdown to styled Word with MathType equations"
+  default_prompt: "Convert the provided Markdown file to a styled Word document and turn TeX formulas into MathType equations."

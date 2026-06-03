@@ -9,7 +9,11 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -28,6 +32,7 @@ public class ShellSessionManager {
     private final long timeoutMs;
     private final Charset charset;
     private final boolean mergeOutput;
+    private final String initialDirectory;
     private final Map<String, ShellSession> sessions;
 
     private ShellSessionManager(Builder builder) {
@@ -36,6 +41,7 @@ public class ShellSessionManager {
         this.timeoutMs = builder.timeoutMs;
         this.charset = builder.charset;
         this.mergeOutput = builder.mergeOutput;
+        this.initialDirectory = builder.initialDirectory;
         this.sessions = new ConcurrentHashMap<>();
     }
 
@@ -59,7 +65,7 @@ public class ShellSessionManager {
     public CommandResult executeCommand(String sessionId, String command, String directory) {
         ShellSession session = sessions.computeIfAbsent(sessionId, id -> {
             log.debug("Creating new shell session: {}", id);
-            return new ShellSession(id);
+            return new ShellSession(id, initialDirectory);
         });
 
         // 更新工作目录
@@ -134,6 +140,8 @@ public class ShellSessionManager {
                 processBuilder.redirectErrorStream(true);
             }
 
+            configureRuntimePath(processBuilder, workingDir);
+
             log.debug("Executing command in session {}: {} in directory {}",
                 session.id, command, workingDir);
 
@@ -188,6 +196,54 @@ public class ShellSessionManager {
             log.warn("Command execution interrupted in session {}", session.id);
             return new CommandResult(-1, "", "Interrupted", session.lastDirectory);
         }
+    }
+
+    private void configureRuntimePath(ProcessBuilder processBuilder, File workingDir) {
+        Path runtimeBin = findRuntimeBin(workingDir);
+        if (runtimeBin == null) {
+            return;
+        }
+        Map<String, String> env = processBuilder.environment();
+        String pathKey = env.containsKey("Path") ? "Path" : "PATH";
+        String currentPath = env.getOrDefault(pathKey, "");
+        String separator = File.pathSeparator;
+        String runtimeBinText = runtimeBin.toAbsolutePath().normalize().toString();
+        if (containsPathEntry(currentPath, runtimeBinText, separator)) {
+            return;
+        }
+        env.put(pathKey, runtimeBinText + (currentPath.isBlank() ? "" : separator + currentPath));
+    }
+
+    private boolean containsPathEntry(String pathValue, String expected, String separator) {
+        if (pathValue == null || pathValue.isBlank()) {
+            return false;
+        }
+        for (String entry : pathValue.split(java.util.regex.Pattern.quote(separator))) {
+            if (expected.equalsIgnoreCase(entry.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Path findRuntimeBin(File workingDir) {
+        Set<Path> bases = new LinkedHashSet<>();
+        if (workingDir != null) {
+            bases.add(workingDir.toPath().toAbsolutePath().normalize());
+        }
+        bases.add(Path.of("").toAbsolutePath().normalize());
+
+        for (Path base : bases) {
+            Path current = base;
+            while (current != null) {
+                Path candidate = current.resolve("tools").resolve("runtime-bin").normalize();
+                if (Files.isDirectory(candidate)) {
+                    return candidate;
+                }
+                current = current.getParent();
+            }
+        }
+        return null;
     }
 
     /**
@@ -406,9 +462,15 @@ public class ShellSessionManager {
         private final long createdAt;
 
         public ShellSession(String id) {
+            this(id, null);
+        }
+
+        public ShellSession(String id, String initialDirectory) {
             this.id = id;
             this.createdAt = System.currentTimeMillis();
-            this.lastDirectory = System.getProperty("user.dir");
+            this.lastDirectory = initialDirectory == null || initialDirectory.isBlank()
+                    ? System.getProperty("user.dir")
+                    : initialDirectory;
         }
 
         public String id() {
@@ -446,6 +508,7 @@ public class ShellSessionManager {
         private long timeoutMs = 120000;
         private Charset charset = StandardCharsets.UTF_8;
         private boolean mergeOutput = false;
+        private String initialDirectory;
 
         /**
          * 设置最大行数限制
@@ -499,6 +562,11 @@ public class ShellSessionManager {
          */
         public Builder mergeOutput(boolean mergeOutput) {
             this.mergeOutput = mergeOutput;
+            return this;
+        }
+
+        public Builder initialDirectory(String initialDirectory) {
+            this.initialDirectory = initialDirectory;
             return this;
         }
 

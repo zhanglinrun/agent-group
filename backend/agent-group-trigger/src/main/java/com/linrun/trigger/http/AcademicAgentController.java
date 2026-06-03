@@ -11,6 +11,10 @@ import com.linrun.domain.agent.conversation.adapter.GuideStreamControlRepository
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.common.Response;
 import org.springframework.http.MediaType;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,6 +32,8 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -78,11 +84,24 @@ public class AcademicAgentController {
                 : "AS" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
         guideStreamControlRepository.clearStopped(sessionId);
-        return academicBearDoctorAgentHandler.streamEventFlux(
+        return academicBearDoctorAgentHandler.backgroundStreamEventFlux(
                         token,
                         safeRequest,
                         sessionId,
                         requestId)
+                .map(this::toJson);
+    }
+
+    @PostMapping(value = "/stream/attach", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
+    public Flux<String> attach(@RequestHeader(value = "Authorization", required = false) String token,
+                               @RequestBody(required = false) AcademicAgentStreamRequest request) {
+        String sessionId = request == null ? "" : request.getSessionId();
+        String requestId = UUID.randomUUID().toString();
+        if (!StringUtils.hasText(sessionId)) {
+            return Flux.just(toJson(GuideStreamEvent.of("error", "", requestId, 1,
+                    Map.of("code", "0001", "message", "会话编号不能为空"))));
+        }
+        return academicBearDoctorAgentHandler.attachEventFlux(token, sessionId, requestId)
                 .map(this::toJson);
     }
 
@@ -125,6 +144,23 @@ public class AcademicAgentController {
             @PathVariable String sessionId) {
         academicBearDoctorAgentHandler.deleteSession(token, sessionId);
         return Response.success(true, RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/artifacts/download")
+    public ResponseEntity<InputStreamResource> downloadArtifact(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestParam String sessionId,
+            @RequestParam String artifactId) throws Exception {
+        AcademicArtifactService.DownloadArtifact artifact =
+                academicBearDoctorAgentHandler.downloadArtifact(token, sessionId, artifactId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(artifact.contentType()))
+                .contentLength(artifact.size())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(artifact.fileName(), StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
+                .body(new InputStreamResource(Files.newInputStream(artifact.path())));
     }
 
     private void copyRuntimeLlmConfig(AcademicAgentStreamRequest source, AcademicAgentStreamRequest target) {

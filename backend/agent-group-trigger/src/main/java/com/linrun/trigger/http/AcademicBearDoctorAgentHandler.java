@@ -37,6 +37,8 @@ public class AcademicBearDoctorAgentHandler {
     private final UserQuotaService userQuotaService;
     private final AgentTaskManager taskManager;
     private final AiPptInstService aiPptInstService;
+    private final AcademicBackgroundStreamService backgroundStreamService;
+    private final AcademicArtifactService academicArtifactService;
     private final ObjectMapper objectMapper;
 
     public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
@@ -44,13 +46,36 @@ public class AcademicBearDoctorAgentHandler {
                                     UserQuotaService userQuotaService,
                                     AgentTaskManager taskManager,
                                     AiPptInstService aiPptInstService,
+                                    AcademicBackgroundStreamService backgroundStreamService,
+                                    AcademicArtifactService academicArtifactService,
                                     ObjectMapper objectMapper) {
         this.bearDoctorNativeAgentService = bearDoctorNativeAgentService;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
         this.taskManager = taskManager;
         this.aiPptInstService = aiPptInstService;
+        this.backgroundStreamService = backgroundStreamService;
+        this.academicArtifactService = academicArtifactService;
         this.objectMapper = objectMapper;
+    }
+
+    public Flux<GuideStreamEvent<?>> backgroundStreamEventFlux(String token,
+                                                               AcademicAgentStreamRequest request,
+                                                               String sessionId,
+                                                               String requestId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        String taskKey = internalSessionId(user.getUserId(), sessionId);
+        return backgroundStreamService.startOrAttach(taskKey,
+                () -> streamEventFlux(token, request, sessionId, requestId));
+    }
+
+    public Flux<GuideStreamEvent<?>> attachEventFlux(String token,
+                                                     String sessionId,
+                                                     String requestId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        String taskKey = internalSessionId(user.getUserId(), sessionId);
+        return backgroundStreamService.attach(taskKey)
+                .switchIfEmpty(Flux.just(event("done", sessionId, requestId, new AtomicInteger(1), "done")));
     }
 
     public Flux<GuideStreamEvent<?>> streamEventFlux(String token,
@@ -63,13 +88,14 @@ public class AcademicBearDoctorAgentHandler {
             String taskType = normalizeTaskType(safeRequest.getTaskType());
             String query = normalizeQuery(safeRequest, taskType);
             String fileId = nullToBlank(safeRequest.getFileId());
+            long startedAt = System.currentTimeMillis();
             AtomicInteger sequence = new AtomicInteger(1);
 
             return bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
                             safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(), safeRequest.getLlmModel())
                     .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence))
-                    .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(user, sessionId, requestId, sequence, taskType))))
-                    .onErrorResume(error -> Flux.just(errorEvent(sessionId, requestId, sequence, error)));
+                    .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(user, sessionId, requestId, sequence, taskType, startedAt))))
+                    .onErrorResume(error -> Flux.just(errorEvent(sessionId, requestId, sequence, error, hasCustomModelConfig(safeRequest))));
         });
     }
 
@@ -92,11 +118,13 @@ public class AcademicBearDoctorAgentHandler {
         List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("sessionId", sessionId);
-        data.put("running", taskManager.hasRunningTask(internalSessionId));
+        boolean running = taskManager.hasRunningTask(internalSessionId)
+                || backgroundStreamService.isRunning(internalSessionId);
+        data.put("running", running);
         data.put("stopped", false);
         data.put("exists", !messages.isEmpty());
         data.put("messageCount", messages.size());
-        data.put("resumable", !messages.isEmpty() && !taskManager.hasRunningTask(internalSessionId));
+        data.put("resumable", !messages.isEmpty() && !running);
         return data;
     }
 
@@ -132,16 +160,50 @@ public class AcademicBearDoctorAgentHandler {
         AcademicSessionDetailResponse response = new AcademicSessionDetailResponse();
         response.setSessionId(sessionId);
         List<AcademicSessionDetailResponse.Message> messages = new ArrayList<>();
+        String lastAssistantAnswer = "";
         for (AiSession session : bearDoctorNativeAgentService.querySessionMessages(token, sessionId)) {
             if (StringUtils.hasText(session.getQuestion())) {
                 messages.add(toMessage("USER", session.getQuestion(), session.getCreateTime()));
             }
             if (StringUtils.hasText(session.getAnswer())) {
-                messages.add(toMessage("ASSISTANT", session.getAnswer(), session.getUpdateTime()));
+                lastAssistantAnswer = session.getAnswer();
+                messages.add(toMessage("ASSISTANT", academicArtifactService.sanitizeLocalPaths(session.getAnswer()), session.getUpdateTime()));
+            }
+        }
+        UserAccount user = userAccountService.requireUserByToken(token);
+        List<AcademicSessionDetailResponse.Artifact> artifacts =
+                academicArtifactService.loadManifest(user.getUserId(), sessionId);
+        if (artifacts.isEmpty()) {
+            artifacts = academicArtifactService.collectFromAnswerAndSave(user.getUserId(), sessionId, lastAssistantAnswer);
+        }
+        if (!artifacts.isEmpty()) {
+            for (int i = messages.size() - 1; i >= 0; i--) {
+                AcademicSessionDetailResponse.Message message = messages.get(i);
+                if ("ASSISTANT".equals(message.getRole())) {
+                    message.setArtifacts(artifacts);
+                    break;
+                }
             }
         }
         response.setMessages(messages);
         return response;
+    }
+
+    public AcademicArtifactService.DownloadArtifact downloadArtifact(String token,
+                                                                     String sessionId,
+                                                                     String artifactId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
+        if (messages.isEmpty()) {
+            throw new AppException("ARTIFACT_0004", "会话不存在或无权访问");
+        }
+        List<AcademicSessionDetailResponse.Artifact> artifacts =
+                academicArtifactService.loadManifest(user.getUserId(), sessionId);
+        boolean allowed = artifacts.stream().anyMatch(artifact -> artifactId.equals(artifact.getArtifactId()));
+        if (!allowed) {
+            throw new AppException("ARTIFACT_0004", "会话不存在或无权访问");
+        }
+        return academicArtifactService.resolveDownload(artifactId);
     }
 
     private List<GuideStreamEvent<?>> toEvents(String raw,
@@ -155,7 +217,8 @@ public class AcademicBearDoctorAgentHandler {
             JsonNode node = objectMapper.readTree(raw);
             String type = text(node, "type");
             return switch (type) {
-                case "text" -> List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", content(node))));
+                case "text" -> List.of(event("answer_delta", sessionId, requestId, sequence,
+                        Map.of("content", academicArtifactService.sanitizeLocalPaths(content(node)))));
                 case "thinking" -> List.of(event("task_status", sessionId, requestId, sequence,
                         status("THINKING", content(node))));
                 case "tool_start" -> List.of(event("task_status", sessionId, requestId, sequence,
@@ -178,11 +241,19 @@ public class AcademicBearDoctorAgentHandler {
                                                        String sessionId,
                                                        String requestId,
                                                        AtomicInteger sequence,
-                                                       String taskType) {
+                                                       String taskType,
+                                                       long startedAt) {
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         if ("ppt".equals(taskType)) {
             pptArtifact(user, sessionId).ifPresent(artifact ->
                     events.add(event("artifact_delta", sessionId, requestId, sequence, artifact)));
+        }
+        if ("skills".equals(taskType)) {
+            for (AcademicSessionDetailResponse.Artifact artifact :
+                    academicArtifactService.collectAndSave(user.getUserId(), sessionId, startedAt)) {
+                events.add(event("artifact_delta", sessionId, requestId, sequence,
+                        academicArtifactService.toEventPayload(artifact)));
+            }
         }
         QuotaAccountResponse quota = userQuotaService.queryAccountResponse(user.getUserId());
         events.add(event("quota_delta", sessionId, requestId, sequence, quota));
@@ -255,9 +326,18 @@ public class AcademicBearDoctorAgentHandler {
                                            String requestId,
                                            AtomicInteger sequence,
                                            Throwable error) {
+        return errorEvent(sessionId, requestId, sequence, error, false);
+    }
+
+    private GuideStreamEvent<?> errorEvent(String sessionId,
+                                           String requestId,
+                                           AtomicInteger sequence,
+                                           Throwable error,
+                                           boolean customModel) {
         return event("error", sessionId, requestId, sequence,
                 error(error instanceof AppException appException ? appException.getCode() : "AGENT_0001",
-                        error == null ? "处理失败" : error.getMessage()));
+                        error == null ? "处理失败" : error.getMessage(),
+                        customModel));
     }
 
     private GuideStreamEvent<?> event(String event,
@@ -273,26 +353,51 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     private Map<String, String> error(String code, String message) {
+        return error(code, message, false);
+    }
+
+    private Map<String, String> error(String code, String message, boolean customModel) {
         return Map.of("code", StringUtils.hasText(code) ? code : "AGENT_0001",
-                "message", normalizeErrorMessage(message));
+                "message", normalizeErrorMessage(message, customModel));
     }
 
     private String normalizeErrorMessage(String message) {
+        return normalizeErrorMessage(message, false);
+    }
+
+    private String normalizeErrorMessage(String message, boolean customModel) {
         if (!StringUtils.hasText(message)) {
             return "处理失败";
         }
         String lower = message.toLowerCase();
+        if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
+                && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
+            return "本次请求已处理，请勿重复提交或刷新后重试";
+        }
         if ((lower.contains("401 unauthorized") || lower.contains("unauthorized"))
                 && (lower.contains("dashscope")
                 || lower.contains("chat/completions")
                 || lower.contains("openai")
                 || lower.contains("api key"))) {
+            if (customModel || !lower.contains("dashscope")) {
+                return "自定义模型接口认证失败，请检查模型配置里的 API 地址、密钥和模型名";
+            }
             return "模型密钥无效或权限不足，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
         }
         if (lower.contains("api key") && (lower.contains("invalid") || lower.contains("not configured"))) {
+            if (customModel || !lower.contains("dashscope")) {
+                return "自定义模型配置不可用，请检查模型配置里的 API 地址、密钥和模型名";
+            }
             return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
         }
         return message;
+    }
+
+    private boolean hasCustomModelConfig(AcademicAgentStreamRequest request) {
+        return request != null
+                && (StringUtils.hasText(request.getLlmBaseUrl())
+                || StringUtils.hasText(request.getLlmApiKey())
+                || StringUtils.hasText(request.getLlmModel()));
     }
 
     private AcademicSessionSummaryDTO toSummary(UserAccount user, AiSession session) {

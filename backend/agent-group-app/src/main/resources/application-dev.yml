@@ -174,7 +174,8 @@ grsai:
     api-key: ${GRSAI_NANOBANANA_API_KEY:}
 
 skills:
-  directory: ${AGENT_GROUP_SKILLS_DIRECTORY:}
+  directory: ${AGENT_GROUP_SKILLS_DIRECTORY:skills}
+  output-directory: ${AGENT_GROUP_SKILLS_OUTPUT_DIRECTORY:outputs}
 
 mybatis:
   mapper-locations: classpath*:/mybatis/mapper/*.xml
