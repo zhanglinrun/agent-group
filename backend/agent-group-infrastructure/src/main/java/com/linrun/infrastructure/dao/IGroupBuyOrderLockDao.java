@@ -42,6 +42,9 @@ public interface IGroupBuyOrderLockDao {
     List<String> queryTimeoutUnsettledPaidOrderIds(@Param("deadline") LocalDateTime deadline,
                                                    @Param("limit") int limit);
 
+    List<String> queryTimeoutUnsettledLockedOrderIds(@Param("deadline") LocalDateTime deadline,
+                                                     @Param("limit") int limit);
+
     int countUserActivityLocks(@Param("userId") String userId, @Param("activityId") String activityId);
 
     List<GroupBuyTeamDetailPO> queryInProgressOwnerTeamDetails(@Param("activityId") String activityId,

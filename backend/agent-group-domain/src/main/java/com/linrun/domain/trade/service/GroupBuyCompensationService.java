@@ -108,7 +108,7 @@ public class GroupBuyCompensationService {
         validateGroupBuyOrder(tradeOrder);
 
         RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId())
-                .orElseThrow(() -> new AppException("TRADE_0015", "refund order not found"));
+                .orElseThrow(() -> new AppException("TRADE_0015", "退款单不存在"));
         GroupBuySettlementResult releaseResult = releasePaidGroupBuyOrder(tradeOrder.getOrderId());
         recordRefundReleaseFlow(tradeOrder, releaseResult);
         return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundOrder.getRefundTime());

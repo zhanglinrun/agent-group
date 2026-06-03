@@ -28,13 +28,15 @@ import {
   getQuotaSummary,
   getSessionId,
   getUserAuth,
-  lockGroupBuyOrder,
+  lockMarketPayOrder,
   login,
   logout,
   mockPaySuccess,
+  normalizeApiMessage,
   queryAcademicTaskStatus,
   queryAcademicSessionDetail,
   queryAcademicSessions,
+  queryGroupBuyMarketConfig,
   queryQuotaPackages,
   queryUserOrderList,
   register,
@@ -55,6 +57,8 @@ const AGENTS = [
 
 const EMPTY_MESSAGES = [];
 
+const normalizeUserMessage = normalizeApiMessage;
+
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
 
@@ -67,7 +71,11 @@ function BearDoctorAcademicApp() {
   const [auth, setAuth] = useState(() => getUserAuth());
   const [loginOpen, setLoginOpen] = useState(() => !getUserAuth()?.token);
   const [rechargeOpen, setRechargeOpen] = useState(false);
+  const [rechargeTab, setRechargeTab] = useState("packages");
   const [groupPreviewPackage, setGroupPreviewPackage] = useState(null);
+  const [groupMarketConfig, setGroupMarketConfig] = useState(null);
+  const [groupTeamsLoading, setGroupTeamsLoading] = useState(false);
+  const [paymentDialog, setPaymentDialog] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({ username: "", password: "", nickname: "", email: "" });
   const [authError, setAuthError] = useState("");
@@ -193,7 +201,7 @@ function BearDoctorAcademicApp() {
 
   useEffect(() => {
     if (!auth?.token) return;
-    loadQuota().catch((error) => setConnectionError(error.message || "额度读取失败"));
+    loadQuota().catch((error) => setConnectionError(normalizeUserMessage(error.message, "额度读取失败")));
     loadSessions().catch(() => {});
     loadOrders().catch(() => {});
   }, [auth, loadQuota, loadSessions]);
@@ -249,7 +257,7 @@ function BearDoctorAcademicApp() {
       }));
       setChatList((prev) => prev.map((item) => item.id === chatId ? { ...item, messages } : item));
     } catch (error) {
-      setConnectionError(error.message || "会话详情读取失败");
+      setConnectionError(normalizeUserMessage(error.message, "会话详情读取失败"));
     }
     loadTaskStatus(chatId).catch(() => {});
   };
@@ -271,17 +279,31 @@ function BearDoctorAcademicApp() {
       return;
     }
     setGroupPreviewPackage(null);
+    setGroupMarketConfig(null);
+    setRechargeTab("packages");
     setRechargeOpen(true);
     refreshRecharge().catch(() => {});
   };
 
-  const openGroupPreview = (pkg) => {
+  const openGroupPreview = async (pkg) => {
     if (!auth?.token) {
       setLoginOpen(true);
       return;
     }
     setConnectionError("");
     setGroupPreviewPackage(pkg);
+    setGroupMarketConfig(null);
+    setGroupTeamsLoading(true);
+    try {
+      const userId = auth.userId || quota?.userId;
+      const res = await queryGroupBuyMarketConfig(pkg, userId);
+      if (res.code !== "0000") throw new Error(normalizeUserMessage(res.info, "拼团信息读取失败"));
+      setGroupMarketConfig(res.data || null);
+    } catch (error) {
+      setConnectionError(normalizeUserMessage(error.message, "拼团信息读取失败"));
+    } finally {
+      setGroupTeamsLoading(false);
+    }
   };
 
   const handleAuthSubmit = async (event) => {
@@ -294,10 +316,10 @@ function BearDoctorAcademicApp() {
         setLoginOpen(false);
         setToast("登录成功");
       } else {
-        setAuthError(res.info || "登录失败");
+        setAuthError(normalizeUserMessage(res.info, "登录失败"));
       }
     } catch (error) {
-      setAuthError(error.message || "登录失败");
+      setAuthError(normalizeUserMessage(error.message, "登录失败"));
     }
   };
 
@@ -332,11 +354,11 @@ function BearDoctorAcademicApp() {
         });
         setToast("文件解析完成");
       } else {
-        setConnectionError(res.info || "文件上传失败");
+        setConnectionError(normalizeUserMessage(res.info, "文件上传失败"));
         setSelectedFile(null);
       }
     } catch (error) {
-      setConnectionError(error.message || "文件上传失败");
+      setConnectionError(normalizeUserMessage(error.message, "文件上传失败"));
       setSelectedFile(null);
     } finally {
       setIsUploading(false);
@@ -402,7 +424,7 @@ function BearDoctorAcademicApp() {
       (error) => {
         setIsSending(false);
         streamControllerRef.current = null;
-        appendAssistantText(assistantId, `\n\n请求出错：${error.message || "服务暂不可用"}`);
+        appendAssistantText(assistantId, `\n\n请求出错：${normalizeUserMessage(error.message, "服务暂不可用")}`);
         loadTaskStatus(currentChatId).catch(() => {});
       }
     );
@@ -415,9 +437,10 @@ function BearDoctorAcademicApp() {
       return;
     }
     if (event.event === "task_status") {
+      const statusMessage = normalizeUserMessage(data.message || data.stage, "正在处理");
       updateAssistant(messageId, (message) => ({
         ...message,
-        timeline: mergeThinking(message.timeline, data.message || data.stage || "正在处理")
+        timeline: mergeThinking(message.timeline, statusMessage)
       }));
       return;
     }
@@ -469,11 +492,12 @@ function BearDoctorAcademicApp() {
       return;
     }
     if (event.event === "error") {
+      const errorMessage = normalizeUserMessage(data.message, "处理失败");
       updateAssistant(messageId, (message) => ({
         ...message,
-        timeline: [...(message.timeline || []), { type: "error", message: data.message || "处理失败" }]
+        timeline: [...(message.timeline || []), { type: "error", message: errorMessage }]
       }));
-      appendAssistantText(messageId, `\n\n${data.message || "处理失败"}`);
+      appendAssistantText(messageId, `\n\n${errorMessage}`);
     }
   };
 
@@ -553,7 +577,7 @@ function BearDoctorAcademicApp() {
       (error) => {
         setIsSending(false);
         streamControllerRef.current = null;
-        appendAssistantText(assistantId, `\n\n继续生成失败：${error.message || "服务暂不可用"}`);
+        appendAssistantText(assistantId, `\n\n继续生成失败：${normalizeUserMessage(error.message, "服务暂不可用")}`);
         loadTaskStatus(currentChatId).catch(() => {});
       }
     );
@@ -583,37 +607,41 @@ function BearDoctorAcademicApp() {
       setLoginOpen(true);
       return;
     }
-    const key = `${pkg.goodsId}-${buyType}`;
+    const key = `${pkg.goodsId}-${buyType}${options.teamId ? `-${options.teamId}` : ""}`;
     setBuyingKey(key);
     setConnectionError("");
     try {
-      const product = { ...pkg, teamId: options.teamId || "" };
+      const product = {
+        ...pkg,
+        activityId: pkg.activityId || groupMarketConfig?.activityId,
+        groupPrice: groupMarketConfig?.goods?.payPrice || pkg.groupPrice,
+        originPrice: groupMarketConfig?.goods?.originalPrice || pkg.originPrice,
+        teamId: options.teamId || ""
+      };
       if (buyType === "group" && !product.activityId) {
         throw new Error("当前额度包暂无可用拼团活动");
       }
       const userId = auth.userId || quota?.userId;
-      const orderRes = buyType === "group" ? await lockGroupBuyOrder(product, userId) : await createDirectOrder(product, userId);
-      if (orderRes.code !== "0000") throw new Error(orderRes.info || "订单创建失败");
-      try {
-        const payRes = await mockPaySuccess(orderRes.data.orderId);
-        if (payRes.code === "0000") {
-          const orderStatus = payRes.data?.orderStatus;
-          const groupSettled = orderStatus === "GROUP_SETTLED" || orderStatus === "DEAL_DONE";
-          if (buyType === "group" && !groupSettled) {
-            setToast("拼团订单已支付，请在订单列表查看成团进度");
-          } else {
-            setToast(`${product.quotaAmount || 0} 点额度已到账`);
-          }
-          await refreshRecharge();
-        } else {
-          throw new Error(payRes.info || "模拟支付失败");
-        }
-      } catch {
-        setToast(`订单已创建：${orderRes.data.orderId}，模拟支付需要运营授权`);
-        await loadOrders().catch(() => {});
-      }
+      const orderRes = buyType === "group"
+        ? await lockMarketPayOrder(product, userId, { teamId: options.teamId || "" })
+        : await createDirectOrder(product, userId);
+      if (orderRes.code !== "0000") throw new Error(normalizeUserMessage(orderRes.info, "订单创建失败"));
+      const data = orderRes.data || {};
+      setPaymentDialog({
+        orderId: data.orderId,
+        productName: data.goodsName || product.goodsName || "额度订单",
+        amount: data.payAmount || data.payPrice || data.lockAmount || (buyType === "group" ? product.groupPrice : product.originPrice),
+        marketType: buyType === "group" ? 1 : 0,
+        teamId: data.teamId || options.teamId || "",
+        teamSize: data.teamSize || product.teamSize || groupMarketConfig?.discount?.target,
+        quotaAmount: product.quotaAmount,
+        source: "new"
+      });
+      setRechargeTab("orders");
+      setToast("订单已创建，确认支付后继续处理");
+      await loadOrders().catch(() => {});
     } catch (error) {
-      setConnectionError(error.message || "购买失败");
+      setConnectionError(normalizeUserMessage(error.message, "购买失败"));
     } finally {
       setBuyingKey("");
     }
@@ -621,16 +649,30 @@ function BearDoctorAcademicApp() {
 
   const payExistingOrder = async (order) => {
     if (!order?.orderId) return;
-    setBuyingKey(`order-${order.orderId}`);
+    setPaymentDialog({
+      orderId: order.orderId,
+      productName: order.productName || order.productId || "额度订单",
+      amount: order.payAmount || order.totalAmount,
+      marketType: order.marketType,
+      quotaAmount: 0,
+      source: "existing"
+    });
+  };
+
+  const confirmPayment = async () => {
+    if (!paymentDialog?.orderId) return;
+    setBuyingKey(`pay-${paymentDialog.orderId}`);
     setConnectionError("");
     try {
-      const payRes = await mockPaySuccess(order.orderId);
-      if (payRes.code !== "0000") throw new Error(payRes.info || "模拟支付失败");
+      const payRes = await mockPaySuccess(paymentDialog.orderId);
+      if (payRes.code !== "0000") throw new Error(normalizeUserMessage(payRes.info, "模拟支付失败"));
       const groupSettled = payRes.data?.orderStatus === "GROUP_SETTLED" || payRes.data?.orderStatus === "DEAL_DONE";
-      setToast(order.marketType === 1 && !groupSettled ? "订单已支付，等待成团" : "订单已支付，额度已更新");
+      const isGroupOrder = Number(paymentDialog.marketType) === 1;
+      setPaymentDialog(null);
+      setToast(isGroupOrder && !groupSettled ? "支付成功，等待成团" : "支付成功，额度已到账");
       await refreshRecharge();
     } catch (error) {
-      setConnectionError(error.message || "模拟支付失败");
+      setConnectionError(normalizeUserMessage(error.message, "模拟支付失败"));
     } finally {
       setBuyingKey("");
     }
@@ -840,12 +882,20 @@ function BearDoctorAcademicApp() {
           ordersLoading={ordersLoading}
           packages={packages}
           buyingKey={buyingKey}
+          activeTab={rechargeTab}
+          setActiveTab={setRechargeTab}
           groupPreviewPackage={groupPreviewPackage}
+          groupMarketConfig={groupMarketConfig}
+          groupTeamsLoading={groupTeamsLoading}
+          currentUserId={auth?.userId || quota?.userId}
           adminForm={adminForm}
           setAdminForm={setAdminForm}
           onBuy={buyPackage}
           onOpenGroupPreview={openGroupPreview}
-          onBackToPackages={() => setGroupPreviewPackage(null)}
+          onBackToPackages={() => {
+            setGroupPreviewPackage(null);
+            setGroupMarketConfig(null);
+          }}
           onSaveAdminAuth={handleSaveAdminAuth}
           onRefresh={refreshRecharge}
           onPayOrder={payExistingOrder}
@@ -853,6 +903,15 @@ function BearDoctorAcademicApp() {
             setGroupPreviewPackage(null);
             setRechargeOpen(false);
           }}
+        />
+      )}
+
+      {paymentDialog && (
+        <PaymentConfirmDialog
+          payment={paymentDialog}
+          buyingKey={buyingKey}
+          onConfirm={confirmPayment}
+          onCancel={() => setPaymentDialog(null)}
         />
       )}
     </div>
@@ -999,7 +1058,12 @@ function RechargeDialog({
   ordersLoading,
   packages,
   buyingKey,
+  activeTab,
+  setActiveTab,
   groupPreviewPackage,
+  groupMarketConfig,
+  groupTeamsLoading,
+  currentUserId,
   adminForm,
   setAdminForm,
   onBuy,
@@ -1010,6 +1074,7 @@ function RechargeDialog({
   onPayOrder,
   onClose
 }) {
+  const [now, setNow] = useState(() => Date.now());
   const formatMoney = (value) => Number(value || 0).toFixed(2);
   const statusLabel = (status) => ({
     CREATE: "已创建",
@@ -1020,11 +1085,58 @@ function RechargeDialog({
     CLOSED: "已关闭",
     REFUNDED: "已退款"
   }[status] || status || "-");
-  const teamId = groupPreviewPackage?.teamId || groupPreviewPackage?.activityId || `TEAM${String(groupPreviewPackage?.goodsId || Date.now()).replace(/\D/g, "").slice(-8) || "00000001"}`;
-  const teamSize = Number(groupPreviewPackage?.teamSize || 2);
+  const maskUserId = (userId = "") => {
+    const value = String(userId || "");
+    if (value.length <= 4) return value || "-";
+    return `${value.slice(0, 2)}****${value.slice(-2)}`;
+  };
+
+  useEffect(() => {
+    if (!groupPreviewPackage) return undefined;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [groupPreviewPackage]);
+
+  const parseTime = (value) => {
+    if (!value) return Number.NaN;
+    if (Array.isArray(value)) {
+      const [year, month, day, hour = 0, minute = 0, second = 0] = value;
+      return new Date(year, Number(month) - 1, day, hour, minute, second).getTime();
+    }
+    if (typeof value === "number") return value;
+    const text = String(value).trim();
+    const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(text) ? text.replace(" ", "T") : text;
+    return new Date(normalized).getTime();
+  };
+
+  const formatCountdown = (endTime, fallback = "-") => {
+    const endAt = parseTime(endTime);
+    if (!Number.isFinite(endAt)) return fallback || "-";
+    const diff = endAt - now;
+    if (!Number.isFinite(diff) || diff <= 0) return "00:00:00";
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+    const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+    const seconds = String(totalSeconds % 60).padStart(2, "0");
+    return `${hours}:${minutes}:${seconds}`;
+  };
+  const isExpired = (endTime) => {
+    const endAt = parseTime(endTime);
+    return Number.isFinite(endAt) && endAt - now <= 0;
+  };
+  const marketGoods = groupMarketConfig?.goods || {};
+  const teamList = groupMarketConfig?.teamList || [];
+  const teamSize = Number(groupPreviewPackage?.teamSize || teamList[0]?.targetCount || 2);
   const quotaAmount = Number(groupPreviewPackage?.quotaAmount || 0).toFixed(0);
-  const isGroupBuying = Boolean(groupPreviewPackage && buyingKey === `${groupPreviewPackage.goodsId}-group`);
+  const isGroupBuying = Boolean(groupPreviewPackage && buyingKey.startsWith(`${groupPreviewPackage.goodsId}-group`));
   const isDirectBuying = Boolean(groupPreviewPackage && buyingKey === `${groupPreviewPackage.goodsId}-direct`);
+  const previewProduct = groupPreviewPackage ? {
+    ...groupPreviewPackage,
+    activityId: groupMarketConfig?.activityId || groupPreviewPackage.activityId,
+    originPrice: marketGoods.originalPrice || groupPreviewPackage.originPrice,
+    groupPrice: marketGoods.payPrice || groupPreviewPackage.groupPrice
+  } : null;
 
   if (groupPreviewPackage) {
     return (
@@ -1044,32 +1156,48 @@ function RechargeDialog({
             <p>{groupPreviewPackage.specSummary || `执行任务时按模型消耗扣减，可用额度 ${quotaAmount} 点`}</p>
 
             <div className="group-team-panel">
-              <h4>和他们一起拼团</h4>
-              <div className="group-team-card">
-                <div>
-                  <b>团队标识: {teamId}</b>
-                  <span>还差1人成团</span>
-                </div>
-                <span>剩余时间: 23:56:11</span>
-                <button
-                  type="button"
-                  onClick={() => onBuy(groupPreviewPackage, "group", { teamId })}
-                  disabled={Boolean(buyingKey)}
-                >
-                  <UserPlus size={15} /> {isGroupBuying ? "处理中" : "加入拼团"}
-                </button>
-              </div>
+              <h4>可加入拼团</h4>
+              {groupTeamsLoading && <div className="group-empty">拼团列表读取中...</div>}
+              {!groupTeamsLoading && teamList.length === 0 && (
+                <div className="group-empty">暂无可加入队伍，可以先自己开团。</div>
+              )}
+              {!groupTeamsLoading && teamList.map((team) => {
+                const remaining = team.progress?.remainingCount ?? Math.max(Number(team.targetCount || 0) - Number(team.lockCount || 0), 0);
+                const complete = team.progress?.completeCount ?? team.completeCount ?? 0;
+                const isMine = team.userId && currentUserId && team.userId === currentUserId;
+                const expired = isExpired(team.validEndTime);
+                return (
+                  <div className="group-team-card" key={`${team.teamId}-${team.outTradeNo || ""}`}>
+                    <div>
+                      <b>{isMine ? "我的进行中团" : (team.userId ? `${maskUserId(team.userId)} 的团` : "其他用户的团")}</b>
+                      <span>{team.teamId}</span>
+                    </div>
+                    <div>
+                      <b>还差 {remaining} 人</b>
+                      <span>已支付 {complete} 人，已占位 {team.lockCount || 0} 人</span>
+                    </div>
+                    <span>剩余时间: {formatCountdown(team.validEndTime, team.validTimeCountdown)}</span>
+                    <button
+                      type="button"
+                      onClick={() => onBuy(previewProduct, "group", { teamId: team.teamId })}
+                      disabled={Boolean(buyingKey) || remaining <= 0 || expired}
+                    >
+                      <UserPlus size={15} /> {buyingKey === `${groupPreviewPackage.goodsId}-group-${team.teamId}` ? "处理中" : "加入拼团"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="group-detail-actions">
-              <button type="button" onClick={() => onBuy(groupPreviewPackage, "direct")} disabled={Boolean(buyingKey)}>
-                <CreditCard size={16} /> {isDirectBuying ? "处理中" : `直接购买 ¥${formatMoney(groupPreviewPackage.originPrice)}`}
+              <button type="button" onClick={() => onBuy(previewProduct, "direct")} disabled={Boolean(buyingKey)}>
+                <CreditCard size={16} /> {isDirectBuying ? "处理中" : `直接购买 ¥${formatMoney(previewProduct.originPrice)}`}
               </button>
-              <button className="primary" type="button" onClick={() => onBuy(groupPreviewPackage, "group")} disabled={Boolean(buyingKey)}>
-                <UserPlus size={16} /> {isGroupBuying ? "处理中" : `自己开团 ¥${formatMoney(groupPreviewPackage.groupPrice)}`}
+              <button className="primary" type="button" onClick={() => onBuy(previewProduct, "group")} disabled={Boolean(buyingKey)}>
+                <UserPlus size={16} /> {isGroupBuying ? "处理中" : `自己开团 ¥${formatMoney(previewProduct.groupPrice)}`}
               </button>
             </div>
-            <div className="group-detail-tip">{teamSize} 人成团，支付后可在订单列表查看状态。</div>
+            <div className="group-detail-tip">{teamSize} 人成团，先锁单占位，确认支付后等待成团到账。</div>
           </div>
         </div>
       </div>
@@ -1101,63 +1229,82 @@ function RechargeDialog({
             <b>{Number(quota?.frozenQuota || 0).toFixed(2)}</b>
           </div>
         </div>
-        <div className="package-grid">
-          {packages.map((pkg) => (
-            <article className="quota-package" key={pkg.goodsId}>
-              <h4>{pkg.goodsName}</h4>
-              <p>{pkg.specSummary}</p>
-              <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
-              <div className="pkg-actions">
-                <button onClick={() => onBuy(pkg, "direct")} disabled={Boolean(buyingKey)}>
-                  ¥{Number(pkg.originPrice || 0).toFixed(2)}
-                </button>
-                <button className="group" onClick={() => onOpenGroupPreview(pkg)} disabled={Boolean(buyingKey)}>
-                  {buyingKey === `${pkg.goodsId}-group` ? "处理中" : `${pkg.teamSize || 2}人团 ¥${Number(pkg.groupPrice || 0).toFixed(2)}`}
-                </button>
-              </div>
-            </article>
-          ))}
-          {packages.length === 0 && <div className="empty-package">后端启动后会显示额度包</div>}
+        <div className="recharge-tabs">
+          <button type="button" className={activeTab === "packages" ? "active" : ""} onClick={() => setActiveTab("packages")}>
+            <Wallet size={15} /> 额度包
+          </button>
+          <button type="button" className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}>
+            <CreditCard size={15} /> 订单/拼团
+          </button>
         </div>
-        <details className="flow-details">
-          <summary>最近额度流水</summary>
-          {(flows || []).slice(0, 8).map((flow) => (
-            <div className="flow-row" key={flow.flowId}>
-              <span>{flow.remark || flow.flowType}</span>
-              <b>{Number(flow.quotaAmount || 0).toFixed(2)}</b>
+
+        {activeTab === "packages" && (
+          <>
+            <div className="package-grid">
+              {packages.map((pkg) => (
+                <article className="quota-package" key={pkg.goodsId}>
+                  <h4>{pkg.goodsName}</h4>
+                  <p>{pkg.specSummary}</p>
+                  <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
+                  <div className="pkg-actions">
+                    <button onClick={() => onBuy(pkg, "direct")} disabled={Boolean(buyingKey)}>
+                      ¥{Number(pkg.originPrice || 0).toFixed(2)}
+                    </button>
+                    <button className="group" onClick={() => onOpenGroupPreview(pkg)} disabled={Boolean(buyingKey)}>
+                      {buyingKey === `${pkg.goodsId}-group` ? "处理中" : `${pkg.teamSize || 2}人团 ¥${Number(pkg.groupPrice || 0).toFixed(2)}`}
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {packages.length === 0 && <div className="empty-package">后端启动后会显示额度包</div>}
             </div>
-          ))}
-          {(!flows || flows.length === 0) && <p>暂无流水</p>}
-        </details>
-        <details className="order-details" open>
-          <summary>我的订单</summary>
-          {ordersLoading && <p>订单读取中...</p>}
-          {!ordersLoading && (!orders || orders.length === 0) && <p>暂无订单</p>}
-          {!ordersLoading && (orders || []).slice(0, 10).map((order) => {
-            const canPay = order.status === "CREATE" || order.status === "PAY_WAIT";
-            return (
-              <div className="order-row" key={order.orderId}>
-                <div>
-                  <strong>{order.productName || order.productId || "额度订单"}</strong>
-                  <span>{order.orderId}</span>
+            <details className="flow-details">
+              <summary>最近额度流水</summary>
+              {(flows || []).slice(0, 8).map((flow) => (
+                <div className="flow-row" key={flow.flowId}>
+                  <span>{flow.remark || flow.flowType}</span>
+                  <b>{Number(flow.quotaAmount || 0).toFixed(2)}</b>
                 </div>
-                <div>
-                  <b>{order.marketType === 1 ? "拼团" : "直购"}</b>
-                  <span>¥{formatMoney(order.payAmount || order.totalAmount)}</span>
+              ))}
+              {(!flows || flows.length === 0) && <p>暂无流水</p>}
+            </details>
+          </>
+        )}
+
+        {activeTab === "orders" && (
+          <section className="order-details order-tab-panel">
+            <div className="order-tab-head">
+              <strong>我的订单</strong>
+              <span>待支付订单可继续支付；拼团支付成功后等待成团到账。</span>
+            </div>
+            {ordersLoading && <p>订单读取中...</p>}
+            {!ordersLoading && (!orders || orders.length === 0) && <p>暂无订单</p>}
+            {!ordersLoading && (orders || []).slice(0, 10).map((order) => {
+              const canPay = order.status === "CREATE" || order.status === "PAY_WAIT";
+              return (
+                <div className="order-row" key={order.orderId}>
+                  <div>
+                    <strong>{order.productName || order.productId || "额度订单"}</strong>
+                    <span>{order.orderId}</span>
+                  </div>
+                  <div>
+                    <b>{order.marketType === 1 ? "拼团" : "直购"}</b>
+                    <span>¥{formatMoney(order.payAmount || order.totalAmount)}</span>
+                  </div>
+                  <div>
+                    <em>{order.displayStatus || statusLabel(order.status)}</em>
+                    <span>{order.orderTime ? String(order.orderTime).replace("T", " ") : ""}</span>
+                  </div>
+                  {canPay && (
+                    <button type="button" onClick={() => onPayOrder(order)} disabled={Boolean(buyingKey)}>
+                      {buyingKey === `pay-${order.orderId}` ? "处理中" : "支付"}
+                    </button>
+                  )}
                 </div>
-                <div>
-                  <em>{statusLabel(order.status)}</em>
-                  <span>{order.orderTime ? String(order.orderTime).replace("T", " ") : ""}</span>
-                </div>
-                {canPay && (
-                  <button type="button" onClick={() => onPayOrder(order)} disabled={Boolean(buyingKey)}>
-                    {buyingKey === `order-${order.orderId}` ? "处理中" : "支付"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </details>
+              );
+            })}
+          </section>
+        )}
         <div className="admin-auth-box">
           <div>
             <strong>模拟支付授权</strong>
@@ -1166,6 +1313,52 @@ function RechargeDialog({
           <input value={adminForm.username} onChange={(event) => setAdminForm({ ...adminForm, username: event.target.value })} placeholder="运营账号" />
           <input value={adminForm.password} onChange={(event) => setAdminForm({ ...adminForm, password: event.target.value })} type="password" placeholder="运营密码" />
           <button onClick={onSaveAdminAuth}><CreditCard size={15} /> 保存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
+  const amount = Number(payment?.amount || 0).toFixed(2);
+  const isGroupOrder = Number(payment?.marketType) === 1;
+  const paying = buyingKey === `pay-${payment?.orderId}`;
+
+  return (
+    <div className="modal-overlay payment-overlay">
+      <div className="payment-confirm-dialog">
+        <button type="button" className="modal-close" onClick={onCancel} disabled={paying}><X size={18} /></button>
+        <div className="payment-icon">
+          <CreditCard size={24} />
+        </div>
+        <h3>确认支付</h3>
+        <p>{isGroupOrder ? "拼团订单支付成功后，满员成团才会发放额度。" : "直购订单支付成功后，额度会立即到账。"}</p>
+        <div className="payment-summary">
+          <div>
+            <span>订单</span>
+            <strong>{payment?.productName || "额度订单"}</strong>
+          </div>
+          <div>
+            <span>订单号</span>
+            <strong>{payment?.orderId}</strong>
+          </div>
+          {isGroupOrder && payment?.teamId && (
+            <div>
+              <span>拼团</span>
+              <strong>{payment.teamId}</strong>
+            </div>
+          )}
+          <div>
+            <span>金额</span>
+            <b>¥{amount}</b>
+          </div>
+        </div>
+        <div className="payment-confirm-actions">
+          <button type="button" onClick={onCancel} disabled={paying}>取消</button>
+          <button type="button" className="primary" onClick={onConfirm} disabled={paying}>
+            {paying ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />}
+            {paying ? "支付中" : "确认支付"}
+          </button>
         </div>
       </div>
     </div>

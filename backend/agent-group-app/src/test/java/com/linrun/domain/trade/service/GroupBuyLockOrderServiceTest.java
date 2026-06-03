@@ -429,6 +429,34 @@ class GroupBuyLockOrderServiceTest {
     }
 
     @Test
+    void shouldCloseTimeoutUnpaidUnsettledGroupOrdersThroughTradeCompensation() {
+        FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
+        FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
+        GroupBuyCompensationService groupCompensationService = compensationService(
+                lockRepository, tradeOrderRepository, flowRepository);
+        TradeCompensationService tradeCompensationService = new TradeCompensationService(
+                tradeOrderRepository,
+                new TradeOrderService(),
+                groupCompensationService,
+                lockRepository,
+                new TradeRefundService(tradeOrderRepository, null, groupCompensationService),
+                new TradeStatusFlowService(flowRepository));
+
+        LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_TIMEOUT_CLOSE_10001"));
+        GroupBuyOrderLock orderLock = lockRepository.queryLockByOrderId(lockResponse.getOrderId()).orElseThrow();
+        lockRepository.teams.get(orderLock.getTeamId()).setValidEndTime(LocalDateTime.now().minusMinutes(1));
+
+        int closedCount = tradeCompensationService.closeTimeoutUnsettledGroupOrders(LocalDateTime.now(), 50);
+
+        assertEquals(1, closedCount);
+        assertEquals(TradeOrderStatusEnumVO.CLOSED, tradeOrderRepository.tradeOrders.get(lockResponse.getOrderId()).getOrderStatus());
+        assertEquals(PayStatusEnumVO.CLOSED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
+        assertEquals(GroupBuyLockStatus.RELEASED, orderLock.getLockStatus());
+    }
+
+    @Test
     void shouldRecoverTeamStockWhenExistingTeamJoinFailsAfterOccupy() {
         FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
         lockRepository.teams.put("T10001", team("T10001", 1));
@@ -796,6 +824,21 @@ class GroupBuyLockOrderServiceTest {
         public List<String> queryTimeoutUnsettledPaidOrderIds(LocalDateTime deadline, int limit) {
             return locks.values().stream()
                     .filter(orderLock -> GroupBuyLockStatus.PAID.equals(orderLock.getLockStatus()))
+                    .filter(orderLock -> {
+                        GroupBuyTeam team = teams.get(orderLock.getTeamId());
+                        return GroupBuyTeamStatus.PROCESSING.equals(team.getTeamStatus())
+                                && team.getValidEndTime() != null
+                                && !team.getValidEndTime().isAfter(deadline);
+                    })
+                    .limit(limit)
+                    .map(GroupBuyOrderLock::getOrderId)
+                    .toList();
+        }
+
+        @Override
+        public List<String> queryTimeoutUnsettledLockedOrderIds(LocalDateTime deadline, int limit) {
+            return locks.values().stream()
+                    .filter(orderLock -> GroupBuyLockStatus.LOCKED.equals(orderLock.getLockStatus()))
                     .filter(orderLock -> {
                         GroupBuyTeam team = teams.get(orderLock.getTeamId());
                         return GroupBuyTeamStatus.PROCESSING.equals(team.getTeamStatus())

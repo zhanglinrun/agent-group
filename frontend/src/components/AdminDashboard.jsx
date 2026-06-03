@@ -6,6 +6,7 @@ import {
   downloadPaymentBill,
   getKnowledgeDocuments,
   getLatestAgentEvaluation,
+  normalizeApiMessage,
   queryOpsDashboard,
   queryOperationalRules,
   queryPaymentErrorMap,
@@ -138,10 +139,10 @@ export default function AdminDashboard() {
         alert(`${actionName}成功`);
         await loadData();
       } else {
-        alert(`${actionName}失败：${res.info}`);
+        alert(`${actionName}失败：${normalizeApiMessage(res.info, "请求失败")}`);
       }
     } catch (error) {
-      alert(`${actionName}异常：${error.message || "请求失败"}`);
+      alert(`${actionName}异常：${normalizeApiMessage(error.message, "请求失败")}`);
     } finally {
       setLoadingMsg("");
     }
@@ -173,10 +174,10 @@ export default function AdminDashboard() {
       const res = await apiCall();
       setPaymentOpsResult(res.data || res);
       if (res.code !== "0000") {
-        alert(`${actionName}失败：${res.info}`);
+        alert(`${actionName}失败：${normalizeApiMessage(res.info, "请求失败")}`);
       }
     } catch (error) {
-      alert(`${actionName}异常：${error.message || "请求失败"}`);
+      alert(`${actionName}异常：${normalizeApiMessage(error.message, "请求失败")}`);
     } finally {
       setLoadingMsg("");
     }

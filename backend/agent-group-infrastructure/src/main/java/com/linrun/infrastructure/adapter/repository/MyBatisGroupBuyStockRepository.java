@@ -61,6 +61,11 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
         GroupBuyStock before = queryForUpdate(activityId, goodsId);
         int updated = groupBuyStockDao.releaseLockedStock(activityId, goodsId);
         if (updated != 1) {
+            if (stockValue(before.getLockedStock()) <= 0) {
+                insertFlow(activityId, goodsId, orderId, teamId, GroupBuyStockFlowType.RELEASE_LOCKED,
+                        before.getAvailableStock(), before.getAvailableStock(), "locked stock already released");
+                return before;
+            }
             throw new AppException("GROUP_0014", "拼团锁定库存释放失败");
         }
         GroupBuyStock after = queryForUpdate(activityId, goodsId);

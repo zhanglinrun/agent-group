@@ -227,6 +227,18 @@
         limit #{limit}
     </select>
 
+    <select id="queryTimeoutUnsettledLockedOrderIds" resultType="java.lang.String">
+        select l.order_id
+        from group_buy_order_lock l
+        inner join group_buy_team t on t.team_id = l.team_id
+        where l.lock_status = 'LOCKED'
+          and t.team_status = 'PROCESSING'
+          and t.valid_end_time is not null
+          and t.valid_end_time &lt;= #{deadline}
+        order by l.id asc
+        limit #{limit}
+    </select>
+
     <select id="countUserActivityLocks" resultType="int">
         select count(1)
         from group_buy_order_lock

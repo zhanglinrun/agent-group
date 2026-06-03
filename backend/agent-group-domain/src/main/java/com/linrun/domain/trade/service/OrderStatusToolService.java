@@ -76,12 +76,12 @@ public class OrderStatusToolService {
 
     public Map<String, Object> queryRefundStatus(String orderId, String userId) {
         if (!StringUtils.hasText(orderId)) {
-            throw new AppException("0001", "orderId cannot be blank");
+            throw new AppException("0001", "订单编号不能为空");
         }
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
         if (StringUtils.hasText(userId) && !userId.equals(tradeOrder.getUserId())) {
-            throw new AppException("TRADE_0018", "only current user's order can be queried");
+            throw new AppException("TRADE_0018", "只能查询当前用户的订单");
         }
         RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(orderId).orElse(null);
         Map<String, Object> result = new LinkedHashMap<>();

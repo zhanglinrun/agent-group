@@ -78,10 +78,10 @@ public class MarketTradeFacadeHandler {
         validateLockRequest(request);
         GroupBuyTrialResult trialResult = groupBuyMarketTrialService.trial(toTrialCommand(request));
         if (!request.getActivityId().equals(trialResult.getActivityId())) {
-            throw new AppException("GROUP_0018", "request activity does not match market trial activity");
+            throw new AppException("GROUP_0018", "当前拼团活动已变化，请刷新后重试");
         }
         if (!trialResult.isEnable() || !trialResult.isAvailable()) {
-            throw new AppException("GROUP_0019", "user cannot join this group activity");
+            throw new AppException("GROUP_0019", "当前账号暂不能参加这个拼团活动");
         }
         humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
                 HumanApprovalHandler.ACTION_LOCK_MARKET_PAY_ORDER, request.getOutTradeNo());
@@ -99,13 +99,13 @@ public class MarketTradeFacadeHandler {
 
     public SettlementMarketPayOrderResponse settlementMarketPayOrder(SettlementMarketPayOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOutTradeNo())) {
-            throw new AppException("0001", "outTradeNo cannot be blank");
+            throw new AppException("0001", "外部交易号不能为空");
         }
         humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
                 HumanApprovalHandler.ACTION_SETTLEMENT_MARKET_PAY_ORDER, request.getOutTradeNo());
         String orderId = resolveOrderId(request.getOutTradeNo());
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
 
         MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
         callbackRequest.setOrderId(orderId);
@@ -114,7 +114,7 @@ public class MarketTradeFacadeHandler {
         mockPayCallbackService.paySuccess(callbackRequest);
 
         GroupBuyOrderLock orderLock = groupBuyOrderLockRepository.queryLockByOrderId(orderId)
-                .orElseThrow(() -> new AppException("GROUP_0011", "group lock not found"));
+                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
 
         SettlementMarketPayOrderResponse response = new SettlementMarketPayOrderResponse();
         response.setUserId(tradeOrder.getUserId());
@@ -126,13 +126,13 @@ public class MarketTradeFacadeHandler {
 
     public RefundMarketPayOrderResponse refundMarketPayOrder(RefundMarketPayOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOutTradeNo())) {
-            throw new AppException("0001", "outTradeNo cannot be blank");
+            throw new AppException("0001", "外部交易号不能为空");
         }
         humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
                 HumanApprovalHandler.ACTION_REFUND_MARKET_PAY_ORDER, request.getOutTradeNo());
         String orderId = resolveOrderId(request.getOutTradeNo());
         boolean success = tradeCompensationService.refundOrCloseOrder(
-                request.getUserId(), orderId, "group buy refund");
+                request.getUserId(), orderId, "拼团退款");
         GroupBuyOrderLock orderLock = groupBuyOrderLockRepository.queryLockByOrderId(orderId).orElse(null);
 
         RefundMarketPayOrderResponse response = new RefundMarketPayOrderResponse();
@@ -140,13 +140,13 @@ public class MarketTradeFacadeHandler {
         response.setOrderId(orderId);
         response.setTeamId(orderLock == null ? null : orderLock.getTeamId());
         response.setCode(success ? "0000" : "0002");
-        response.setInfo(success ? "success" : "refund failed");
+        response.setInfo(success ? "退款成功" : "退款失败");
         return response;
     }
 
     public GoodsMarketResponse queryGroupBuyMarketConfig(GoodsMarketRequest request) {
         if (request == null || !StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "goodsId cannot be blank");
+            throw new AppException("0001", "额度包编号不能为空");
         }
         GroupBuyTrialResult trialResult = groupBuyMarketTrialService.trial(toTrialCommand(request));
 
@@ -258,22 +258,22 @@ public class MarketTradeFacadeHandler {
 
     private void validateLockRequest(LockMarketPayOrderRequest request) {
         if (request == null) {
-            throw new AppException("0001", "request cannot be null");
+            throw new AppException("0001", "请求参数不能为空");
         }
         if (!StringUtils.hasText(request.getUserId())
                 || !StringUtils.hasText(request.getGoodsId())
                 || !StringUtils.hasText(request.getActivityId())
                 || !StringUtils.hasText(request.getOutTradeNo())) {
-            throw new AppException("0001", "userId, goodsId, activityId and outTradeNo cannot be blank");
+            throw new AppException("0001", "用户、额度包、活动和外部交易号不能为空");
         }
         if (dynamicConfigService.isDowngradeSwitch()) {
-            throw new AppException("DCC_0003", "group buy market is downgraded");
+            throw new AppException("DCC_0003", "拼团活动暂时不可用");
         }
         if (!dynamicConfigService.isCutRange(request.getUserId())) {
-            throw new AppException("DCC_0004", "user is outside market cut range");
+            throw new AppException("DCC_0004", "当前账号暂不在活动范围内");
         }
         if (dynamicConfigService.isSourceChannelBlackIntercept(request.getSource(), request.getChannel())) {
-            throw new AppException("DCC_0005", "source and channel are blocked");
+            throw new AppException("DCC_0005", "当前渠道暂不能参加活动");
         }
     }
 
@@ -285,7 +285,7 @@ public class MarketTradeFacadeHandler {
 
     private GuideProduct queryProduct(String goodsId) {
         GuideProduct product = guideDataRepository.queryProductByGoodsId(goodsId)
-                .orElseThrow(() -> new AppException("DATA_0003", "product not found"));
+                .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         if (product.getOriginPrice() == null) {
             product.setOriginPrice(BigDecimal.ZERO);
         }

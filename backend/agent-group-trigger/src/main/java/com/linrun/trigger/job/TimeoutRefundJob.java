@@ -38,7 +38,12 @@ public class TimeoutRefundJob {
     public void refundTimeoutUnsettledGroupOrders() {
         scheduledJobLockExecutor.execute("timeout-refund:unsettled-group",
                 JOB_LOCK_LEASE_TIME, () -> {
-                    int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(LocalDateTime.now(), 50);
+                    LocalDateTime now = LocalDateTime.now();
+                    int closedCount = tradeCompensationService.closeTimeoutUnsettledGroupOrders(now, 50);
+                    if (closedCount > 0) {
+                        LOGGER.info("timeout unpaid group orders closed, count={}", closedCount);
+                    }
+                    int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(now, 50);
                     if (refundCount > 0) {
                         LOGGER.info("timeout group orders refunded, count={}", refundCount);
                     }

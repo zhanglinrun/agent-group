@@ -107,7 +107,7 @@ public class WeixinPortalHandler {
 
     public WeixinTemplateMessageResponse sendTemplateMessage(WeixinTemplateMessageRequest request) {
         if (request == null) {
-            throw new AppException("WX_0007", "template request cannot be null");
+            throw new AppException("WX_0007", "模板消息请求不能为空");
         }
         if (!StringUtils.hasText(request.getTemplateId())) {
             throw new AppException("WX_0008", "templateId cannot be blank");

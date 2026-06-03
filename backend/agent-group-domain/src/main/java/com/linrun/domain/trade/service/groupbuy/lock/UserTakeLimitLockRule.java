@@ -25,7 +25,7 @@ public class UserTakeLimitLockRule implements ILogicHandler<GroupBuyLockContext,
             return next(context, dynamicContext);
         }
         if (count >= takeLimitCount) {
-            throw new AppException("GROUP_0017", "user group buy take limit reached");
+            throw new AppException("GROUP_0017", "你已达到该拼团活动的参与次数上限");
         }
         return next(context, dynamicContext);
     }

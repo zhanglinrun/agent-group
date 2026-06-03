@@ -112,7 +112,7 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
     private GroupBuyMarketSku resolveSku(String goodsId) {
         return groupBuyMarketRepository.querySkuByGoodsId(goodsId)
                 .or(() -> guideDataRepository.queryProductByGoodsId(goodsId).map(this::toSku))
-                .orElseThrow(() -> new AppException("DATA_0003", "product not found"));
+                .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
     }
 
     private GroupBuyMarketSku toSku(GuideProduct product) {
@@ -167,7 +167,7 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
         } else {
             DiscountCalculateService discountCalculateService = discountCalculateServiceMap.get(discount.getMarketPlan());
             if (discountCalculateService == null) {
-                throw new AppException("GROUP_0015", "unsupported discount plan");
+                throw new AppException("GROUP_0015", "暂不支持当前优惠规则");
             }
             payPrice = discountCalculateService.calculate(request.getUserId(), originalPrice, discount);
         }
@@ -194,7 +194,7 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
             if (cause instanceof AppException appException) {
                 throw appException;
             }
-            throw new AppException("GROUP_0021", "market trial data load failed");
+            throw new AppException("GROUP_0021", "拼团活动数据读取失败");
         }
     }
 

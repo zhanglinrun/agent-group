@@ -10,8 +10,10 @@ import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
+import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.DirectBuyOrderService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.domain.trade.service.payment.MockPayCallbackService;
@@ -104,6 +106,7 @@ public class TradeOrderController {
         info.setOrderTime(order.getCreateTime());
         info.setTotalAmount(order.getOriginAmount());
         info.setStatus(order.getOrderStatus() == null ? "" : order.getOrderStatus().name());
+        info.setDisplayStatus(resolveDisplayStatus(order));
         info.setPayAmount(order.getPayAmount());
         info.setPayTime(order.getPayTime());
         info.setPayUrl(payOrder == null ? "" : payOrder.getPayUrl());
@@ -115,5 +118,46 @@ public class TradeOrderController {
             info.setPayUrl(payOrder.getPayUrl());
         }
         return info;
+    }
+
+    private String resolveDisplayStatus(TradeOrderEntity order) {
+        if (order == null || order.getOrderStatus() == null) {
+            return "-";
+        }
+        boolean groupOrder = TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType());
+        if (groupOrder && TradeOrderStatusEnumVO.CLOSED.equals(order.getOrderStatus())) {
+            return "拼团失败（已关闭）";
+        }
+        if (groupOrder && TradeOrderStatusEnumVO.REFUNDED.equals(order.getOrderStatus())) {
+            RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(order.getOrderId()).orElse(null);
+            if (refundOrder != null && isGroupTimeoutRefund(refundOrder.getRefundReason())) {
+                return "拼团失败（已退款）";
+            }
+            return "已退款";
+        }
+        if (groupOrder && TradeOrderStatusEnumVO.PAY_SUCCESS.equals(order.getOrderStatus())) {
+            return "等待成团";
+        }
+        return switch (order.getOrderStatus()) {
+            case CREATE -> "已创建";
+            case PAY_WAIT -> "待支付";
+            case PAY_SUCCESS -> "已支付";
+            case GROUP_SETTLED -> "已成团";
+            case DEAL_DONE -> "已到账";
+            case CLOSED -> "已关闭";
+            case WAIT_REFUND -> "待退款";
+            case REFUNDED -> "已退款";
+        };
+    }
+
+    private boolean isGroupTimeoutRefund(String refundReason) {
+        if (!StringUtils.hasText(refundReason)) {
+            return false;
+        }
+        String reason = refundReason.trim().toLowerCase();
+        return reason.contains("group buy timeout")
+                || reason.contains("timeout unformed")
+                || refundReason.contains("拼团超时")
+                || refundReason.contains("未成团");
     }
 }

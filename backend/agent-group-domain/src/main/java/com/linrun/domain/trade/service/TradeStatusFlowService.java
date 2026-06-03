@@ -95,7 +95,7 @@ public class TradeStatusFlowService {
 
     public List<TradeStatusFlowDTO> queryByOrderId(String orderId) {
         if (!StringUtils.hasText(orderId)) {
-            throw new AppException("0001", "orderId cannot be blank");
+            throw new AppException("0001", "订单编号不能为空");
         }
         return tradeStatusFlowRepository.queryByOrderId(orderId).stream()
                 .map(this::toDTO)

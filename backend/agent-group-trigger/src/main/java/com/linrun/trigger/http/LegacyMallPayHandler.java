@@ -30,6 +30,7 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
+import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -85,7 +86,7 @@ public class LegacyMallPayHandler {
 
     public String groupBuyNotify(NotifyRequest request) {
         if (request == null || request.getOutTradeNoList() == null || request.getOutTradeNoList().isEmpty()) {
-            throw new AppException("0001", "outTradeNoList cannot be empty");
+            throw new AppException("0001", "外部交易号列表不能为空");
         }
         tradeOrderRepository.updateGroupSettledByOrderIds(request.getOutTradeNoList());
         return "success";
@@ -93,7 +94,7 @@ public class LegacyMallPayHandler {
 
     public QueryOrderListResponse queryUserOrderList(QueryOrderListRequest request) {
         if (request == null || !StringUtils.hasText(request.getUserId())) {
-            throw new AppException("0001", "userId cannot be blank");
+            throw new AppException("0001", "用户编号不能为空");
         }
         int pageSize = request.getPageSize() == null || request.getPageSize() <= 0 ? 10 : request.getPageSize();
         List<TradeOrderEntity> orders = tradeOrderRepository.queryUserTradeOrders(
@@ -130,7 +131,7 @@ public class LegacyMallPayHandler {
 
     public RefundOrderResponse refundOrder(RefundOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
-            throw new AppException("0001", "orderId cannot be blank");
+            throw new AppException("0001", "订单编号不能为空");
         }
         boolean success = tradeCompensationService.refundOrCloseOrder(
                 request.getUserId(), request.getOrderId(), resolveRefundReason(request));
@@ -138,13 +139,13 @@ public class LegacyMallPayHandler {
         RefundOrderResponse response = new RefundOrderResponse();
         response.setSuccess(success);
         response.setOrderId(request.getOrderId());
-        response.setMessage(success ? "success" : "order not found or user mismatch");
+        response.setMessage(success ? "退款成功" : "订单不存在或不属于当前用户");
         return response;
     }
 
     public String activePayNotify(String outTradeNo) {
         if (!StringUtils.hasText(outTradeNo)) {
-            throw new AppException("0001", "outTradeNo cannot be blank");
+            throw new AppException("0001", "外部交易号不能为空");
         }
         ReconcilePaymentRequest request = new ReconcilePaymentRequest();
         request.setOrderId(outTradeNo);
@@ -175,6 +176,7 @@ public class LegacyMallPayHandler {
         info.setOrderTime(order.getCreateTime());
         info.setTotalAmount(order.getOriginAmount());
         info.setStatus(order.getOrderStatus() == null ? null : order.getOrderStatus().name());
+        info.setDisplayStatus(resolveDisplayStatus(order));
         info.setPayUrl(payOrder == null ? "" : payOrder.getPayUrl());
         info.setMarketType(TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType()) ? MARKET_TYPE_GROUP_BUY : 0);
         info.setPayAmount(order.getPayAmount());
@@ -183,6 +185,47 @@ public class LegacyMallPayHandler {
                 : order.getOriginAmount().subtract(order.getPayAmount()));
         info.setPayTime(order.getPayTime());
         return info;
+    }
+
+    private String resolveDisplayStatus(TradeOrderEntity order) {
+        if (order == null || order.getOrderStatus() == null) {
+            return "-";
+        }
+        boolean groupOrder = TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType());
+        if (groupOrder && TradeOrderStatusEnumVO.CLOSED.equals(order.getOrderStatus())) {
+            return "拼团失败（已关闭）";
+        }
+        if (groupOrder && TradeOrderStatusEnumVO.REFUNDED.equals(order.getOrderStatus())) {
+            RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(order.getOrderId()).orElse(null);
+            if (refundOrder != null && isGroupTimeoutRefund(refundOrder.getRefundReason())) {
+                return "拼团失败（已退款）";
+            }
+            return "已退款";
+        }
+        if (groupOrder && TradeOrderStatusEnumVO.PAY_SUCCESS.equals(order.getOrderStatus())) {
+            return "等待成团";
+        }
+        return switch (order.getOrderStatus()) {
+            case CREATE -> "已创建";
+            case PAY_WAIT -> "待支付";
+            case PAY_SUCCESS -> "已支付";
+            case GROUP_SETTLED -> "已成团";
+            case DEAL_DONE -> "已到账";
+            case CLOSED -> "已关闭";
+            case WAIT_REFUND -> "待退款";
+            case REFUNDED -> "已退款";
+        };
+    }
+
+    private boolean isGroupTimeoutRefund(String refundReason) {
+        if (!StringUtils.hasText(refundReason)) {
+            return false;
+        }
+        String reason = refundReason.trim().toLowerCase();
+        return reason.contains("group buy timeout")
+                || reason.contains("timeout unformed")
+                || refundReason.contains("拼团超时")
+                || refundReason.contains("未成团");
     }
 
     private QueryRefundOrderListResponse.RefundInfo toRefundInfo(RefundOrderEntity refundOrder) {
@@ -231,16 +274,16 @@ public class LegacyMallPayHandler {
 
     private void validateCreatePayRequest(CreatePayRequest request) {
         if (request == null) {
-            throw new AppException("0001", "request cannot be null");
+            throw new AppException("0001", "请求参数不能为空");
         }
         if (!StringUtils.hasText(request.getUserId())) {
-            throw new AppException("0001", "userId cannot be blank");
+            throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getProductId())) {
-            throw new AppException("0001", "productId cannot be blank");
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (isGroupBuy(request) && !StringUtils.hasText(request.getActivityId())) {
-            throw new AppException("0001", "activityId cannot be blank");
+            throw new AppException("0001", "活动编号不能为空");
         }
     }
 
@@ -261,7 +304,7 @@ public class LegacyMallPayHandler {
     }
 
     private String resolveRefundReason(RefundOrderRequest request) {
-        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "user refund";
+        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退款";
     }
 
     private String formBody(Map<String, String> params) {

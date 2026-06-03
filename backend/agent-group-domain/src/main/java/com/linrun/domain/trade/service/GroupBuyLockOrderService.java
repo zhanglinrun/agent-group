@@ -209,7 +209,7 @@ public class GroupBuyLockOrderService {
 
         GroupBuyTeam team = lockContext.getTeam();
         if (team == null) {
-            throw new AppException("GROUP_0003", "group team not found");
+            throw new AppException("GROUP_0003", "拼团队伍不存在");
         }
         try {
             groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
@@ -278,7 +278,7 @@ public class GroupBuyLockOrderService {
         if (!request.getUserId().equals(repeatedLock.getUserId())
                 || !request.getGoodsId().equals(repeatedLock.getGoodsId())
                 || !request.getActivityId().equals(repeatedLock.getActivityId())) {
-            throw new AppException("GROUP_0020", "idempotent key conflict");
+            throw new AppException("GROUP_0020", "请勿重复提交不同的拼团订单");
         }
     }
 

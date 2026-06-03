@@ -26,6 +26,7 @@ public class QueryOrderListResponse implements Serializable {
         private LocalDateTime orderTime;
         private BigDecimal totalAmount;
         private String status;
+        private String displayStatus;
         private String payUrl;
         private Integer marketType;
         private BigDecimal marketDeductionAmount;

@@ -3,6 +3,37 @@ export const DEMO_USER_ID = "U10001";
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 const USER_AUTH_KEY = "agentGroupUserAuth";
 
+export function normalizeApiMessage(message, fallback = "操作失败") {
+  const text = String(message || "").trim();
+  if (!text) return fallback;
+  const lower = text.toLowerCase();
+  if (lower.includes("user group buy take limit reached")) return "你已达到该拼团活动的参与次数上限";
+  if (lower.includes("group team slot is full") || lower.includes("group team quota is full")) return "拼团队伍名额已满";
+  if (lower.includes("group team not found") || lower.includes("group lock not found") || lower.includes("group order lock not found")) return "拼团队伍不存在或已失效";
+  if (lower.includes("idempotent key conflict")) return "请勿重复提交不同的拼团订单";
+  if (lower.includes("request activity does not match market trial activity")) return "当前拼团活动已变化，请刷新后重试";
+  if (lower.includes("user cannot join this group activity")) return "当前账号暂不能参加这个拼团活动";
+  if (lower.includes("group buy market is downgraded")) return "拼团活动暂时不可用";
+  if (lower.includes("user is outside market cut range")) return "当前账号暂不在活动范围内";
+  if (lower.includes("source and channel are blocked")) return "当前渠道暂不能参加活动";
+  if (lower.includes("product not found")) return "额度包不存在或已下架";
+  if (lower.includes("pay order not found")) return "支付单不存在";
+  if (lower.includes("refund order not found")) return "退款单不存在";
+  if (lower.includes("order not found or user mismatch")) return "订单不存在或不属于当前用户";
+  if (lower.includes("order not found")) return "订单不存在";
+  if (lower.includes("cannot be blank") || lower.includes("cannot be empty") || lower.includes("is required")) return "请补全必要信息";
+  if (lower.includes("request cannot be null")) return "请求参数不能为空";
+  if (lower.includes("group buy timeout unformed")) return "拼团超时未成团";
+  if (lower.includes("too many requests")) return "操作过于频繁，请稍后再试";
+  if (lower.includes("human approval required")) return "该操作需要人工确认";
+  if (lower.includes("human approval expired")) return "人工确认已过期";
+  if (lower.includes("human approval user mismatch")) return "人工确认用户不匹配";
+  if (lower.includes("human approval is not approved")) return "人工确认未通过";
+  if (lower.includes("human approval action mismatch") || lower.includes("human approval biz mismatch")) return "人工确认信息不匹配";
+  if (lower.includes("human approval not found")) return "人工确认记录不存在";
+  return text;
+}
+
 export class ApiError extends Error {
   constructor(message, status, payload) {
     super(message);
@@ -84,7 +115,7 @@ async function parseResponse(response) {
       : response.status === 403
         ? "当前账号权限不足"
         : `请求失败：${response.status}`;
-    throw new ApiError(payload?.info || payload?.message || fallback, response.status, payload);
+    throw new ApiError(normalizeApiMessage(payload?.info || payload?.message, fallback), response.status, payload);
   }
   return payload;
 }
@@ -230,7 +261,14 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
       });
 
       if (!response.ok) {
-        throw new ApiError(`学术智能体请求失败：${response.status}`, response.status);
+        const contentType = response.headers.get("content-type") || "";
+        const payload = contentType.includes("application/json")
+          ? await response.json().catch(() => null)
+          : await response.text().catch(() => "");
+        throw new ApiError(normalizeApiMessage(
+          payload?.info || payload?.message || payload,
+          `学术智能体请求失败：${response.status}`
+        ), response.status, payload);
       }
 
       const reader = response.body.getReader();
@@ -301,6 +339,39 @@ export async function lockGroupBuyOrder(product, userId = DEMO_USER_ID) {
       teamId: product.teamId || "",
       idempotentKey: `IDEMP_${Date.now()}`,
       payChannel: "MOCK_PAY"
+    })
+  });
+}
+
+export async function queryGroupBuyMarketConfig(product, userId = DEMO_USER_ID) {
+  return request("/api/v1/gbm/index/query_group_buy_market_config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      source: "s01",
+      channel: "c01",
+      goodsId: product.id || product.goodsId
+    })
+  });
+}
+
+export async function lockMarketPayOrder(product, userId = DEMO_USER_ID, options = {}) {
+  const outTradeNo = options.outTradeNo || `GBM_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+  return request("/api/v1/gbm/trade/lock_market_pay_order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      goodsId: product.id || product.goodsId,
+      activityId: product.activityId,
+      teamId: options.teamId || product.teamId || "",
+      source: "s01",
+      channel: "c01",
+      outTradeNo,
+      notifyConfigVO: {
+        notifyType: "MQ"
+      }
     })
   });
 }

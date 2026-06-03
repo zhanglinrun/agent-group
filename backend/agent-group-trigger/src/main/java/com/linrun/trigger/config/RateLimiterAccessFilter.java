@@ -75,7 +75,7 @@ public class RateLimiterAccessFilter extends OncePerRequestFilter {
         if (!tryAcquire(key)) {
             response.setStatus(429);
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"code\":\"RATE_LIMITED\",\"message\":\"too many requests\"}");
+            response.getWriter().write("{\"code\":\"RATE_LIMITED\",\"message\":\"操作过于频繁，请稍后再试\"}");
             return;
         }
         filterChain.doFilter(request, response);

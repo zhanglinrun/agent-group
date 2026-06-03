@@ -91,7 +91,7 @@ public class KnowledgeDocumentUploadHandler {
     @Transactional(rollbackFor = Exception.class)
     public UploadKnowledgeDocumentResponse uploadText(UploadKnowledgeDocumentRequest request) {
         if (request == null) {
-            throw new AppException("0001", "upload request cannot be null");
+            throw new AppException("0001", "上传请求不能为空");
         }
 
         CreateKnowledgeDocumentCommand documentCommand = toDocumentCommand(request);

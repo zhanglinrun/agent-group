@@ -92,11 +92,22 @@ public class TradeCompensationService {
         for (String orderId : orderIds) {
             RefundPaymentRequest request = new RefundPaymentRequest();
             request.setOrderId(orderId);
-            request.setRefundReason("group buy timeout unformed");
+            request.setRefundReason("拼团超时未成团");
             tradeRefundService.refund(request);
             refundCount++;
         }
         return refundCount;
+    }
+
+    public int closeTimeoutUnsettledGroupOrders(LocalDateTime deadline, int limit) {
+        List<String> orderIds = groupBuyOrderLockRepository.queryTimeoutUnsettledLockedOrderIds(deadline, limit);
+        int closedCount = 0;
+        for (String orderId : orderIds) {
+            if (closeUnpaidOrder(orderId)) {
+                closedCount++;
+            }
+        }
+        return closedCount;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -171,11 +182,11 @@ public class TradeCompensationService {
 
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "order not found"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 
     private PayOrderEntity queryPayOrder(String orderId) {
         return tradeOrderRepository.queryPayOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0014", "pay order not found"));
+                .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
     }
 }

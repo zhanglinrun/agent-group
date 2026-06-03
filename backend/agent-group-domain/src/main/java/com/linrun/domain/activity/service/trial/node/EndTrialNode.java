@@ -85,15 +85,15 @@ public class EndTrialNode implements StrategyHandler<GroupBuyMarketTrialCommand,
 
     private String resolveMessage(GroupBuyActivityStatus status, GroupBuyMarketTrialContext dynamicContext) {
         if (!GroupBuyActivityStatus.ACTIVE.equals(status)) {
-            return "group activity is not active";
+            return "拼团活动未开始或已结束";
         }
         if (!dynamicContext.isVisible()) {
-            return "user cannot view this group activity";
+            return "当前账号暂不能查看这个拼团活动";
         }
         if (!dynamicContext.isEnable()) {
-            return "user cannot join this group activity";
+            return "当前账号暂不能参加这个拼团活动";
         }
-        return "group activity available";
+        return "拼团活动可参加";
     }
 
     private BigDecimal normalize(BigDecimal value) {

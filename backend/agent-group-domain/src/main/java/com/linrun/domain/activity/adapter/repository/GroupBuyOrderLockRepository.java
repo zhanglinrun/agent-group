@@ -35,6 +35,10 @@ public interface GroupBuyOrderLockRepository {
         return List.of();
     }
 
+    default List<String> queryTimeoutUnsettledLockedOrderIds(LocalDateTime deadline, int limit) {
+        return List.of();
+    }
+
     default int countUserActivityLocks(String userId, String activityId) {
         return 0;
     }
