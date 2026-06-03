@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Activity, AlertTriangle, Bell, Boxes, CreditCard, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, Tags, Upload } from "lucide-react";
 import AdminAuthBar from "./AdminAuthBar";
+import ThemeToggle from "./ThemeToggle";
 import {
   compensateKnowledgeVector,
   downloadPaymentBill,
@@ -19,6 +20,7 @@ import {
   updateOperationalRule,
   uploadKnowledgeDocument
 } from "../services/api";
+import { applyTheme, getStoredTheme, nextTheme } from "../theme";
 
 async function fetchAdminData() {
   const [docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult] = await Promise.allSettled([
@@ -59,6 +61,7 @@ function formatRate(value) {
 }
 
 export default function AdminDashboard() {
+  const [theme, setTheme] = useState(() => getStoredTheme());
   const [loadingMsg, setLoadingMsg] = useState("");
   const [documents, setDocuments] = useState([]);
   const [evaluation, setEvaluation] = useState(null);
@@ -69,6 +72,14 @@ export default function AdminDashboard() {
   const [paymentOps, setPaymentOps] = useState({ payChannel: "MOCK_PAY", billDate: "", refundOrderId: "", gatewayCode: "SYSTEMERROR" });
   const [paymentOpsResult, setPaymentOpsResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => applyTheme(nextTheme(prev)));
+  };
 
   const loadData = async () => {
     setErrorMsg("");
@@ -184,15 +195,18 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="admin-dashboard">
+    <div className="admin-dashboard" data-theme={theme}>
       <header className="admin-header">
         <div>
           <h2>系统管理后台</h2>
           <span>额度与智能体控制台</span>
         </div>
-        <a className="admin-exit" href="/">
-          <LogOut size={16} /> 返回前台
-        </a>
+        <div className="admin-header-actions">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <a className="admin-exit" href="/">
+            <LogOut size={16} /> 返回前台
+          </a>
+        </div>
       </header>
 
       <AdminAuthBar onSaved={loadData} />
