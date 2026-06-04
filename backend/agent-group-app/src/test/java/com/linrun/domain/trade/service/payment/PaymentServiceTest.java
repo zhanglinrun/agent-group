@@ -77,6 +77,19 @@ class PaymentServiceTest {
     }
 
     @Test
+    void shouldRejectGatewayPaymentWhenOrderOwnerMismatches() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        CreatePaymentRequest request = new CreatePaymentRequest();
+        request.setOrderId("O10001");
+        request.setPayChannel("MOCK_PAY");
+
+        AppException exception = assertThrows(AppException.class,
+                () -> fixture.service.createPayment(request, "U20001"));
+
+        assertEquals("TRADE_0016", exception.getCode());
+    }
+
+    @Test
     void shouldVerifyWebhookAndMarkPaySuccess() {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
         PaymentWebhookRequest request = new PaymentWebhookRequest();

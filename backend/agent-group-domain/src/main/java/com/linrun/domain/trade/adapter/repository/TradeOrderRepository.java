@@ -49,6 +49,14 @@ public interface TradeOrderRepository {
         return queryUserTradeOrders(userId, lastId, pageSize);
     }
 
+    default List<TradeOrderEntity> queryTradeOrders(Long lastId,
+                                                    int pageSize,
+                                                    Integer marketType,
+                                                    String orderStatus,
+                                                    String keyword) {
+        return List.of();
+    }
+
     default List<RefundOrderEntity> queryRefundOrders(String userId, String refundStatus, int pageSize) {
         return List.of();
     }

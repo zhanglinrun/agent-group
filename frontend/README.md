@@ -1,16 +1,29 @@
-# React + Vite
+# 前端说明
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+本目录是用户端 `Agent`（智能体）工作台和运营后台的 `Vite`（前端构建工具）应用。
 
-Currently, two official plugins are available:
+## 启动
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```powershell
+npm install
+npm run dev
+```
 
-## React Compiler
+默认后端代理地址是 `http://localhost:8080`（后端接口地址）。如需改后端地址：
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```powershell
+$env:VITE_API_TARGET="http://localhost:8080"
+npm run dev
+```
 
-## Expanding the ESLint configuration
+## 入口
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `http://localhost:5173/`（用户端）
+- `http://localhost:5173/admin`（运营后台）
+
+## 验证
+
+```powershell
+npm run lint
+npm run build
+```

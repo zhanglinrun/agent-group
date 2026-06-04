@@ -53,6 +53,12 @@ public interface ITradeOrderDao {
                                                     @Param("orderStatus") String orderStatus,
                                                     @Param("keyword") String keyword);
 
+    List<TradeOrderPO> queryTradeOrdersFiltered(@Param("lastId") Long lastId,
+                                                @Param("pageSize") int pageSize,
+                                                @Param("buyType") String buyType,
+                                                @Param("orderStatus") String orderStatus,
+                                                @Param("keyword") String keyword);
+
     List<RefundOrderPO> queryRefundOrders(@Param("userId") String userId,
                                           @Param("refundStatus") String refundStatus,
                                           @Param("pageSize") int pageSize);

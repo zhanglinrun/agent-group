@@ -72,16 +72,16 @@ public class SecurityConfig {
     @Bean
     public InMemoryUserDetailsManager userDetailsService(
             @Value("${agent.group.security.admin-username:admin}") String adminUsername,
-            @Value("${agent.group.security.admin-password:admin_dev}") String adminPassword,
+            @Value("${agent.group.security.admin-password:}") String adminPassword,
             @Value("${agent.group.security.operator-username:operator}") String operatorUsername,
-            @Value("${agent.group.security.operator-password:operator_dev}") String operatorPassword,
+            @Value("${agent.group.security.operator-password:}") String operatorPassword,
             PasswordEncoder passwordEncoder) {
         UserDetails admin = User.withUsername(safe(adminUsername, "admin"))
-                .password(passwordEncoder.encode(safe(adminPassword, "admin_dev")))
+                .password(passwordEncoder.encode(required(adminPassword, "AGENT_GROUP_ADMIN_PASSWORD")))
                 .roles("ADMIN", "OPERATOR")
                 .build();
         UserDetails operator = User.withUsername(safe(operatorUsername, "operator"))
-                .password(passwordEncoder.encode(safe(operatorPassword, "operator_dev")))
+                .password(passwordEncoder.encode(required(operatorPassword, "AGENT_GROUP_OPERATOR_PASSWORD")))
                 .roles("OPERATOR")
                 .build();
         return new InMemoryUserDetailsManager(admin, operator);
@@ -94,5 +94,12 @@ public class SecurityConfig {
 
     private String safe(String value, String fallback) {
         return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private String required(String value, String envName) {
+        if (!StringUtils.hasText(value)) {
+            throw new IllegalStateException(envName + " must be set");
+        }
+        return value;
     }
 }

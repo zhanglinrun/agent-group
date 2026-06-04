@@ -11,6 +11,30 @@ const DEFAULT_MODEL_CONFIG = {
   model: "qwen3.6-plus"
 };
 
+function volatileStorage() {
+  return window.sessionStorage;
+}
+
+function readVolatileJson(key) {
+  try {
+    const raw = volatileStorage().getItem(key);
+    localStorage.removeItem(key);
+    return JSON.parse(raw || "null");
+  } catch {
+    return null;
+  }
+}
+
+function writeVolatileJson(key, value) {
+  volatileStorage().setItem(key, JSON.stringify(value));
+  localStorage.removeItem(key);
+}
+
+function clearVolatile(key) {
+  volatileStorage().removeItem(key);
+  localStorage.removeItem(key);
+}
+
 export function normalizeApiMessage(message, fallback = "操作失败") {
   const text = String(message || "").trim();
   if (!text) return fallback;
@@ -80,35 +104,27 @@ export function getSessionId() {
 }
 
 export function getAdminAuth() {
-  try {
-    return JSON.parse(localStorage.getItem(ADMIN_AUTH_KEY) || "null");
-  } catch {
-    return null;
-  }
+  return readVolatileJson(ADMIN_AUTH_KEY);
 }
 
 export function saveAdminAuth(username, password) {
-  localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify({ username, password }));
+  writeVolatileJson(ADMIN_AUTH_KEY, { username, password });
 }
 
 export function clearAdminAuth() {
-  localStorage.removeItem(ADMIN_AUTH_KEY);
+  clearVolatile(ADMIN_AUTH_KEY);
 }
 
 export function getUserAuth() {
-  try {
-    return JSON.parse(localStorage.getItem(USER_AUTH_KEY) || "null");
-  } catch {
-    return null;
-  }
+  return readVolatileJson(USER_AUTH_KEY);
 }
 
 export function saveUserAuth(auth) {
-  localStorage.setItem(USER_AUTH_KEY, JSON.stringify(auth));
+  writeVolatileJson(USER_AUTH_KEY, auth);
 }
 
 export function clearUserAuth() {
-  localStorage.removeItem(USER_AUTH_KEY);
+  clearVolatile(USER_AUTH_KEY);
 }
 
 function normalizeModelConfig(config = {}) {
@@ -124,7 +140,7 @@ function normalizeModelConfig(config = {}) {
 
 export function getModelConfig() {
   try {
-    return normalizeModelConfig(JSON.parse(localStorage.getItem(MODEL_CONFIG_KEY) || "null") || {});
+    return normalizeModelConfig(readVolatileJson(MODEL_CONFIG_KEY) || {});
   } catch {
     return { ...DEFAULT_MODEL_CONFIG };
   }
@@ -132,7 +148,7 @@ export function getModelConfig() {
 
 export function saveModelConfig(config) {
   const normalized = normalizeModelConfig(config);
-  localStorage.setItem(MODEL_CONFIG_KEY, JSON.stringify(normalized));
+  writeVolatileJson(MODEL_CONFIG_KEY, normalized);
   return normalized;
 }
 
@@ -568,6 +584,22 @@ export async function queryUserOrderList(options = 10) {
   return request(`/api/v1/trade/order/my?${query.toString()}`, {
     userAuth: true,
     method: "GET"
+  });
+}
+
+export async function queryAdminOrderList(options = {}) {
+  return request("/api/v1/alipay/query_user_order_list", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: options.userId || undefined,
+      lastId: options.lastId || undefined,
+      marketType: options.marketType === "" ? undefined : options.marketType,
+      orderStatus: options.orderStatus || undefined,
+      keyword: options.keyword || undefined,
+      pageSize: options.pageSize || 20
+    })
   });
 }
 

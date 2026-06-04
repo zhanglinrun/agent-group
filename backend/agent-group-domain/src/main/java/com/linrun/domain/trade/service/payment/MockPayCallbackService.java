@@ -95,9 +95,18 @@ public class MockPayCallbackService {
         }
         if (settledOrderIds != null && !settledOrderIds.isEmpty()) {
             userQuotaService.grantQuotaForOrderIds(settledOrderIds);
+            markCurrentOrderDealDoneIfSettled(tradeOrder, settledOrderIds);
             return;
         }
         userQuotaService.grantQuotaForPaidOrder(tradeOrder);
+    }
+
+    private void markCurrentOrderDealDoneIfSettled(TradeOrderEntity tradeOrder, List<String> settledOrderIds) {
+        if (tradeOrder != null
+                && settledOrderIds.contains(tradeOrder.getOrderId())
+                && TradeOrderStatusEnumVO.GROUP_SETTLED.equals(tradeOrder.getOrderStatus())) {
+            tradeOrder.markDealDone();
+        }
     }
 
     private void recordPaySuccessFlow(TradeOrderEntity tradeOrder,

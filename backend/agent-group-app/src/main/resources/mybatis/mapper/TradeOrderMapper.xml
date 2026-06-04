@@ -107,6 +107,7 @@
         set order_status = #{orderStatus},
             pay_time = #{payTime}
         where order_id = #{orderId}
+          and order_status = 'PAY_WAIT'
     </update>
 
     <update id="updatePayOrderSuccess" parameterType="com.linrun.infrastructure.po.PayOrderPO">
@@ -115,6 +116,7 @@
             out_trade_no = #{outTradeNo},
             pay_time = #{payTime}
         where order_id = #{orderId}
+          and pay_status = 'WAIT_PAY'
     </update>
 
     <update id="updateGroupSettledByOrderIds">
@@ -132,12 +134,14 @@
         set order_status = #{orderStatus},
             close_time = #{closeTime}
         where order_id = #{orderId}
+          and order_status in ('CREATE', 'PAY_WAIT')
     </update>
 
     <update id="updatePayOrderClosed" parameterType="com.linrun.infrastructure.po.PayOrderPO">
         update pay_order
         set pay_status = #{payStatus}
         where order_id = #{orderId}
+          and pay_status = 'WAIT_PAY'
     </update>
 
     <insert id="insertRefundOrder" parameterType="com.linrun.infrastructure.po.RefundOrderPO">
@@ -168,18 +172,21 @@
         update trade_order
         set order_status = #{orderStatus}
         where order_id = #{orderId}
+          and order_status in ('PAY_SUCCESS', 'GROUP_SETTLED', 'DEAL_DONE')
     </update>
 
     <update id="updatePayOrderRefunded" parameterType="com.linrun.infrastructure.po.PayOrderPO">
         update pay_order
         set pay_status = #{payStatus}
         where order_id = #{orderId}
+          and pay_status = 'SUCCESS'
     </update>
 
     <update id="updateTradeOrderDealDone" parameterType="com.linrun.infrastructure.po.TradeOrderPO">
         update trade_order
         set order_status = #{orderStatus}
         where order_id = #{orderId}
+          and order_status in ('PAY_SUCCESS', 'GROUP_SETTLED')
     </update>
 
     <select id="queryTradeOrderByOrderId" resultMap="TradeOrderMap">
@@ -280,6 +287,44 @@
             )
         </if>
         order by id asc
+        limit #{pageSize}
+    </select>
+
+    <select id="queryTradeOrdersFiltered" resultMap="TradeOrderMap">
+        select id,
+               order_id,
+               idempotent_key,
+               user_id,
+               goods_id,
+               goods_name,
+               activity_id,
+               buy_type,
+               origin_amount,
+               pay_amount,
+               order_status,
+               create_time,
+               pay_time,
+               close_time
+        from trade_order
+        where 1 = 1
+        <if test="lastId != null">
+            and id &lt; #{lastId}
+        </if>
+        <if test="buyType != null and buyType != ''">
+            and buy_type = #{buyType}
+        </if>
+        <if test="orderStatus != null and orderStatus != ''">
+            and order_status = #{orderStatus}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            and (
+              order_id like concat('%', #{keyword}, '%')
+              or user_id like concat('%', #{keyword}, '%')
+              or goods_id like concat('%', #{keyword}, '%')
+              or goods_name like concat('%', #{keyword}, '%')
+            )
+        </if>
+        order by id desc
         limit #{pageSize}
     </select>
 

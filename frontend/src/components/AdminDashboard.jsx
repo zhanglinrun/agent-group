@@ -8,12 +8,12 @@ import {
   getKnowledgeDocuments,
   getLatestAgentEvaluation,
   normalizeApiMessage,
+  queryAdminOrderList,
   queryOpsDashboard,
   queryOperationalRules,
   queryPaymentErrorMap,
   queryPaymentRefund,
   queryRefundOrderList,
-  queryUserOrderList,
   rebuildKnowledgeVector,
   refreshPaymentCertificate,
   runAgentEvaluation,
@@ -26,7 +26,7 @@ async function fetchAdminData() {
   const [docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult] = await Promise.allSettled([
     getKnowledgeDocuments(),
     getLatestAgentEvaluation(),
-    queryUserOrderList({ pageSize: 20 }),
+    queryAdminOrderList({ pageSize: 20 }),
     queryRefundOrderList({ userId: null, pageSize: 20 }),
     queryOperationalRules(),
     queryOpsDashboard()

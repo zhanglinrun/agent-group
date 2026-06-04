@@ -106,10 +106,15 @@ public class PaymentService {
     }
 
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {
+        return createPayment(request, null);
+    }
+
+    public CreatePaymentResponse createPayment(CreatePaymentRequest request, String userId) {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
+        validateOrderOwner(tradeOrder, userId);
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
         String payChannel = resolvePayChannel(request.getPayChannel(), payOrder);
         if (PaymentChannel.MOCK_PAY.name().equals(payChannel)) {
@@ -131,6 +136,12 @@ public class PaymentService {
                 payOrder.getPayStatus(),
                 "gateway payment created by " + payChannel);
         return toCreateResponse(result, payOrder);
+    }
+
+    private void validateOrderOwner(TradeOrderEntity tradeOrder, String userId) {
+        if (StringUtils.hasText(userId) && !userId.equals(tradeOrder.getUserId())) {
+            throw new AppException("TRADE_0016", "order not found or user mismatch");
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)

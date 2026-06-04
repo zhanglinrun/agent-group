@@ -125,6 +125,7 @@ public class UserQuotaService {
             return;
         }
         if (userQuotaRepository.queryFlow(tradeOrder.getUserId(), FLOW_ORDER_GRANT, tradeOrder.getOrderId()).isPresent()) {
+            markDealDoneIfNeeded(tradeOrder);
             return;
         }
         BigDecimal quotaAmount = resolveOrderQuota(tradeOrder);
@@ -143,6 +144,7 @@ public class UserQuotaService {
                 before.getQuotaBalance(),
                 after.getQuotaBalance(),
                 grantRemark(tradeOrder, quotaAmount)));
+        markDealDoneIfNeeded(tradeOrder);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -164,6 +166,17 @@ public class UserQuotaService {
         }
         return TradeOrderStatusEnumVO.PAY_SUCCESS.equals(status)
                 || TradeOrderStatusEnumVO.DEAL_DONE.equals(status);
+    }
+
+    private void markDealDoneIfNeeded(TradeOrderEntity tradeOrder) {
+        if (tradeOrder == null || TradeOrderStatusEnumVO.DEAL_DONE.equals(tradeOrder.getOrderStatus())) {
+            return;
+        }
+        if (!isQuotaGrantable(tradeOrder)) {
+            return;
+        }
+        tradeOrder.markDealDone();
+        tradeOrderRepository.updateDealDone(tradeOrder);
     }
 
     @Transactional(rollbackFor = Exception.class)

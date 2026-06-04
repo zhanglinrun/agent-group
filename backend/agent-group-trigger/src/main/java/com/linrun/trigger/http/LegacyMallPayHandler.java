@@ -93,17 +93,24 @@ public class LegacyMallPayHandler {
     }
 
     public QueryOrderListResponse queryUserOrderList(QueryOrderListRequest request) {
-        if (request == null || !StringUtils.hasText(request.getUserId())) {
-            throw new AppException("0001", "用户编号不能为空");
-        }
-        int pageSize = request.getPageSize() == null || request.getPageSize() <= 0 ? 10 : request.getPageSize();
-        List<TradeOrderEntity> orders = tradeOrderRepository.queryUserTradeOrders(
-                request.getUserId(),
-                request.getLastId(),
-                pageSize + 1,
-                request.getMarketType(),
-                request.getOrderStatus(),
-                request.getKeyword());
+        QueryOrderListRequest safeRequest = request == null ? new QueryOrderListRequest() : request;
+        int pageSize = safeRequest.getPageSize() == null || safeRequest.getPageSize() <= 0
+                ? 10
+                : Math.min(safeRequest.getPageSize(), 100);
+        List<TradeOrderEntity> orders = StringUtils.hasText(safeRequest.getUserId())
+                ? tradeOrderRepository.queryUserTradeOrders(
+                        safeRequest.getUserId(),
+                        safeRequest.getLastId(),
+                        pageSize + 1,
+                        safeRequest.getMarketType(),
+                        safeRequest.getOrderStatus(),
+                        safeRequest.getKeyword())
+                : tradeOrderRepository.queryTradeOrders(
+                        safeRequest.getLastId(),
+                        pageSize + 1,
+                        safeRequest.getMarketType(),
+                        safeRequest.getOrderStatus(),
+                        safeRequest.getKeyword());
         boolean hasMore = orders.size() > pageSize;
         if (hasMore) {
             orders = orders.subList(0, pageSize);
@@ -112,7 +119,7 @@ public class LegacyMallPayHandler {
         QueryOrderListResponse response = new QueryOrderListResponse();
         response.setHasMore(hasMore);
         response.setOrderList(orders.stream().map(this::toOrderInfo).toList());
-        response.setLastId(orders.isEmpty() ? request.getLastId() : orders.get(orders.size() - 1).getId());
+        response.setLastId(orders.isEmpty() ? safeRequest.getLastId() : orders.get(orders.size() - 1).getId());
         return response;
     }
 

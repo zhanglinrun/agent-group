@@ -16,6 +16,8 @@ import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
 import com.linrun.api.dto.RefundPaymentResponse;
+import com.linrun.domain.account.model.UserAccount;
+import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.domain.trade.service.TradeRefundService;
@@ -43,16 +45,22 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final TradeRefundService tradeRefundService;
+    private final UserAccountService userAccountService;
 
     public PaymentController(PaymentService paymentService,
-                             TradeRefundService tradeRefundService) {
+                             TradeRefundService tradeRefundService,
+                             UserAccountService userAccountService) {
         this.paymentService = paymentService;
         this.tradeRefundService = tradeRefundService;
+        this.userAccountService = userAccountService;
     }
 
     @PostMapping("/create")
-    public Response<CreatePaymentResponse> create(@RequestBody CreatePaymentRequest request) {
-        return Response.success(paymentService.createPayment(request), RequestTraceContext.getRequestId());
+    public Response<CreatePaymentResponse> create(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody CreatePaymentRequest request) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return Response.success(paymentService.createPayment(request, user.getUserId()), RequestTraceContext.getRequestId());
     }
 
     @PostMapping("/webhook")

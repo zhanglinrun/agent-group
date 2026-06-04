@@ -7,6 +7,7 @@ import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.infrastructure.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.ITradeOrderDao;
+import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,8 +34,10 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.updateTradeOrderPaySuccess(TradePOConverter.toPO(tradeOrder));
-        tradeOrderDao.updatePayOrderSuccess(TradePOConverter.toPO(payOrder));
+        assertUpdated(tradeOrderDao.updateTradeOrderPaySuccess(TradePOConverter.toPO(tradeOrder)),
+                "TRADE_0020", "order status changed before pay success update");
+        assertUpdated(tradeOrderDao.updatePayOrderSuccess(TradePOConverter.toPO(payOrder)),
+                "TRADE_0020", "pay order status changed before pay success update");
     }
 
     @Override
@@ -48,8 +51,10 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.updateTradeOrderClosed(TradePOConverter.toPO(tradeOrder));
-        tradeOrderDao.updatePayOrderClosed(TradePOConverter.toPO(payOrder));
+        assertUpdated(tradeOrderDao.updateTradeOrderClosed(TradePOConverter.toPO(tradeOrder)),
+                "TRADE_0021", "order status changed before close update");
+        assertUpdated(tradeOrderDao.updatePayOrderClosed(TradePOConverter.toPO(payOrder)),
+                "TRADE_0021", "pay order status changed before close update");
     }
 
     @Override
@@ -60,13 +65,16 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        tradeOrderDao.updateTradeOrderRefunded(TradePOConverter.toPO(tradeOrder));
-        tradeOrderDao.updatePayOrderRefunded(TradePOConverter.toPO(payOrder));
+        assertUpdated(tradeOrderDao.updateTradeOrderRefunded(TradePOConverter.toPO(tradeOrder)),
+                "TRADE_0022", "order status changed before refund update");
+        assertUpdated(tradeOrderDao.updatePayOrderRefunded(TradePOConverter.toPO(payOrder)),
+                "TRADE_0022", "pay order status changed before refund update");
     }
 
     @Override
     public void updateDealDone(TradeOrderEntity tradeOrder) {
-        tradeOrderDao.updateTradeOrderDealDone(TradePOConverter.toPO(tradeOrder));
+        assertUpdated(tradeOrderDao.updateTradeOrderDealDone(TradePOConverter.toPO(tradeOrder)),
+                "TRADE_0023", "order status changed before deal done update");
     }
 
     @Override
@@ -107,6 +115,17 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    public List<TradeOrderEntity> queryTradeOrders(Long lastId,
+                                                   int pageSize,
+                                                   Integer marketType,
+                                                   String orderStatus,
+                                                   String keyword) {
+        String buyType = marketType == null ? null : (marketType == 1 ? TradeBuyTypeEnumVO.GROUP_BUY.name() : TradeBuyTypeEnumVO.DIRECT.name());
+        return TradePOConverter.toTradeOrderEntities(
+                tradeOrderDao.queryTradeOrdersFiltered(lastId, Math.max(1, pageSize), buyType, orderStatus, keyword));
+    }
+
+    @Override
     public List<RefundOrderEntity> queryRefundOrders(String userId, String refundStatus, int pageSize) {
         return TradePOConverter.toRefundOrderEntities(
                 tradeOrderDao.queryRefundOrders(userId, refundStatus, Math.max(1, pageSize)));
@@ -121,5 +140,11 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     public Optional<TradeOrderEntity> queryLatestUnpaidOrder(String userId, String goodsId, TradeBuyTypeEnumVO buyType) {
         return Optional.ofNullable(TradePOConverter.toEntity(
                 tradeOrderDao.queryLatestUnpaidOrder(userId, goodsId, buyType == null ? null : buyType.name())));
+    }
+
+    private void assertUpdated(int affected, String code, String message) {
+        if (affected <= 0) {
+            throw new AppException(code, message);
+        }
     }
 }
