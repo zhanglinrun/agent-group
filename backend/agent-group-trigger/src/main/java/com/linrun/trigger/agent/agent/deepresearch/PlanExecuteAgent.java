@@ -331,8 +331,8 @@ public class PlanExecuteAgent extends BaseAgent {
         // 保存结果到会话
         saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer);
 
-        // 移除任务
-        taskManager.stopTask(conversationId);
+        // 正常结束只移除任务状态，用户点击停止才发送停止消息
+        taskManager.completeTask(conversationId);
 
         // 清理资源
         cleanupResources(finished);

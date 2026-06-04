@@ -321,6 +321,29 @@ public class FileManageService {
         }
     }
 
+    public void deleteFileForSessionCleanup(String fileId) {
+        FileInfo fileInfo = fileInfoService.getFileInfoById(fileId);
+        if (fileInfo == null) {
+            return;
+        }
+
+        if (fileInfo.getMinioPath() != null) {
+            try {
+                String objectName = extractObjectName(fileInfo.getMinioPath());
+                minioService.deleteFile(objectName);
+            } catch (Exception e) {
+                log.warn("会话文件对象清理失败，继续删除文件元数据: fileId={}, reason={}",
+                        fileId, e.getClass().getSimpleName());
+            }
+        }
+
+        try {
+            fileInfoService.deleteFileInfo(fileId);
+        } catch (Exception e) {
+            log.warn("会话文件元数据清理失败: fileId={}, reason={}", fileId, e.getClass().getSimpleName());
+        }
+    }
+
     /**
      * 获取所有文件列表
      *

@@ -25,6 +25,7 @@ import com.linrun.trigger.agent.tool.BashTool;
 import com.linrun.trigger.agent.tool.FileContentService;
 import com.linrun.trigger.agent.tool.FileSystemTools;
 import com.linrun.trigger.agent.tool.GrepTool;
+import com.linrun.trigger.agent.tool.SearchTool;
 import com.linrun.trigger.agent.tool.SkillsTool;
 import com.linrun.trigger.agent.tool.ToolMergeUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -87,11 +88,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private final AiSessionMapper aiSessionMapper;
     private final UserAccountService userAccountService;
     private final UserQuotaService userQuotaService;
+    private final AcademicExternalSearchService externalSearchService;
 
     @Value("${tavily.api-key:}")
     private String tavilyApiKey;
 
-    @Value("${tavily.mcp-url:https://mcp.tavily.com/mcp/}")
+    @Value("${tavily.mcp-url:}")
     private String tavilyMcpUrl;
 
     @Value("${skills.directory:}")
@@ -104,6 +106,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private String defaultChatModel;
 
     private ToolCallback[] webSearchToolCallbacks = new ToolCallback[0];
+    private String webSearchStatus = "missing-config";
 
     public BearDoctorNativeAgentService(ObjectProvider<ChatModel> chatModelProvider,
                                   AiSessionService sessionService,
@@ -114,7 +117,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                   AiPptInstService aiPptInstService,
                                   AiSessionMapper aiSessionMapper,
                                   UserAccountService userAccountService,
-                                  UserQuotaService userQuotaService) {
+                                  UserQuotaService userQuotaService,
+                                  AcademicExternalSearchService externalSearchService) {
         this.chatModelProvider = chatModelProvider;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
@@ -125,6 +129,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         this.aiSessionMapper = aiSessionMapper;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
+        this.externalSearchService = externalSearchService;
     }
 
     @Override
@@ -265,7 +270,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .toList();
         for (FileInfo file : relatedFiles) {
             try {
-                fileManageService.deleteFile(file.getFileId());
+                fileManageService.deleteFileForSessionCleanup(file.getFileId());
             } catch (Exception e) {
                 LOGGER.warn("bear-doctor session file cleanup degraded, fileId={}, reason={}", file.getFileId(), e.getClass().getSimpleName());
                 fileInfoService.deleteFileInfo(file.getFileId());
@@ -304,9 +309,11 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private void initWebSearchToolCallbacks() {
+        ToolCallback[] fallbackSearchTools = SearchTool.create(externalSearchService);
         if (!StringUtils.hasText(tavilyApiKey) || tavilyApiKey.contains("XXXXX") || !StringUtils.hasText(tavilyMcpUrl)) {
             LOGGER.warn("bear-doctor tavily tool init skipped, reason=missing_config");
-            webSearchToolCallbacks = new ToolCallback[0];
+            webSearchToolCallbacks = fallbackSearchTools;
+            webSearchStatus = fallbackSearchTools.length > 0 ? "direct-api" : "missing-config";
             return;
         }
         try {
@@ -319,10 +326,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                     .build();
             tavilyMcp.initialize();
             SyncMcpToolCallbackProvider provider = new SyncMcpToolCallbackProvider(List.of(tavilyMcp));
-            webSearchToolCallbacks = provider.getToolCallbacks();
+            webSearchToolCallbacks = ToolMergeUtils.mergeTools(provider.getToolCallbacks(), fallbackSearchTools);
+            webSearchStatus = fallbackSearchTools.length > 0 ? "mcp-and-direct-api" : "mcp";
         } catch (Exception e) {
             LOGGER.warn("bear-doctor tavily tool init failed, reason={}", e.getClass().getSimpleName());
-            webSearchToolCallbacks = new ToolCallback[0];
+            webSearchToolCallbacks = fallbackSearchTools;
+            webSearchStatus = fallbackSearchTools.length > 0 ? "direct-api-fallback" : "configured-but-no-tools";
         }
     }
 
@@ -553,6 +562,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private String normalizeCustomBaseUrl(String llmBaseUrl) {
         String text = llmBaseUrl == null ? "" : llmBaseUrl.trim();
+        if (text.regionMatches(true, 0, "ttps://", 0, "ttps://".length())) {
+            text = "h" + text;
+        }
+        if (!text.matches("(?i)^[a-z][a-z0-9+.-]*://.*")) {
+            text = "https://" + text.replaceFirst("^/+", "");
+        }
         URI uri;
         try {
             uri = URI.create(text);
@@ -691,18 +706,11 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private boolean isTavilyConfigured() {
         return StringUtils.hasText(tavilyApiKey)
-                && !tavilyApiKey.contains("XXXXX")
-                && StringUtils.hasText(tavilyMcpUrl);
+                && !tavilyApiKey.contains("XXXXX");
     }
 
     private String webSearchStatus() {
-        if (!isTavilyConfigured()) {
-            return "missing-config";
-        }
-        if (webSearchToolCallbacks.length == 0) {
-            return "configured-but-no-tools";
-        }
-        return "available";
+        return webSearchStatus;
     }
 
     private String message(Throwable error) {

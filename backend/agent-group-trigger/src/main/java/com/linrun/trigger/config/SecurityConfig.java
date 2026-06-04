@@ -16,6 +16,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.util.StringUtils;
 
 @Configuration
@@ -24,11 +25,13 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   MockPaymentAccessChecker mockPaymentAccessChecker) throws Exception {
+                                                   MockPaymentAccessChecker mockPaymentAccessChecker,
+                                                   UserBearerTokenAuthenticationFilter userBearerTokenAuthenticationFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .httpBasic(Customizer.withDefaults())
+                .addFilterBefore(userBearerTokenAuthenticationFilter, BasicAuthenticationFilter.class)
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -42,15 +45,22 @@ public class SecurityConfig {
                         }))
                 .authorizeHttpRequests(registry -> registry
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/health", "/actuator/health", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/agent/**", "/file/**", "/session/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**", "/api/v1/quota/**", "/api/v1/academic/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/create", "/api/v1/payment/webhook", "/api/v1/payment/webhook/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/gbm/index/query_group_buy_market_config", "/api/v1/gbm/trade/lock_market_pay_order").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/trade/order/my").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/webhook", "/api/v1/payment/webhook/**",
+                                "/api/v1/payment/refund/webhook/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/quota/packages").permitAll()
                         .requestMatchers("/api/v1/weixin/portal", "/api/v1/weixin/login/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/profile").hasRole("USER")
+                        .requestMatchers("/agent/**", "/file/**", "/session/**").hasRole("USER")
+                        .requestMatchers("/api/v1/quota/**", "/api/v1/academic/**").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/create").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/gbm/index/query_group_buy_market_config", "/api/v1/gbm/trade/lock_market_pay_order").hasRole("USER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/trade/order/my").hasRole("USER")
                         .requestMatchers("/api/v1/weixin/template/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/mcp", "/api/v1/mcp/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/knowledge/**", "/api/v1/evaluate/**").hasAnyRole("OPERATOR", "ADMIN")
@@ -58,12 +68,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/trade/order/mock-pay-success")
                         .access((authentication, context) -> new AuthorizationDecision(
                                 mockPaymentAccessChecker.isAllowed(authentication.get())))
-                        .requestMatchers("/api/v1/trade/order/status-flow").permitAll()
+                        .requestMatchers("/api/v1/trade/order/status-flow").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/alipay/**", "/api/v1/gbm/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/group/trade/close-unpaid", "/api/v1/group/trade/refund").hasRole("ADMIN")
                         .requestMatchers("/api/v1/payment/refund", "/api/v1/payment/reconcile",
                                 "/api/v1/payment/bill/download", "/api/v1/payment/refund/query",
-                                "/api/v1/payment/refund/webhook/**", "/api/v1/payment/certificate/refresh",
+                                "/api/v1/payment/certificate/refresh",
                                 "/api/v1/payment/error-map", "/api/v1/payment/gateway/status").hasRole("ADMIN")
                         .anyRequest().authenticated());
         return http.build();

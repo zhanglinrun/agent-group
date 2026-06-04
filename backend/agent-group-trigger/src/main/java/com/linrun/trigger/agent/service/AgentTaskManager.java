@@ -235,6 +235,16 @@ public class AgentTaskManager implements InitializingBean, DisposableBean {
     }
 
     /**
+     * 正常完成任务时只清理任务状态，不再向输出流补“用户已停止”消息。
+     */
+    public void completeTask(String conversationId) {
+        if (conversationId == null) {
+            return;
+        }
+        doRemoveTask(conversationId);
+    }
+
+    /**
      * 处理远程停止请求（Pub/Sub 回调）
      */
     private void handleRemoteStop(String conversationId) {

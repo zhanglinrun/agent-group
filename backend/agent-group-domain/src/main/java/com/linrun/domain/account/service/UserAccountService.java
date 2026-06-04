@@ -10,6 +10,7 @@ import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.model.UserLoginSession;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,11 +36,14 @@ public class UserAccountService {
 
     private final UserAccountRepository userAccountRepository;
     private final UserQuotaRepository userQuotaRepository;
+    private final boolean demoUserEnabled;
 
     public UserAccountService(UserAccountRepository userAccountRepository,
-                              UserQuotaRepository userQuotaRepository) {
+                              UserQuotaRepository userQuotaRepository,
+                              @Value("${agent.group.security.demo-user-enabled:false}") boolean demoUserEnabled) {
         this.userAccountRepository = userAccountRepository;
         this.userQuotaRepository = userQuotaRepository;
+        this.demoUserEnabled = demoUserEnabled;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -153,7 +157,7 @@ public class UserAccountService {
 
     private UserAccount createDefaultDemoUserIfNeeded(LoginRequest request) {
         String username = request.getUsername().trim();
-        if (!"demo".equalsIgnoreCase(username) || !"123456".equals(request.getPassword())) {
+        if (!demoUserEnabled || !"demo".equalsIgnoreCase(username) || !"123456".equals(request.getPassword())) {
             throw new AppException("AUTH_0005", "账号或密码不正确");
         }
         RegisterRequest registerRequest = new RegisterRequest();

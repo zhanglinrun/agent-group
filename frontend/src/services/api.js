@@ -1,5 +1,3 @@
-export const DEMO_USER_ID = "U10001";
-
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 const USER_AUTH_KEY = "agentGroupUserAuth";
 const MODEL_CONFIG_KEY = "agentGroupModelConfig";
@@ -35,6 +33,18 @@ function clearVolatile(key) {
   localStorage.removeItem(key);
 }
 
+function normalizeModelBaseUrl(value) {
+  let text = String(value || DEFAULT_MODEL_CONFIG.baseUrl).trim();
+  if (!text) return "";
+  if (/^ttps:\/\//i.test(text)) {
+    text = `h${text}`;
+  }
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) {
+    text = `https://${text.replace(/^\/+/, "")}`;
+  }
+  return text.replace(/\/+$/, "");
+}
+
 export function normalizeApiMessage(message, fallback = "操作失败") {
   const text = String(message || "").trim();
   if (!text) return fallback;
@@ -55,6 +65,12 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
   if ((lower.includes("duplicate entry") || lower.includes("sqlintegrityconstraintviolationexception"))
     && (lower.includes("uk_user_biz_flow") || lower.includes("user_quota_flow"))) {
     return "本次请求已处理，请勿重复提交或刷新后重试";
+  }
+  if (lower.includes("invalid uri scheme")
+    || lower.includes("unsupported uri scheme")
+    || lower.includes("scheme ttps")
+    || lower.includes("uri scheme ttps")) {
+    return "API 地址格式不正确，请确认以 https:// 开头";
   }
   if (lower.includes("自定义 api 地址仅支持 https")) return "自定义 API 地址仅支持 HTTPS";
   if (lower.includes("自定义 api 地址不能指向本地或内网地址")) return "自定义 API 地址不能指向本地或内网地址";
@@ -132,7 +148,7 @@ function normalizeModelConfig(config = {}) {
     ...DEFAULT_MODEL_CONFIG,
     ...config,
     enabled: Boolean(config.enabled),
-    baseUrl: String(config.baseUrl || DEFAULT_MODEL_CONFIG.baseUrl).trim(),
+    baseUrl: normalizeModelBaseUrl(config.baseUrl),
     apiKey: String(config.apiKey || "").trim(),
     model: String(config.model || DEFAULT_MODEL_CONFIG.model).trim()
   };
@@ -373,10 +389,38 @@ export function requestAcademicAttachStream(sessionId = getSessionId(), onEvent,
   }, onEvent, onDone, onError);
 }
 
+function parseAcademicStreamBlock(block, onEvent) {
+  const lines = block.split(/\r?\n/);
+  const dataLines = lines.filter(line => line.startsWith("data:"));
+  const data = (dataLines.length ? dataLines : lines)
+    .map(line => line.replace(/^data:\s*/, "").trim())
+    .filter(line => line && !line.startsWith("event:") && !line.startsWith("id:") && !line.startsWith("retry:"))
+    .join("");
+
+  if (!data) return null;
+
+  try {
+    const event = JSON.parse(data);
+    onEvent(event);
+    return event;
+  } catch (error) {
+    console.warn("解析学术 SSE 数据失败", error, data);
+    return null;
+  }
+}
+
 function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) {
   const abortController = new AbortController();
 
   const run = async () => {
+    let reader;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      onDone?.();
+    };
+
     try {
       const response = await fetch(path, {
         method: "POST",
@@ -400,7 +444,7 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
         ), response.status, payload);
       }
 
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
 
@@ -413,30 +457,34 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
         buffer = blocks.pop() || "";
 
         for (const block of blocks) {
-          const lines = block.split(/\r?\n/);
-          const dataLines = lines.filter(line => line.startsWith("data:"));
-          const data = (dataLines.length ? dataLines : lines)
-            .map(line => line.replace(/^data:\s*/, "").trim())
-            .filter(line => line && !line.startsWith("event:") && !line.startsWith("id:") && !line.startsWith("retry:"))
-            .join("");
-
-          if (!data) continue;
-
-          try {
-            onEvent(JSON.parse(data));
-          } catch (error) {
-            console.warn("解析学术 SSE 数据失败", error, data);
+          const event = parseAcademicStreamBlock(block, onEvent);
+          if (event?.event === "done" || event?.event === "error") {
+            await reader.cancel().catch(() => {});
+            finish();
+            return;
           }
         }
       }
 
-      onDone?.();
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        parseAcademicStreamBlock(buffer, onEvent);
+      }
+      finish();
     } catch (error) {
       if (error.name === "AbortError") {
-        onDone?.();
+        finish();
         return;
       }
+      if (settled) return;
+      settled = true;
       onError?.(error);
+    } finally {
+      try {
+        reader?.releaseLock?.();
+      } catch {
+        // Reader may already be released after cancel/abort.
+      }
     }
   };
 
@@ -444,7 +492,7 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
   return abortController;
 }
 
-export async function createDirectOrder(product, userId = DEMO_USER_ID) {
+export async function createDirectOrder(product, userId) {
   return request("/api/v1/trade/order/direct", {
     userAuth: true,
     method: "POST",
@@ -458,7 +506,7 @@ export async function createDirectOrder(product, userId = DEMO_USER_ID) {
   });
 }
 
-export async function lockGroupBuyOrder(product, userId = DEMO_USER_ID) {
+export async function lockGroupBuyOrder(product, userId) {
   return request("/api/v1/group/trade/lock", {
     userAuth: true,
     method: "POST",
@@ -474,7 +522,7 @@ export async function lockGroupBuyOrder(product, userId = DEMO_USER_ID) {
   });
 }
 
-export async function queryGroupBuyMarketConfig(product, userId = DEMO_USER_ID) {
+export async function queryGroupBuyMarketConfig(product, userId) {
   return request("/api/v1/gbm/index/query_group_buy_market_config", {
     userAuth: true,
     method: "POST",
@@ -488,7 +536,7 @@ export async function queryGroupBuyMarketConfig(product, userId = DEMO_USER_ID) 
   });
 }
 
-export async function lockMarketPayOrder(product, userId = DEMO_USER_ID, options = {}) {
+export async function lockMarketPayOrder(product, userId, options = {}) {
   const outTradeNo = options.outTradeNo || `GBM_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
   return request("/api/v1/gbm/trade/lock_market_pay_order", {
     userAuth: true,
@@ -604,15 +652,18 @@ export async function queryAdminOrderList(options = {}) {
 }
 
 export async function queryRefundOrderList(options = {}) {
+  const body = {
+    refundStatus: options.refundStatus || undefined,
+    pageSize: options.pageSize || 20
+  };
+  if (options.userId !== undefined) {
+    body.userId = options.userId;
+  }
   return request("/api/v1/alipay/query_refund_order_list", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId: options.userId === undefined ? DEMO_USER_ID : options.userId,
-      refundStatus: options.refundStatus || undefined,
-      pageSize: options.pageSize || 20
-    })
+    body: JSON.stringify(body)
   });
 }
 

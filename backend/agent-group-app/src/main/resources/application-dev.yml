@@ -139,6 +139,7 @@ agent:
       operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
       operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
       mock-payment-enabled: ${AGENT_GROUP_MOCK_PAYMENT_ENABLED:false}
+      demo-user-enabled: ${AGENT_GROUP_DEMO_USER_ENABLED:false}
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:
@@ -167,7 +168,7 @@ agent:
 
 tavily:
   api-key: ${TAVILY_API_KEY:}
-  mcp-url: ${TAVILY_MCP_URL:https://mcp.tavily.com/mcp/}
+  mcp-url: ${TAVILY_MCP_URL:}
 
 grsai:
   nanobanana:

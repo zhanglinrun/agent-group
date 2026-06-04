@@ -167,7 +167,10 @@ public class AcademicBearDoctorAgentHandler {
             }
             if (StringUtils.hasText(session.getAnswer())) {
                 lastAssistantAnswer = session.getAnswer();
-                messages.add(toMessage("ASSISTANT", academicArtifactService.sanitizeLocalPaths(session.getAnswer()), session.getUpdateTime()));
+                AcademicSessionDetailResponse.Message assistantMessage =
+                        toMessage("ASSISTANT", academicArtifactService.sanitizeLocalPaths(session.getAnswer()), session.getUpdateTime());
+                assistantMessage.setReferences(parseReferences(session.getReference()));
+                messages.add(assistantMessage);
             }
         }
         UserAccount user = userAccountService.requireUserByToken(token);
@@ -416,6 +419,33 @@ public class AcademicBearDoctorAgentHandler {
         message.setImageUrl("");
         message.setCreateTime(createTime);
         return message;
+    }
+
+    private List<AcademicSessionDetailResponse.Reference> parseReferences(String referenceJson) {
+        if (!StringUtils.hasText(referenceJson)) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(referenceJson);
+            JsonNode content = root.path("content");
+            if (content.isTextual()) {
+                content = objectMapper.readTree(content.asText());
+            }
+            if (!content.isArray()) {
+                return List.of();
+            }
+            List<AcademicSessionDetailResponse.Reference> references = new ArrayList<>();
+            for (JsonNode item : content) {
+                AcademicSessionDetailResponse.Reference reference = new AcademicSessionDetailResponse.Reference();
+                reference.setTitle(firstText(item, "title", "name", "source"));
+                reference.setUrl(firstText(item, "url", "link"));
+                reference.setContent(firstText(item, "content", "snippet", "summary", "text"));
+                references.add(reference);
+            }
+            return references;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private String normalizeTaskType(String taskType) {

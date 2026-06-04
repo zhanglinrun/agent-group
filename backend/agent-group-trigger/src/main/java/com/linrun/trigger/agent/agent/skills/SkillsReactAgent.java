@@ -215,9 +215,9 @@ public class SkillsReactAgent extends BaseAgent {
                     // 保存结果到会话
                     saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer);
 
-                    // 流结束时移除任务
+                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消息
                     if (taskManager != null) {
-                        taskManager.stopTask(conversationId);
+                        taskManager.completeTask(conversationId);
                     }
                 });
     }

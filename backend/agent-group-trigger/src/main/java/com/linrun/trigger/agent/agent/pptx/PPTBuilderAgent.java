@@ -174,8 +174,8 @@ public class PPTBuilderAgent extends BaseAgent {
                         log.info("PPT结果已保存到会话: sessionId={}", currentConversationId);
                     }
 
-                    // 流结束时移除任务
-                    taskManager.stopTask(conversationId);
+                    // 正常结束只移除任务状态，用户点击停止才发送停止消息
+                    taskManager.completeTask(conversationId);
                 })
                 .doOnError(err -> log.error("PPT处理流输出异常", err));
     }

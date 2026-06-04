@@ -38,6 +38,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * WebSearch React Agent
@@ -54,6 +56,14 @@ public class WebSearchReactAgent extends BaseAgent {
     private final int maxReflectionRounds;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Pattern PSEUDO_SEARCH_CALL_PATTERN =
+            Pattern.compile("(?is)ToolCall\\s*[:：]\\s*search\\s*\\((.*?)\\)");
+    private static final Pattern PSEUDO_SEARCH_QUERY_PATTERN =
+            Pattern.compile("(?is)query\\s*=\\s*(?:([\"'])(.*?)\\1|([^,)\\r\\n]+))");
+    private static final Pattern PSEUDO_SEARCH_LIMIT_PATTERN =
+            Pattern.compile("(?is)(?:max_results|maxResults|limit)\\s*=\\s*(\\d+)");
+    private static final Pattern PSEUDO_SEARCH_START_PATTERN =
+            Pattern.compile("(?is)(ToolCall\\s*[:：]|(?:正在|即将|将为|为你|需要|调用|使用|实时).{0,40}(?:搜索|检索|search))");
 
     public WebSearchReactAgent(String name, ChatModel chatModel, List<ToolCallback> tools, String systemPrompt, int maxRounds,
                                ChatMemory chatMemory, List<Advisor> advisors, int maxReflectionRounds,
@@ -207,9 +217,9 @@ public class WebSearchReactAgent extends BaseAgent {
                     // 保存结果到会话
                     saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer, agentState);
 
-                    // 流结束时移除任务
+                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消息
                     if (taskManager != null) {
-                        taskManager.stopTask(conversationId);
+                        taskManager.completeTask(conversationId);
                     }
                 });
     }
@@ -295,8 +305,10 @@ public class WebSearchReactAgent extends BaseAgent {
                 if (segment.thinking()) {
                     sink.tryEmitNext(createThinkingResponse(segment.content()));
                 } else {
-                    sink.tryEmitNext(createTextResponse(segment.content()));
-                    state.textBuffer.append(segment.content());
+                    if (handlePseudoToolCallText(segment.content(), state)) {
+                        continue;
+                    }
+                    state.pendingTextBuffer.append(segment.content());
                 }
             }
         }
@@ -327,8 +339,25 @@ public class WebSearchReactAgent extends BaseAgent {
                              AtomicLong roundCounter, AtomicBoolean hasSentFinalResult, StringBuilder finalAnswerBuffer,
                              boolean useMemory, String conversationId, AgentState agentState, StringBuilder thinkingBuffer) {
 
+        if (state.pseudoToolCallTextDetected && state.getMode() != RoundMode.TOOL_CALL) {
+            AssistantMessage.ToolCall pseudoCall = parsePseudoSearchToolCall(state.rawTextBuffer.toString());
+            if (pseudoCall == null) {
+                pseudoCall = fallbackSearchToolCall();
+            }
+            if (pseudoCall != null) {
+                state.mode = RoundMode.TOOL_CALL;
+                state.toolCalls.add(pseudoCall);
+            } else {
+                sink.tryEmitNext(createTextResponse("\n\n搜索工具调用格式不完整，请重新提问或换一个更具体的问题。"));
+                sink.tryEmitComplete();
+                hasSentFinalResult.set(true);
+                return;
+            }
+        }
+
         // 如果整轮都没有 tool_call，才是最终答案
         if (state.getMode() != RoundMode.TOOL_CALL) {
+            flushPendingText(state, sink);
             String referenceJson = "";
             String toolsStr = getUsedToolsString();
             String finalText = state.textBuffer.toString();
@@ -510,8 +539,8 @@ public class WebSearchReactAgent extends BaseAgent {
                     // 记录使用的工具
                     recordUsedTool(toolName);
 
-                    // 解析 tavily 搜索结果
-                    if (toolName.contains("tavily")) {
+                    // 解析搜索结果
+                    if (toolName.contains("search") || toolName.contains("tavily")) {
                         parseSearchResult(resultStr, agentState);
                     }
 
@@ -559,26 +588,28 @@ public class WebSearchReactAgent extends BaseAgent {
     private void parseSearchResult(String resultJson, AgentState state) {
         try {
             JsonNode root = MAPPER.readTree(resultJson);
+            JsonNode results = null;
 
-            if (!root.isArray() || root.isEmpty()) {
-                return;
+            if (root.isObject() && root.path("results").isArray()) {
+                results = root.path("results");
+            } else if (root.isArray() && !root.isEmpty()) {
+                JsonNode first = root.get(0);
+                JsonNode textNode = first.get("text");
+
+                if (textNode == null || textNode.isNull()) {
+                    results = root;
+                } else {
+                    JsonNode textJson;
+                    if (textNode.isTextual()) {
+                        textJson = MAPPER.readTree(textNode.asText());
+                    } else {
+                        textJson = textNode;
+                    }
+
+                    results = textJson.get("results");
+                }
             }
 
-            JsonNode first = root.get(0);
-            JsonNode textNode = first.get("text");
-
-            if (textNode == null || textNode.isNull()) {
-                return;
-            }
-
-            JsonNode textJson;
-            if (textNode.isTextual()) {
-                textJson = MAPPER.readTree(textNode.asText());
-            } else {
-                textJson = textNode;
-            }
-
-            JsonNode results = textJson.get("results");
             if (results == null || !results.isArray()) {
                 return;
             }
@@ -594,8 +625,83 @@ public class WebSearchReactAgent extends BaseAgent {
             }
 
         } catch (Exception e) {
-            log.warn("解析 tavily 搜索结果失败: {}", e.getMessage());
+            log.warn("解析搜索结果失败: {}", e.getMessage());
         }
+    }
+
+    private boolean handlePseudoToolCallText(String text, RoundState state) {
+        if (text == null) {
+            return false;
+        }
+        state.rawTextBuffer.append(text);
+        String raw = state.rawTextBuffer.toString();
+        boolean looksLikePseudoCall = state.pseudoToolCallTextDetected
+                || PSEUDO_SEARCH_START_PATTERN.matcher(raw).find();
+        if (!looksLikePseudoCall) {
+            return false;
+        }
+
+        state.pseudoToolCallTextDetected = true;
+        state.pendingTextBuffer.setLength(0);
+        AssistantMessage.ToolCall pseudoCall = parsePseudoSearchToolCall(raw);
+        if (pseudoCall != null && state.toolCalls.isEmpty()) {
+            state.mode = RoundMode.TOOL_CALL;
+            state.toolCalls.add(pseudoCall);
+        }
+        return true;
+    }
+
+    private AssistantMessage.ToolCall parsePseudoSearchToolCall(String raw) {
+        Matcher callMatcher = PSEUDO_SEARCH_CALL_PATTERN.matcher(raw);
+        if (!callMatcher.find()) {
+            return null;
+        }
+
+        String argsText = callMatcher.group(1);
+        Matcher queryMatcher = PSEUDO_SEARCH_QUERY_PATTERN.matcher(argsText);
+        if (!queryMatcher.find()) {
+            return null;
+        }
+        String query = StringUtils.defaultIfBlank(queryMatcher.group(2), queryMatcher.group(3));
+        if (!StringUtils.isNotBlank(query)) {
+            return null;
+        }
+
+        int maxResults = 5;
+        Matcher limitMatcher = PSEUDO_SEARCH_LIMIT_PATTERN.matcher(argsText);
+        if (limitMatcher.find()) {
+            try {
+                maxResults = Math.max(1, Math.min(Integer.parseInt(limitMatcher.group(1)), 5));
+            } catch (NumberFormatException ignored) {
+                maxResults = 5;
+            }
+        }
+
+        return buildSearchToolCall(query.trim(), maxResults);
+    }
+
+    private AssistantMessage.ToolCall fallbackSearchToolCall() {
+        if (!StringUtils.isNotBlank(currentQuestion)) {
+            return null;
+        }
+        return buildSearchToolCall(currentQuestion.trim(), 5);
+    }
+
+    private AssistantMessage.ToolCall buildSearchToolCall(String query, int maxResults) {
+        JSONObject arguments = new JSONObject();
+        arguments.put("query", query);
+        arguments.put("maxResults", Math.max(1, Math.min(maxResults, 5)));
+        return new AssistantMessage.ToolCall("pseudo-search-" + System.nanoTime(), "function", "search", arguments.toJSONString());
+    }
+
+    private void flushPendingText(RoundState state, Sinks.Many<String> sink) {
+        if (state.pendingTextBuffer.length() == 0) {
+            return;
+        }
+        String content = state.pendingTextBuffer.toString();
+        sink.tryEmitNext(createTextResponse(content));
+        state.textBuffer.append(content);
+        state.pendingTextBuffer.setLength(0);
     }
 
     private String getSafe(JsonNode node, String field) {

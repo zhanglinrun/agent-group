@@ -19,6 +19,7 @@ public class AcademicSessionDetailResponse implements Serializable {
         private String imageUrl;
         private java.time.LocalDateTime createTime;
         private List<Artifact> artifacts = new ArrayList<>();
+        private List<Reference> references = new ArrayList<>();
     }
 
     @Data
@@ -29,5 +30,12 @@ public class AcademicSessionDetailResponse implements Serializable {
         private String fileName;
         private String downloadUrl;
         private Long fileSize;
+    }
+
+    @Data
+    public static class Reference implements Serializable {
+        private String title;
+        private String url;
+        private String content;
     }
 }

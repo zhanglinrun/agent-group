@@ -19,6 +19,15 @@ public class RoundState {
     /** 文本缓冲区 */
     public StringBuilder textBuffer = new StringBuilder();
 
+    /** 待确认文本缓冲区，避免模型把工具调用前导语提前透出 */
+    public StringBuilder pendingTextBuffer = new StringBuilder();
+
+    /** 原始文本缓冲区，用于识别模型误输出的伪工具调用文本 */
+    public StringBuilder rawTextBuffer = new StringBuilder();
+
+    /** 模型误把工具调用写进正文后，停止继续透传该段文本 */
+    public boolean pseudoToolCallTextDetected = false;
+
     /** 工具调用列表 */
     public List<AssistantMessage.ToolCall> toolCalls = synchronizedList(new java.util.ArrayList<>());
 

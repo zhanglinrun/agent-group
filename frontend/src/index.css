@@ -1721,6 +1721,119 @@ body {
 
 .bear-doctor-app .markdown-body {
   color: var(--text-primary);
+  white-space: normal;
+}
+
+.bear-doctor-app .markdown-body > *:first-child {
+  margin-top: 0;
+}
+
+.bear-doctor-app .markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.bear-doctor-app .markdown-heading {
+  margin: 18px 0 10px;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.bear-doctor-app .markdown-paragraph {
+  margin: 0 0 12px;
+  line-height: 1.85;
+}
+
+.bear-doctor-app .markdown-list {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.bear-doctor-app .markdown-list li {
+  margin: 6px 0;
+  line-height: 1.8;
+}
+
+.bear-doctor-app .markdown-strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.bear-doctor-app .markdown-link {
+  color: #06b6d4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .markdown-link:hover {
+  text-decoration: underline;
+}
+
+.bear-doctor-app .markdown-divider {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.bear-doctor-app .markdown-quote {
+  margin: 12px 0 16px;
+  padding: 10px 14px;
+  border-left: 3px solid rgba(6, 182, 212, 0.7);
+  border-radius: 0 8px 8px 0;
+  background: rgba(6, 182, 212, 0.08);
+  color: var(--text-secondary);
+}
+
+.bear-doctor-app .markdown-quote p {
+  margin: 0 0 8px;
+}
+
+.bear-doctor-app .markdown-quote p:last-child {
+  margin-bottom: 0;
+}
+
+.bear-doctor-app .markdown-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 14px 0 18px;
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+}
+
+.bear-doctor-app .markdown-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  background: rgba(15, 23, 42, 0.34);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.bear-doctor-app .markdown-table th,
+.bear-doctor-app .markdown-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  text-align: left;
+  vertical-align: top;
+}
+
+.bear-doctor-app .markdown-table th:last-child,
+.bear-doctor-app .markdown-table td:last-child {
+  border-right: 0;
+}
+
+.bear-doctor-app .markdown-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.bear-doctor-app .markdown-table th {
+  background: rgba(6, 182, 212, 0.1);
+  color: var(--text-primary);
+  font-weight: 700;
 }
 
 .bear-doctor-app .timeline-section,
@@ -1938,6 +2051,7 @@ body {
 }
 
 .bear-doctor-app .ref-title-text {
+  display: block;
   font-size: 14px;
   color: var(--text-primary);
   font-weight: 600;
@@ -1945,6 +2059,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
+}
+
+.bear-doctor-app a.ref-title-text:hover {
+  color: var(--accent-light);
+  text-decoration: underline;
 }
 
 .bear-doctor-app .ref-url-text {
@@ -2790,6 +2910,17 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bear-doctor-app .ref-snippet-text {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .bear-doctor-app .group-team-card span {
