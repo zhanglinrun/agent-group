@@ -3,6 +3,7 @@ package com.linrun.trigger.agent.service;
 import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.service.impl.FileInfoServiceImpl;
 import com.linrun.trigger.agent.splitter.OverlapParagraphTextSplitter;
+import com.linrun.types.exception.AppException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
@@ -26,8 +27,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -59,9 +63,18 @@ public class FileManageService {
      */
     private static final int LARGE_FILE_THRESHOLD = 5000;
     private static final int MAX_RECOVERED_TEXT_LENGTH = 20000;
+    private static final int MAX_FILENAME_LENGTH = 160;
+    private static final Set<String> BLOCKED_EXTENSION_MARKERS = Set.of(
+            ".jsp.", ".php.", ".asp.", ".aspx.", ".js.", ".exe.", ".sh.", ".bat.", ".cmd.");
 
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
+
+    @Value("${agent.group.upload.allowed-extensions:md,txt,pdf,docx,png,jpg,jpeg,webp}")
+    private String allowedExtensions = "md,txt,pdf,docx,png,jpg,jpeg,webp";
+
+    @Value("${agent.group.upload.max-file-size-bytes:10485760}")
+    private long maxFileSizeBytes = 10 * 1024 * 1024L;
 
     /**
      * 初始化多模态模型（用于图片识别）
@@ -94,17 +107,19 @@ public class FileManageService {
      */
     @Transactional(rollbackFor = Exception.class)
     public FileInfo uploadFile(MultipartFile file) {
+        validateUploadFile(file);
+        String filename = safeFilename(file.getOriginalFilename());
         String fileId = UUID.randomUUID().toString();
-        String fileType = getFileType(file.getOriginalFilename());
+        String fileType = getFileType(filename);
         long fileSize = file.getSize();
 
-        log.info("开始处理文件上传: fileId={}, fileName={}, fileType={}, fileSize={}", fileId, file.getOriginalFilename(), fileType, fileSize);
+        log.info("开始处理文件上传: fileId={}, fileName={}, fileType={}, fileSize={}", fileId, filename, fileType, fileSize);
 
         try {
             // 创建文件信息
             FileInfo fileInfo = FileInfo.builder()
                     .fileId(fileId)
-                    .fileName(file.getOriginalFilename())
+                    .fileName(filename)
                     .fileType(fileType)
                     .fileSize(fileSize)
                     .createdAt(LocalDateTime.now())
@@ -393,6 +408,40 @@ public class FileManageService {
             return fileName.substring(lastDotIndex + 1).toLowerCase();
         }
         return "unknown";
+    }
+
+    private void validateUploadFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AppException("UPLOAD_0001", "上传文件不能为空");
+        }
+        String filename = safeFilename(file.getOriginalFilename());
+        if (StringUtils.isBlank(filename) || filename.length() > MAX_FILENAME_LENGTH) {
+            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超过 160 个字符");
+        }
+        if (file.getSize() > maxFileSizeBytes) {
+            throw new AppException("UPLOAD_0003", "上传文件超过大小限制");
+        }
+        String lowerName = filename.toLowerCase(Locale.ROOT);
+        if (BLOCKED_EXTENSION_MARKERS.stream().anyMatch(lowerName::contains)
+                || !allowedExtensionSet().contains(getFileType(lowerName))) {
+            throw new AppException("UPLOAD_0004", "文件类型不在上传白名单内");
+        }
+    }
+
+    private Set<String> allowedExtensionSet() {
+        return Arrays.stream(allowedExtensions.split(","))
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+    }
+
+    private String safeFilename(String originalFilename) {
+        if (StringUtils.isBlank(originalFilename)) {
+            return "";
+        }
+        String normalized = originalFilename.replace("\\", "/");
+        return normalized.substring(normalized.lastIndexOf('/') + 1).trim();
     }
 
     /**

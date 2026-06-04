@@ -1269,7 +1269,7 @@ function BearDoctorAcademicApp() {
                   <Paperclip size={20} />
                 </button>
               )}
-              <input ref={fileInputRef} type="file" onChange={handleFileSelect} hidden />
+              <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
               {selectedFile && <div className="input-file-icon"><FileText size={18} /></div>}
               <textarea
                 value={inputMessage}

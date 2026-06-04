@@ -53,7 +53,7 @@ public class AcademicArtifactService {
     public List<AcademicSessionDetailResponse.Artifact> collectAndSave(String userId,
                                                                         String sessionId,
                                                                         long sinceMillis) {
-        List<AcademicSessionDetailResponse.Artifact> artifacts = scanArtifacts(sessionId, sinceMillis);
+        List<AcademicSessionDetailResponse.Artifact> artifacts = scanArtifacts(userId, sessionId, sinceMillis);
         if (!artifacts.isEmpty()) {
             saveManifest(userId, sessionId, artifacts);
         }
@@ -70,17 +70,20 @@ public class AcademicArtifactService {
         Matcher matcher = LOCAL_DELIVERABLE_PATH.matcher(answer);
         Path outputRoot = root();
         Path projectRoot = projectRoot().toAbsolutePath().normalize();
-        Path sessionDir = outputRoot.resolve("session_" + encode(sessionId)).normalize();
+        Path sessionDir = sessionDir(userId, sessionId);
         while (matcher.find() && artifacts.size() < MAX_ARTIFACTS) {
             try {
                 Path source = Path.of(matcher.group(1)).toAbsolutePath().normalize();
                 if (!Files.isRegularFile(source) || !source.startsWith(projectRoot)) {
                     continue;
                 }
-                Path target = source.startsWith(outputRoot)
+                if (source.startsWith(outputRoot) && !source.startsWith(sessionDir)) {
+                    continue;
+                }
+                Path target = source.startsWith(sessionDir)
                         ? source
                         : sessionDir.resolve(source.getFileName().toString()).normalize();
-                if (!target.startsWith(outputRoot)) {
+                if (!target.startsWith(sessionDir)) {
                     continue;
                 }
                 if (!source.equals(target)) {
@@ -91,14 +94,15 @@ public class AcademicArtifactService {
             } catch (Exception ignored) {
             }
         }
-        collectMentionedFileNames(sessionId, answer, artifacts);
+        collectMentionedFileNames(userId, sessionId, answer, artifacts);
         if (!artifacts.isEmpty()) {
             saveManifest(userId, sessionId, artifacts);
         }
         return artifacts;
     }
 
-    private void collectMentionedFileNames(String sessionId,
+    private void collectMentionedFileNames(String userId,
+                                           String sessionId,
                                            String answer,
                                            List<AcademicSessionDetailResponse.Artifact> artifacts) {
         if (artifacts.size() >= MAX_ARTIFACTS) {
@@ -110,13 +114,14 @@ public class AcademicArtifactService {
         }
         Matcher matcher = DELIVERABLE_FILE_NAME.matcher(answer);
         Path outputRoot = root();
+        Path sessionDir = sessionDir(userId, sessionId);
         while (matcher.find() && artifacts.size() < MAX_ARTIFACTS) {
             String fileName = matcher.group(1).trim();
             String key = fileName.toLowerCase(Locale.ROOT);
             if (existingNames.contains(key)) {
                 continue;
             }
-            Path file = findNewestOutputFile(outputRoot, fileName);
+            Path file = findNewestOutputFile(sessionDir, fileName);
             if (file == null) {
                 continue;
             }
@@ -125,8 +130,11 @@ public class AcademicArtifactService {
         }
     }
 
-    private Path findNewestOutputFile(Path outputRoot, String fileName) {
-        try (Stream<Path> paths = Files.walk(outputRoot)) {
+    private Path findNewestOutputFile(Path searchRoot, String fileName) {
+        if (!Files.isDirectory(searchRoot)) {
+            return null;
+        }
+        try (Stream<Path> paths = Files.walk(searchRoot)) {
             return paths
                     .filter(Files::isRegularFile)
                     .filter(path -> fileName.equalsIgnoreCase(path.getFileName().toString()))
@@ -211,13 +219,14 @@ public class AcademicArtifactService {
         return data;
     }
 
-    private List<AcademicSessionDetailResponse.Artifact> scanArtifacts(String sessionId, long sinceMillis) {
+    private List<AcademicSessionDetailResponse.Artifact> scanArtifacts(String userId, String sessionId, long sinceMillis) {
         Path root = root();
-        if (!Files.isDirectory(root)) {
+        Path sessionDir = sessionDir(userId, sessionId);
+        if (!Files.isDirectory(sessionDir)) {
             return List.of();
         }
         long cutoff = Math.max(0L, sinceMillis - SCAN_SKEW_MILLIS);
-        try (Stream<Path> paths = Files.walk(root)) {
+        try (Stream<Path> paths = Files.walk(sessionDir)) {
             return paths
                     .filter(Files::isRegularFile)
                     .filter(path -> isDownloadable(path))
@@ -263,6 +272,10 @@ public class AcademicArtifactService {
 
     private Path manifestPath(String userId, String sessionId) {
         return root().resolve(".agent-artifacts").resolve(encode(userId + ":" + sessionId) + ".json");
+    }
+
+    private Path sessionDir(String userId, String sessionId) {
+        return root().resolve("session_" + encode(userId + ":" + sessionId)).normalize();
     }
 
     private Path resolveArtifactPath(String artifactId) {

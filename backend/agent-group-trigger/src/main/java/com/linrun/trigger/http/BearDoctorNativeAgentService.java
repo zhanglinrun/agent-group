@@ -5,6 +5,7 @@ import com.linrun.trigger.agent.agent.deepresearch.PlanExecuteAgent;
 import com.linrun.trigger.agent.agent.file.FileReactAgent;
 import com.linrun.trigger.agent.agent.pptx.PPTBuilderAgent;
 import com.linrun.trigger.agent.agent.skills.SkillsReactAgent;
+import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeTools;
 import com.linrun.trigger.agent.agent.skills.manual.SkillManager;
 import com.linrun.trigger.agent.agent.skills.manual.config.SkillConfig;
 import com.linrun.trigger.agent.agent.skills.manual.tool.ReadSkillTool;
@@ -21,10 +22,7 @@ import com.linrun.trigger.agent.service.AiPptInstService;
 import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.service.FileInfoService;
 import com.linrun.trigger.agent.service.FileManageService;
-import com.linrun.trigger.agent.tool.BashTool;
 import com.linrun.trigger.agent.tool.FileContentService;
-import com.linrun.trigger.agent.tool.FileSystemTools;
-import com.linrun.trigger.agent.tool.GrepTool;
 import com.linrun.trigger.agent.tool.SearchTool;
 import com.linrun.trigger.agent.tool.SkillsTool;
 import com.linrun.trigger.agent.tool.ToolMergeUtils;
@@ -63,11 +61,13 @@ import reactor.core.publisher.SignalType;
 import java.math.BigDecimal;
 import java.net.http.HttpRequest;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -372,14 +372,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
-        String outputDirectory = resolvedSkillsOutputDirectory();
+        String outputDirectory = sessionSkillsOutputDirectory(conversationId);
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 webSearchToolCallbacks,
                 fileContentToolCallbacks(userId),
                 skillsToolCallbacks(),
-                FileSystemTools.create(outputDirectory),
-                GrepTool.create(),
-                BashTool.create(outputDirectory)
+                SkillRuntimeTools.create(resolvedSkillsDirectory(), projectRoot().toString(), outputDirectory)
         );
         return SkillsReactAgent.builder()
                 .name("skills")
@@ -393,7 +391,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
-        String outputDirectory = resolvedSkillsOutputDirectory();
+        String outputDirectory = sessionSkillsOutputDirectory(conversationId);
         SkillManager skillManager = manualSkillManager();
         ToolCallback[] readSkillTools = skillManager == null
                 ? new ToolCallback[0]
@@ -404,9 +402,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 webSearchToolCallbacks,
                 fileContentToolCallbacks(userId),
                 readSkillTools,
-                FileSystemTools.create(outputDirectory),
-                GrepTool.create(),
-                BashTool.create(outputDirectory)
+                SkillRuntimeTools.create(resolvedSkillsDirectory(), projectRoot().toString(), outputDirectory)
         );
         return SkillsReactAgent.builder()
                 .name("manual-skills")
@@ -489,6 +485,20 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         return outputPath.toAbsolutePath().normalize().toString();
     }
 
+    private String sessionSkillsOutputDirectory(String conversationId) {
+        Path outputPath = Path.of(resolvedSkillsOutputDirectory())
+                .resolve("session_" + encode(conversationId))
+                .normalize();
+        try {
+            Files.createDirectories(outputPath);
+            SkillRuntimeTools.prepareSessionOutput(resolvedSkillsDirectory(), projectRoot().toString(), outputPath.toString());
+        } catch (Exception e) {
+            LOGGER.warn("bear-doctor session output directory prepare failed, path={}, reason={}",
+                    outputPath, e.getClass().getSimpleName());
+        }
+        return outputPath.toAbsolutePath().normalize().toString();
+    }
+
     private Path projectRoot() {
         String resolvedSkillsDirectory = resolvedSkillsDirectory();
         if (StringUtils.hasText(resolvedSkillsDirectory)) {
@@ -513,11 +523,19 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private String skillRuntimePrompt(String outputDirectory) {
         return """
                 ## 技能产物输出规则
-                - 所有生成文件必须写入当前工作目录或当前工作目录的子目录。当前工作目录是：%s
+                - 所有生成文件必须写入当前会话输出目录或它的子目录。当前会话输出目录是：%s
+                - 文件工具只允许访问当前会话输出目录；读取和写入时优先使用相对路径。
+                - 普通用户环境没有 bash 和 grep 工具；需要抓取 Bilibili、抽帧或编译 LaTeX 时，使用 bilibili_fetch、extract_video_frames、compile_latex 这些专用工具。
                 - 不要把文件生成到项目根目录、后端 app 目录、用户目录或系统临时目录。
                 - 最终回答中不要暴露服务器本地绝对路径，例如 Windows 盘符路径或 Linux 绝对路径。
                 - 只需要说明文件已经生成，PDF、LaTeX、字幕等文件会由前端下载按钮提供给用户。
                 """.formatted(outputDirectory);
+    }
+
+    private String encode(String value) {
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(String.valueOf(value).getBytes(StandardCharsets.UTF_8));
     }
 
     private <T extends BaseAgent> T withMemory(T agent, String conversationId) {

@@ -51,11 +51,9 @@ In this project, do not start by relying on `yt-dlp --cookies-from-browser chrom
 Chrome cookie databases are often locked on Windows, and Bilibili may return `HTTP Error 412`
 to yt-dlp even when the official Bilibili APIs are still reachable.
 
-Always try the project helper first from the current output working directory:
-
-```bash
-python ../tools/bilibili_fetch.py "<BILIBILI_URL>" --out-dir "bilibili_<BV_ID>" --transcribe --whisper-model base
-```
+In the ordinary web-agent runtime, do not use `bash` or ask for shell access.
+Always call the restricted `bilibili_fetch` tool first. Use the default options unless the user
+explicitly asks for metadata-only mode or provides a `cookies.txt` file inside the current session output directory.
 
 This helper directly fetches Bilibili metadata, cover image, subtitle tracks, DASH media streams,
 merged `source.mp4`, extracted `audio.wav`, and when platform subtitles are absent, a Whisper SRT.
@@ -76,9 +74,13 @@ Do not tell the user that Bilibili is inaccessible just because `yt-dlp` or Chro
 
 Only ask the user to upload subtitles, video, or `cookies.txt` after all of these have failed:
 
-1. `python ../tools/bilibili_fetch.py "<URL>" --out-dir "bilibili_<BV_ID>" --transcribe --whisper-model base`
-2. `python ../tools/bilibili_fetch.py "<URL>" --out-dir "bilibili_<BV_ID>" --no-media`
-3. optional `yt-dlp` fallback with user-provided `cookies.txt`
+1. `bilibili_fetch` with media and Whisper fallback enabled
+2. `bilibili_fetch` with metadata-only mode
+3. user-provided subtitles, video, or `cookies.txt`
+
+When extracting video frames in this runtime, use `extract_video_frames` instead of `ffmpeg` commands.
+When compiling the final `.tex`, use `compile_latex` instead of `xelatex`, `latexmk`, or other shell commands.
+The `notes-template.tex` file is copied into the current session output directory when the skill starts; read that copy if the skill asset path is not directly accessible.
 
 When producing the final answer in this web project, do not expose local absolute server paths.
 The backend will surface generated PDF, `.tex`, and subtitle files through download buttons.

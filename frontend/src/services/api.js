@@ -1,6 +1,7 @@
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 const USER_AUTH_KEY = "agentGroupUserAuth";
 const MODEL_CONFIG_KEY = "agentGroupModelConfig";
+let adminAuthMemory = null;
 
 const DEFAULT_MODEL_CONFIG = {
   enabled: false,
@@ -120,14 +121,17 @@ export function getSessionId() {
 }
 
 export function getAdminAuth() {
-  return readVolatileJson(ADMIN_AUTH_KEY);
+  clearVolatile(ADMIN_AUTH_KEY);
+  return adminAuthMemory;
 }
 
 export function saveAdminAuth(username, password) {
-  writeVolatileJson(ADMIN_AUTH_KEY, { username, password });
+  adminAuthMemory = { username, password };
+  clearVolatile(ADMIN_AUTH_KEY);
 }
 
 export function clearAdminAuth() {
+  adminAuthMemory = null;
   clearVolatile(ADMIN_AUTH_KEY);
 }
 
@@ -164,7 +168,7 @@ export function getModelConfig() {
 
 export function saveModelConfig(config) {
   const normalized = normalizeModelConfig(config);
-  writeVolatileJson(MODEL_CONFIG_KEY, normalized);
+  writeVolatileJson(MODEL_CONFIG_KEY, { ...normalized, apiKey: "" });
   return normalized;
 }
 

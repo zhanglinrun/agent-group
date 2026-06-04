@@ -315,9 +315,9 @@ public class FileSystemTools {
                 logger.debug("Created parent directories: {}", parent);
             }
 
-            // 写入内容到文件（已存在则覆盖）
+            // 写入内容到文件（仅创建新文件，避免误覆盖）
             byte[] contentBytes = content != null ? content.getBytes(StandardCharsets.UTF_8) : new byte[0];
-            Files.write(filePath, contentBytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            Files.write(filePath, contentBytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
             logger.info("Successfully created file: {} ({} bytes)", filePath, contentBytes.length);
             return "Successfully created file: " + filePath;
@@ -610,6 +610,9 @@ public class FileSystemTools {
         List<String> matchedFiles = new ArrayList<>();
 
         try {
+            if (virtualMode) {
+                return globFilesContentInVirtualRoot(pattern);
+            }
             final Path searchRoot;
             String searchPattern = pattern;
 
@@ -666,6 +669,35 @@ public class FileSystemTools {
         }
     }
 
+    private List<String> globFilesContentInVirtualRoot(String pattern) {
+        List<String> matchedFiles = new ArrayList<>();
+        String normalizedPattern = pattern == null ? "" : pattern.trim().replace('\\', '/');
+        if (normalizedPattern.isEmpty()) {
+            return matchedFiles;
+        }
+        if (normalizedPattern.contains("..")
+                || normalizedPattern.startsWith("~")
+                || (normalizedPattern.length() >= 2 && normalizedPattern.charAt(1) == ':')) {
+            throw new IllegalArgumentException("Path traversal not allowed: " + pattern);
+        }
+        while (normalizedPattern.startsWith("/")) {
+            normalizedPattern = normalizedPattern.substring(1);
+        }
+        if (normalizedPattern.isEmpty()) {
+            normalizedPattern = "*";
+        }
+        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + normalizedPattern);
+        try (Stream<Path> paths = Files.walk(cwd)) {
+            paths.filter(Files::isRegularFile)
+                    .filter(path -> matcher.matches(cwd.relativize(path)))
+                    .forEach(path -> matchedFiles.add(path.toString()));
+        } catch (IOException e) {
+            logger.error("IO error during virtual glob search: {}", e.getMessage(), e);
+        }
+        Collections.sort(matchedFiles);
+        return matchedFiles;
+    }
+
     /**
      * 找到路径中第一个 glob 通配符的位置（在最后一个路径分隔符之前）。
      * 例如 "C:\Users\test\**\*" 返回 "C:\Users\test" 后面的分隔符位置。
@@ -696,6 +728,10 @@ public class FileSystemTools {
 
     public static ToolCallback[] create(String rootDir) {
         return ToolCallbacks.from(new FileSystemTools(rootDir, false, DEFAULT_MAX_FILE_SIZE_MB));
+    }
+
+    public static ToolCallback[] createRestricted(String rootDir) {
+        return ToolCallbacks.from(new FileSystemTools(rootDir, true, DEFAULT_MAX_FILE_SIZE_MB));
     }
 
     /**
