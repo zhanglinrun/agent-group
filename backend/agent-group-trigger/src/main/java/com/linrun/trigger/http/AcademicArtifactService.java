@@ -3,6 +3,8 @@ package com.linrun.trigger.http;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
+import com.linrun.domain.academic.adapter.AcademicAgentRepository;
+import com.linrun.domain.academic.model.AcademicArtifact;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
@@ -39,6 +42,7 @@ public class AcademicArtifactService {
             "(?i)([^`\\r\\n<>:\"/\\\\|?*]+?\\.(pdf|tex|srt|vtt|txt|md|docx|pptx|xlsx|svg|zip))");
 
     private final ObjectMapper objectMapper;
+    private final AcademicAgentRepository academicAgentRepository;
 
     @Value("${skills.output-directory:outputs}")
     private String outputDirectory;
@@ -46,16 +50,30 @@ public class AcademicArtifactService {
     @Value("${skills.directory:skills}")
     private String skillsDirectory;
 
-    public AcademicArtifactService(ObjectMapper objectMapper) {
+    public AcademicArtifactService(ObjectMapper objectMapper,
+                                   AcademicAgentRepository academicAgentRepository) {
         this.objectMapper = objectMapper;
+        this.academicAgentRepository = academicAgentRepository;
     }
 
     public List<AcademicSessionDetailResponse.Artifact> collectAndSave(String userId,
                                                                         String sessionId,
                                                                         long sinceMillis) {
+        return collectAndSave(userId, sessionId, sinceMillis, "", "", "AGENT", "");
+    }
+
+    public List<AcademicSessionDetailResponse.Artifact> collectAndSave(String userId,
+                                                                        String sessionId,
+                                                                        long sinceMillis,
+                                                                        String runId,
+                                                                        String toolInvocationId,
+                                                                        String sourceType,
+                                                                        String sourceName) {
         List<AcademicSessionDetailResponse.Artifact> artifacts = scanArtifacts(userId, sessionId, sinceMillis);
         if (!artifacts.isEmpty()) {
+            applyMetadata(artifacts, runId, toolInvocationId, sourceType, sourceName);
             saveManifest(userId, sessionId, artifacts);
+            saveArtifactRecords(userId, sessionId, artifacts);
         }
         return artifacts;
     }
@@ -97,6 +115,7 @@ public class AcademicArtifactService {
         collectMentionedFileNames(userId, sessionId, answer, artifacts);
         if (!artifacts.isEmpty()) {
             saveManifest(userId, sessionId, artifacts);
+            saveArtifactRecords(userId, sessionId, artifacts);
         }
         return artifacts;
     }
@@ -216,7 +235,86 @@ public class AcademicArtifactService {
         data.put("fileSize", artifact.getFileSize());
         data.put("content", artifact.getFileName());
         data.put("downloadUrl", artifact.getDownloadUrl());
+        data.put("runId", artifact.getRunId());
+        data.put("toolInvocationId", artifact.getToolInvocationId());
+        data.put("sourceType", artifact.getSourceType());
+        data.put("sourceName", artifact.getSourceName());
         return data;
+    }
+
+    public void saveArtifactRecord(String userId,
+                                   String sessionId,
+                                   Map<String, Object> artifact,
+                                   String runId,
+                                   String toolInvocationId,
+                                   String sourceType,
+                                   String sourceName) {
+        if (artifact == null) {
+            return;
+        }
+        artifact.put("runId", nullToBlank(runId));
+        artifact.put("toolInvocationId", nullToBlank(toolInvocationId));
+        artifact.put("sourceType", StringUtils.hasText(sourceType) ? sourceType : "AGENT");
+        artifact.put("sourceName", nullToBlank(sourceName));
+        AcademicSessionDetailResponse.Artifact dto = new AcademicSessionDetailResponse.Artifact();
+        dto.setArtifactId(text(artifact.get("artifactId")));
+        dto.setArtifactType(text(artifact.get("artifactType")));
+        dto.setTitle(text(artifact.get("title")));
+        dto.setFileName(StringUtils.hasText(text(artifact.get("fileName")))
+                ? text(artifact.get("fileName"))
+                : text(artifact.get("content")));
+        dto.setDownloadUrl(text(artifact.get("downloadUrl")));
+        dto.setRunId(nullToBlank(runId));
+        dto.setToolInvocationId(nullToBlank(toolInvocationId));
+        dto.setSourceType(StringUtils.hasText(sourceType) ? sourceType : "AGENT");
+        dto.setSourceName(nullToBlank(sourceName));
+        saveArtifactRecord(userId, sessionId, dto);
+    }
+
+    private void saveArtifactRecords(String userId,
+                                     String sessionId,
+                                     List<AcademicSessionDetailResponse.Artifact> artifacts) {
+        for (AcademicSessionDetailResponse.Artifact artifact : artifacts) {
+            saveArtifactRecord(userId, sessionId, artifact);
+        }
+    }
+
+    private void saveArtifactRecord(String userId,
+                                    String sessionId,
+                                    AcademicSessionDetailResponse.Artifact artifact) {
+        if (artifact == null || !StringUtils.hasText(artifact.getArtifactId())) {
+            return;
+        }
+        try {
+            AcademicArtifact entity = new AcademicArtifact();
+            entity.setArtifactId(artifact.getArtifactId());
+            entity.setUserId(userId);
+            entity.setSessionId(sessionId);
+            entity.setRunId(nullToBlank(artifact.getRunId()));
+            entity.setToolInvocationId(nullToBlank(artifact.getToolInvocationId()));
+            entity.setSourceType(StringUtils.hasText(artifact.getSourceType()) ? artifact.getSourceType() : "AGENT");
+            entity.setSourceName(nullToBlank(artifact.getSourceName()));
+            entity.setArtifactType(nullToBlank(artifact.getArtifactType()));
+            entity.setTitle(nullToBlank(artifact.getTitle()));
+            entity.setContent(StringUtils.hasText(artifact.getFileName()) ? artifact.getFileName() : nullToBlank(artifact.getDownloadUrl()));
+            entity.setDownloadUrl(nullToBlank(artifact.getDownloadUrl()));
+            entity.setCreateTime(LocalDateTime.now());
+            academicAgentRepository.saveArtifact(entity);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void applyMetadata(List<AcademicSessionDetailResponse.Artifact> artifacts,
+                               String runId,
+                               String toolInvocationId,
+                               String sourceType,
+                               String sourceName) {
+        for (AcademicSessionDetailResponse.Artifact artifact : artifacts) {
+            artifact.setRunId(nullToBlank(runId));
+            artifact.setToolInvocationId(nullToBlank(toolInvocationId));
+            artifact.setSourceType(StringUtils.hasText(sourceType) ? sourceType : "AGENT");
+            artifact.setSourceName(nullToBlank(sourceName));
+        }
     }
 
     private List<AcademicSessionDetailResponse.Artifact> scanArtifacts(String userId, String sessionId, long sinceMillis) {
@@ -405,6 +503,14 @@ public class AcademicArtifactService {
 
     private String encodeQuery(String value) {
         return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private String nullToBlank(String value) {
+        return value == null ? "" : value;
     }
 
     private record ArtifactManifestItem(String artifactId, String createdAt) {

@@ -11,6 +11,7 @@ public class AcademicSessionDetailResponse implements Serializable {
 
     private String sessionId;
     private List<Message> messages = new ArrayList<>();
+    private List<AcademicReplayResponse> replays = new ArrayList<>();
 
     @Data
     public static class Message implements Serializable {
@@ -20,6 +21,7 @@ public class AcademicSessionDetailResponse implements Serializable {
         private java.time.LocalDateTime createTime;
         private List<Artifact> artifacts = new ArrayList<>();
         private List<Reference> references = new ArrayList<>();
+        private Object recommend;
     }
 
     @Data
@@ -30,6 +32,10 @@ public class AcademicSessionDetailResponse implements Serializable {
         private String fileName;
         private String downloadUrl;
         private Long fileSize;
+        private String runId;
+        private String toolInvocationId;
+        private String sourceType;
+        private String sourceName;
     }
 
     @Data

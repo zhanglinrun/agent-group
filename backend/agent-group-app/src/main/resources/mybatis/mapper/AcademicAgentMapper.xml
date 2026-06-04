@@ -42,11 +42,74 @@
         <id column="artifact_id" property="artifactId"/>
         <result column="session_id" property="sessionId"/>
         <result column="user_id" property="userId"/>
+        <result column="run_id" property="runId"/>
+        <result column="tool_invocation_id" property="toolInvocationId"/>
+        <result column="source_type" property="sourceType"/>
+        <result column="source_name" property="sourceName"/>
         <result column="artifact_type" property="artifactType"/>
         <result column="title" property="title"/>
         <result column="content" property="content"/>
         <result column="download_url" property="downloadUrl"/>
         <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicAgentRunMap" type="com.linrun.infrastructure.po.AcademicAgentRunPO">
+        <id column="run_id" property="runId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="request_id" property="requestId"/>
+        <result column="user_id" property="userId"/>
+        <result column="task_type" property="taskType"/>
+        <result column="question" property="question"/>
+        <result column="status" property="status"/>
+        <result column="model_name" property="modelName"/>
+        <result column="final_summary" property="finalSummary"/>
+        <result column="error_code" property="errorCode"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="finished_at" property="finishedAt"/>
+        <result column="duration_millis" property="durationMillis"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicLlmInvocationMap" type="com.linrun.infrastructure.po.AcademicLlmInvocationPO">
+        <id column="invocation_id" property="invocationId"/>
+        <result column="run_id" property="runId"/>
+        <result column="request_id" property="requestId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="model_name" property="modelName"/>
+        <result column="prompt_summary" property="promptSummary"/>
+        <result column="response_text" property="responseText"/>
+        <result column="status" property="status"/>
+        <result column="prompt_tokens" property="promptTokens"/>
+        <result column="completion_tokens" property="completionTokens"/>
+        <result column="total_tokens" property="totalTokens"/>
+        <result column="fallback_used" property="fallbackUsed"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="finished_at" property="finishedAt"/>
+        <result column="latency_millis" property="latencyMillis"/>
+    </resultMap>
+
+    <resultMap id="AcademicToolInvocationMap" type="com.linrun.infrastructure.po.AcademicToolInvocationPO">
+        <id column="invocation_id" property="invocationId"/>
+        <result column="run_id" property="runId"/>
+        <result column="request_id" property="requestId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="tool_call_id" property="toolCallId"/>
+        <result column="tool_name" property="toolName"/>
+        <result column="action" property="action"/>
+        <result column="arguments_json" property="argumentsJson"/>
+        <result column="result_summary" property="resultSummary"/>
+        <result column="result_json" property="resultJson"/>
+        <result column="status" property="status"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="started_at" property="startedAt"/>
+        <result column="finished_at" property="finishedAt"/>
+        <result column="latency_millis" property="latencyMillis"/>
     </resultMap>
 
     <insert id="insertSessionIfAbsent">
@@ -165,17 +228,172 @@
 
     <insert id="insertArtifact">
         insert into academic_agent_artifact (
-          artifact_id, session_id, user_id, artifact_type, title, content, download_url, create_time
+          artifact_id, session_id, user_id, run_id, tool_invocation_id, source_type, source_name,
+          artifact_type, title, content, download_url, create_time
         ) values (
-          #{artifactId}, #{sessionId}, #{userId}, #{artifactType}, #{title}, #{content}, #{downloadUrl}, #{createTime}
+          #{artifactId}, #{sessionId}, #{userId}, #{runId}, #{toolInvocationId}, #{sourceType}, #{sourceName},
+          #{artifactType}, #{title}, #{content}, #{downloadUrl}, #{createTime}
         )
+        on duplicate key update
+          run_id = values(run_id),
+          tool_invocation_id = values(tool_invocation_id),
+          source_type = values(source_type),
+          source_name = values(source_name),
+          title = values(title),
+          content = values(content),
+          download_url = values(download_url)
     </insert>
 
     <select id="queryArtifacts" resultMap="AcademicArtifactMap">
-        select artifact_id, session_id, user_id, artifact_type, title, content, download_url, create_time
+        select artifact_id, session_id, user_id, run_id, tool_invocation_id, source_type, source_name,
+               artifact_type, title, content, download_url, create_time
         from academic_agent_artifact
         where user_id = #{userId}
           and session_id = #{sessionId}
         order by create_time desc, id desc
+    </select>
+
+    <insert id="insertRun">
+        insert into academic_agent_run (
+          run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+          final_summary, error_code, error_message, started_at, finished_at, duration_millis, create_time, update_time
+        ) values (
+          #{runId}, #{sessionId}, #{requestId}, #{userId}, #{taskType}, #{question}, #{status}, #{modelName},
+          #{finalSummary}, #{errorCode}, #{errorMessage}, #{startedAt}, #{finishedAt}, #{durationMillis}, now(), now()
+        )
+        on duplicate key update run_id = values(run_id)
+    </insert>
+
+    <update id="updateRunFinish">
+        update academic_agent_run
+        set status = #{status},
+            model_name = #{modelName},
+            final_summary = #{finalSummary},
+            error_code = #{errorCode},
+            error_message = #{errorMessage},
+            finished_at = #{finishedAt},
+            duration_millis = #{durationMillis},
+            update_time = now()
+        where run_id = #{runId}
+    </update>
+
+    <insert id="insertLlmInvocation">
+        insert into academic_llm_invocation (
+          invocation_id, run_id, request_id, session_id, user_id, model_name, prompt_summary,
+          response_text, status, prompt_tokens, completion_tokens, total_tokens, fallback_used,
+          error_message, started_at, finished_at, latency_millis
+        ) values (
+          #{invocationId}, #{runId}, #{requestId}, #{sessionId}, #{userId}, #{modelName}, #{promptSummary},
+          #{responseText}, #{status}, #{promptTokens}, #{completionTokens}, #{totalTokens}, #{fallbackUsed},
+          #{errorMessage}, #{startedAt}, #{finishedAt}, #{latencyMillis}
+        )
+        on duplicate key update invocation_id = values(invocation_id)
+    </insert>
+
+    <update id="updateLlmInvocationFinish">
+        update academic_llm_invocation
+        set response_text = #{responseText},
+            status = #{status},
+            prompt_tokens = #{promptTokens},
+            completion_tokens = #{completionTokens},
+            total_tokens = #{totalTokens},
+            fallback_used = #{fallbackUsed},
+            error_message = #{errorMessage},
+            finished_at = #{finishedAt},
+            latency_millis = #{latencyMillis}
+        where invocation_id = #{invocationId}
+    </update>
+
+    <insert id="insertToolInvocation">
+        insert into academic_tool_invocation (
+          invocation_id, run_id, request_id, session_id, user_id, tool_call_id, tool_name, action,
+          arguments_json, result_summary, result_json, status, retry_count, error_message,
+          started_at, finished_at, latency_millis
+        ) values (
+          #{invocationId}, #{runId}, #{requestId}, #{sessionId}, #{userId}, #{toolCallId}, #{toolName}, #{action},
+          #{argumentsJson}, #{resultSummary}, #{resultJson}, #{status}, #{retryCount}, #{errorMessage},
+          #{startedAt}, #{finishedAt}, #{latencyMillis}
+        )
+        on duplicate key update invocation_id = values(invocation_id)
+    </insert>
+
+    <update id="updateToolInvocationFinish">
+        update academic_tool_invocation
+        set result_summary = #{resultSummary},
+            result_json = #{resultJson},
+            status = #{status},
+            retry_count = #{retryCount},
+            error_message = #{errorMessage},
+            finished_at = #{finishedAt},
+            latency_millis = #{latencyMillis}
+        where invocation_id = #{invocationId}
+    </update>
+
+    <select id="queryRun" resultMap="AcademicAgentRunMap">
+        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+               final_summary, error_code, error_message, started_at, finished_at, duration_millis,
+               create_time, update_time
+        from academic_agent_run
+        where user_id = #{userId}
+          and run_id = #{runId}
+        limit 1
+    </select>
+
+    <select id="queryRunByRequestId" resultMap="AcademicAgentRunMap">
+        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+               final_summary, error_code, error_message, started_at, finished_at, duration_millis,
+               create_time, update_time
+        from academic_agent_run
+        where user_id = #{userId}
+          and request_id = #{requestId}
+        limit 1
+    </select>
+
+    <select id="queryLatestRun" resultMap="AcademicAgentRunMap">
+        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+               final_summary, error_code, error_message, started_at, finished_at, duration_millis,
+               create_time, update_time
+        from academic_agent_run
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+        order by started_at desc, id desc
+        limit 1
+    </select>
+
+    <select id="queryRuns" resultMap="AcademicAgentRunMap">
+        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+               final_summary, error_code, error_message, started_at, finished_at, duration_millis,
+               create_time, update_time
+        from academic_agent_run
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+        order by started_at desc, id desc
+        limit #{limit}
+    </select>
+
+    <select id="queryLlmInvocations" resultMap="AcademicLlmInvocationMap">
+        select invocation_id, run_id, request_id, session_id, user_id, model_name, prompt_summary,
+               response_text, status, prompt_tokens, completion_tokens, total_tokens, fallback_used,
+               error_message, started_at, finished_at, latency_millis
+        from academic_llm_invocation
+        where run_id = #{runId}
+        order by started_at asc, id asc
+    </select>
+
+    <select id="queryToolInvocations" resultMap="AcademicToolInvocationMap">
+        select invocation_id, run_id, request_id, session_id, user_id, tool_call_id, tool_name, action,
+               arguments_json, result_summary, result_json, status, retry_count, error_message,
+               started_at, finished_at, latency_millis
+        from academic_tool_invocation
+        where run_id = #{runId}
+        order by started_at asc, id asc
+    </select>
+
+    <select id="queryArtifactsByRun" resultMap="AcademicArtifactMap">
+        select artifact_id, session_id, user_id, run_id, tool_invocation_id, source_type, source_name,
+               artifact_type, title, content, download_url, create_time
+        from academic_agent_artifact
+        where run_id = #{runId}
+        order by create_time asc, id asc
     </select>
 </mapper>

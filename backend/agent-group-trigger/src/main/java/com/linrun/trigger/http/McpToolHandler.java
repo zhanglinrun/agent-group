@@ -57,6 +57,7 @@ public class McpToolHandler {
     private final LegacyMallPayHandler legacyMallPayHandler;
     private final ToolExecutor toolExecutor;
     private final ObjectMapper objectMapper;
+    private final McpToolRegistry toolRegistry;
 
     public McpToolHandler(GuideDecisionService guideDecisionService,
                           KnowledgeSearchToolService knowledgeSearchToolService,
@@ -78,9 +79,23 @@ public class McpToolHandler {
         this.legacyMallPayHandler = legacyMallPayHandler;
         this.toolExecutor = toolExecutor;
         this.objectMapper = objectMapper;
+        this.toolRegistry = buildRegistry();
     }
 
     public List<Map<String, Object>> listTools() {
+        return toolRegistry.listTools();
+    }
+
+    private McpToolRegistry buildRegistry() {
+        McpToolRegistry registry = new McpToolRegistry();
+        for (Map<String, Object> definition : defaultToolDefinitions()) {
+            registry.register(definition, arguments ->
+                    executeTool(String.valueOf(definition.get("name")), arguments));
+        }
+        return registry;
+    }
+
+    private List<Map<String, Object>> defaultToolDefinitions() {
         return List.of(
                 tool(INTENT_RECOGNITION, "Recognize structured intent, order id, goods id, budget, and scenario slots.",
                         Map.of("question", stringSchema("User question."))),
@@ -137,7 +152,7 @@ public class McpToolHandler {
                 "mcp." + name,
                 "tools/call",
                 "tool call completed",
-                () -> executeTool(name, arguments == null ? Map.of() : arguments));
+                () -> toolRegistry.callTool(name, arguments == null ? Map.of() : arguments));
         if (execution.isSuccess()) {
             return toolResult(false, execution.getResult());
         }

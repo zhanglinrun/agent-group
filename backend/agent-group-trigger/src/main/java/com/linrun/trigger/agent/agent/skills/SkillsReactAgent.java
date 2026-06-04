@@ -23,7 +23,7 @@ import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
-import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -87,12 +87,21 @@ public class SkillsReactAgent extends BaseAgent {
 
     private void initChatClient() {
         try {
-            ToolCallingChatOptions toolOptions = ToolCallingChatOptions.builder()
+            ChatClient.Builder builder = ChatClient.builder(chatModel);
+            if (tools == null || tools.isEmpty()) {
+                OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
+                        .temperature(0.2d)
+                        .build();
+                this.chatClient = builder.defaultOptions(chatOptions).build();
+                return;
+            }
+            OpenAiChatOptions toolOptions = OpenAiChatOptions.builder()
+                    .temperature(0.2d)
+                    .parallelToolCalls(false)
                     .toolCallbacks(tools)
                     .internalToolExecutionEnabled(false)
                     .build();
 
-            ChatClient.Builder builder = ChatClient.builder(chatModel);
             this.chatClient = builder.defaultOptions(toolOptions).defaultToolCallbacks(tools).build();
         } catch (Exception e) {
             throw new RuntimeException("ChatClient 初始化失败：" + e.getMessage(), e);

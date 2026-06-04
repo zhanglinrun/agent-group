@@ -25,7 +25,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.content.Media;
-import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.util.MimeTypeUtils;
@@ -83,7 +83,9 @@ public class FileReactAgent extends BaseAgent {
 
     private void initChatClient() {
         try {
-            ToolCallingChatOptions toolOptions = ToolCallingChatOptions.builder()
+            OpenAiChatOptions toolOptions = OpenAiChatOptions.builder()
+                    .temperature(0.2d)
+                    .parallelToolCalls(false)
                     .toolCallbacks(tools)
                     .internalToolExecutionEnabled(false)
                     .build();

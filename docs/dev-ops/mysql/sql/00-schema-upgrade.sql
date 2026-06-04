@@ -1,5 +1,157 @@
 use agent_group;
 
+create table if not exists academic_agent_run (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  run_id varchar(40) not null comment '运行编号',
+  session_id varchar(64) not null comment '会话编号',
+  request_id varchar(64) not null comment '请求编号',
+  user_id varchar(64) not null comment '用户编号',
+  task_type varchar(32) not null default '' comment '任务类型',
+  question varchar(2048) not null default '' comment '用户问题',
+  status varchar(32) not null default 'RUNNING' comment '运行状态',
+  model_name varchar(128) not null default '' comment '模型名称',
+  final_summary mediumtext null comment '最终摘要',
+  error_code varchar(64) not null default '' comment '错误码',
+  error_message varchar(1024) not null default '' comment '错误信息',
+  started_at datetime not null default current_timestamp comment '开始时间',
+  finished_at datetime null comment '结束时间',
+  duration_millis bigint not null default 0 comment '耗时毫秒',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_run_id (run_id),
+  key idx_request_id (request_id),
+  key idx_user_session_time (user_id, session_id, started_at)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体执行运行表';
+
+create table if not exists academic_llm_invocation (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  invocation_id varchar(40) not null comment '模型调用编号',
+  run_id varchar(40) not null comment '运行编号',
+  request_id varchar(64) not null comment '请求编号',
+  session_id varchar(64) not null comment '会话编号',
+  user_id varchar(64) not null comment '用户编号',
+  model_name varchar(128) not null default '' comment '模型名称',
+  prompt_summary varchar(2048) not null default '' comment '提示词摘要',
+  response_text mediumtext null comment '模型响应',
+  status varchar(32) not null default 'RUNNING' comment '调用状态',
+  prompt_tokens bigint not null default 0 comment '输入 token 数',
+  completion_tokens bigint not null default 0 comment '输出 token 数',
+  total_tokens bigint not null default 0 comment '总 token 数',
+  fallback_used tinyint not null default 0 comment '是否使用回退结果',
+  error_message varchar(1024) not null default '' comment '错误信息',
+  started_at datetime not null default current_timestamp comment '开始时间',
+  finished_at datetime null comment '结束时间',
+  latency_millis bigint not null default 0 comment '耗时毫秒',
+  primary key (id),
+  unique key uk_invocation_id (invocation_id),
+  key idx_run_time (run_id, started_at)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体模型调用表';
+
+create table if not exists academic_tool_invocation (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  invocation_id varchar(40) not null comment '工具调用编号',
+  run_id varchar(40) not null comment '运行编号',
+  request_id varchar(64) not null comment '请求编号',
+  session_id varchar(64) not null comment '会话编号',
+  user_id varchar(64) not null comment '用户编号',
+  tool_call_id varchar(80) not null default '' comment '模型侧工具调用编号',
+  tool_name varchar(128) not null comment '工具名称',
+  action varchar(128) not null default '' comment '工具动作',
+  arguments_json mediumtext null comment '工具入参',
+  result_summary varchar(1024) not null default '' comment '结果摘要',
+  result_json mediumtext null comment '结构化结果',
+  status varchar(32) not null default 'RUNNING' comment '调用状态',
+  retry_count int not null default 0 comment '重试次数',
+  error_message varchar(1024) not null default '' comment '错误信息',
+  started_at datetime not null default current_timestamp comment '开始时间',
+  finished_at datetime null comment '结束时间',
+  latency_millis bigint not null default 0 comment '耗时毫秒',
+  primary key (id),
+  unique key uk_invocation_id (invocation_id),
+  key idx_run_time (run_id, started_at),
+  key idx_tool_name_time (tool_name, started_at)
+) engine=InnoDB default charset=utf8mb4 comment='学术智能体工具调用表';
+
+set @sql = (
+  select if(count(*) > 0,
+    'alter table academic_agent_artifact modify column artifact_id varchar(256) not null comment ''产物编号''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'academic_agent_artifact'
+    and column_name = 'artifact_id'
+    and character_maximum_length < 256
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_artifact add column run_id varchar(40) not null default '''' comment ''运行编号'' after user_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'academic_agent_artifact'
+    and column_name = 'run_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_artifact add column tool_invocation_id varchar(40) not null default '''' comment ''工具调用编号'' after run_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'academic_agent_artifact'
+    and column_name = 'tool_invocation_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_artifact add column source_type varchar(32) not null default ''AGENT'' comment ''来源类型'' after tool_invocation_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'academic_agent_artifact'
+    and column_name = 'source_type'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_artifact add column source_name varchar(128) not null default '''' comment ''来源名称'' after source_type',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'academic_agent_artifact'
+    and column_name = 'source_name'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_artifact add index idx_run_tool (run_id, tool_invocation_id)',
+    'select 1')
+  from information_schema.statistics
+  where table_schema = database()
+    and table_name = 'academic_agent_artifact'
+    and index_name = 'idx_run_tool'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
 set @sql = (
   select if(count(*) = 0,
     'alter table trade_order add column idempotent_key varchar(128) default null comment ''幂等键'' after order_id',

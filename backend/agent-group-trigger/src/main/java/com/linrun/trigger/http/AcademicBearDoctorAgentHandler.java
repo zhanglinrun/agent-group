@@ -9,10 +9,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.AcademicAgentStreamRequest;
 import com.linrun.api.dto.AcademicFileUploadResponse;
+import com.linrun.api.dto.AcademicReplayResponse;
+import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
 import com.linrun.api.dto.AcademicSessionSummaryDTO;
 import com.linrun.api.dto.GuideStreamEvent;
 import com.linrun.api.dto.QuotaAccountResponse;
+import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
+import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
+import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
@@ -20,6 +25,7 @@ import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
 import java.time.LocalDateTime;
@@ -39,6 +45,7 @@ public class AcademicBearDoctorAgentHandler {
     private final AiPptInstService aiPptInstService;
     private final AcademicBackgroundStreamService backgroundStreamService;
     private final AcademicArtifactService academicArtifactService;
+    private final AcademicExecutionLedgerService academicExecutionLedgerService;
     private final ObjectMapper objectMapper;
 
     public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
@@ -48,6 +55,7 @@ public class AcademicBearDoctorAgentHandler {
                                     AiPptInstService aiPptInstService,
                                     AcademicBackgroundStreamService backgroundStreamService,
                                     AcademicArtifactService academicArtifactService,
+                                    AcademicExecutionLedgerService academicExecutionLedgerService,
                                     ObjectMapper objectMapper) {
         this.bearDoctorNativeAgentService = bearDoctorNativeAgentService;
         this.userAccountService = userAccountService;
@@ -56,6 +64,7 @@ public class AcademicBearDoctorAgentHandler {
         this.aiPptInstService = aiPptInstService;
         this.backgroundStreamService = backgroundStreamService;
         this.academicArtifactService = academicArtifactService;
+        this.academicExecutionLedgerService = academicExecutionLedgerService;
         this.objectMapper = objectMapper;
     }
 
@@ -88,14 +97,27 @@ public class AcademicBearDoctorAgentHandler {
             String taskType = normalizeTaskType(safeRequest.getTaskType());
             String query = normalizeQuery(safeRequest, taskType);
             String fileId = nullToBlank(safeRequest.getFileId());
+            boolean webSearchEnabled = Boolean.TRUE.equals(safeRequest.getWebSearchEnabled());
             long startedAt = System.currentTimeMillis();
             AtomicInteger sequence = new AtomicInteger(1);
+            String modelName = modelName(safeRequest);
+            AcademicAgentRun run = academicExecutionLedgerService.startRun(
+                    user.getUserId(), sessionId, requestId, taskType, query, modelName);
+            AcademicLedgerContext.Context ledgerContext = new AcademicLedgerContext.Context(
+                    run.getRunId(), requestId, sessionId, user.getUserId(), taskType);
+            RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt, webSearchEnabled);
 
-            return bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
-                            safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(), safeRequest.getLlmModel())
-                    .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence))
-                    .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(user, sessionId, requestId, sequence, taskType, startedAt))))
-                    .onErrorResume(error -> Flux.just(errorEvent(sessionId, requestId, sequence, error, hasCustomModelConfig(safeRequest))));
+            return Flux.concat(
+                            Flux.fromIterable(startEvents(runState, sessionId, requestId, sequence)),
+                            Flux.defer(() -> bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
+                                    webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(), safeRequest.getLlmModel()))
+                                    .doOnSubscribe(subscription -> AcademicLedgerContext.set(ledgerContext))
+                                    .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence, runState))
+                                    .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(
+                                            user, sessionId, requestId, sequence, taskType, startedAt, runState)))))
+                    .onErrorResume(error -> Flux.fromIterable(errorEvents(
+                            sessionId, requestId, sequence, error, hasCustomModelConfig(safeRequest), runState)))
+                    .doFinally(signalType -> AcademicLedgerContext.clear());
         });
     }
 
@@ -170,6 +192,7 @@ public class AcademicBearDoctorAgentHandler {
                 AcademicSessionDetailResponse.Message assistantMessage =
                         toMessage("ASSISTANT", academicArtifactService.sanitizeLocalPaths(session.getAnswer()), session.getUpdateTime());
                 assistantMessage.setReferences(parseReferences(session.getReference()));
+                assistantMessage.setRecommend(parseRecommend(session.getRecommend()));
                 messages.add(assistantMessage);
             }
         }
@@ -188,8 +211,36 @@ public class AcademicBearDoctorAgentHandler {
                 }
             }
         }
+        appendFailureAssistantIfNeeded(user.getUserId(), sessionId, messages);
+        try {
+            response.setReplays(academicExecutionLedgerService.querySessionReplays(user.getUserId(), sessionId));
+        } catch (Exception ignored) {
+            response.setReplays(List.of());
+        }
         response.setMessages(messages);
         return response;
+    }
+
+    public List<AcademicRunDetailResponse.Run> queryRuns(String token, String sessionId, int limit) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return academicExecutionLedgerService.queryRuns(user.getUserId(), sessionId, limit).stream()
+                .map(this::toRun)
+                .toList();
+    }
+
+    public AcademicRunDetailResponse queryRunDetail(String token, String runId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return academicExecutionLedgerService.queryRunDetail(user.getUserId(), runId);
+    }
+
+    public List<AcademicReplayResponse> queryReplay(String token, String sessionId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return academicExecutionLedgerService.querySessionReplays(user.getUserId(), sessionId);
+    }
+
+    public AcademicReplayResponse queryRunReplay(String token, String runId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return academicExecutionLedgerService.queryRunReplay(user.getUserId(), runId);
     }
 
     public AcademicArtifactService.DownloadArtifact downloadArtifact(String token,
@@ -212,7 +263,8 @@ public class AcademicBearDoctorAgentHandler {
     private List<GuideStreamEvent<?>> toEvents(String raw,
                                                String sessionId,
                                                String requestId,
-                                               AtomicInteger sequence) {
+                                               AtomicInteger sequence,
+                                               RunState runState) {
         if (!StringUtils.hasText(raw) || "[DONE]".equals(raw.trim())) {
             return List.of();
         }
@@ -220,24 +272,116 @@ public class AcademicBearDoctorAgentHandler {
             JsonNode node = objectMapper.readTree(raw);
             String type = text(node, "type");
             return switch (type) {
-                case "text" -> List.of(event("answer_delta", sessionId, requestId, sequence,
-                        Map.of("content", academicArtifactService.sanitizeLocalPaths(content(node)))));
+                case "text" -> answerEvents(node, sessionId, requestId, sequence, runState);
                 case "thinking" -> List.of(event("task_status", sessionId, requestId, sequence,
                         status("THINKING", content(node))));
-                case "tool_start" -> List.of(event("task_status", sessionId, requestId, sequence,
-                        status("TOOL", "开始调用工具：" + text(node, "toolName"))));
-                case "tool_end" -> List.of(event("task_status", sessionId, requestId, sequence,
-                        status("TOOL", "工具调用完成：" + text(node, "toolName"))));
+                case "tool_start" -> toolStartEvents(node, sessionId, requestId, sequence, runState);
+                case "tool_end" -> toolEndEvents(node, sessionId, requestId, sequence, runState);
                 case "reference" -> referenceEvents(node, sessionId, requestId, sequence);
                 case "recommend" -> List.of(event("recommend_delta", sessionId, requestId, sequence, recommend(node)));
                 case "error" -> List.of(event("error", sessionId, requestId, sequence,
                         error(text(node, "code"), firstText(node, "message", "content", "detail"))));
-                case "complete" -> List.of(event("done", sessionId, requestId, sequence, "done"));
-                default -> List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", raw)));
+                case "complete" -> List.of();
+                default -> rawAnswerEvent(raw, sessionId, requestId, sequence, runState);
             };
         } catch (Exception e) {
-            return List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", raw)));
+            return rawAnswerEvent(raw, sessionId, requestId, sequence, runState);
         }
+    }
+
+    private List<GuideStreamEvent<?>> startEvents(RunState runState,
+                                                  String sessionId,
+                                                  String requestId,
+                                                  AtomicInteger sequence) {
+        return List.of(
+                event("run_start", sessionId, requestId, sequence, runStart(runState.run)),
+                event("plan_delta", sessionId, requestId, sequence, plan(runState))
+        );
+    }
+
+    private List<GuideStreamEvent<?>> answerEvents(JsonNode node,
+                                                   String sessionId,
+                                                   String requestId,
+                                                   AtomicInteger sequence,
+                                                   RunState runState) {
+        String content = academicArtifactService.sanitizeLocalPaths(content(node));
+        runState.answer.append(content);
+        return List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", content)));
+    }
+
+    private List<GuideStreamEvent<?>> rawAnswerEvent(String raw,
+                                                     String sessionId,
+                                                     String requestId,
+                                                     AtomicInteger sequence,
+                                                     RunState runState) {
+        String content = academicArtifactService.sanitizeLocalPaths(raw);
+        runState.answer.append(content);
+        return List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", content)));
+    }
+
+    private List<GuideStreamEvent<?>> toolStartEvents(JsonNode node,
+                                                      String sessionId,
+                                                      String requestId,
+                                                      AtomicInteger sequence,
+                                                      RunState runState) {
+        String toolName = firstText(node, "toolName", "name", "tool");
+        String toolCallId = firstText(node, "toolCallId", "tool_call_id", "id");
+        String action = firstText(node, "action", "stage");
+        String argumentsJson = jsonOrText(node, "arguments", "args", "input", "content");
+        String invocationId = academicExecutionLedgerService.recordToolStart(
+                runState.ledgerContext, toolCallId, toolName, action, argumentsJson);
+        runState.toolInvocations.put(toolKey(toolCallId, toolName), invocationId);
+        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        events.add(event("task_status", sessionId, requestId, sequence,
+                status("TOOL", "开始调用工具：" + nullToBlank(toolName))));
+        events.add(event("tool_call", sessionId, requestId, sequence,
+                toolCall(runState.run.getRunId(), invocationId, toolCallId, toolName, action, argumentsJson)));
+        return events;
+    }
+
+    private List<GuideStreamEvent<?>> toolEndEvents(JsonNode node,
+                                                    String sessionId,
+                                                    String requestId,
+                                                    AtomicInteger sequence,
+                                                    RunState runState) {
+        String toolName = firstText(node, "toolName", "name", "tool");
+        String toolCallId = firstText(node, "toolCallId", "tool_call_id", "id");
+        String invocationId = runState.toolInvocations.getOrDefault(toolKey(toolCallId, toolName), "");
+        String resultText = jsonOrText(node, "result", "output", "content", "detail");
+        String rawStatus = firstText(node, "status", "state");
+        String status = isFailureStatus(rawStatus) ? AcademicAgentRun.STATUS_FAILED : AcademicAgentRun.STATUS_SUCCESS;
+        String errorMessage = AcademicAgentRun.STATUS_FAILED.equals(status)
+                ? firstText(node, "message", "error", "detail")
+                : "";
+        long latencyMillis = longValue(node, "latencyMillis", 0L);
+        academicExecutionLedgerService.recordToolFinish(invocationId, status,
+                limit(resultText, 1024), resultText, integer(node, "retryCount", 0), errorMessage, latencyMillis);
+        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        events.add(event("task_status", sessionId, requestId, sequence,
+                status("TOOL", "工具调用完成：" + nullToBlank(toolName))));
+        events.add(event("tool_result", sessionId, requestId, sequence,
+                toolResult(invocationId, toolName, status, resultText, errorMessage, latencyMillis)));
+        return events;
+    }
+
+    private List<GuideStreamEvent<?>> errorEvents(String sessionId,
+                                                  String requestId,
+                                                  AtomicInteger sequence,
+                                                  Throwable error,
+                                                  boolean customModel,
+                                                  RunState runState) {
+        long durationMillis = System.currentTimeMillis() - runState.startedAt;
+        String message = errorMessage(error);
+        String code = error instanceof AppException appException ? appException.getCode() : "AGENT_0001";
+        academicExecutionLedgerService.recordLlmInvocation(runState.ledgerContext, runState.modelName,
+                runState.question, runState.answer.toString(), AcademicAgentRun.STATUS_FAILED,
+                customModel, message, durationMillis);
+        academicExecutionLedgerService.finishRun(runState.run, AcademicAgentRun.STATUS_FAILED,
+                runState.answer.toString(), code, message, durationMillis);
+        return List.of(
+                event("run_error", sessionId, requestId, sequence, runDone(runState.run)),
+                errorEvent(sessionId, requestId, sequence, error, customModel)
+        );
     }
 
     private List<GuideStreamEvent<?>> completionEvents(UserAccount user,
@@ -245,15 +389,20 @@ public class AcademicBearDoctorAgentHandler {
                                                        String requestId,
                                                        AtomicInteger sequence,
                                                        String taskType,
-                                                       long startedAt) {
+                                                       long startedAt,
+                                                       RunState runState) {
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         if ("ppt".equals(taskType)) {
-            pptArtifact(user, sessionId).ifPresent(artifact ->
-                    events.add(event("artifact_delta", sessionId, requestId, sequence, artifact)));
+            pptArtifact(user, sessionId).ifPresent(artifact -> {
+                academicArtifactService.saveArtifactRecord(user.getUserId(), sessionId, artifact,
+                        runState.run.getRunId(), "", "AGENT", taskType);
+                events.add(event("artifact_delta", sessionId, requestId, sequence, artifact));
+            });
         }
         if ("skills".equals(taskType)) {
             for (AcademicSessionDetailResponse.Artifact artifact :
-                    academicArtifactService.collectAndSave(user.getUserId(), sessionId, startedAt)) {
+                    academicArtifactService.collectAndSave(user.getUserId(), sessionId, startedAt,
+                            runState.run.getRunId(), "", "AGENT", taskType)) {
                 events.add(event("artifact_delta", sessionId, requestId, sequence,
                         academicArtifactService.toEventPayload(artifact)));
             }
@@ -263,9 +412,90 @@ public class AcademicBearDoctorAgentHandler {
         events.add(event("usage_metric", sessionId, requestId, sequence, Map.of(
                 "consumedQuota", userQuotaService.estimatePreCheckCost(taskType),
                 "remainingQuota", quota.getQuotaBalance(),
-                "model", "bear-doctor-agent")));
+                "model", runState.modelName)));
+        long durationMillis = System.currentTimeMillis() - runState.startedAt;
+        academicExecutionLedgerService.recordLlmInvocation(runState.ledgerContext, runState.modelName,
+                runState.question, runState.answer.toString(), AcademicAgentRun.STATUS_SUCCESS,
+                false, "", durationMillis);
+        academicExecutionLedgerService.finishRun(runState.run, AcademicAgentRun.STATUS_SUCCESS,
+                runState.answer.toString(), "", "", durationMillis);
+        events.add(event("run_done", sessionId, requestId, sequence, runDone(runState.run)));
         events.add(event("done", sessionId, requestId, sequence, "done"));
         return events;
+    }
+
+    private Map<String, Object> runStart(AcademicAgentRun run) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", run.getRunId());
+        data.put("taskType", run.getTaskType());
+        data.put("question", run.getQuestion());
+        data.put("model", run.getModelName());
+        data.put("status", run.getStatus());
+        data.put("startedAt", run.getStartedAt());
+        return data;
+    }
+
+    private Map<String, Object> plan(RunState runState) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", runState.run.getRunId());
+        data.put("steps", planSteps(runState.run.getTaskType(), runState.webSearchEnabled));
+        return data;
+    }
+
+    private List<String> planSteps(String taskType, boolean webSearchEnabled) {
+        return switch (normalizeTaskType(taskType)) {
+            case "file" -> List.of("读取文件", "检索相关内容", "生成回答");
+            case "ppt" -> List.of("拆解主题", webSearchEnabled ? "搜索资料" : "整理素材", "生成演示文稿");
+            case "deep" -> List.of("拆解问题", webSearchEnabled ? "搜索资料" : "梳理已有信息", "汇总结论");
+            case "skills" -> List.of("选择技能", "执行工具", "整理产物");
+            default -> List.of("理解问题", webSearchEnabled ? "检索或搜索" : "组织回答", "生成回答");
+        };
+    }
+
+    private Map<String, Object> toolCall(String runId,
+                                         String invocationId,
+                                         String toolCallId,
+                                         String toolName,
+                                         String action,
+                                         String argumentsJson) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", nullToBlank(runId));
+        data.put("invocationId", nullToBlank(invocationId));
+        data.put("toolCallId", nullToBlank(toolCallId));
+        data.put("toolName", nullToBlank(toolName));
+        data.put("action", nullToBlank(action));
+        data.put("argumentsJson", nullToBlank(argumentsJson));
+        data.put("status", AcademicAgentRun.STATUS_RUNNING);
+        return data;
+    }
+
+    private Map<String, Object> toolResult(String invocationId,
+                                           String toolName,
+                                           String status,
+                                           String resultText,
+                                           String errorMessage,
+                                           long latencyMillis) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("invocationId", nullToBlank(invocationId));
+        data.put("toolName", nullToBlank(toolName));
+        data.put("status", nullToBlank(status));
+        data.put("resultSummary", limit(resultText, 1024));
+        data.put("resultJson", nullToBlank(resultText));
+        data.put("errorMessage", nullToBlank(errorMessage));
+        data.put("latencyMillis", Math.max(0L, latencyMillis));
+        return data;
+    }
+
+    private Map<String, Object> runDone(AcademicAgentRun run) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", run.getRunId());
+        data.put("status", run.getStatus());
+        data.put("summary", limit(run.getFinalSummary(), 1024));
+        data.put("errorCode", nullToBlank(run.getErrorCode()));
+        data.put("errorMessage", nullToBlank(run.getErrorMessage()));
+        data.put("durationMillis", run.getDurationMillis() == null ? 0L : run.getDurationMillis());
+        data.put("finishedAt", run.getFinishedAt());
+        return data;
     }
 
     private java.util.Optional<Map<String, Object>> pptArtifact(UserAccount user, String sessionId) {
@@ -339,7 +569,7 @@ public class AcademicBearDoctorAgentHandler {
                                            boolean customModel) {
         return event("error", sessionId, requestId, sequence,
                 error(error instanceof AppException appException ? appException.getCode() : "AGENT_0001",
-                        error == null ? "处理失败" : error.getMessage(),
+                        errorMessage(error),
                         customModel));
     }
 
@@ -368,6 +598,19 @@ public class AcademicBearDoctorAgentHandler {
         return normalizeErrorMessage(message, false);
     }
 
+    private String errorMessage(Throwable error) {
+        if (error == null) {
+            return "";
+        }
+        if (error instanceof WebClientResponseException webClientException) {
+            String body = webClientException.getResponseBodyAsString();
+            if (StringUtils.hasText(body)) {
+                return webClientException.getMessage() + " | " + body;
+            }
+        }
+        return nullToBlank(error.getMessage());
+    }
+
     private String normalizeErrorMessage(String message, boolean customModel) {
         if (!StringUtils.hasText(message)) {
             return "处理失败";
@@ -376,6 +619,9 @@ public class AcademicBearDoctorAgentHandler {
         if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
                 && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
             return "本次请求已处理，请勿重复提交或刷新后重试";
+        }
+        if (isContentInspectionMessage(lower)) {
+            return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试。";
         }
         if ((lower.contains("401 unauthorized") || lower.contains("unauthorized"))
                 && (lower.contains("dashscope")
@@ -412,6 +658,24 @@ public class AcademicBearDoctorAgentHandler {
         return dto;
     }
 
+    private AcademicRunDetailResponse.Run toRun(AcademicAgentRun run) {
+        AcademicRunDetailResponse.Run dto = new AcademicRunDetailResponse.Run();
+        dto.setRunId(run.getRunId());
+        dto.setSessionId(run.getSessionId());
+        dto.setRequestId(run.getRequestId());
+        dto.setTaskType(run.getTaskType());
+        dto.setQuestion(run.getQuestion());
+        dto.setStatus(run.getStatus());
+        dto.setModelName(run.getModelName());
+        dto.setFinalSummary(run.getFinalSummary());
+        dto.setErrorCode(run.getErrorCode());
+        dto.setErrorMessage(run.getErrorMessage());
+        dto.setStartedAt(run.getStartedAt());
+        dto.setFinishedAt(run.getFinishedAt());
+        dto.setDurationMillis(run.getDurationMillis());
+        return dto;
+    }
+
     private AcademicSessionDetailResponse.Message toMessage(String role, String content, LocalDateTime createTime) {
         AcademicSessionDetailResponse.Message message = new AcademicSessionDetailResponse.Message();
         message.setRole(role);
@@ -419,6 +683,66 @@ public class AcademicBearDoctorAgentHandler {
         message.setImageUrl("");
         message.setCreateTime(createTime);
         return message;
+    }
+
+    private void appendFailureAssistantIfNeeded(String userId,
+                                                String sessionId,
+                                                List<AcademicSessionDetailResponse.Message> messages) {
+        if (messages.isEmpty() || !"USER".equals(messages.get(messages.size() - 1).getRole())) {
+            return;
+        }
+        try {
+            List<AcademicAgentRun> runs = academicExecutionLedgerService.queryRuns(userId, sessionId, 1);
+            if (runs.isEmpty()) {
+                return;
+            }
+            AcademicAgentRun latestRun = runs.get(0);
+            if (!AcademicAgentRun.STATUS_FAILED.equals(latestRun.getStatus())) {
+                return;
+            }
+            LocalDateTime createTime = latestRun.getFinishedAt() == null ? LocalDateTime.now() : latestRun.getFinishedAt();
+            messages.add(toMessage("ASSISTANT", failureAnswer(latestRun), createTime));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String failureAnswer(AcademicAgentRun run) {
+        String partialAnswer = academicArtifactService.sanitizeLocalPaths(nullToBlank(run.getFinalSummary()).trim());
+        String errorMessage = normalizeErrorMessage(run.getErrorMessage());
+        StringBuilder builder = new StringBuilder();
+        if (StringUtils.hasText(partialAnswer)) {
+            builder.append("已生成的部分内容：\n")
+                    .append(partialAnswer)
+                    .append("\n\n");
+        }
+        if (isContentInspectionMessage(run.getErrorMessage())) {
+            builder.append("本次生成失败，模型服务内容安全检查拦截了本次请求。");
+        } else {
+            builder.append("本次生成失败，模型服务返回错误，请检查模型配置或稍后重试。");
+        }
+        if (StringUtils.hasText(errorMessage)) {
+            builder.append("\n\n错误信息：").append(limit(errorMessage, 500));
+        }
+        return builder.toString();
+    }
+
+    private boolean isContentInspectionMessage(String message) {
+        String lower = nullToBlank(message).toLowerCase();
+        return lower.contains("data_inspection_failed")
+                || lower.contains("inappropriate content")
+                || lower.contains("content security")
+                || lower.contains("input data may contain inappropriate content");
+    }
+
+    private Object parseRecommend(String recommendJson) {
+        if (!StringUtils.hasText(recommendJson)) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(recommendJson, Object.class);
+        } catch (Exception ignored) {
+            return List.of(recommendJson);
+        }
     }
 
     private List<AcademicSessionDetailResponse.Reference> parseReferences(String referenceJson) {
@@ -509,6 +833,13 @@ public class AcademicBearDoctorAgentHandler {
         };
     }
 
+    private String modelName(AcademicAgentStreamRequest request) {
+        if (request != null && StringUtils.hasText(request.getLlmModel())) {
+            return request.getLlmModel().trim();
+        }
+        return "bear-doctor-agent";
+    }
+
     private String content(JsonNode node) {
         JsonNode content = node.get("content");
         if (content == null || content.isNull()) {
@@ -517,9 +848,55 @@ public class AcademicBearDoctorAgentHandler {
         return content.isTextual() ? content.asText() : content.toString();
     }
 
+    private String jsonOrText(JsonNode node, String... fields) {
+        for (String field : fields) {
+            JsonNode value = node == null ? null : node.get(field);
+            if (value == null || value.isNull()) {
+                continue;
+            }
+            return value.isTextual() ? value.asText("") : value.toString();
+        }
+        return "";
+    }
+
     private String text(JsonNode node, String field) {
         JsonNode value = node == null ? null : node.get(field);
         return value == null || value.isNull() ? "" : value.asText("");
+    }
+
+    private boolean isFailureStatus(String status) {
+        String text = nullToBlank(status).toLowerCase();
+        return text.contains("fail") || text.contains("error");
+    }
+
+    private int integer(JsonNode node, String field, int fallback) {
+        JsonNode value = node == null ? null : node.get(field);
+        if (value == null || value.isNull()) {
+            return fallback;
+        }
+        if (value.isNumber()) {
+            return value.asInt(fallback);
+        }
+        try {
+            return Integer.parseInt(value.asText());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private long longValue(JsonNode node, String field, long fallback) {
+        JsonNode value = node == null ? null : node.get(field);
+        if (value == null || value.isNull()) {
+            return fallback;
+        }
+        if (value.isNumber()) {
+            return value.asLong(fallback);
+        }
+        try {
+            return Long.parseLong(value.asText());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private String firstText(JsonNode node, String... fields) {
@@ -532,6 +909,10 @@ public class AcademicBearDoctorAgentHandler {
         return "";
     }
 
+    private String toolKey(String toolCallId, String toolName) {
+        return StringUtils.hasText(toolCallId) ? toolCallId : nullToBlank(toolName);
+    }
+
     private String limit(String value, int maxLength) {
         String safe = nullToBlank(value);
         return safe.length() <= maxLength ? safe : safe.substring(0, maxLength);
@@ -539,6 +920,31 @@ public class AcademicBearDoctorAgentHandler {
 
     private String internalSessionId(String userId, String sessionId) {
         return userId + ":" + nullToBlank(sessionId).trim();
+    }
+
+    private static class RunState {
+        private final AcademicAgentRun run;
+        private final AcademicLedgerContext.Context ledgerContext;
+        private final String question;
+        private final String modelName;
+        private final long startedAt;
+        private final boolean webSearchEnabled;
+        private final StringBuilder answer = new StringBuilder();
+        private final Map<String, String> toolInvocations = new LinkedHashMap<>();
+
+        private RunState(AcademicAgentRun run,
+                         AcademicLedgerContext.Context ledgerContext,
+                         String question,
+                         String modelName,
+                         long startedAt,
+                         boolean webSearchEnabled) {
+            this.run = run;
+            this.ledgerContext = ledgerContext;
+            this.question = question;
+            this.modelName = modelName;
+            this.startedAt = startedAt;
+            this.webSearchEnabled = webSearchEnabled;
+        }
     }
 
     private String nullToBlank(String value) {

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.AcademicAgentStreamRequest;
 import com.linrun.api.dto.AcademicFileUploadResponse;
+import com.linrun.api.dto.AcademicReplayResponse;
+import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
 import com.linrun.api.dto.AcademicSessionSummaryDTO;
 import com.linrun.api.dto.GuideStreamEvent;
@@ -11,7 +13,6 @@ import com.linrun.domain.agent.conversation.adapter.GuideStreamControlRepository
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.common.Response;
 import org.springframework.http.MediaType;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.core.io.InputStreamResource;
@@ -32,6 +33,7 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -138,6 +140,35 @@ public class AcademicAgentController {
         return Response.success(academicBearDoctorAgentHandler.queryDetail(token, sessionId), RequestTraceContext.getRequestId());
     }
 
+    @GetMapping("/sessions/{sessionId}/runs")
+    public Response<List<AcademicRunDetailResponse.Run>> runs(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String sessionId,
+            @RequestParam(defaultValue = "20") int limit) {
+        return Response.success(academicBearDoctorAgentHandler.queryRuns(token, sessionId, limit), RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/sessions/{sessionId}/replay")
+    public Response<List<AcademicReplayResponse>> replay(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String sessionId) {
+        return Response.success(academicBearDoctorAgentHandler.queryReplay(token, sessionId), RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/runs/{runId}")
+    public Response<AcademicRunDetailResponse> runDetail(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String runId) {
+        return Response.success(academicBearDoctorAgentHandler.queryRunDetail(token, runId), RequestTraceContext.getRequestId());
+    }
+
+    @GetMapping("/runs/{runId}/replay")
+    public Response<AcademicReplayResponse> runReplay(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String runId) {
+        return Response.success(academicBearDoctorAgentHandler.queryRunReplay(token, runId), RequestTraceContext.getRequestId());
+    }
+
     @DeleteMapping("/sessions/{sessionId}")
     public Response<Boolean> deleteSession(
             @RequestHeader(value = "Authorization", required = false) String token,
@@ -156,11 +187,16 @@ public class AcademicAgentController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(artifact.contentType()))
                 .contentLength(artifact.size())
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(artifact.fileName(), StandardCharsets.UTF_8)
-                        .build()
-                        .toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachmentHeader(artifact.fileName()))
                 .body(new InputStreamResource(Files.newInputStream(artifact.path())));
+    }
+
+    private String attachmentHeader(String fileName) {
+        String safeName = StringUtils.hasText(fileName) ? fileName.trim() : "artifact";
+        safeName = safeName.replaceAll("[\\r\\n\\\\/]+", "_").replace("\"", "'");
+        String fallback = safeName.replaceAll("[^\\x20-\\x7E]", "_");
+        String encoded = URLEncoder.encode(safeName, StandardCharsets.UTF_8).replace("+", "%20");
+        return "attachment; filename*=UTF-8''" + encoded + "; filename=\"" + fallback + "\"";
     }
 
     private void copyRuntimeLlmConfig(AcademicAgentStreamRequest source, AcademicAgentStreamRequest target) {
@@ -170,6 +206,7 @@ public class AcademicAgentController {
         target.setLlmBaseUrl(source.getLlmBaseUrl());
         target.setLlmApiKey(source.getLlmApiKey());
         target.setLlmModel(source.getLlmModel());
+        target.setWebSearchEnabled(source.getWebSearchEnabled());
     }
 
     private String toJson(GuideStreamEvent<?> event) {

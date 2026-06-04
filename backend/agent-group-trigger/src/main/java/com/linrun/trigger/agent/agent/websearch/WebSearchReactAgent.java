@@ -25,7 +25,7 @@ import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
-import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.util.CollectionUtils;
 import reactor.core.Disposable;
@@ -90,15 +90,23 @@ public class WebSearchReactAgent extends BaseAgent {
 
     private void initChatClient() {
         try {
-            ToolCallingChatOptions toolOptions = ToolCallingChatOptions.builder()
-                    .toolCallbacks(tools)
-                    .internalToolExecutionEnabled(false)
-                    .build();
-
             ChatClient.Builder builder = ChatClient.builder(chatModel);
             if (!CollectionUtils.isEmpty(advisors)) {
                 builder.defaultAdvisors(advisors);
             }
+            if (CollectionUtils.isEmpty(tools)) {
+                OpenAiChatOptions chatOptions = OpenAiChatOptions.builder()
+                        .temperature(0.2d)
+                        .build();
+                this.chatClient = builder.defaultOptions(chatOptions).build();
+                return;
+            }
+            OpenAiChatOptions toolOptions = OpenAiChatOptions.builder()
+                    .temperature(0.2d)
+                    .parallelToolCalls(false)
+                    .toolCallbacks(tools)
+                    .internalToolExecutionEnabled(false)
+                    .build();
             this.chatClient = builder.defaultOptions(toolOptions).defaultToolCallbacks(tools).build();
         } catch (Exception e) {
             throw new RuntimeException("ChatClient 初始化失败：" + e.getMessage(), e);

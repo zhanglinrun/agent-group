@@ -8,6 +8,7 @@ import {
   CreditCard,
   Download,
   FileText,
+  Globe2,
   Loader2,
   LogIn,
   LogOut,
@@ -39,6 +40,7 @@ import {
   modelConfigReady,
   mockPaySuccess,
   normalizeApiMessage,
+  queryAcademicReplay,
   queryAcademicTaskStatus,
   queryAcademicSessionDetail,
   queryAcademicSessions,
@@ -90,6 +92,111 @@ function toUiArtifact(data = {}) {
     content: data.content || data.fileName || "",
     downloadUrl: data.downloadUrl || ""
   };
+}
+
+function replayEventsToTimeline(replays = []) {
+  const replay = [...(replays || [])].find((item) => item?.events?.length) || null;
+  if (!replay) return [];
+  return replay.events.map((event) => streamEventToTimelineItem(event)).filter(Boolean);
+}
+
+function streamEventToTimelineItem(event = {}) {
+  const data = event.data || {};
+  if (event.event === "run_start") {
+    return {
+      type: "run",
+      status: "completed",
+      title: "运行开始",
+      content: `${data.taskType || "chat"} · ${data.model || "bear-doctor-agent"}`
+    };
+  }
+  if (event.event === "plan_delta") {
+    return { type: "plan", status: "completed", steps: data.steps || [] };
+  }
+  if (event.event === "tool_call") {
+    return {
+      type: "tool",
+      invocationId: data.invocationId,
+      toolName: data.toolName || "工具调用",
+      detail: data.action || data.argumentsJson || "",
+      status: "running"
+    };
+  }
+  if (event.event === "tool_result") {
+    return {
+      type: "tool",
+      invocationId: data.invocationId,
+      toolName: data.toolName || "工具调用",
+      detail: data.resultSummary || data.errorMessage || "",
+      status: data.status === "FAILED" ? "error" : "completed",
+      latencyMillis: data.latencyMillis
+    };
+  }
+  if (event.event === "llm_delta") {
+    return {
+      type: "llm",
+      status: data.status === "FAILED" ? "error" : "completed",
+      modelName: data.modelName || "模型调用",
+      tokens: data.totalTokens || 0,
+      latencyMillis: data.latencyMillis || 0
+    };
+  }
+  if (event.event === "run_done") {
+    return {
+      type: "run",
+      status: "completed",
+      title: "运行完成",
+      content: data.durationMillis ? `${data.durationMillis} ms` : ""
+    };
+  }
+  if (event.event === "run_error") {
+    return {
+      type: "run",
+      status: "error",
+      title: "运行失败",
+      content: normalizeUserMessage(data.errorMessage || "处理失败")
+    };
+  }
+  return null;
+}
+
+function mergeTimelineEvent(timeline = [], item) {
+  if (!item) return timeline || [];
+  if (item.type === "tool" && item.invocationId) {
+    const index = (timeline || []).findIndex((entry) => entry.type === "tool" && entry.invocationId === item.invocationId);
+    if (index >= 0) {
+      const next = [...timeline];
+      next[index] = { ...next[index], ...item };
+      return next;
+    }
+  }
+  return [...(timeline || []), item];
+}
+
+function attachReplayTimeline(messages = [], timeline = []) {
+  if (!timeline.length) return messages;
+  const index = [...messages].reverse().findIndex((message) => message.role === "assistant");
+  if (index < 0) return messages;
+  const targetIndex = messages.length - 1 - index;
+  return messages.map((message, messageIndex) => (
+    messageIndex === targetIndex
+      ? { ...message, timeline, showTimeline: false }
+      : message
+  ));
+}
+
+function hasAssistantPayload(message = {}) {
+  return Boolean(
+    String(message.content || "").trim()
+      || (message.timeline || []).length
+      || (message.reference || []).length
+      || (message.artifacts || []).length
+      || (message.recommend || []).length
+  );
+}
+
+function latestAssistantWithPayload(messages = []) {
+  return [...messages].reverse().find((message) => message.role === "assistant" && hasAssistantPayload(message)) || null;
 }
 
 function toUiReference(data = {}) {
@@ -384,6 +491,7 @@ function BearDoctorAcademicApp() {
   const [currentChatId, setCurrentChatId] = useState(() => getSessionId());
   const [inputMessage, setInputMessage] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("chat");
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [runningChatIds, setRunningChatIds] = useState({});
@@ -507,27 +615,44 @@ function BearDoctorAcademicApp() {
     content: item.content || "",
     timeline: [],
     reference: (item.references || item.reference || []).map(toUiReference),
-    recommend: [],
+    recommend: normalizeRecommendItems(item.recommend || item.recommends || item.recommendations || []),
     artifacts: (item.artifacts || []).map(toUiArtifact),
     showTimeline: false,
     showReference: Boolean((item.references || item.reference || []).length)
-  })), []);
+  })).filter((message) => message.role !== "assistant" || hasAssistantPayload(message)), []);
 
   const refreshSessionDetail = useCallback(async (sessionId, keepMessageId = "") => {
     if (!getUserAuth()?.token || !sessionId) return;
     const res = await queryAcademicSessionDetail(sessionId);
     if (res.code !== "0000") return;
-    const remoteMessages = toUiMessages(res.data?.messages || []);
+    let replays = res.data?.replays || [];
+    if (!replays.length) {
+      const replayRes = await queryAcademicReplay(sessionId).catch(() => null);
+      if (replayRes?.code === "0000") {
+        replays = replayRes.data || [];
+      }
+    }
+    const replayTimeline = replayEventsToTimeline(replays);
+    const remoteMessages = attachReplayTimeline(toUiMessages(res.data?.messages || []), replayTimeline);
+    if (!remoteMessages.length) {
+      return;
+    }
     setChatList((prev) => prev.map((chat) => {
       if (chat.id !== sessionId) return chat;
       const runningMessage = keepMessageId
         ? chat.messages.find((message) => message.id === keepMessageId)
         : null;
-      const shouldKeepRunning = runningMessage && runningMessage.content;
+      const remoteHasAssistant = remoteMessages.some((message) => message.role === "assistant" && hasAssistantPayload(message));
+      const localAssistant = remoteHasAssistant ? null : latestAssistantWithPayload(chat.messages);
+      const shouldKeepRunning = runningMessage && hasAssistantPayload(runningMessage);
       return {
         ...chat,
         isNew: false,
-        messages: shouldKeepRunning ? [...remoteMessages, runningMessage] : remoteMessages
+        messages: shouldKeepRunning
+          ? [...remoteMessages, runningMessage]
+          : localAssistant
+            ? [...remoteMessages, localAssistant]
+            : remoteMessages
       };
     }));
   }, [toUiMessages]);
@@ -558,6 +683,15 @@ function BearDoctorAcademicApp() {
     const data = event.data || {};
     if (event.event === "answer_delta") {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
+      return;
+    }
+    if (["run_start", "plan_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error"].includes(event.event)) {
+      const timelineItem = streamEventToTimelineItem(event);
+      updateAssistantInChat(chatId, messageId, (message) => ({
+        ...message,
+        timeline: mergeTimelineEvent(message.timeline, timelineItem),
+        showTimeline: true
+      }));
       return;
     }
     if (event.event === "task_status") {
@@ -934,6 +1068,7 @@ function BearDoctorAcademicApp() {
         question: text || "请分析这个文件",
         taskType,
         fileId: file?.fileId || "",
+        webSearchEnabled,
         modelConfig
       },
       (event) => processStreamEvent(sessionId, assistantId, event),
@@ -943,13 +1078,14 @@ function BearDoctorAcademicApp() {
         closeAssistantTimelineInChat(sessionId, assistantId);
         loadQuota().catch(() => {});
         loadSessions().catch(() => {});
-        loadTaskStatus(sessionId).catch(() => {});
+        refreshTaskStatus(sessionId).catch(() => {});
+        window.setTimeout(() => refreshSessionDetail(sessionId).catch(() => {}), 300);
       },
       (error) => {
         delete streamControllersRef.current[sessionId];
         setChatRunning(sessionId, false);
         appendAssistantTextInChat(sessionId, assistantId, `\n\n请求出错：${normalizeUserMessage(error.message, "服务暂不可用")}`);
-        loadTaskStatus(sessionId).catch(() => {});
+        refreshTaskStatus(sessionId).catch(() => {});
       }
     );
   };
@@ -993,6 +1129,7 @@ function BearDoctorAcademicApp() {
     streamControllersRef.current[sessionId] = requestAcademicResumeStream(
       sessionId,
       modelConfig,
+      webSearchEnabled,
       (event) => processStreamEvent(sessionId, assistantId, event),
       () => {
         delete streamControllersRef.current[sessionId];
@@ -1000,13 +1137,14 @@ function BearDoctorAcademicApp() {
         closeAssistantTimelineInChat(sessionId, assistantId);
         loadQuota().catch(() => {});
         loadSessions().catch(() => {});
-        loadTaskStatus(sessionId).catch(() => {});
+        refreshTaskStatus(sessionId).catch(() => {});
+        window.setTimeout(() => refreshSessionDetail(sessionId).catch(() => {}), 300);
       },
       (error) => {
         delete streamControllersRef.current[sessionId];
         setChatRunning(sessionId, false);
         appendAssistantTextInChat(sessionId, assistantId, `\n\n继续生成失败：${normalizeUserMessage(error.message, "服务暂不可用")}`);
-        loadTaskStatus(sessionId).catch(() => {});
+        refreshTaskStatus(sessionId).catch(() => {});
       }
     );
   };
@@ -1237,6 +1375,17 @@ function BearDoctorAcademicApp() {
                   {selectedAgent === agent.id && <Check size={12} className="check-icon" />}
                 </button>
               ))}
+              <button
+                type="button"
+                className={`web-search-toggle ${webSearchEnabled ? "active" : ""}`}
+                aria-pressed={webSearchEnabled}
+                onClick={() => setWebSearchEnabled((prev) => !prev)}
+                title={webSearchEnabled ? "关闭联网搜索" : "开启联网搜索"}
+              >
+                <Globe2 size={16} />
+                <span>联网搜索</span>
+                <span className="toggle-state">{webSearchEnabled ? "开" : "关"}</span>
+              </button>
             </div>
 
             {selectedFile && (
@@ -1396,8 +1545,8 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
             {msg.timeline?.length > 0 && (
               <div className="timeline-section">
                 <button className="timeline-header" onClick={() => onToggleTimeline(msg.id)}>
-                  <span className="timeline-icon-wrapper">🧠</span>
-                  <span className="timeline-title">思考过程</span>
+                  <span className="timeline-icon-wrapper">⚙️</span>
+                  <span className="timeline-title">执行过程</span>
                   <span>{msg.showTimeline ? "⌄" : "›"}</span>
                 </button>
                 {msg.showTimeline && (
@@ -1407,7 +1556,34 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                         <div className={`timeline-dot ${item.status || item.type}`} />
                         <div className="timeline-item-body">
                           {item.type === "thinking" && <div className="timeline-thinking">{item.content}</div>}
-                          {item.type === "tool" && <div className="timeline-tool"><span>🔧</span><span className="timeline-tool-name">{item.toolName}</span></div>}
+                          {item.type === "run" && (
+                            <div className="timeline-run">
+                              <span className="timeline-tool-name">{item.title}</span>
+                              {item.content && <small>{item.content}</small>}
+                            </div>
+                          )}
+                          {item.type === "plan" && (
+                            <div className="timeline-plan">
+                              <strong>执行计划</strong>
+                              {(item.steps || []).map((step, stepIndex) => (
+                                <span key={`${step}-${stepIndex}`}>{step}</span>
+                              ))}
+                            </div>
+                          )}
+                          {item.type === "tool" && (
+                            <div className="timeline-tool">
+                              <span>🔧</span>
+                              <span className="timeline-tool-name">{item.toolName}</span>
+                              {item.detail && <small>{item.detail}</small>}
+                              {item.latencyMillis ? <small>{item.latencyMillis} ms</small> : null}
+                            </div>
+                          )}
+                          {item.type === "llm" && (
+                            <div className="timeline-llm">
+                              <span className="timeline-tool-name">{item.modelName}</span>
+                              <small>{item.tokens || 0} tokens · {item.latencyMillis || 0} ms</small>
+                            </div>
+                          )}
                           {item.type === "error" && <div className="timeline-error"><AlertTriangle size={14} /><span>{item.message}</span></div>}
                         </div>
                       </div>

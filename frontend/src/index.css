@@ -1944,9 +1944,17 @@ body {
 }
 
 .bear-doctor-app .timeline-dot.completed,
-.bear-doctor-app .timeline-dot.tool {
+.bear-doctor-app .timeline-dot.tool,
+.bear-doctor-app .timeline-dot.run,
+.bear-doctor-app .timeline-dot.plan,
+.bear-doctor-app .timeline-dot.llm {
   background: rgba(16, 185, 129, 0.6);
   border: 2px solid #10b981;
+}
+
+.bear-doctor-app .timeline-dot.running {
+  background: rgba(59, 130, 246, 0.55);
+  border: 2px solid #3b82f6;
 }
 
 .bear-doctor-app .timeline-dot.error {
@@ -1967,15 +1975,48 @@ body {
 }
 
 .bear-doctor-app .timeline-tool,
+.bear-doctor-app .timeline-run,
+.bear-doctor-app .timeline-llm,
 .bear-doctor-app .timeline-error {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .bear-doctor-app .timeline-error {
   color: #f59e0b;
+}
+
+.bear-doctor-app .timeline-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bear-doctor-app .timeline-plan strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-right: 2px;
+}
+
+.bear-doctor-app .timeline-plan span,
+.bear-doctor-app .timeline-tool small,
+.bear-doctor-app .timeline-run small,
+.bear-doctor-app .timeline-llm small {
+  max-width: 100%;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .timeline-plan span {
+  padding: 3px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: var(--bg-tertiary);
 }
 
 .bear-doctor-app .timeline-tool-name {
@@ -2224,6 +2265,52 @@ body {
   background: rgba(139, 92, 246, 0.25);
   border-color: var(--primary-color);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+.bear-doctor-app .web-search-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.bear-doctor-app .web-search-toggle:hover {
+  color: var(--text-primary);
+  border-color: rgba(6, 182, 212, 0.45);
+  background: rgba(6, 182, 212, 0.12);
+  transform: translateY(-1px);
+}
+
+.bear-doctor-app .web-search-toggle.active {
+  color: #e0f7ff;
+  border-color: rgba(6, 182, 212, 0.6);
+  background: rgba(6, 182, 212, 0.18);
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.22);
+}
+
+.bear-doctor-app .toggle-state {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
+.bear-doctor-app .web-search-toggle.active .toggle-state {
+  background: rgba(6, 182, 212, 0.18);
+  color: var(--accent-light);
 }
 
 .bear-doctor-app .agent-icon {

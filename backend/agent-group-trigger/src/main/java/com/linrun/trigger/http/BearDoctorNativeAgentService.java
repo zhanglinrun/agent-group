@@ -142,6 +142,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                String query,
                                String conversationId,
                                String fileId,
+                               boolean webSearchEnabled,
                                String llmBaseUrl,
                                String llmApiKey,
                                String llmModel) {
@@ -156,19 +157,20 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         long startNanos = System.nanoTime();
         StringBuilder observedContent = new StringBuilder();
         BearDoctorTokenUsageRecorder.start(internalConversationId);
+        ToolCallback[] searchTools = webSearchEnabled ? webSearchToolCallbacks : new ToolCallback[0];
 
         Flux<String> agentFlux = switch (safeAgentType) {
             case "file" -> withMemory(initFileReactAgent(user.getUserId(), internalConversationId, runtimeChatModel), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            case "ppt" -> withMemory(initPPTBuilderAgent(internalConversationId, runtimeChatModel), internalConversationId)
+            case "ppt" -> withMemory(initPPTBuilderAgent(internalConversationId, runtimeChatModel, searchTools), internalConversationId)
                     .execute(internalConversationId, query);
-            case "deep" -> withMemory(initPlanExecuteAgent(internalConversationId, runtimeChatModel), internalConversationId)
+            case "deep" -> withMemory(initPlanExecuteAgent(internalConversationId, runtimeChatModel, searchTools), internalConversationId)
                     .stream(internalConversationId, query);
-            case "skills" -> withMemory(initSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel), internalConversationId)
+            case "skills" -> withMemory(initSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel, searchTools, webSearchEnabled), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            case "manual-skills" -> withMemory(initManualSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel), internalConversationId)
+            case "manual-skills" -> withMemory(initManualSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel, searchTools, webSearchEnabled), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            default -> withMemory(initWebSearchAgent(internalConversationId, runtimeChatModel), internalConversationId)
+            default -> withMemory(initWebSearchAgent(internalConversationId, runtimeChatModel, searchTools, webSearchEnabled), internalConversationId)
                     .stream(internalConversationId, query);
         };
 
@@ -335,11 +337,14 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         }
     }
 
-    private WebSearchReactAgent initWebSearchAgent(String conversationId, ChatModel chatModel) {
+    private WebSearchReactAgent initWebSearchAgent(String conversationId, ChatModel chatModel,
+                                                   ToolCallback[] searchTools,
+                                                   boolean webSearchEnabled) {
         return WebSearchReactAgent.builder()
                 .name("web react")
                 .chatModel(chatModel)
-                .tools(webSearchToolCallbacks)
+                .tools(searchTools)
+                .systemPrompt(webSearchEnabled ? "" : webSearchDisabledPrompt())
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .maxRounds(5)
@@ -357,24 +362,26 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .build();
     }
 
-    private PPTBuilderAgent initPPTBuilderAgent(String conversationId, ChatModel chatModel) {
-        return new PPTBuilderAgent(chatModel, Arrays.asList(webSearchToolCallbacks), sessionService, taskManager);
+    private PPTBuilderAgent initPPTBuilderAgent(String conversationId, ChatModel chatModel, ToolCallback[] searchTools) {
+        return new PPTBuilderAgent(chatModel, Arrays.asList(searchTools), sessionService, taskManager);
     }
 
-    private PlanExecuteAgent initPlanExecuteAgent(String conversationId, ChatModel chatModel) {
+    private PlanExecuteAgent initPlanExecuteAgent(String conversationId, ChatModel chatModel, ToolCallback[] searchTools) {
         return PlanExecuteAgent.builder()
                 .chatModel(chatModel)
-                .tools(webSearchToolCallbacks)
+                .tools(searchTools)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .maxRounds(3)
                 .build();
     }
 
-    private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
+    private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel,
+                                                  ToolCallback[] searchTools,
+                                                  boolean webSearchEnabled) {
         String outputDirectory = sessionSkillsOutputDirectory(conversationId);
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
-                webSearchToolCallbacks,
+                searchTools,
                 fileContentToolCallbacks(userId),
                 skillsToolCallbacks(),
                 SkillRuntimeTools.create(resolvedSkillsDirectory(), projectRoot().toString(), outputDirectory)
@@ -383,23 +390,25 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .name("skills")
                 .chatModel(chatModel)
                 .tools(tools)
-                .systemPrompt(skillRuntimePrompt(outputDirectory))
+                .systemPrompt(skillRuntimePrompt(outputDirectory, webSearchEnabled))
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .contextPolicy(ContextPolicy.defaults())
                 .build();
     }
 
-    private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId, ChatModel chatModel) {
+    private SkillsReactAgent initManualSkillsReactAgent(String userId, String conversationId, ChatModel chatModel,
+                                                        ToolCallback[] searchTools,
+                                                        boolean webSearchEnabled) {
         String outputDirectory = sessionSkillsOutputDirectory(conversationId);
         SkillManager skillManager = manualSkillManager();
         ToolCallback[] readSkillTools = skillManager == null
                 ? new ToolCallback[0]
                 : new ToolCallback[]{ReadSkillTool.create(skillManager.getRegistry())};
         String skillsPrompt = skillManager == null ? "" : skillManager.formatPrompt();
-        String runtimePrompt = skillRuntimePrompt(outputDirectory);
+        String runtimePrompt = skillRuntimePrompt(outputDirectory, webSearchEnabled);
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
-                webSearchToolCallbacks,
+                searchTools,
                 fileContentToolCallbacks(userId),
                 readSkillTools,
                 SkillRuntimeTools.create(resolvedSkillsDirectory(), projectRoot().toString(), outputDirectory)
@@ -520,16 +529,28 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         return cwd;
     }
 
-    private String skillRuntimePrompt(String outputDirectory) {
+    private String skillRuntimePrompt(String outputDirectory, boolean webSearchEnabled) {
+        String webSearchRule = webSearchEnabled
+                ? "- 本轮已开启联网搜索；需要最新公开信息时可以调用搜索工具。"
+                : "- 本轮未开启联网搜索；不要调用搜索工具，也不要输出 ToolCall/search 文本。需要实时信息时请提示用户开启联网搜索后重试。";
         return """
                 ## 技能产物输出规则
                 - 所有生成文件必须写入当前会话输出目录或它的子目录。当前会话输出目录是：%s
                 - 文件工具只允许访问当前会话输出目录；读取和写入时优先使用相对路径。
+                %s
                 - 普通用户环境没有 bash 和 grep 工具；需要抓取 Bilibili、抽帧或编译 LaTeX 时，使用 bilibili_fetch、extract_video_frames、compile_latex 这些专用工具。
                 - 不要把文件生成到项目根目录、后端 app 目录、用户目录或系统临时目录。
                 - 最终回答中不要暴露服务器本地绝对路径，例如 Windows 盘符路径或 Linux 绝对路径。
                 - 只需要说明文件已经生成，PDF、LaTeX、字幕等文件会由前端下载按钮提供给用户。
-                """.formatted(outputDirectory);
+                """.formatted(outputDirectory, webSearchRule);
+    }
+
+    private String webSearchDisabledPrompt() {
+        return """
+                ## 联网搜索状态
+                本轮未开启联网搜索。不要调用搜索工具，也不要输出 ToolCall/search 文本。
+                普通知识和上下文足够时直接回答；确实需要实时信息时，请提示用户开启联网搜索后重试。
+                """;
     }
 
     private String encode(String value) {

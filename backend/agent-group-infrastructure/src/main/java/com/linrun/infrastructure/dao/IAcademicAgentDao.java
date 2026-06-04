@@ -1,9 +1,12 @@
 package com.linrun.infrastructure.dao;
 
+import com.linrun.infrastructure.po.AcademicAgentRunPO;
 import com.linrun.infrastructure.po.AcademicArtifactPO;
 import com.linrun.infrastructure.po.AcademicFilePO;
+import com.linrun.infrastructure.po.AcademicLlmInvocationPO;
 import com.linrun.infrastructure.po.AcademicMessagePO;
 import com.linrun.infrastructure.po.AcademicSessionPO;
+import com.linrun.infrastructure.po.AcademicToolInvocationPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -45,4 +48,32 @@ public interface IAcademicAgentDao {
     void insertArtifact(AcademicArtifactPO artifact);
 
     List<AcademicArtifactPO> queryArtifacts(@Param("userId") String userId, @Param("sessionId") String sessionId);
+
+    void insertRun(AcademicAgentRunPO run);
+
+    int updateRunFinish(AcademicAgentRunPO run);
+
+    void insertLlmInvocation(AcademicLlmInvocationPO invocation);
+
+    int updateLlmInvocationFinish(AcademicLlmInvocationPO invocation);
+
+    void insertToolInvocation(AcademicToolInvocationPO invocation);
+
+    int updateToolInvocationFinish(AcademicToolInvocationPO invocation);
+
+    AcademicAgentRunPO queryRun(@Param("userId") String userId, @Param("runId") String runId);
+
+    AcademicAgentRunPO queryRunByRequestId(@Param("userId") String userId, @Param("requestId") String requestId);
+
+    AcademicAgentRunPO queryLatestRun(@Param("userId") String userId, @Param("sessionId") String sessionId);
+
+    List<AcademicAgentRunPO> queryRuns(@Param("userId") String userId,
+                                       @Param("sessionId") String sessionId,
+                                       @Param("limit") int limit);
+
+    List<AcademicLlmInvocationPO> queryLlmInvocations(@Param("runId") String runId);
+
+    List<AcademicToolInvocationPO> queryToolInvocations(@Param("runId") String runId);
+
+    List<AcademicArtifactPO> queryArtifactsByRun(@Param("runId") String runId);
 }

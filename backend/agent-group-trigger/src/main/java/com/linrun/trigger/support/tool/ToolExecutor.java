@@ -3,7 +3,11 @@ package com.linrun.trigger.support.tool;
 
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.domain.agent.conversation.model.AgentToolDefinition;
+import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
+import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
+import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,14 +21,26 @@ public class ToolExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolExecutor.class);
     private final AgentObservabilityMetrics metrics;
+    private final AcademicExecutionLedgerService ledgerService;
 
     public ToolExecutor() {
-        this(AgentObservabilityMetrics.noop());
+        this(AgentObservabilityMetrics.noop(), (AcademicExecutionLedgerService) null);
+    }
+
+    public ToolExecutor(AgentObservabilityMetrics metrics) {
+        this(metrics, (AcademicExecutionLedgerService) null);
     }
 
     @Autowired
-    public ToolExecutor(AgentObservabilityMetrics metrics) {
+    public ToolExecutor(AgentObservabilityMetrics metrics,
+                        ObjectProvider<AcademicExecutionLedgerService> ledgerServiceProvider) {
+        this(metrics, ledgerServiceProvider == null ? null : ledgerServiceProvider.getIfAvailable());
+    }
+
+    private ToolExecutor(AgentObservabilityMetrics metrics,
+                         AcademicExecutionLedgerService ledgerService) {
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
+        this.ledgerService = ledgerService;
     }
 
     public <T> ToolExecution<T> execute(String toolName,
@@ -51,6 +67,7 @@ public class ToolExecutor {
                                         Supplier<T> supplier) {
         long startNanos = System.nanoTime();
         String toolCallId = toolName + "-" + UUID.randomUUID();
+        String ledgerInvocationId = recordToolStart(toolCallId, toolName, action);
         int attempts = Math.max(1, maxRetries + 1);
         Exception lastException = null;
         for (int attempt = 1; attempt <= attempts; attempt++) {
@@ -58,6 +75,8 @@ public class ToolExecutor {
                 T result = supplier.get();
                 long latencyMillis = elapsedMillis(startNanos);
                 metrics.recordToolExecution(toolName, action, true, latencyMillis);
+                recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_SUCCESS,
+                        successMessage, digest(result), attempt - 1, "", latencyMillis);
                 return ToolExecution.success(toolName, action, successMessage, latencyMillis, result,
                         toolCallId, attempt - 1, digest(result));
             } catch (Exception e) {
@@ -71,6 +90,8 @@ public class ToolExecutor {
                 metrics.recordToolExecution(toolName, action, false, latencyMillis);
                 LOGGER.warn("tool execute failed, toolName={}, action={}, reason={}",
                         toolName, action, e.getClass().getSimpleName());
+                recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
+                        "tool execution failed", digest(e), attempt - 1, e.getMessage(), latencyMillis);
                 return ToolExecution.failure(toolName, action,
                         "工具执行失败：" + e.getMessage(), latencyMillis, e,
                         toolCallId, attempt - 1, digest(e));
@@ -78,8 +99,33 @@ public class ToolExecutor {
         }
         long latencyMillis = elapsedMillis(startNanos);
         metrics.recordToolExecution(toolName, action, false, latencyMillis);
+        recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
+                "tool execution failed", digest(lastException), attempts - 1,
+                lastException == null ? "" : lastException.getMessage(), latencyMillis);
         return ToolExecution.failure(toolName, action, "工具执行失败", latencyMillis, lastException,
                 toolCallId, attempts - 1, digest(lastException));
+    }
+
+    private String recordToolStart(String toolCallId, String toolName, String action) {
+        if (ledgerService == null) {
+            return "";
+        }
+        return ledgerService.recordToolStart(AcademicLedgerContext.current(),
+                toolCallId, toolName, action, "{}");
+    }
+
+    private void recordToolFinish(String invocationId,
+                                  String status,
+                                  String resultSummary,
+                                  String resultJson,
+                                  int retryCount,
+                                  String errorMessage,
+                                  long latencyMillis) {
+        if (ledgerService == null) {
+            return;
+        }
+        ledgerService.recordToolFinish(invocationId, status, resultSummary, resultJson,
+                retryCount, errorMessage, latencyMillis);
     }
 
     private long elapsedMillis(long startNanos) {

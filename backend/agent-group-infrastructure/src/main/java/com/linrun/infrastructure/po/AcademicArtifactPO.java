@@ -7,6 +7,10 @@ public class AcademicArtifactPO {
     private String artifactId;
     private String sessionId;
     private String userId;
+    private String runId;
+    private String toolInvocationId;
+    private String sourceType;
+    private String sourceName;
     private String artifactType;
     private String title;
     private String content;
@@ -35,6 +39,38 @@ public class AcademicArtifactPO {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    public String getToolInvocationId() {
+        return toolInvocationId;
+    }
+
+    public void setToolInvocationId(String toolInvocationId) {
+        this.toolInvocationId = toolInvocationId;
+    }
+
+    public String getSourceType() {
+        return sourceType;
+    }
+
+    public void setSourceType(String sourceType) {
+        this.sourceType = sourceType;
+    }
+
+    public String getSourceName() {
+        return sourceName;
+    }
+
+    public void setSourceName(String sourceName) {
+        this.sourceName = sourceName;
     }
 
     public String getArtifactType() {

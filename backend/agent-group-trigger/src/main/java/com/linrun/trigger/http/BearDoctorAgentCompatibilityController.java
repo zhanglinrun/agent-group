@@ -233,7 +233,7 @@ public class BearDoctorAgentCompatibilityController {
         if (!StringUtils.hasText(query)) {
             return Flux.just(bearDoctorEvent("error", Map.of("message", "查询参数不能为空")), bearDoctorEvent("complete", null), "[DONE]");
         }
-        return bearDoctorNativeAgentService.stream(token, agentType, query, conversationId, fileId, "", "", "")
+        return bearDoctorNativeAgentService.stream(token, agentType, query, conversationId, fileId, true, "", "", "")
                 .concatWithValues(bearDoctorEvent("complete", null), "[DONE]")
                 .onErrorResume(error -> Flux.just(
                         bearDoctorEvent("error", Map.of("message", message(error))),

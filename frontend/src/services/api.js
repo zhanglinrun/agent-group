@@ -50,6 +50,9 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
   const text = String(message || "").trim();
   if (!text) return fallback;
   const lower = text.toLowerCase();
+  if (lower.includes("data_inspection_failed") || lower.includes("inappropriate content")) {
+    return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试。";
+  }
   if ((lower.includes("401 unauthorized") || lower.includes("unauthorized"))
     && (lower.includes("dashscope") || lower.includes("chat/completions") || lower.includes("openai") || lower.includes("api key"))) {
     if (!lower.includes("dashscope")) {
@@ -316,6 +319,54 @@ export async function queryAcademicSessionDetail(sessionId) {
   });
 }
 
+export async function queryAcademicReplay(sessionId) {
+  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}/replay`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function queryAcademicRunDetail(runId) {
+  return request(`/api/v1/academic/runs/${encodeURIComponent(runId)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+function decodeQuotedPrintable(text) {
+  return text.replace(/=([0-9A-F]{2})/gi, (_, hex) =>
+    String.fromCharCode(parseInt(hex, 16))
+  );
+}
+
+function decodeMimeEncodedFilename(value, fallbackName) {
+  const raw = String(value || "").trim().replace(/^["']|["']$/g, "");
+  const standard = raw.match(/^=\?UTF-8\?Q\?(.+)\?=$/i);
+  const loose = raw.match(/^=_UTF-8_Q_(.+)_=$/i);
+  const body = standard?.[1] || loose?.[1];
+  if (!body) return raw || fallbackName;
+  try {
+    return decodeURIComponent(escape(decodeQuotedPrintable(body.replace(/_/g, " "))));
+  } catch {
+    return fallbackName;
+  }
+}
+
+function parseDownloadFileName(disposition, fallbackName) {
+  const fallback = fallbackName || "artifact";
+  const star = disposition.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^"|"$/g, ""));
+    } catch {
+      return fallback;
+    }
+  }
+  const regular = disposition.match(/filename\s*=\s*"([^"]+)"|filename\s*=\s*([^;]+)/i);
+  const raw = regular?.[1] || regular?.[2] || "";
+  return decodeMimeEncodedFilename(raw, fallback);
+}
+
 export async function downloadAcademicArtifact(downloadUrl, fallbackName = "artifact") {
   const response = await fetch(downloadUrl, {
     method: "GET",
@@ -329,10 +380,7 @@ export async function downloadAcademicArtifact(downloadUrl, fallbackName = "arti
   }
   const blob = await response.blob();
   const disposition = response.headers.get("content-disposition") || "";
-  const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
-  const fileName = match
-    ? decodeURIComponent(match[1] || match[2] || fallbackName)
-    : fallbackName;
+  const fileName = parseDownloadFileName(disposition, fallbackName);
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = objectUrl;
@@ -368,7 +416,7 @@ export async function queryAcademicTaskStatus(sessionId = getSessionId()) {
   });
 }
 
-export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId(), modelConfig }, onEvent, onDone, onError) {
+export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId(), modelConfig, webSearchEnabled = false }, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/stream", {
     sessionId,
     question,
@@ -376,13 +424,15 @@ export function requestAcademicStream({ question, taskType, fileId, imageUrl, im
     fileId: fileId || "",
     imageUrl: imageUrl || "",
     imageName: imageName || "",
+    webSearchEnabled: Boolean(webSearchEnabled),
     ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, onEvent, onDone, onError) {
+export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, webSearchEnabled = false, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/resume", {
     sessionId,
+    webSearchEnabled: Boolean(webSearchEnabled),
     ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }

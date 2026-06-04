@@ -1,5 +1,6 @@
 package com.linrun.trigger.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -44,6 +45,7 @@ public class SecurityConfig {
                             response.getWriter().write("{\"code\":\"AUTH_0002\",\"info\":\"当前账号权限不足\"}");
                         }))
                 .authorizeHttpRequests(registry -> registry
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/health", "/actuator/health", "/actuator/prometheus").permitAll()
