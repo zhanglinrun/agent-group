@@ -3918,6 +3918,11 @@ body {
   border: 2px solid var(--primary-light);
 }
 
+.bear-doctor-app .timeline-dot.planned {
+  background: rgba(99, 102, 241, 0.5);
+  border: 2px solid #6366f1;
+}
+
 .bear-doctor-app .timeline-dot.completed,
 .bear-doctor-app .timeline-dot.tool,
 .bear-doctor-app .timeline-dot.run,
@@ -3930,6 +3935,16 @@ body {
 .bear-doctor-app .timeline-dot.running {
   background: rgba(59, 130, 246, 0.55);
   border: 2px solid #3b82f6;
+}
+
+.bear-doctor-app .timeline-dot.replanned {
+  background: rgba(37, 99, 235, 0.45);
+  border: 2px solid #2563eb;
+}
+
+.bear-doctor-app .timeline-dot.blocked {
+  background: rgba(249, 115, 22, 0.45);
+  border: 2px solid #f97316;
 }
 
 .bear-doctor-app .timeline-dot.error {
@@ -4044,17 +4059,31 @@ body {
   color: #4338ca;
 }
 
+.bear-doctor-app .timeline-inline-status {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.bear-doctor-app .timeline-inline-status.completed,
 .bear-doctor-app .timeline-flow-status.completed {
   background: #ecfdf5;
   color: #047857;
 }
 
+.bear-doctor-app .timeline-inline-status.blocked,
+.bear-doctor-app .timeline-inline-status.error,
 .bear-doctor-app .timeline-flow-status.blocked,
 .bear-doctor-app .timeline-flow-status.error {
   background: #fef3c7;
   color: #b45309;
 }
 
+.bear-doctor-app .timeline-inline-status.replanned,
 .bear-doctor-app .timeline-flow-status.replanned {
   background: #eff6ff;
   color: #1d4ed8;

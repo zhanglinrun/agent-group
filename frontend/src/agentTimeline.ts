@@ -5,6 +5,8 @@ export type TimelineItem = Record<string, unknown> & {
   stageIndex?: number;
 };
 
+export type TimelineStatus = "thinking" | "planned" | "running" | "completed" | "replanned" | "blocked" | "error";
+
 type UnknownMap = Record<string, unknown>;
 
 function asObject(value: unknown): UnknownMap {
@@ -15,6 +17,88 @@ function asObject(value: unknown): UnknownMap {
 
 function text(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+export function normalizeTimelineStatus(status: unknown, fallback: TimelineStatus = "planned"): TimelineStatus {
+  const normalized = text(status).toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized) {
+    return fallback;
+  }
+  if (["thinking", "reasoning"].includes(normalized)) {
+    return "thinking";
+  }
+  if (["running", "run", "started", "start", "pending", "processing", "in_progress"].includes(normalized)) {
+    return "running";
+  }
+  if (["completed", "complete", "done", "success", "succeeded", "finished", "finish"].includes(normalized)) {
+    return "completed";
+  }
+  if (["replanned", "replan", "re_planned", "re_planning"].includes(normalized)) {
+    return "replanned";
+  }
+  if (["blocked", "timeout", "cancelled", "canceled"].includes(normalized)) {
+    return "blocked";
+  }
+  if (["error", "failed", "fail", "failure"].includes(normalized)) {
+    return "error";
+  }
+  if (["planned", "plan", "created", "ready"].includes(normalized)) {
+    return "planned";
+  }
+  if (normalized.includes("fail") || normalized.includes("error")) {
+    return "error";
+  }
+  return fallback;
+}
+
+export function timelineItemStatus(item: unknown): TimelineStatus {
+  const entry = asObject(item);
+  const type = text(entry.type);
+  if (text(entry.status)) {
+    return normalizeTimelineStatus(entry.status, type === "thinking" ? "thinking" : "planned");
+  }
+  if (type === "thinking") return "thinking";
+  if (type === "plan") return "planned";
+  if (type === "flow" || type === "tool") return "running";
+  if (type === "run" || type === "llm") return "completed";
+  if (type === "error") return "error";
+  return "planned";
+}
+
+export function timelineStatusLabel(status: unknown): string {
+  return ({
+    thinking: "思考中",
+    planned: "已规划",
+    running: "执行中",
+    completed: "已完成",
+    replanned: "已重规划",
+    blocked: "已阻塞",
+    error: "异常"
+  } as Record<TimelineStatus, string>)[normalizeTimelineStatus(status)];
+}
+
+export function timelineItemStatusLabel(item: unknown): string {
+  const entry = asObject(item);
+  const status = timelineItemStatus(entry);
+  const type = text(entry.type);
+  if (type === "run") {
+    return status === "running" ? "运行中" : status === "error" ? "运行失败" : "运行完成";
+  }
+  if (type === "tool") {
+    return status === "running" ? "调用中" : status === "error" ? "调用失败" : status === "blocked" ? "调用受阻" : "已返回";
+  }
+  if (type === "llm") {
+    return status === "running" ? "生成中" : status === "error" ? "生成失败" : "生成完成";
+  }
+  if (type === "plan") {
+    return status === "replanned" ? "已重规划" : "已规划";
+  }
+  return timelineStatusLabel(status);
+}
+
+export function isTimelineAttentionItem(item: unknown): boolean {
+  const status = timelineItemStatus(item);
+  return status === "error" || status === "blocked";
 }
 
 function normalizePlanSteps(data: UnknownMap): unknown[] {
@@ -62,7 +146,7 @@ export function streamEventToTimelineItem(
   if (eventName === "run_start") {
     return {
       type: "run",
-      status: "completed",
+      status: "running",
       title: "运行开始",
       content: `${text(data.taskType) || "chat"} · ${text(data.model) || "bear-doctor-agent"}`
     };
@@ -70,7 +154,7 @@ export function streamEventToTimelineItem(
   if (eventName === "plan_delta") {
     return {
       type: "plan",
-      status: "completed",
+      status: "planned",
       title: text(data.title) || "执行计划",
       revision: Number(data.revision || data.planRevision || 0),
       changeType: text(data.changeType),
@@ -83,7 +167,7 @@ export function streamEventToTimelineItem(
     return {
       type: "flow",
       stageIndex: Number(data.stageIndex ?? 0),
-      status: (text(data.status) || "RUNNING").toLowerCase(),
+      status: normalizeTimelineStatus(data.status, "running"),
       message: text(data.message),
       steps: Array.isArray(data.steps) ? data.steps : []
     };
@@ -103,14 +187,14 @@ export function streamEventToTimelineItem(
       invocationId: text(data.invocationId),
       toolName: text(data.toolName) || "工具调用",
       detail: text(data.resultSummary) || text(data.errorMessage),
-      status: text(data.status) === "FAILED" ? "error" : "completed",
+      status: normalizeTimelineStatus(data.status, "completed"),
       latencyMillis: Number(data.latencyMillis ?? 0)
     };
   }
   if (eventName === "llm_delta") {
     return {
       type: "llm",
-      status: text(data.status) === "FAILED" ? "error" : "completed",
+      status: normalizeTimelineStatus(data.status, "completed"),
       modelName: text(data.modelName) || "模型调用",
       tokens: Number(data.totalTokens ?? 0),
       latencyMillis: Number(data.latencyMillis ?? 0)
@@ -169,6 +253,15 @@ export function mergeTimelineEvent(timeline: TimelineItem[] = [], item: Timeline
       const next = [...timeline];
       next[index] = { ...next[index], ...item };
       return next;
+    }
+  }
+  if (item.type === "run" && timelineItemStatus(item) !== "running") {
+    for (let index = timeline.length - 1; index >= 0; index -= 1) {
+      if (timeline[index]?.type === "run" && timelineItemStatus(timeline[index]) === "running") {
+        const next = [...timeline];
+        next[index] = { ...next[index], ...item };
+        return next;
+      }
     }
   }
   if (item.type === "flow") {

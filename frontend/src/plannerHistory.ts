@@ -1,4 +1,4 @@
-import { planStepLabel, type TimelineItem } from "./agentTimeline";
+import { normalizeTimelineStatus, planStepLabel, type TimelineItem } from "./agentTimeline";
 
 export interface PlannerHistoryVersion {
   id: string;
@@ -27,10 +27,10 @@ function planSteps(item: TimelineItem): unknown[] {
 }
 
 function flowStatusRank(status: string): PlannerHistoryVersion["status"] {
-  const normalized = String(status || "").toLowerCase();
+  const normalized = normalizeTimelineStatus(status, "planned");
   if (normalized === "replanned") return "replanned";
-  if (normalized === "blocked" || normalized === "error" || normalized === "failed") return "blocked";
-  if (normalized === "completed" || normalized === "done") return "completed";
+  if (normalized === "blocked" || normalized === "error") return "blocked";
+  if (normalized === "completed") return "completed";
   if (normalized === "running") return "running";
   return "planned";
 }

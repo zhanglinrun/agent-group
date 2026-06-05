@@ -1,4 +1,4 @@
-import type { TimelineItem } from "./agentTimeline";
+import { isTimelineAttentionItem, timelineItemStatus, type TimelineItem } from "./agentTimeline";
 
 type UnknownMap = Record<string, unknown>;
 
@@ -83,13 +83,13 @@ export function buildAgentRunDigest(message: unknown): AgentRunDigest {
   const planCount = timeline.filter((item) => item.type === "plan").length;
   const flowCount = timeline.filter((item) => item.type === "flow").length;
   const toolItems = timeline.filter((item) => item.type === "tool");
-  const failedTools = toolItems.filter((item) => ["error", "failed", "blocked"].includes(text(item.status).toLowerCase())).length;
-  const runningTools = toolItems.filter((item) => text(item.status).toLowerCase() === "running").length;
-  const completedTools = toolItems.filter((item) => text(item.status).toLowerCase() === "completed").length;
+  const failedTools = toolItems.filter(isTimelineAttentionItem).length;
+  const runningTools = toolItems.filter((item) => timelineItemStatus(item) === "running").length;
+  const completedTools = toolItems.filter((item) => timelineItemStatus(item) === "completed").length;
   const llmItems = timeline.filter((item) => item.type === "llm");
   const totalTokens = llmItems.reduce((sum, item) => sum + numberValue(item.tokens), 0);
-  const hasAttention = failedTools > 0 || timeline.some((item) => ["error", "failed", "blocked"].includes(text(item.status).toLowerCase()));
-  const isRunning = runningTools > 0 || timeline.some((item) => text(item.status).toLowerCase() === "running");
+  const hasAttention = failedTools > 0 || timeline.some(isTimelineAttentionItem);
+  const isRunning = runningTools > 0 || timeline.some((item) => timelineItemStatus(item) === "running");
   const visible = timeline.length > 0 || artifacts.length > 0 || references.length > 0 || resultPanels.length > 0;
   const status: AgentRunDigestStatus = !visible
     ? "idle"

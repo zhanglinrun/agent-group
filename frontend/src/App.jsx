@@ -60,12 +60,15 @@ import {
   workspaceSupportsHistory
 } from "./workspaceServices";
 import {
+  isTimelineAttentionItem,
   mergeThinking,
   mergeTimelineEvent,
   planStepLabel,
   planStepMeta,
   replayEventsToTimeline,
-  streamEventToTimelineItem
+  streamEventToTimelineItem,
+  timelineItemStatus,
+  timelineItemStatusLabel
 } from "./agentTimeline";
 import { buildPlannerHistory } from "./plannerHistory";
 import { buildAgentRunDigest } from "./agentRunDigest";
@@ -1140,8 +1143,8 @@ function BearDoctorAcademicApp() {
 
   const closeAssistantTimelineInChat = useCallback((chatId, messageId) => {
     updateAssistantInChat(chatId, messageId, (message) => {
-      const hasError = (message.timeline || []).some((item) => item.type === "error");
-      return { ...message, showTimeline: hasError };
+      const hasAttention = (message.timeline || []).some(isTimelineAttentionItem);
+      return { ...message, showTimeline: hasAttention };
     });
   }, [updateAssistantInChat]);
 
@@ -4140,14 +4143,18 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                 </button>
                 {msg.showTimeline && (
                   <div className="timeline-content">
-                    {msg.timeline.map((item, index) => (
+                    {msg.timeline.map((item, index) => {
+                      const statusClass = timelineItemStatus(item);
+                      const statusLabel = timelineItemStatusLabel(item);
+                      return (
                       <div className="timeline-item" key={`${item.type}-${index}`}>
-                        <div className={`timeline-dot ${item.status || item.type}`} />
+                        <div className={`timeline-dot ${statusClass}`} title={statusLabel} />
                         <div className="timeline-item-body">
                           {item.type === "thinking" && <div className="timeline-thinking">{item.content}</div>}
                           {item.type === "run" && (
                             <div className="timeline-run">
                               <span className="timeline-tool-name">{item.title}</span>
+                              <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
                               {item.content && <small>{item.content}</small>}
                             </div>
                           )}
@@ -4180,8 +4187,8 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                           )}
                           {item.type === "flow" && (
                             <div className="timeline-flow">
-                              <span className={`timeline-flow-status ${item.status || "running"}`}>
-                                阶段 {(item.stageIndex ?? 0) + 1}
+                              <span className={`timeline-flow-status ${statusClass}`}>
+                                阶段 {(item.stageIndex ?? 0) + 1} · {statusLabel}
                               </span>
                               {item.message && <small>{item.message}</small>}
                               {(item.steps || []).map((step, stepIndex) => (
@@ -4195,6 +4202,7 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                             <div className="timeline-tool">
                               <span>🔧</span>
                               <span className="timeline-tool-name">{item.toolName}</span>
+                              <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
                               {item.detail && <small>{item.detail}</small>}
                               {item.latencyMillis ? <small>{item.latencyMillis} ms</small> : null}
                             </div>
@@ -4202,13 +4210,15 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                           {item.type === "llm" && (
                             <div className="timeline-llm">
                               <span className="timeline-tool-name">{item.modelName}</span>
+                              <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
                               <small>{item.tokens || 0} tokens · {item.latencyMillis || 0} ms</small>
                             </div>
                           )}
                           {item.type === "error" && <div className="timeline-error"><AlertTriangle size={14} /><span>{item.message}</span></div>}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

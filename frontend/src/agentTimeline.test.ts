@@ -1,12 +1,60 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isTimelineAttentionItem,
   mergeTimelineEvent,
+  normalizeTimelineStatus,
   replayEventsToTimeline,
-  streamEventToTimelineItem
+  streamEventToTimelineItem,
+  timelineItemStatus,
+  timelineItemStatusLabel
 } from "./agentTimeline";
 
 describe("agent timeline projection", () => {
+  it("normalizes timeline status for display and summaries", () => {
+    expect(normalizeTimelineStatus("IN_PROGRESS")).toBe("running");
+    expect(normalizeTimelineStatus("SUCCESS")).toBe("completed");
+    expect(normalizeTimelineStatus("FAILED")).toBe("error");
+    expect(normalizeTimelineStatus("REPLANNED")).toBe("replanned");
+  });
+
+  it("marks run start as running and exposes a readable label", () => {
+    const item = streamEventToTimelineItem({
+      event: "run_start",
+      data: { taskType: "trade_audit", model: "qwen-plus" }
+    });
+
+    expect(item).toMatchObject({
+      type: "run",
+      status: "running",
+      title: "运行开始"
+    });
+    expect(timelineItemStatus(item)).toBe("running");
+    expect(timelineItemStatusLabel(item)).toBe("运行中");
+  });
+
+  it("merges run start and run done into one lifecycle item", () => {
+    const started = streamEventToTimelineItem({
+      event: "run_start",
+      data: { taskType: "chat" }
+    });
+    const done = streamEventToTimelineItem({
+      event: "run_done",
+      data: { durationMillis: 120 }
+    });
+
+    const timeline = mergeTimelineEvent(mergeTimelineEvent([], started), done);
+
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]).toMatchObject({
+      type: "run",
+      status: "completed",
+      title: "运行完成",
+      content: "120 ms"
+    });
+    expect(timelineItemStatusLabel(timeline[0])).toBe("运行完成");
+  });
+
   it("merges tool call and result by invocation id", () => {
     const started = streamEventToTimelineItem({
       event: "tool_call",
@@ -67,6 +115,19 @@ describe("agent timeline projection", () => {
       status: "replanned",
       message: "计划已重规划：改查额度流水"
     });
+    expect(timelineItemStatusLabel(replanned)).toBe("已重规划");
+  });
+
+  it("detects attention items from failed run and tool events", () => {
+    expect(isTimelineAttentionItem(streamEventToTimelineItem({
+      event: "run_error",
+      data: { message: "处理失败" }
+    }))).toBe(true);
+
+    expect(isTimelineAttentionItem(streamEventToTimelineItem({
+      event: "tool_result",
+      data: { invocationId: "tool-2", toolName: "report", status: "FAILED" }
+    }))).toBe(true);
   });
 
   it("keeps plan revision and replan reason from plan events", () => {
