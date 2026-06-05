@@ -39,4 +39,23 @@ class AcademicAgentFlowProgressProjectorTest {
         assertEquals(AcademicAgentFlowProgress.STATUS_BLOCKED, blocked.getEvents().getFirst().getStatus());
         assertEquals("sql failed", blocked.getEvents().getFirst().getMessage());
     }
+
+    @Test
+    void shouldMarkCurrentStageAsReplannedBeforeNewPlanStarts() {
+        AcademicAgentPlan oldPlan = new AcademicAgentRunPlanFactory().build("data", false);
+        AcademicAgentPlan newPlan = new AcademicAgentPlan("replanned", List.of(
+                AcademicPlanStep.builder("R1", "read quota ledger").order(1).build(),
+                AcademicPlanStep.builder("R2", "summarize compensation").order(2).dependencies(List.of("R1")).build()
+        ));
+
+        AcademicAgentFlowProgressResult replanned = projector.markReplanned(oldPlan, 1, "sql failed");
+        AcademicAgentFlowProgressResult restarted = projector.start(newPlan);
+
+        assertEquals(1, replanned.getCurrentStageIndex());
+        assertEquals(AcademicAgentFlowProgress.STATUS_REPLANNED, replanned.getEvents().getFirst().getStatus());
+        assertEquals("sql failed", replanned.getEvents().getFirst().getMessage());
+        assertEquals(0, restarted.getCurrentStageIndex());
+        assertEquals(AcademicAgentFlowProgress.STATUS_RUNNING, restarted.getEvents().getFirst().getStatus());
+        assertEquals(List.of("R1"), restarted.getEvents().getFirst().getStage().stepIds());
+    }
 }

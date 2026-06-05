@@ -351,25 +351,24 @@ public class AcademicBearDoctorAgentHandler {
                                                        AtomicInteger sequence,
                                                        RunState runState,
                                                        boolean replanned) {
+        AcademicAgentPlan previousPlan = runState.executionPlan;
         AcademicAgentPlan replannedPlan = replannedPlan(node, runState.executionPlan);
-        runState.executionPlan = replannedPlan;
-        runState.currentFlowStageIndex = -1;
         String reason = firstText(node, "reason", "message", "content", "detail");
         String prefix = replanned ? "计划已重规划" : "计划已更新";
         String message = StringUtils.hasText(reason) ? prefix + "：" + reason : prefix;
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         events.add(event("task_status", sessionId, requestId, sequence, status(replanned ? "REPLAN" : "PLAN", message)));
-        events.add(event("plan_delta", sessionId, requestId, sequence, plan(runState)));
-        List<AcademicAgentFlowStage> stages = flowProjector.buildRemainingStages(replannedPlan);
-        if (!stages.isEmpty()) {
-            AcademicAgentFlowStage firstStage = stages.getFirst();
-            runState.currentFlowStageIndex = firstStage.getStageIndex();
-            Map<String, Object> data = flowStage(firstStage);
-            data.put("runId", runState.run.getRunId());
-            data.put("status", replanned ? "REPLANNED" : "RUNNING");
-            data.put("message", message);
-            events.add(event("flow_delta", sessionId, requestId, sequence, data));
+        if (replanned) {
+            AcademicAgentFlowProgressResult progress = flowProgressProjector.markReplanned(
+                    previousPlan, runState.currentFlowStageIndex, message);
+            events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         }
+        runState.executionPlan = replannedPlan;
+        runState.currentFlowStageIndex = -1;
+        events.add(event("plan_delta", sessionId, requestId, sequence, plan(runState)));
+        AcademicAgentFlowProgressResult progress = flowProgressProjector.start(replannedPlan, message);
+        runState.currentFlowStageIndex = progress.getCurrentStageIndex();
+        events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         return events;
     }
 

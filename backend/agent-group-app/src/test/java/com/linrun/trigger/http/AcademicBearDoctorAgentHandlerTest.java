@@ -172,16 +172,20 @@ class AcademicBearDoctorAgentHandlerTest {
         List<GuideStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "toEvents",
                 raw, "S1001", "REQ1001", new AtomicInteger(1), runState);
 
-        assertEquals(List.of("task_status", "plan_delta", "flow_delta"),
+        assertEquals(List.of("task_status", "flow_delta", "plan_delta", "flow_delta"),
                 events.stream().map(GuideStreamEvent::getEvent).toList());
-        Map<String, Object> planData = (Map<String, Object>) events.get(1).getData();
+        Map<String, Object> oldFlowData = (Map<String, Object>) events.get(1).getData();
+        assertEquals("REPLANNED", oldFlowData.get("status"));
+
+        Map<String, Object> planData = (Map<String, Object>) events.get(2).getData();
         assertEquals("补救计划", planData.get("title"));
         List<Map<String, Object>> structuredSteps = (List<Map<String, Object>>) planData.get("structuredSteps");
         assertEquals(List.of("R1", "R2"), structuredSteps.stream().map(step -> step.get("stepId")).toList());
 
-        Map<String, Object> flowData = (Map<String, Object>) events.get(2).getData();
-        assertEquals("REPLANNED", flowData.get("status"));
-        assertTrue(String.valueOf(flowData.get("message")).contains("支付表不可用"));
+        Map<String, Object> flowData = (Map<String, Object>) events.get(3).getData();
+        assertEquals("RUNNING", flowData.get("status"));
+        assertEquals(List.of("R1"), flowData.get("stepIds"));
+        assertTrue(String.valueOf(oldFlowData.get("message")).contains("支付表不可用"));
     }
 
     @Test

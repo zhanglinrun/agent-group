@@ -5,6 +5,7 @@ public class AcademicAgentFlowProgress {
     public static final String STATUS_RUNNING = "RUNNING";
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_BLOCKED = "BLOCKED";
+    public static final String STATUS_REPLANNED = "REPLANNED";
 
     private final AcademicAgentFlowStage stage;
     private final String status;

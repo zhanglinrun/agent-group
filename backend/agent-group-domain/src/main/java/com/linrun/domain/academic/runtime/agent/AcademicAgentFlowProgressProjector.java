@@ -18,13 +18,18 @@ public class AcademicAgentFlowProgressProjector {
     }
 
     public AcademicAgentFlowProgressResult start(AcademicAgentPlan plan) {
+        return start(plan, "stage started");
+    }
+
+    public AcademicAgentFlowProgressResult start(AcademicAgentPlan plan, String message) {
         List<AcademicAgentFlowStage> stages = stages(plan);
         if (stages.isEmpty()) {
             return new AcademicAgentFlowProgressResult(List.of(), -1);
         }
         AcademicAgentFlowStage first = stages.getFirst();
+        String runningMessage = StringUtils.hasText(message) ? message.trim() : "stage started";
         return new AcademicAgentFlowProgressResult(
-                List.of(progress(first, AcademicAgentFlowProgress.STATUS_RUNNING, "stage started")),
+                List.of(progress(first, AcademicAgentFlowProgress.STATUS_RUNNING, runningMessage)),
                 first.getStageIndex());
     }
 
@@ -70,6 +75,20 @@ public class AcademicAgentFlowProgressProjector {
         String message = StringUtils.hasText(reason) ? reason.trim() : "stage blocked";
         return new AcademicAgentFlowProgressResult(
                 List.of(progress(stages.get(stageIndex), AcademicAgentFlowProgress.STATUS_BLOCKED, message)),
+                stageIndex);
+    }
+
+    public AcademicAgentFlowProgressResult markReplanned(AcademicAgentPlan plan,
+                                                         int currentStageIndex,
+                                                         String reason) {
+        List<AcademicAgentFlowStage> stages = stages(plan);
+        if (stages.isEmpty()) {
+            return new AcademicAgentFlowProgressResult(List.of(), currentStageIndex);
+        }
+        int stageIndex = currentStageIndex < 0 ? 0 : Math.min(currentStageIndex, stages.size() - 1);
+        String message = StringUtils.hasText(reason) ? reason.trim() : "stage replanned";
+        return new AcademicAgentFlowProgressResult(
+                List.of(progress(stages.get(stageIndex), AcademicAgentFlowProgress.STATUS_REPLANNED, message)),
                 stageIndex);
     }
 

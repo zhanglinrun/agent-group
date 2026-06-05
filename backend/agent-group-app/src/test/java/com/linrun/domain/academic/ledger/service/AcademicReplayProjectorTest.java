@@ -149,8 +149,14 @@ class AcademicReplayProjectorTest {
         boolean hasReplanFlow = response.getEvents().stream()
                 .filter(event -> "flow_delta".equals(event.getEvent()))
                 .anyMatch(event -> "REPLANNED".equals(event.getData().get("status")));
+        List<String> lifecycle = response.getEvents().stream()
+                .filter(event -> "plan_delta".equals(event.getEvent()) || "flow_delta".equals(event.getEvent()))
+                .map(event -> event.getEvent() + ":" + event.getData().getOrDefault("status", event.getData().get("changeType")))
+                .toList();
 
         assertEquals(2, planCount);
         assertTrue(hasReplanFlow);
+        assertTrue(lifecycle.indexOf("flow_delta:REPLANNED") < lifecycle.indexOf("plan_delta:replan"));
+        assertTrue(lifecycle.indexOf("plan_delta:replan") < lifecycle.lastIndexOf("flow_delta:RUNNING"));
     }
 }

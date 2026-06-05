@@ -67,8 +67,9 @@ public class AcademicReplayProjector {
             events.add(event("tool_result", run, sequence, toolResult(invocation, artifacts)));
             if (isFailed(invocation) && hasLaterSuccessTool(tools, index)) {
                 String replanReason = replanReason(invocation);
-                events.add(event("flow_delta", run, sequence,
-                        replanFlow(run, executionPlan, currentStageIndex, replanReason)));
+                AcademicAgentFlowProgressResult replanProgress = flowProgressProjector.markReplanned(
+                        executionPlan, currentStageIndex, replanReason);
+                events.addAll(flowProgressEvents(run, sequence, replanProgress));
                 executionPlan = runPlanFactory.build(run.getTaskType(), webSearchUsed);
                 currentStageIndex = -1;
                 planRevision++;
@@ -179,31 +180,6 @@ public class AcademicReplayProjector {
         data.put("runId", safe(run.getRunId()));
         data.put("status", progress.getStatus());
         data.put("message", progress.getMessage());
-        return data;
-    }
-
-    private Map<String, Object> replanFlow(AcademicAgentRun run,
-                                           AcademicAgentPlan executionPlan,
-                                           int currentStageIndex,
-                                           String replanReason) {
-        List<AcademicAgentFlowStage> stages = flowProjector.buildRemainingStages(executionPlan);
-        if (stages.isEmpty()) {
-            Map<String, Object> data = new LinkedHashMap<>();
-            data.put("stageIndex", -1);
-            data.put("stepIds", List.of());
-            data.put("steps", List.of());
-            data.put("runId", safe(run.getRunId()));
-            data.put("status", "REPLANNED");
-            data.put("message", safe(replanReason));
-            return data;
-        }
-        AcademicAgentFlowStage stage = stages.get(Math.max(0, Math.min(
-                currentStageIndex < 0 ? 0 : currentStageIndex,
-                stages.size() - 1)));
-        Map<String, Object> data = flowStage(stage);
-        data.put("runId", safe(run.getRunId()));
-        data.put("status", "REPLANNED");
-        data.put("message", safe(replanReason));
         return data;
     }
 
