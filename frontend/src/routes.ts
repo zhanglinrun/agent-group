@@ -10,7 +10,11 @@ export const APP_ROUTES = {
 
 export const WORKSPACE_ROUTES = [
   APP_ROUTES.agent,
-  APP_ROUTES.workspaceImage,
+  APP_ROUTES.workspaceImage
+] as const;
+
+export const INTERNAL_WORKSPACE_ROUTES = [
+  ...WORKSPACE_ROUTES,
   APP_ROUTES.workspaceData,
   APP_ROUTES.workspaceMrag,
   APP_ROUTES.workspaceTrade

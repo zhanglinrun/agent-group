@@ -37,7 +37,7 @@ import {
   TOOL_LABELS,
   WORKSPACES,
   workspaceAgentMode,
-  workspaceFromPath,
+  userWorkspaceFromPath,
   workspacePath
 } from "./workspaces";
 import { buildWorkspaceNavigation } from "./workspaceNavigation";
@@ -52,6 +52,7 @@ import {
   visibleAgentExecutionModes,
   visibleCapabilityMatrix as buildVisibleCapabilityMatrix,
   visibleToolCatalogGroups,
+  visibleToolRuntimeFamilyReadiness,
   visibleToolRuntimeReadiness,
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
@@ -77,6 +78,7 @@ import {
   mergeResultPanels,
   replayEventsToArtifacts,
   replayEventsToResultPanels,
+  resultPanelKindLabel,
   runDetailToResultPanels,
   toUiArtifact,
   toolResultPanels
@@ -144,7 +146,9 @@ import {
 } from "./services/api";
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
 import { APP_ROUTES } from "./routes";
-import { AGENT_MODES } from "./agentModes";
+import { USER_AGENT_MODES } from "./agentModes";
+import { buildAgentExecutionSummary } from "./agentExecutionSummary";
+import { buildAgentPlatformReadiness } from "./agentPlatformReadiness";
 import {
   buildTradeAuditPrompt,
   buildTradeHistoryAuditPrompt,
@@ -159,7 +163,7 @@ import {
 } from "./mcpServerForm";
 import { buildMcpRuntimeSummary } from "./mcpRuntimeSummary";
 
-const AGENTS = AGENT_MODES;
+const AGENTS = USER_AGENT_MODES;
 
 const PROMPT_ICONS = {
   book: BookOpen,
@@ -607,7 +611,7 @@ function App() {
 function BearDoctorAcademicApp() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routeWorkspace = workspaceFromPath(location.pathname);
+  const routeWorkspace = userWorkspaceFromPath(location.pathname);
   const [theme, setTheme] = useState(() => getStoredTheme());
   const [auth, setAuth] = useState(() => getUserAuth());
   const [loginOpen, setLoginOpen] = useState(() => !getUserAuth()?.token);
@@ -739,6 +743,9 @@ function BearDoctorAcademicApp() {
   const visibleToolReadiness = useMemo(() => (
     visibleToolRuntimeReadiness(agentCapabilities, 8)
   ), [agentCapabilities]);
+  const visibleToolFamilies = useMemo(() => (
+    visibleToolRuntimeFamilyReadiness(agentCapabilities, 6)
+  ), [agentCapabilities]);
   const visibleCapabilityMatrix = useMemo(() => (
     buildVisibleCapabilityMatrix(agentCapabilities, 6)
   ), [agentCapabilities]);
@@ -773,7 +780,11 @@ function BearDoctorAcademicApp() {
   useEffect(() => {
     setActiveWorkspace(routeWorkspace);
     setSelectedAgent(workspaceAgentMode(routeWorkspace));
-  }, [routeWorkspace]);
+    const targetPath = workspacePath(routeWorkspace);
+    if (location.pathname !== targetPath) {
+      navigate(targetPath, { replace: true });
+    }
+  }, [location.pathname, navigate, routeWorkspace]);
 
   const toggleTheme = () => {
     setTheme((prev) => applyTheme(nextTheme(prev)));
@@ -2744,6 +2755,7 @@ function BearDoctorAcademicApp() {
                     <b>{item.value}</b>
                   </span>
                 ))}
+                <AgentPlatformReadinessPanel capabilities={agentCapabilities} />
                 {visibleAcademicTools.length > 0 && (
                   <div className="agent-tool-preview">
                     {visibleToolGroups.map((group) => (
@@ -2759,8 +2771,26 @@ function BearDoctorAcademicApp() {
                     )}
                   </div>
                 )}
-                {visibleToolReadiness.length > 0 && (
+                {(visibleToolFamilies.length > 0 || visibleToolReadiness.length > 0) && (
                   <div className="agent-tool-readiness">
+                    {visibleToolFamilies.map((family) => (
+                      <span
+                        key={`family-${family.key}`}
+                        className={`tool-family ${family.status}`}
+                        title={[
+                          family.action,
+                          family.missingTools.length ? `缺口 ${family.missingTools.map((toolName) => TOOL_LABELS[toolName] || toolName).join("、")}` : "",
+                          family.workspaces.length ? `工作区 ${compactToolList(family.workspaces, 4)}` : "",
+                          family.outputKinds.length ? `输出 ${compactToolList(family.outputKinds, 4)}` : ""
+                        ].filter(Boolean).join("\n")}
+                      >
+                        <b>{family.label}</b>
+                        <em>{family.readyCount}/{family.totalCount}</em>
+                        {family.missingTools.length > 0 && (
+                          <small>{family.missingTools.slice(0, 2).map((toolName) => TOOL_LABELS[toolName] || toolName).join("、")}</small>
+                        )}
+                      </span>
+                    ))}
                     {visibleToolReadiness.map((tool) => {
                       const meta = toolReadinessMeta(tool);
                       return (
@@ -2963,30 +2993,73 @@ function toolReadinessMeta(tool = {}) {
   ].filter(Boolean).join(" · ");
 }
 
+function AgentPlatformReadinessPanel({ capabilities }) {
+  const readiness = buildAgentPlatformReadiness(capabilities);
+  if (!readiness || typeof readiness !== "object") return null;
+  const metrics = readiness.metrics || [];
+  const actions = readiness.actions || [];
+  const gaps = readiness.gaps || [];
+  const mcpHealth = readiness.mcpHealth;
+  const status = readiness.status || "partial";
+  return (
+    <div className={`agent-platform-readiness ${status}`}>
+      <div className="agent-platform-readiness-head">
+        <b>{readiness.title || "Agent + 拼团交易系统就绪度"}</b>
+        <em>{readiness.statusLabel || status}</em>
+      </div>
+      {metrics.slice(0, 5).map((metric) => (
+        <span key={metric.key || metric.label} className={metric.tone || "normal"}>
+          <b>{metric.label}</b>
+          <em>{metric.value}</em>
+        </span>
+      ))}
+      {mcpHealth && (
+        <span className={`agent-platform-readiness-mcp ${mcpHealth.tone || "normal"}`} title={mcpHealth.message || mcpHealth.summary}>
+          <b>MCP</b>
+          <em>{mcpHealth.summary}</em>
+        </span>
+      )}
+      {(actions[0] || gaps[0]) && <small>{actions[0] || gaps[0]}</small>}
+    </div>
+  );
+}
+
 function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
   if (!items.length && !executionModes.length) return null;
+  const executionSummary = buildAgentExecutionSummary(executionModes);
   return (
     <div className="agent-capability-matrix">
       {executionModes.length > 0 && (
-        <div className="agent-execution-modes">
-          {executionModes.map((mode) => {
-            const replanEvidence = compactToolList(mode.replanEvidence, 3);
-            const title = [mode.summary || "", replanEvidence ? `重规划证据 ${replanEvidence}` : ""]
-              .filter(Boolean)
-              .join("\n");
-            return (
-              <span
-                key={mode.agentId}
-                className={mode.replanEnabled ? "replan-enabled" : ""}
-                title={title}
-              >
-                <b>{mode.name}</b>
-                <em>{mode.executionMode || mode.family || "-"}</em>
-                {mode.replanEnabled && <small>重规划</small>}
+        <>
+          <div className={`agent-execution-summary ${executionSummary.status}`}>
+            {executionSummary.metrics.map((metric) => (
+              <span key={metric.key} className={metric.tone || "normal"}>
+                <b>{metric.label}</b>
+                <em>{metric.value}</em>
               </span>
-            );
-          })}
-        </div>
+            ))}
+            {executionSummary.actions[0] && <small>{executionSummary.actions[0]}</small>}
+          </div>
+          <div className="agent-execution-modes">
+            {executionModes.map((mode) => {
+              const replanEvidence = compactToolList(mode.replanEvidence, 3);
+              const title = [mode.summary || "", replanEvidence ? `重规划证据 ${replanEvidence}` : ""]
+                .filter(Boolean)
+                .join("\n");
+              return (
+                <span
+                  key={mode.agentId}
+                  className={mode.replanEnabled ? "replan-enabled" : ""}
+                  title={title}
+                >
+                  <b>{mode.name}</b>
+                  <em>{mode.executionMode || mode.family || "-"}</em>
+                  {mode.replanEnabled && <small>重规划</small>}
+                </span>
+              );
+            })}
+          </div>
+        </>
       )}
       {items.map((item) => (
         <article
@@ -3812,7 +3885,10 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
               <strong>{panel.title || panel.toolName || "工具结果"}</strong>
               {panel.summary && <span>{panel.summary}</span>}
             </div>
-            <em>{TOOL_LABELS[panel.toolName] || panel.toolName || panel.kind}</em>
+            <div className="result-panel-tags">
+              <em>{TOOL_LABELS[panel.toolName] || panel.toolName || panel.kind}</em>
+              <span>{resultPanelKindLabel(panel.kind)}</span>
+            </div>
           </div>
 
           {panel.kind === "audit" && (

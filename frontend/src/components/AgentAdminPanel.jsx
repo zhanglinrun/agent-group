@@ -20,6 +20,8 @@ const CATEGORIES = [
   { key: "system_prompt", label: "Prompt" },
   { key: "advisor", label: "Advisor" },
   { key: "rag_order", label: "RAG" },
+  { key: "tool", label: "Tool" },
+  { key: "mcp_tool", label: "MCP" },
   { key: "draw_config", label: "Draw" }
 ];
 
@@ -42,6 +44,8 @@ const RUNTIME_SECTION_LABELS = {
   systemPrompts: "Prompt",
   advisors: "Advisor",
   ragOrders: "RAG",
+  tools: "Tool",
+  mcpTools: "MCP",
   drawConfigs: "Draw"
 };
 
@@ -95,6 +99,7 @@ export default function AgentAdminPanel({
   );
   const runtimeSections = runtimeSnapshot?.runtimeSections || EMPTY_RUNTIME_MAP;
   const runtimePolicies = runtimeSnapshot?.runtimePolicies || EMPTY_RUNTIME_MAP;
+  const assemblyPlan = Array.isArray(runtimeSnapshot?.assemblyPlan) ? runtimeSnapshot.assemblyPlan : [];
   const codeInterpreterPolicy = runtimePolicies.codeInterpreter || {};
   const scriptRunnerPolicy = runtimePolicies.scriptRunner || {};
   const runtimeSectionItems = useMemo(
@@ -315,6 +320,17 @@ export default function AgentAdminPanel({
               </span>
             ))}
           </div>
+          {assemblyPlan.length > 0 && (
+            <div className="agent-runtime-assembly">
+              {assemblyPlan.map((stage) => (
+                <span key={stage.stageKey || stage.stageNo} className={stage.enabled ? "ready" : "empty"}>
+                  <b>{stage.stageNo}. {stage.stageName || stage.stageKey}</b>
+                  {stage.itemCount || 0} 项
+                  <small>{stage.operatorHint || ""}</small>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="agent-runtime-policies">
             <span>
               <b>代码权限</b>

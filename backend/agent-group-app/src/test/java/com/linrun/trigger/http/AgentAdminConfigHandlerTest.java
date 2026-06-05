@@ -35,6 +35,8 @@ class AgentAdminConfigHandlerTest {
                 "system_prompt",
                 "advisor",
                 "rag_order",
+                "tool",
+                "mcp_tool",
                 "draw_config")));
         assertTrue(Files.isRegularFile(stateFile));
     }
@@ -60,7 +62,7 @@ class AgentAdminConfigHandlerTest {
         assertEquals(false, handler.getConfig("custom-model").get("enabled"));
 
         Map<String, Object> exported = handler.exportState();
-        assertTrue((Integer) exported.get("configCount") >= 7);
+        assertTrue((Integer) exported.get("configCount") >= 9);
 
         AgentAdminConfigHandler reloaded = new AgentAdminConfigHandler(stateFile);
         assertEquals(false, reloaded.getConfig("custom-model").get("enabled"));
@@ -87,12 +89,13 @@ class AgentAdminConfigHandlerTest {
 
         Map<String, Object> statistics = handler.statistics();
 
-        assertTrue((Integer) statistics.get("configCount") >= 7);
-        assertTrue((Integer) statistics.get("enabledCount") >= 7);
-        assertTrue((Integer) statistics.get("categoryCount") >= 7);
+        assertTrue((Integer) statistics.get("configCount") >= 9);
+        assertTrue((Integer) statistics.get("enabledCount") >= 9);
+        assertTrue((Integer) statistics.get("categoryCount") >= 9);
         assertTrue(((Map<?, ?>) statistics.get("categoryCounts")).containsKey("agent_client"));
         assertTrue(((List<?>) statistics.get("adminEndpoints")).contains("/api/v1/agent/admin/configs"));
         assertTrue(((List<?>) statistics.get("adminEndpoints")).contains("/api/v1/agent/admin/runtime-snapshot"));
+        assertTrue(((List<?>) statistics.get("adminEndpoints")).contains("/api/v1/agent/admin/assembly"));
     }
 
     @Test
@@ -112,17 +115,37 @@ class AgentAdminConfigHandlerTest {
         Map<String, Object> sections = (Map<String, Object>) snapshot.get("runtimeSections");
         Map<String, Object> policies = (Map<String, Object>) snapshot.get("runtimePolicies");
         Map<String, Object> codePolicy = (Map<String, Object>) policies.get("codeInterpreter");
+        List<Map<String, Object>> assemblyPlan = (List<Map<String, Object>>) snapshot.get("assemblyPlan");
         String snapshotText = snapshot.toString();
 
         assertEquals("agent-admin-runtime", snapshot.get("snapshotType"));
         assertEquals(true, snapshot.get("sensitiveMasked"));
         assertTrue(((Map<?, ?>) snapshot.get("activeCategoryCounts")).containsKey("api"));
         assertTrue(((List<?>) sections.get("apis")).size() >= 1);
+        assertTrue(((List<?>) sections.get("tools")).size() >= 1);
+        assertTrue(((List<?>) sections.get("mcpTools")).size() >= 1);
+        assertEquals("agent_client", assemblyPlan.getFirst().get("stageKey"));
+        assertTrue(assemblyPlan.stream().anyMatch(item -> "mcp_tool".equals(item.get("stageKey"))));
         assertEquals("analysis", codePolicy.get("defaultPermissionProfile"));
         assertTrue(((List<?>) codePolicy.get("allowedPermissionProfiles")).contains("workspace"));
         assertTrue(snapshotText.contains("******"));
         assertTrue(!snapshotText.contains("secretkey123456"));
         assertTrue(!snapshotText.contains("secret-password"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldExposeRuntimeAssemblyPlan() {
+        AgentAdminConfigHandler handler = new AgentAdminConfigHandler(tempDir.resolve("assembly.json"));
+
+        Map<String, Object> assembly = handler.runtimeAssembly();
+        List<Map<String, Object>> plan = (List<Map<String, Object>>) assembly.get("assemblyPlan");
+
+        assertEquals("agent-client-runtime-assembly", assembly.get("assemblyType"));
+        assertEquals(9, assembly.get("stageCount"));
+        assertEquals("agent_client", plan.getFirst().get("stageKey"));
+        assertEquals("mcp_tool", plan.get(7).get("stageKey"));
+        assertEquals(true, assembly.get("sensitiveMasked"));
     }
 
     @Test

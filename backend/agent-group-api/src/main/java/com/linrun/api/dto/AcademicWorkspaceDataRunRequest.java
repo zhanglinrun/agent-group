@@ -26,5 +26,9 @@ public class AcademicWorkspaceDataRunRequest implements Serializable {
     private Boolean includeTableRag = true;
     private Boolean includeNl2Sql = true;
     private Boolean includeAnalysis = true;
+    private Boolean includeTradeAudit = false;
+    private String auditOrderId;
+    private String auditTeamId;
+    private String auditKeyword;
     private Map<String, Object> metadata = new LinkedHashMap<>();
 }

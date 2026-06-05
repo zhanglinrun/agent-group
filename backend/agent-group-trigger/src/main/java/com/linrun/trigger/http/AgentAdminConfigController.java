@@ -69,6 +69,11 @@ public class AgentAdminConfigController {
         return Response.success(agentAdminConfigHandler.runtimeSnapshot(), RequestTraceContext.getRequestId());
     }
 
+    @GetMapping("/assembly")
+    public Response<Map<String, Object>> runtimeAssembly() {
+        return Response.success(agentAdminConfigHandler.runtimeAssembly(), RequestTraceContext.getRequestId());
+    }
+
     @PostMapping("/import")
     public Response<Map<String, Object>> importState(@RequestBody Map<String, Object> request) {
         return Response.success(agentAdminConfigHandler.importState(request), RequestTraceContext.getRequestId());

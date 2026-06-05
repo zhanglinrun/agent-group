@@ -60,6 +60,10 @@ export interface WorkspaceDataRunPayload {
   modelCodeList: string[];
   schemaInfo: unknown[];
   businessKnowledge: string;
+  includeTradeAudit?: boolean;
+  auditOrderId?: string;
+  auditTeamId?: string;
+  auditKeyword?: string;
 }
 
 export interface WorkspaceDataCatalogColumn {
@@ -123,6 +127,20 @@ export interface ToolRuntimeReadiness {
   workspaces: string[];
   message: string;
   hint: string;
+}
+
+export interface ToolRuntimeFamilyReadiness {
+  key: string;
+  label: string;
+  status: "ready" | "partial" | "missing";
+  statusLabel: string;
+  readyCount: number;
+  totalCount: number;
+  tools: string[];
+  missingTools: string[];
+  outputKinds: string[];
+  workspaces: string[];
+  action: string;
 }
 
 export interface CapabilityMatrixItem {
@@ -190,6 +208,15 @@ export interface KnowledgeBaseCatalogItem {
 }
 
 const DEFAULT_QUESTION = "请继续处理当前工作区任务";
+
+const TOOL_RUNTIME_FAMILIES: Array<{ key: string; label: string; tools: string[] }> = [
+  { key: "web", label: "网页抓取", tools: ["web_fetch", "deep_search"] },
+  { key: "data", label: "数据分析", tools: ["data_analysis", "table_rag", "nl2sql"] },
+  { key: "image", label: "图像生成", tools: ["image_generation"] },
+  { key: "report", label: "报告工具", tools: ["report_tool"] },
+  { key: "code", label: "代码解释器", tools: ["code_interpreter", "script_runner"] },
+  { key: "multimodal", label: "多模态", tools: ["multimodal_agent", "file_tool"] }
+];
 
 export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServiceProfile> = {
   agent: {
@@ -355,6 +382,86 @@ export function visibleToolRuntimeReadiness(
       };
     })
     .filter((item) => item.name)
+    .slice(0, Math.max(0, limit));
+}
+
+function normalizeToolRuntimeFamilyReadiness(record: Record<string, unknown>): ToolRuntimeFamilyReadiness {
+  const status = String(record.status || "missing") as ToolRuntimeFamilyReadiness["status"];
+  return {
+    key: String(record.key || record.label || ""),
+    label: String(record.label || record.key || ""),
+    status,
+    statusLabel: String(record.statusLabel || (status === "ready" ? "已就绪" : status === "partial" ? "部分就绪" : "未就绪")),
+    readyCount: Number(record.readyCount || 0),
+    totalCount: Number(record.totalCount || 0),
+    tools: stringList(record.tools),
+    missingTools: stringList(record.missingTools),
+    outputKinds: stringList(record.outputKinds),
+    workspaces: stringList(record.workspaces),
+    action: String(record.action || "")
+  };
+}
+
+export function visibleToolRuntimeFamilyReadiness(
+  capabilities: Record<string, unknown> | null | undefined,
+  limit = 6
+): ToolRuntimeFamilyReadiness[] {
+  if (!capabilities) {
+    return [];
+  }
+  const backendFamilies = capabilities.toolRuntimeFamilies;
+  if (Array.isArray(backendFamilies)) {
+    return backendFamilies
+      .map((item) => normalizeToolRuntimeFamilyReadiness(
+        item && typeof item === "object" ? item as Record<string, unknown> : {}
+      ))
+      .filter((item) => item.key && item.label)
+      .slice(0, Math.max(0, limit));
+  }
+  const readiness = visibleToolRuntimeReadiness(capabilities, 64);
+  const byName = new Map(readiness.map((tool) => [tool.name, tool]));
+  const academicToolNames = new Set(
+    ((capabilities?.academicTools as Array<{ name?: string }> | undefined) || [])
+      .map((tool) => String(tool.name || ""))
+      .filter(Boolean)
+  );
+
+  return TOOL_RUNTIME_FAMILIES
+    .map((family) => {
+      const readyTools = family.tools.filter((toolName) => (
+        byName.get(toolName)?.status === "ready" || academicToolNames.has(toolName)
+      ));
+      const missingTools = family.tools.filter((toolName) => !readyTools.includes(toolName));
+      const selectedTools = family.tools
+        .map((toolName) => byName.get(toolName))
+        .filter(Boolean) as ToolRuntimeReadiness[];
+      const status: ToolRuntimeFamilyReadiness["status"] = readyTools.length === 0
+        ? "missing"
+        : missingTools.length > 0
+          ? "partial"
+          : "ready";
+      const outputKinds = Array.from(new Set(
+        selectedTools.flatMap((tool) => tool.outputKinds).filter(Boolean)
+      )).slice(0, 5);
+      const workspaces = Array.from(new Set(
+        selectedTools.flatMap((tool) => tool.workspaces).filter(Boolean)
+      )).slice(0, 5);
+      return {
+        key: family.key,
+        label: family.label,
+        status,
+        statusLabel: status === "ready" ? "已就绪" : status === "partial" ? "部分就绪" : "未就绪",
+        readyCount: readyTools.length,
+        totalCount: family.tools.length,
+        tools: family.tools,
+        missingTools,
+        outputKinds,
+        workspaces,
+        action: missingTools.length > 0
+          ? `补齐 ${missingTools.slice(0, 2).join("、")} 工具运行时`
+          : "核心工具已覆盖"
+      };
+    })
     .slice(0, Math.max(0, limit));
 }
 
@@ -836,7 +943,14 @@ export function buildWorkspaceDataRunPayload(input: {
   modelCodeText?: string;
   schemaInfoJson?: string;
   businessKnowledge?: string;
+  includeTradeAudit?: boolean;
+  auditOrderId?: string;
+  auditTeamId?: string;
+  auditKeyword?: string;
 }): WorkspaceDataRunPayload {
+  const auditOrderId = String(input.auditOrderId || "").trim();
+  const auditTeamId = String(input.auditTeamId || "").trim();
+  const auditKeyword = String(input.auditKeyword || "").trim();
   return {
     sessionId: String(input.sessionId || ""),
     question: String(input.question || "").trim(),
@@ -844,7 +958,11 @@ export function buildWorkspaceDataRunPayload(input: {
     columns: splitTextList(input.columnsText),
     modelCodeList: splitTextList(input.modelCodeText),
     schemaInfo: parseJsonArray(input.schemaInfoJson, "表结构"),
-    businessKnowledge: String(input.businessKnowledge || "").trim()
+    businessKnowledge: String(input.businessKnowledge || "").trim(),
+    ...(input.includeTradeAudit ? { includeTradeAudit: true } : {}),
+    ...(auditOrderId ? { auditOrderId } : {}),
+    ...(auditTeamId ? { auditTeamId } : {}),
+    ...(auditKeyword ? { auditKeyword } : {})
   };
 }
 

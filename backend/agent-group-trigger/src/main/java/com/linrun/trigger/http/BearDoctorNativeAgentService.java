@@ -99,6 +99,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private final AcademicExternalSearchService externalSearchService;
     private final AcademicToolCallbackFactory academicToolCallbackFactory;
     private final AgentAdminConfigHandler agentAdminConfigHandler;
+    private final ObjectProvider<McpAdminHandler> mcpAdminHandler;
 
     @Value("${tavily.api-key:}")
     private String tavilyApiKey;
@@ -133,7 +134,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                   UserQuotaService userQuotaService,
                                   AcademicExternalSearchService externalSearchService,
                                   AcademicToolCallbackFactory academicToolCallbackFactory,
-                                  AgentAdminConfigHandler agentAdminConfigHandler) {
+                                  AgentAdminConfigHandler agentAdminConfigHandler,
+                                  ObjectProvider<McpAdminHandler> mcpAdminHandler) {
         this.chatModelProvider = chatModelProvider;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
@@ -147,6 +149,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         this.externalSearchService = externalSearchService;
         this.academicToolCallbackFactory = academicToolCallbackFactory;
         this.agentAdminConfigHandler = agentAdminConfigHandler;
+        this.mcpAdminHandler = mcpAdminHandler;
     }
 
     @Override
@@ -367,12 +370,23 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         result.put("agentAdminEnabledCount", agentAdminStatistics.getOrDefault("enabledCount", 0));
         result.put("quotaMode", "spring-ai-usage-with-estimated-fallback");
         result.put("apiDocs", "/swagger-ui/index.html");
-        result.put("agentExecutionModes", agentExecutionModes());
+        List<Map<String, Object>> agentExecutionModes = agentExecutionModes();
+        result.put("agentExecutionModes", agentExecutionModes);
         List<Map<String, Object>> workspaceProfiles = workspaceProfiles(academicTools);
+        List<Map<String, Object>> toolRuntimeReadiness = toolRuntimeReadiness(academicTools, workspaceProfiles);
+        List<Map<String, Object>> toolRuntimeFamilies = toolRuntimeFamilies(toolRuntimeReadiness);
+        Map<String, Object> mcpAdminHealth = mcpAdminHealth();
+        List<Map<String, Object>> capabilityMatrix =
+                capabilityMatrix(academicTools, manualSkillCount, resolvedSkillsDirectory,
+                        agentAdminStatistics, mcpAdminHealth);
         result.put("workspaceProfiles", workspaceProfiles);
-        result.put("toolRuntimeReadiness", toolRuntimeReadiness(academicTools, workspaceProfiles));
-        result.put("capabilityMatrix", capabilityMatrix(academicTools, manualSkillCount, resolvedSkillsDirectory, agentAdminStatistics));
+        result.put("toolRuntimeReadiness", toolRuntimeReadiness);
+        result.put("toolRuntimeFamilies", toolRuntimeFamilies);
+        result.put("capabilityMatrix", capabilityMatrix);
+        result.put("mcpAdminHealth", mcpAdminHealth);
         result.put("toolCatalog", toolCatalog(academicTools, workspaceProfiles));
+        result.put("agentPlatformReadiness",
+                agentPlatformReadiness(agentExecutionModes, toolRuntimeReadiness, workspaceProfiles, capabilityMatrix));
         return result;
     }
 
@@ -395,6 +409,35 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                     "disabledCount", 0,
                     "categoryCount", 0,
                     "categories", List.of(),
+                    "error", e.getClass().getSimpleName());
+        }
+    }
+
+    private Map<String, Object> mcpAdminHealth() {
+        McpAdminHandler handler = mcpAdminHandler == null ? null : mcpAdminHandler.getIfAvailable();
+        if (handler == null) {
+            return Map.of(
+                    "overallStatus", "missing",
+                    "serverCount", 0,
+                    "enabledServerCount", 0,
+                    "readyServerCount", 0,
+                    "degradedServerCount", 0,
+                    "toolCount", 0,
+                    "enabledToolCount", 0,
+                    "message", "MCP admin handler is not available");
+        }
+        try {
+            return handler.health();
+        } catch (Exception e) {
+            LOGGER.warn("mcp admin health degraded, reason={}", e.getClass().getSimpleName());
+            return Map.of(
+                    "overallStatus", "degraded",
+                    "serverCount", 0,
+                    "enabledServerCount", 0,
+                    "readyServerCount", 0,
+                    "degradedServerCount", 0,
+                    "toolCount", 0,
+                    "enabledToolCount", 0,
                     "error", e.getClass().getSimpleName());
         }
     }
@@ -582,7 +625,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private List<Map<String, Object>> capabilityMatrix(List<Map<String, Object>> academicTools,
                                                        int manualSkillCount,
                                                        String resolvedSkillsDirectory,
-                                                       Map<String, Object> agentAdminStatistics) {
+                                                       Map<String, Object> agentAdminStatistics,
+                                                       Map<String, Object> mcpAdminHealth) {
         List<String> toolNames = toolNames(academicTools);
         List<String> implementedTools = AcademicToolOutputNames.orderedRichToolNames();
         List<String> missingRuntimeTools = implementedTools.stream()
@@ -591,6 +635,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         long mcpToolCount = academicTools.stream()
                 .filter(tool -> "mcp".equalsIgnoreCase(String.valueOf(tool.getOrDefault("category", ""))))
                 .count();
+        String mcpOverallStatus = defaultText(mcpAdminHealth.get("overallStatus"), "missing");
+        long mcpServerCount = numberValue(mcpAdminHealth.get("serverCount"));
+        long mcpEnabledServerCount = numberValue(mcpAdminHealth.get("enabledServerCount"));
+        long mcpReadyServerCount = numberValue(mcpAdminHealth.get("readyServerCount"));
+        long mcpEnabledToolCount = numberValue(mcpAdminHealth.get("enabledToolCount"));
+        boolean mcpReady = "ready".equals(mcpOverallStatus) && mcpEnabledToolCount > 0 && mcpToolCount > 0;
 
         return List.of(
                 capabilityItem(
@@ -616,25 +666,31 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 capabilityItem(
                         "mcp",
                         "MCP 管理",
-                        "ready",
+                        mcpReady ? "ready" : "degraded",
                         "支持服务注册、启停、工具发现、缓存、后台配置导入和主 Agent 工具桥接。",
                         List.of("管理接口: /agent/mcp/admin/**",
                                 "后台配置: agent.group.mcp.servers",
                                 "状态文件: agent.group.mcp.admin-state-file",
                                 "AcademicMcpCacheStatus 区分 empty/fresh/unbounded/expired/disabled",
-                                "已缓存 MCP 工具数: " + mcpToolCount),
-                        mcpToolCount > 0 ? List.of() : List.of("当前未发现或未缓存外部 MCP 工具")
+                                "MCP 健康状态: " + mcpOverallStatus,
+                                "MCP 服务: " + mcpEnabledServerCount + "/" + mcpServerCount,
+                                "MCP 可用服务: " + mcpReadyServerCount + "/" + mcpEnabledServerCount,
+                                "MCP 管理启用工具数: " + mcpEnabledToolCount,
+                                "已桥接到 Agent 的 MCP 工具数: " + mcpToolCount),
+                        mcpGaps(mcpOverallStatus, mcpServerCount, mcpEnabledServerCount,
+                                mcpEnabledToolCount, mcpToolCount)
                 ),
                 capabilityItem(
                         "agent-admin",
                         "Agent Admin Config",
                         "ready",
-                        "Central admin surface for agent client, model, API, system prompt, advisor, RAG order and draw config.",
+                        "Central admin surface for agent client, API, model, system prompt, advisor, RAG order, tools, MCP tools and draw config.",
                         List.of("/api/v1/agent/admin/configs",
                                 "/api/v1/agent/admin/statistics",
+                                "/api/v1/agent/admin/assembly",
                                 "configCount=" + agentAdminStatistics.getOrDefault("configCount", 0),
                                 "enabledCount=" + agentAdminStatistics.getOrDefault("enabledCount", 0),
-                                "categories=agent_client,model,api,system_prompt,advisor,rag_order,draw_config",
+                                "categories=agent_client,api,model,system_prompt,advisor,rag_order,tool,mcp_tool,draw_config",
                                 "state-file=agent.group.agent-admin.state-file"),
                         List.of()
                 ),
@@ -679,6 +735,35 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             evidence.addAll(additional);
         }
         return evidence;
+    }
+
+    private List<String> mcpGaps(String overallStatus,
+                                 long serverCount,
+                                 long enabledServerCount,
+                                 long enabledToolCount,
+                                 long bridgedToolCount) {
+        List<String> gaps = new ArrayList<>();
+        if ("missing".equals(overallStatus)) {
+            gaps.add("MCP 管理器未加载");
+        }
+        if (serverCount == 0) {
+            gaps.add("还没有注册 MCP 服务");
+        } else if (enabledServerCount == 0) {
+            gaps.add("没有启用 MCP 服务");
+        }
+        if (enabledServerCount > 0 && enabledToolCount == 0) {
+            gaps.add("当前没有可供 Agent 使用的 MCP 工具");
+        }
+        if (bridgedToolCount == 0) {
+            gaps.add("当前未发现或未缓存外部 MCP 工具");
+        }
+        if (StringUtils.hasText(overallStatus)
+                && !"ready".equals(overallStatus)
+                && !"missing".equals(overallStatus)
+                && serverCount > 0) {
+            gaps.add("MCP 服务健康状态为 " + overallStatus);
+        }
+        return gaps.stream().distinct().toList();
     }
 
     private List<Map<String, Object>> tradeQuotaSettlementRules() {
@@ -748,6 +833,217 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                     return item;
                 })
                 .toList();
+    }
+
+    private List<Map<String, Object>> toolRuntimeFamilies(List<Map<String, Object>> toolRuntimeReadiness) {
+        Map<String, Map<String, Object>> byName = new LinkedHashMap<>();
+        for (Map<String, Object> item : toolRuntimeReadiness == null ? List.<Map<String, Object>>of() : toolRuntimeReadiness) {
+            String name = text(item.get("name"));
+            if (StringUtils.hasText(name)) {
+                byName.put(name, item);
+            }
+        }
+        return List.of(
+                toolRuntimeFamily("web", "网页抓取", List.of(
+                        AcademicToolOutputNames.WEB_FETCH,
+                        AcademicToolOutputNames.DEEP_SEARCH), byName),
+                toolRuntimeFamily("data", "数据分析", List.of(
+                        AcademicToolOutputNames.DATA_ANALYSIS,
+                        AcademicToolOutputNames.TABLE_RAG,
+                        AcademicToolOutputNames.NL2SQL), byName),
+                toolRuntimeFamily("image", "图像生成", List.of(
+                        AcademicToolOutputNames.IMAGE_GENERATION), byName),
+                toolRuntimeFamily("report", "报告工具", List.of(
+                        AcademicToolOutputNames.REPORT_TOOL), byName),
+                toolRuntimeFamily("code", "代码解释器", List.of(
+                        AcademicToolOutputNames.CODE_INTERPRETER,
+                        AcademicToolOutputNames.SCRIPT_RUNNER), byName),
+                toolRuntimeFamily("multimodal", "多模态", List.of(
+                        AcademicToolOutputNames.MULTIMODAL_AGENT,
+                        AcademicToolOutputNames.FILE_TOOL), byName)
+        );
+    }
+
+    private Map<String, Object> toolRuntimeFamily(String key,
+                                                  String label,
+                                                  List<String> tools,
+                                                  Map<String, Map<String, Object>> byName) {
+        List<String> readyTools = tools.stream()
+                .filter(toolName -> "ready".equals(text(byName.getOrDefault(toolName, Map.of()).get("status"))))
+                .toList();
+        List<String> missingTools = tools.stream()
+                .filter(toolName -> !readyTools.contains(toolName))
+                .toList();
+        List<String> outputKinds = tools.stream()
+                .flatMap(toolName -> stringValues(byName.getOrDefault(toolName, Map.of()).get("outputKinds")).stream())
+                .distinct()
+                .limit(5)
+                .toList();
+        List<String> workspaces = tools.stream()
+                .flatMap(toolName -> stringValues(byName.getOrDefault(toolName, Map.of()).get("workspaces")).stream())
+                .distinct()
+                .limit(5)
+                .toList();
+        String status = readyTools.isEmpty() ? "missing" : missingTools.isEmpty() ? "ready" : "partial";
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("key", key);
+        item.put("label", label);
+        item.put("status", status);
+        item.put("statusLabel", toolRuntimeFamilyStatusLabel(status));
+        item.put("readyCount", readyTools.size());
+        item.put("totalCount", tools.size());
+        item.put("tools", tools);
+        item.put("missingTools", missingTools);
+        item.put("outputKinds", outputKinds);
+        item.put("workspaces", workspaces);
+        item.put("action", missingTools.isEmpty()
+                ? "核心工具已覆盖"
+                : "补齐 " + compactLabels(missingTools, 2) + " 工具运行时");
+        return item;
+    }
+
+    private String toolRuntimeFamilyStatusLabel(String status) {
+        return switch (status) {
+            case "ready" -> "已就绪";
+            case "partial" -> "部分就绪";
+            default -> "未就绪";
+        };
+    }
+
+    private Map<String, Object> agentPlatformReadiness(List<Map<String, Object>> executionModes,
+                                                       List<Map<String, Object>> toolRuntimeReadiness,
+                                                       List<Map<String, Object>> workspaceProfiles,
+                                                       List<Map<String, Object>> capabilityMatrix) {
+        List<String> requiredFamilies = List.of("react", "plan-execute", "flow", "skill-sop");
+        Map<String, String> familyLabels = Map.of(
+                "react", "ReAct",
+                "plan-execute", "Plan Execute",
+                "flow", "Flow",
+                "skill-sop", "Skill SOP");
+        List<String> coveredFamilies = executionModes.stream()
+                .map(mode -> text(mode.get("family")))
+                .filter(requiredFamilies::contains)
+                .distinct()
+                .toList();
+        List<String> missingFamilies = requiredFamilies.stream()
+                .filter(family -> !coveredFamilies.contains(family))
+                .map(family -> familyLabels.getOrDefault(family, family))
+                .toList();
+        long replanModeCount = executionModes.stream()
+                .filter(mode -> truthy(mode.get("replanEnabled")) || !stringValues(mode.get("replanEvidence")).isEmpty())
+                .count();
+
+        List<String> orderedTools = AcademicToolOutputNames.orderedRichToolNames();
+        List<String> missingTools = toolRuntimeReadiness.isEmpty()
+                ? orderedTools
+                : toolRuntimeReadiness.stream()
+                .filter(item -> !"ready".equals(text(item.get("status"))))
+                .map(item -> text(item.get("name")))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        long readyToolCount = toolRuntimeReadiness.stream()
+                .filter(item -> "ready".equals(text(item.get("status"))))
+                .count();
+
+        List<String> requiredWorkspaces = List.of("agent", "image", "data", "mrag", "trade");
+        List<String> coveredWorkspaces = workspaceProfiles.stream()
+                .filter(this::workspaceEntryReady)
+                .map(profile -> text(profile.get("id")))
+                .filter(requiredWorkspaces::contains)
+                .distinct()
+                .toList();
+        List<String> missingWorkspaces = requiredWorkspaces.stream()
+                .filter(workspace -> !coveredWorkspaces.contains(workspace))
+                .toList();
+
+        Map<String, Object> mcp = capabilityByKey(capabilityMatrix, "mcp");
+        List<String> mcpGaps = mcp.isEmpty() ? List.of("MCP 管理能力未上报") : stringValues(mcp.get("gaps"));
+        String mcpStatus = defaultText(mcp.get("status"), mcpGaps.isEmpty() ? "ready" : "degraded");
+
+        Map<String, Object> tradeQuota = capabilityByKey(capabilityMatrix, "trade-quota");
+        List<Map<String, Object>> settlementRules = mapList(tradeQuota.get("settlementRules"));
+        long blockedSettlementRuleCount = settlementRules.stream()
+                .filter(rule -> !truthy(rule.get("quotaGrantAllowed")))
+                .count();
+        List<String> guardrails = stringValues(tradeQuota.get("guardrails"));
+
+        boolean ready = missingFamilies.isEmpty()
+                && replanModeCount > 0
+                && missingTools.isEmpty()
+                && missingWorkspaces.isEmpty()
+                && mcpGaps.isEmpty()
+                && !settlementRules.isEmpty()
+                && blockedSettlementRuleCount > 0;
+        String status = executionModes.isEmpty() ? "missing" : ready ? "ready" : "partial";
+
+        List<String> gaps = new ArrayList<>();
+        if (!missingFamilies.isEmpty()) {
+            gaps.add("缺少执行族：" + String.join("、", missingFamilies));
+        }
+        if (replanModeCount == 0) {
+            gaps.add("缺少动态重规划证据");
+        }
+        if (!missingTools.isEmpty()) {
+            gaps.add("工具运行时未全部就绪：" + compactLabels(missingTools, 4));
+        }
+        if (!missingWorkspaces.isEmpty()) {
+            gaps.add("工作区入口未完整：" + String.join("、", missingWorkspaces));
+        }
+        gaps.addAll(mcpGaps);
+        if (settlementRules.isEmpty()) {
+            gaps.add("缺少拼团额度发放规则");
+        }
+
+        List<String> actions = new ArrayList<>();
+        if (!missingTools.isEmpty()) {
+            actions.add("启动或配置工具运行时：" + compactLabels(missingTools, 3));
+        }
+        if (!mcpGaps.isEmpty()) {
+            actions.add("注册、发现并缓存 MCP 工具");
+        }
+        if (replanModeCount == 0 || !missingFamilies.isEmpty()) {
+            actions.add("补齐多智能体执行模式与重规划证据");
+        }
+        if (settlementRules.isEmpty()) {
+            actions.add("补齐拼团额度发放规则");
+        }
+        if (ready) {
+            actions.add("Agent 与拼团交易闭环已具备完整演示面");
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", status);
+        result.put("statusLabel", platformReadinessStatusLabel(status));
+        result.put("title", "Agent + 拼团交易系统就绪度");
+        result.put("metrics", List.of(
+                readinessMetric("families", "执行族", coveredFamilies.size() + "/" + requiredFamilies.size(),
+                        missingFamilies.isEmpty() ? "good" : "warn"),
+                readinessMetric("replan", "重规划", String.valueOf(replanModeCount),
+                        replanModeCount > 0 ? "good" : "warn"),
+                readinessMetric("tools", "工具", readyToolCount + "/" + orderedTools.size(),
+                        missingTools.isEmpty() ? "good" : "warn"),
+                readinessMetric("workspaces", "工作区", coveredWorkspaces.size() + "/" + requiredWorkspaces.size(),
+                        missingWorkspaces.isEmpty() ? "good" : "warn"),
+                readinessMetric("tradeRules", "交易规则", String.valueOf(settlementRules.size()),
+                        settlementRules.isEmpty() ? "warn" : "good")
+        ));
+        result.put("coveredFamilies", coveredFamilies);
+        result.put("missingFamilies", missingFamilies);
+        result.put("replanModeCount", replanModeCount);
+        result.put("readyToolCount", readyToolCount);
+        result.put("requiredToolCount", orderedTools.size());
+        result.put("missingTools", missingTools);
+        result.put("coveredWorkspaces", coveredWorkspaces);
+        result.put("missingWorkspaces", missingWorkspaces);
+        result.put("mcpStatus", mcpStatus);
+        result.put("mcpGaps", mcpGaps);
+        result.put("settlementRuleCount", settlementRules.size());
+        result.put("blockedSettlementRuleCount", blockedSettlementRuleCount);
+        result.put("tradeGuardrails", guardrails);
+        result.put("gaps", gaps);
+        result.put("actions", actions);
+        return result;
     }
 
     private List<String> fallbackInputFields(String toolName) {
@@ -887,6 +1183,89 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .map(tool -> String.valueOf(tool.getOrDefault("name", "")).trim())
                 .filter(StringUtils::hasText)
                 .toList();
+    }
+
+    private Map<String, Object> capabilityByKey(List<Map<String, Object>> capabilityMatrix, String key) {
+        if (capabilityMatrix == null || !StringUtils.hasText(key)) {
+            return Map.of();
+        }
+        return capabilityMatrix.stream()
+                .filter(item -> key.equals(text(item.get("key"))))
+                .findFirst()
+                .orElse(Map.of());
+    }
+
+    private boolean workspaceEntryReady(Map<String, Object> profile) {
+        if (profile == null) {
+            return false;
+        }
+        String id = text(profile.get("id"));
+        return StringUtils.hasText(text(profile.get("runEndpoint")))
+                || ("agent".equals(id) && "/".equals(text(profile.get("path"))));
+    }
+
+    private List<String> stringValues(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream()
+                .map(this::text)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+    }
+
+    private List<Map<String, Object>> mapList(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object item : values) {
+            if (item instanceof Map<?, ?> source) {
+                Map<String, Object> map = new LinkedHashMap<>();
+                source.forEach((key, val) -> map.put(String.valueOf(key), val));
+                result.add(map);
+            }
+        }
+        return result;
+    }
+
+    private boolean truthy(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        String text = text(value).toLowerCase();
+        return "true".equals(text) || "1".equals(text) || "yes".equals(text);
+    }
+
+    private String compactLabels(List<String> values, int limit) {
+        List<String> cleanValues = values == null
+                ? List.of()
+                : values.stream().filter(StringUtils::hasText).distinct().toList();
+        if (cleanValues.isEmpty()) {
+            return "";
+        }
+        int safeLimit = Math.max(1, limit);
+        List<String> visible = cleanValues.stream().limit(safeLimit).toList();
+        int more = Math.max(0, cleanValues.size() - visible.size());
+        return String.join("、", visible) + (more > 0 ? " 等 " + more + " 项" : "");
+    }
+
+    private Map<String, Object> readinessMetric(String key, String label, String value, String tone) {
+        Map<String, Object> metric = new LinkedHashMap<>();
+        metric.put("key", key);
+        metric.put("label", label);
+        metric.put("value", value);
+        metric.put("tone", tone);
+        return metric;
+    }
+
+    private String platformReadinessStatusLabel(String status) {
+        return switch (status) {
+            case "ready" -> "已就绪";
+            case "missing" -> "未接入";
+            default -> "待补齐";
+        };
     }
 
     public String externalConversationId(String userId, String sessionId) {
@@ -1412,6 +1791,21 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private String defaultText(Object value, String fallback) {
         String text = text(value);
         return StringUtils.hasText(text) ? text : fallback;
+    }
+
+    private long numberValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        String text = text(value);
+        if (!StringUtils.hasText(text)) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     private String text(Object value) {

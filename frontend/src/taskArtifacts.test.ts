@@ -4,6 +4,7 @@ import {
   eventArtifacts,
   mergeArtifacts,
   mergeResultPanels,
+  resultPanelKindLabel,
   replayEventsToArtifacts,
   replayEventsToResultPanels,
   runDetailToResultPanels,
@@ -13,6 +14,13 @@ import {
 } from "./taskArtifacts";
 
 describe("task artifact projection", () => {
+  it("labels result panel kinds for replay display", () => {
+    expect(resultPanelKindLabel("data")).toBe("数据");
+    expect(resultPanelKindLabel("sql")).toBe("SQL");
+    expect(resultPanelKindLabel("multimodal")).toBe("多模态");
+    expect(resultPanelKindLabel("custom")).toBe("custom");
+  });
+
   it("normalizes artifact delta payloads", () => {
     expect(toUiArtifact({
       artifactId: "artifact-1",
@@ -445,6 +453,27 @@ describe("task artifact projection", () => {
     } }] }])).toHaveLength(1);
   });
 
+  it("prefers replay result kind over tool name inference", () => {
+    const [panel] = toolResultPanels({
+      event: "tool_result",
+      data: {
+        invocationId: "typed-1",
+        toolName: "custom_runtime",
+        resultKind: "image",
+        structuredOutput: {
+          title: "generated poster",
+          summary: "image ready",
+          fileRefs: [
+            { artifactId: "img-1", fileName: "poster.png", previewUrl: "/files/poster.png" }
+          ]
+        }
+      }
+    });
+
+    expect(panel.kind).toBe("image");
+    expect(panel.fileRefs[0].fileName).toBe("poster.png");
+  });
+
   it("projects run detail tool invocations into result panels", () => {
     const panels = runDetailToResultPanels({
       toolInvocations: [
@@ -474,6 +503,7 @@ describe("task artifact projection", () => {
         {
           invocationId: "data-1",
           toolName: "data_analysis",
+          resultKind: "sql",
           structuredOutput: {
             metadata: {
               columns: ["status", "count"],
@@ -492,7 +522,7 @@ describe("task artifact projection", () => {
       ]
     });
 
-    expect(panels.map((panel) => panel.kind)).toEqual(["audit", "file", "data"]);
+    expect(panels.map((panel) => panel.kind)).toEqual(["audit", "file", "sql"]);
     expect(panels[1].fileRefs[0].fileName).toBe("audit-report.md");
     expect(panels[2].rows[0].status).toBe("PAY_SUCCESS");
   });

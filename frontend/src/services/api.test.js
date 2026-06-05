@@ -407,6 +407,10 @@ describe("mcp admin api client", () => {
         includeTableRag: true,
         includeNl2Sql: true,
         includeAnalysis: true,
+        includeTradeAudit: false,
+        auditOrderId: "",
+        auditTeamId: "",
+        auditKeyword: "",
         metadata: {}
       })
     }));

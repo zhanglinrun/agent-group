@@ -30,6 +30,16 @@ public class AgentAdminConfigHandler {
     private final ConcurrentMap<String, Map<String, Object>> configs = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final Path stateFile;
+    private static final List<String> ASSEMBLY_CATEGORY_ORDER = List.of(
+            "agent_client",
+            "api",
+            "model",
+            "system_prompt",
+            "advisor",
+            "rag_order",
+            "tool",
+            "mcp_tool",
+            "draw_config");
 
     public AgentAdminConfigHandler() {
         this(new ObjectMapper().findAndRegisterModules(), (AgentAdminConfigProperties) null);
@@ -41,7 +51,7 @@ public class AgentAdminConfigHandler {
         this.stateFile = resolveStateFile(properties == null ? "" : properties.getStateFile());
         loadState();
         importConfiguredState(properties);
-        loadDefaultsIfEmpty();
+        loadDefaultsIfMissing(properties);
     }
 
     AgentAdminConfigHandler(Path stateFile) {
@@ -52,7 +62,7 @@ public class AgentAdminConfigHandler {
         this.objectMapper = objectMapper == null ? new ObjectMapper().findAndRegisterModules() : objectMapper;
         this.stateFile = stateFile == null ? null : stateFile.toAbsolutePath().normalize();
         loadState();
-        loadDefaultsIfEmpty();
+        loadDefaultsIfMissing(null);
     }
 
     public List<Map<String, Object>> listConfigs(String category, boolean enabledOnly) {
@@ -165,7 +175,8 @@ public class AgentAdminConfigHandler {
                 "/api/v1/agent/admin/export",
                 "/api/v1/agent/admin/import",
                 "/api/v1/agent/admin/statistics",
-                "/api/v1/agent/admin/runtime-snapshot"));
+                "/api/v1/agent/admin/runtime-snapshot",
+                "/api/v1/agent/admin/assembly"));
         return result;
     }
 
@@ -185,6 +196,7 @@ public class AgentAdminConfigHandler {
         result.put("activeCategoryCounts", categoryCounts(enabledConfigs));
         result.put("runtimeSections", runtimeSections(enabledConfigs));
         result.put("runtimePolicies", runtimePolicies());
+        result.put("assemblyPlan", assemblyPlan(enabledConfigs));
         result.put("enabledConfigs", enabledConfigs.stream()
                 .map(this::runtimeConfig)
                 .toList());
@@ -193,6 +205,23 @@ public class AgentAdminConfigHandler {
                 "Only enabled configs are applied to runtime prompts.",
                 "Secrets and credential-like fields are masked in this snapshot.",
                 "Quota, order, payment and group settlement facts still come from backend transaction services."));
+        return result;
+    }
+
+    public Map<String, Object> runtimeAssembly() {
+        List<Map<String, Object>> enabledConfigs = listConfigs("", true);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("assemblyType", "agent-client-runtime-assembly");
+        result.put("generatedAt", LocalDateTime.now().toString());
+        result.put("stageCount", ASSEMBLY_CATEGORY_ORDER.size());
+        result.put("configCount", enabledConfigs.size());
+        result.put("assemblyPlan", assemblyPlan(enabledConfigs));
+        result.put("runtimePolicies", runtimePolicies());
+        result.put("sensitiveMasked", true);
+        result.put("guardrails", List.of(
+                "交易、支付、拼团和额度事实必须来自后端服务。",
+                "模型只能生成解释和建议，不能决定额度到账。",
+                "MCP 工具和脚本工具必须先注册、发现并缓存后再进入 Agent 工具列表。"));
         return result;
     }
 
@@ -258,11 +287,11 @@ public class AgentAdminConfigHandler {
         }
     }
 
-    private void loadDefaultsIfEmpty() {
-        if (!configs.isEmpty()) {
+    private void loadDefaultsIfMissing(AgentAdminConfigProperties properties) {
+        if (properties != null && !properties.getConfigs().isEmpty()) {
             return;
         }
-        List.of(
+        List<Map<String, Object>> defaults = List.of(
                 defaultConfig("default-agent-client", "agent_client", "Default agent client",
                         "Default agent client profile used by workspace and trade aware agent flows.",
                         "agent_workspace -> tool_runtime -> trade_quota_guard", 5, Map.of("runtime", "spring-ai")),
@@ -281,11 +310,27 @@ public class AgentAdminConfigHandler {
                 defaultConfig("knowledge-rag-order", "rag_order", "Knowledge recall order",
                         "Default recall order for agent answers.",
                         "query_rewrite -> vector_recall -> rerank -> answer_reflection", 50, Map.of("vectorStore", "pgvector")),
+                defaultConfig("trade-audit-tool-order", "tool", "Trade audit tool order",
+                        "Default tool order for transaction and quota consistency checks.",
+                        "trade_audit -> table_rag -> nl2sql -> data_analysis -> report_tool", 55, Map.of("workspace", "trade")),
+                defaultConfig("default-mcp-tool-cache", "mcp_tool", "Default MCP tool cache",
+                        "MCP tools should be discovered and cached before they are exposed to the agent runtime.",
+                        "register_server -> discover_tools -> cache_tools -> expose_enabled_tools", 56, Map.of("transport", "streamable_http")),
                 defaultConfig("image-draw-config", "draw_config", "Image generation config",
                         "Default image generation workspace config.",
                         "image_generation -> artifact_registry -> quota_consume", 60, Map.of("workspace", "image"))
-        ).forEach(item -> configs.put(String.valueOf(item.get("configId")), item));
-        persistState();
+        );
+        boolean changed = false;
+        for (Map<String, Object> item : defaults) {
+            String configId = String.valueOf(item.get("configId"));
+            if (!configs.containsKey(configId)) {
+                configs.put(configId, item);
+                changed = true;
+            }
+        }
+        if (changed) {
+            persistState();
+        }
     }
 
     private Map<String, Object> defaultConfig(String configId,
@@ -436,8 +481,58 @@ public class AgentAdminConfigHandler {
         result.put("systemPrompts", runtimeSection(enabledConfigs, "system_prompt"));
         result.put("advisors", runtimeSection(enabledConfigs, "advisor"));
         result.put("ragOrders", runtimeSection(enabledConfigs, "rag_order"));
+        result.put("tools", runtimeSection(enabledConfigs, "tool"));
+        result.put("mcpTools", runtimeSection(enabledConfigs, "mcp_tool"));
         result.put("drawConfigs", runtimeSection(enabledConfigs, "draw_config"));
         return result;
+    }
+
+    private List<Map<String, Object>> assemblyPlan(List<Map<String, Object>> enabledConfigs) {
+        List<Map<String, Object>> plan = new ArrayList<>();
+        for (int i = 0; i < ASSEMBLY_CATEGORY_ORDER.size(); i++) {
+            String category = ASSEMBLY_CATEGORY_ORDER.get(i);
+            List<Map<String, Object>> items = runtimeSection(enabledConfigs, category);
+            Map<String, Object> stage = new LinkedHashMap<>();
+            stage.put("stageNo", i + 1);
+            stage.put("stageKey", category);
+            stage.put("stageName", assemblyStageName(category));
+            stage.put("enabled", !items.isEmpty());
+            stage.put("itemCount", items.size());
+            stage.put("items", items);
+            stage.put("operatorHint", assemblyStageHint(category));
+            plan.add(stage);
+        }
+        return plan;
+    }
+
+    private String assemblyStageName(String category) {
+        return switch (category) {
+            case "agent_client" -> "Agent client";
+            case "api" -> "API endpoint";
+            case "model" -> "Model";
+            case "system_prompt" -> "System prompt";
+            case "advisor" -> "Advisor";
+            case "rag_order" -> "RAG order";
+            case "tool" -> "Local tool";
+            case "mcp_tool" -> "MCP tool";
+            case "draw_config" -> "Draw config";
+            default -> category;
+        };
+    }
+
+    private String assemblyStageHint(String category) {
+        return switch (category) {
+            case "agent_client" -> "选择当前 Agent 的运行画像。";
+            case "api" -> "只保存环境变量名或连接模板，不保存密钥明文。";
+            case "model" -> "绑定聊天模型、向量模型或多模态模型。";
+            case "system_prompt" -> "注入业务边界，交易事实必须来自后端。";
+            case "advisor" -> "决定记忆、检索、反思等增强策略。";
+            case "rag_order" -> "决定查询改写、召回、重排和引用顺序。";
+            case "tool" -> "配置本地工具的调用顺序和启用状态。";
+            case "mcp_tool" -> "配置 MCP 工具发现、缓存和暴露顺序。";
+            case "draw_config" -> "配置图像或图表类输出策略。";
+            default -> "";
+        };
     }
 
     private Map<String, Object> runtimePolicies() {

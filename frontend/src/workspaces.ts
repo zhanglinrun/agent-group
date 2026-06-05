@@ -8,6 +8,7 @@ export interface WorkspaceDefinition {
   path: string;
   icon: string;
   agentId: AgentMode;
+  userVisible?: boolean;
 }
 
 export interface WorkspacePrompt {
@@ -19,14 +20,21 @@ export interface WorkspacePrompt {
 export const WORKSPACES: WorkspaceDefinition[] = [
   { id: "agent", name: "Agent 工作台", path: "/", icon: "🤖", agentId: "chat" },
   { id: "image", name: "图像生成", path: "/workspace/image", icon: "🖼", agentId: "image" },
-  { id: "data", name: "数据问答", path: "/workspace/data", icon: "📈", agentId: "data" },
-  { id: "mrag", name: "MRAG 知识问答", path: "/workspace/mrag", icon: "MR", agentId: "mrag" },
-  { id: "trade", name: "拼团交易", path: "/workspace/trade", icon: "💳", agentId: "trade-audit" }
+  { id: "data", name: "数据问答", path: "/workspace/data", icon: "📈", agentId: "data", userVisible: false },
+  { id: "mrag", name: "MRAG 知识问答", path: "/workspace/mrag", icon: "MR", agentId: "mrag", userVisible: false },
+  { id: "trade", name: "拼团交易", path: "/workspace/trade", icon: "💳", agentId: "trade-audit", userVisible: false }
 ];
+
+export const USER_WORKSPACES: WorkspaceDefinition[] = WORKSPACES.filter((workspace) => workspace.userVisible !== false);
 
 export function workspaceFromPath(pathname: string): WorkspaceId {
   const path = String(pathname || "/").replace(/\/+$/, "") || "/";
   return WORKSPACES.find((workspace) => workspace.path === path)?.id || "agent";
+}
+
+export function userWorkspaceFromPath(pathname: string): WorkspaceId {
+  const workspaceId = workspaceFromPath(pathname);
+  return isUserWorkspace(workspaceId) ? workspaceId : "agent";
 }
 
 export function workspacePath(workspaceId: string): string {
@@ -35,6 +43,10 @@ export function workspacePath(workspaceId: string): string {
 
 export function workspaceAgentMode(workspaceId: string): AgentMode {
   return WORKSPACES.find((workspace) => workspace.id === workspaceId)?.agentId || "chat";
+}
+
+export function isUserWorkspace(workspaceId: string): boolean {
+  return USER_WORKSPACES.some((workspace) => workspace.id === workspaceId);
 }
 
 export const WORKSPACE_PROMPTS: Record<WorkspaceId, WorkspacePrompt[]> = {

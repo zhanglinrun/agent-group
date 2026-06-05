@@ -11,6 +11,7 @@ import {
   visibleAgentExecutionModes,
   visibleCapabilityMatrix,
   visibleToolCatalogGroups,
+  visibleToolRuntimeFamilyReadiness,
   visibleToolRuntimeReadiness,
   visibleWorkspaceRuntimeCoverage,
   workspaceAcceptsFile,
@@ -224,6 +225,22 @@ describe("workspace service profiles", () => {
     })).toThrow("表格行 必须是 JSON 数组");
   });
 
+  it("adds optional trade audit parameters to data workspace payload", () => {
+    expect(buildWorkspaceDataRunPayload({
+      sessionId: "D2",
+      question: "audit order",
+      includeTradeAudit: true,
+      auditOrderId: "T1001",
+      auditTeamId: "TEAM1001",
+      auditKeyword: "支付成功但未成团"
+    })).toMatchObject({
+      includeTradeAudit: true,
+      auditOrderId: "T1001",
+      auditTeamId: "TEAM1001",
+      auditKeyword: "支付成功但未成团"
+    });
+  });
+
   it("builds image workspace payload with bounded batch size", () => {
     expect(buildWorkspaceImageGeneratePayload({
       sessionId: "IMG1",
@@ -374,6 +391,109 @@ describe("workspace service profiles", () => {
       }
     ]);
     expect(visibleToolRuntimeReadiness({})).toEqual([]);
+  });
+
+  it("groups tool runtime readiness by agent tool family", () => {
+    const families = visibleToolRuntimeFamilyReadiness({
+      toolRuntimeReadiness: [
+        {
+          name: "web_fetch",
+          status: "ready",
+          outputKinds: ["web-page"],
+          workspaces: ["agent"]
+        },
+        {
+          name: "deep_search",
+          status: "missing",
+          outputKinds: ["research"],
+          workspaces: ["agent", "mrag"]
+        },
+        {
+          name: "data_analysis",
+          status: "ready",
+          outputKinds: ["table"],
+          workspaces: ["data"]
+        },
+        {
+          name: "table_rag",
+          status: "ready",
+          outputKinds: ["evidence"],
+          workspaces: ["data", "mrag"]
+        },
+        {
+          name: "nl2sql",
+          status: "ready",
+          outputKinds: ["sql"],
+          workspaces: ["data"]
+        },
+        {
+          name: "report_tool",
+          status: "missing",
+          outputKinds: ["report"],
+          workspaces: ["agent", "data"]
+        }
+      ]
+    });
+
+    expect(families.find((item) => item.key === "web")).toMatchObject({
+      label: "网页抓取",
+      status: "partial",
+      readyCount: 1,
+      totalCount: 2,
+      missingTools: ["deep_search"],
+      action: "补齐 deep_search 工具运行时"
+    });
+    expect(families.find((item) => item.key === "data")).toMatchObject({
+      status: "ready",
+      readyCount: 3,
+      totalCount: 3,
+      outputKinds: ["table", "evidence", "sql"],
+      workspaces: ["data", "mrag"]
+    });
+    expect(families.find((item) => item.key === "report")).toMatchObject({
+      status: "missing",
+      missingTools: ["report_tool"]
+    });
+    expect(visibleToolRuntimeFamilyReadiness(null)).toEqual([]);
+  });
+
+  it("prefers backend tool runtime family readiness", () => {
+    const families = visibleToolRuntimeFamilyReadiness({
+      toolRuntimeFamilies: [
+        {
+          key: "web",
+          label: "网页抓取",
+          status: "ready",
+          statusLabel: "已就绪",
+          readyCount: 2,
+          totalCount: 2,
+          tools: ["web_fetch", "deep_search"],
+          missingTools: [],
+          outputKinds: ["web", "reference"],
+          workspaces: ["agent", "mrag"],
+          action: "核心工具已覆盖"
+        }
+      ],
+      toolRuntimeReadiness: [
+        { name: "web_fetch", status: "missing" }
+      ]
+    });
+
+    expect(families).toEqual([
+      {
+        key: "web",
+        label: "网页抓取",
+        status: "ready",
+        statusLabel: "已就绪",
+        readyCount: 2,
+        totalCount: 2,
+        tools: ["web_fetch", "deep_search"],
+        missingTools: [],
+        outputKinds: ["web", "reference"],
+        workspaces: ["agent", "mrag"],
+        action: "核心工具已覆盖"
+      }
+    ]);
   });
 
   it("normalizes capability matrix and execution modes for frontend display", () => {

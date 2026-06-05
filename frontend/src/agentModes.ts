@@ -9,6 +9,7 @@ export interface AgentModeOption {
   summary: string;
   replanEnabled?: boolean;
   replanLabel?: string;
+  userVisible?: boolean;
 }
 
 export const AGENT_MODES: AgentModeOption[] = [
@@ -60,7 +61,8 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "📈",
     executionMode: "ReAct",
     executionFamily: "react",
-    summary: "数据分析、表格检索和自然语言转 SQL"
+    summary: "数据分析、表格检索和自然语言转 SQL",
+    userVisible: false
   },
   {
     id: "mrag",
@@ -68,7 +70,8 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "MR",
     executionMode: "ReAct",
     executionFamily: "react",
-    summary: "多模态检索、知识库证据和资料交叉验证"
+    summary: "多模态检索、知识库证据和资料交叉验证",
+    userVisible: false
   },
   {
     id: "trade-audit",
@@ -76,7 +79,8 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "🧾",
     executionMode: "Trade Flow",
     executionFamily: "flow",
-    summary: "按支付、成团、额度到账和退款回滚流程核查交易闭环"
+    summary: "按支付、成团、额度到账和退款回滚流程核查交易闭环",
+    userVisible: false
   },
   {
     id: "skills",
@@ -95,6 +99,8 @@ export const AGENT_MODES: AgentModeOption[] = [
     summary: "读取技能文件、检索技能目录和运行技能脚本"
   }
 ];
+
+export const USER_AGENT_MODES: AgentModeOption[] = AGENT_MODES.filter((agent) => agent.userVisible !== false);
 
 export function agentModeById(agentId: string): AgentModeOption {
   return AGENT_MODES.find((agent) => agent.id === agentId) || AGENT_MODES[0];

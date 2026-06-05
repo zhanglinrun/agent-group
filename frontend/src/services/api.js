@@ -468,6 +468,10 @@ export async function runWorkspaceData(payload = {}) {
       includeTableRag: payload.includeTableRag !== false,
       includeNl2Sql: payload.includeNl2Sql !== false,
       includeAnalysis: payload.includeAnalysis !== false,
+      includeTradeAudit: Boolean(payload.includeTradeAudit),
+      auditOrderId: payload.auditOrderId || "",
+      auditTeamId: payload.auditTeamId || "",
+      auditKeyword: payload.auditKeyword || "",
       metadata: payload.metadata || {}
     })
   });

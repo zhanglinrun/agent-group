@@ -46,10 +46,18 @@ cd backend
 mvn -pl agent-group-app -am spring-boot:run
 ```
 
-后端启动后，直接用浏览器打开：
+后端启动后，在项目根目录打开新的终端运行前端：
 
-- `frontend/index.html`（用户端 `Agent`（智能体）工作台）
-- `frontend/admin.html`（运营端知识库、评测和交易监控）
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+浏览器打开：
+
+- `http://localhost:5173/`（用户端 `Agent`（智能体）工作台）
+- `http://localhost:5173/admin`（运营端知识库、评测和交易监控）
 
 建议按这个顺序演示：
 

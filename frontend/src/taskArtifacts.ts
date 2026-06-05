@@ -43,6 +43,21 @@ export type UiResultSource = {
   metaLabel: string;
 };
 
+export const RESULT_KIND_LABELS: Record<UiResultPanel["kind"], string> = {
+  data: "数据",
+  sql: "SQL",
+  schema: "表结构",
+  summary: "摘要",
+  search: "搜索",
+  web: "网页",
+  file: "文件",
+  audit: "审计",
+  code: "代码",
+  image: "图像",
+  multimodal: "多模态",
+  quota: "额度"
+};
+
 type UnknownMap = Record<string, unknown>;
 
 function asObject(value: unknown): UnknownMap {
@@ -57,6 +72,11 @@ function asArray(value: unknown): unknown[] {
 
 function text(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+export function resultPanelKindLabel(kind: unknown): string {
+  const normalized = text(kind).toLowerCase();
+  return RESULT_KIND_LABELS[normalized as UiResultPanel["kind"]] || text(kind) || "结果";
 }
 
 function scalarText(value: unknown): string {
@@ -282,7 +302,35 @@ function sourceArray(...values: unknown[]): UiResultSource[] {
     .filter((item) => Boolean(item.title || item.url || item.content || item.source));
 }
 
-function resultPanelKind(toolName: string, panel: Pick<UiResultPanel, "rows" | "numericStats" | "candidates" | "matches" | "sources" | "fileRefs" | "url" | "content" | "findings" | "metadata">): UiResultPanel["kind"] {
+function explicitResultKind(kind: string): UiResultPanel["kind"] | "" {
+  const normalized = kind.toLowerCase();
+  return ([
+    "data",
+    "sql",
+    "schema",
+    "summary",
+    "search",
+    "web",
+    "file",
+    "audit",
+    "code",
+    "image",
+    "multimodal",
+    "quota"
+  ] as UiResultPanel["kind"][]).includes(normalized as UiResultPanel["kind"])
+    ? (normalized as UiResultPanel["kind"])
+    : "";
+}
+
+function resultPanelKind(
+  toolName: string,
+  panel: Pick<UiResultPanel, "rows" | "numericStats" | "candidates" | "matches" | "sources" | "fileRefs" | "url" | "content" | "findings" | "metadata">,
+  resultKind = ""
+): UiResultPanel["kind"] {
+  const explicit = explicitResultKind(resultKind);
+  if (explicit) {
+    return explicit;
+  }
   const normalized = toolName.toLowerCase();
   if (normalized.includes("quota_usage")) {
     return "quota";
@@ -453,6 +501,7 @@ export function toolResultPanels(event: unknown): UiResultPanel[] {
   );
   const fileRefs = toolResultArtifacts(event);
   const toolName = text(data.toolName) || text(structuredOutput.toolName) || text(metadata.toolName);
+  const resultKind = firstText(data.resultKind, structuredOutput.resultKind, metadata.resultKind, data.kind, structuredOutput.kind);
   const url = firstText(metadata.finalUrl, metadata.url, structuredOutput.finalUrl, structuredOutput.url);
   const panel: UiResultPanel = {
     id: stablePanelId(data, structuredOutput, toolName),
@@ -478,7 +527,7 @@ export function toolResultPanels(event: unknown): UiResultPanel[] {
     fileRefs,
     findings
   };
-  panel.kind = resultPanelKind(toolName, panel);
+  panel.kind = resultPanelKind(toolName, panel, resultKind);
   return hasPanelContent(panel) && panel.kind !== "summary" ? [panel] : [];
 }
 
@@ -571,6 +620,7 @@ export function runDetailToResultPanels(detail: unknown): UiResultPanel[] {
         toolName: invocation.toolName,
         action: invocation.action,
         status: invocation.status,
+        resultKind: invocation.resultKind,
         resultSummary: invocation.resultSummary,
         resultJson: invocation.resultJson,
         structuredOutput: invocation.structuredOutput,

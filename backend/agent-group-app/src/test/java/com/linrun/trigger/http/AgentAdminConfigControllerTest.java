@@ -66,6 +66,11 @@ class AgentAdminConfigControllerTest {
                 .andExpect(jsonPath("$.data.snapshotType").value("agent-admin-runtime"))
                 .andExpect(jsonPath("$.data.sensitiveMasked").value(true));
 
+        mockMvc.perform(get("/api/v1/agent/admin/assembly"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.assemblyType").value("agent-client-runtime-assembly"))
+                .andExpect(jsonPath("$.data.assemblyPlan[0].stageKey").value("agent_client"));
+
         mockMvc.perform(get("/api/v1/agent/admin/export"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.configCount").isNumber());

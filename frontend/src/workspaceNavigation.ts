@@ -1,5 +1,11 @@
 import type { AgentMode, WorkspaceId } from "./workspaces";
-import { WORKSPACES, workspaceAgentMode, workspaceFromPath, workspacePath } from "./workspaces";
+import {
+  USER_WORKSPACES,
+  WORKSPACES,
+  workspaceAgentMode,
+  workspaceFromPath,
+  workspacePath
+} from "./workspaces";
 import {
   type WorkspaceRuntimeCoverage,
   type WorkspaceServiceProfile
@@ -38,12 +44,18 @@ export interface WorkspaceNavigationTarget {
   agentId: AgentMode;
 }
 
+export interface WorkspaceNavigationOptions {
+  includeInternal?: boolean;
+}
+
 export function buildWorkspaceNavigation(
   activeWorkspaceIdOrPath: string,
-  capabilities?: Record<string, unknown> | null
+  capabilities?: Record<string, unknown> | null,
+  options: WorkspaceNavigationOptions = {}
 ): WorkspaceNavigationItem[] {
   const activeWorkspaceId = normalizeActiveWorkspaceId(activeWorkspaceIdOrPath);
-  return WORKSPACES.map((workspace) => {
+  const workspaces = options.includeInternal ? WORKSPACES : USER_WORKSPACES;
+  return workspaces.map((workspace) => {
     const page = buildWorkspacePageModel(workspace.id, capabilities);
     const profile = page.profile;
     const coverage = page.runtimeCoverage;
@@ -74,10 +86,11 @@ export function buildWorkspaceNavigation(
 
 export function activeWorkspaceNavigationItem(
   activeWorkspaceIdOrPath: string,
-  capabilities?: Record<string, unknown> | null
+  capabilities?: Record<string, unknown> | null,
+  options: WorkspaceNavigationOptions = {}
 ): WorkspaceNavigationItem {
-  return buildWorkspaceNavigation(activeWorkspaceIdOrPath, capabilities)
-    .find((item) => item.active) || buildWorkspaceNavigation("agent", capabilities)[0];
+  return buildWorkspaceNavigation(activeWorkspaceIdOrPath, capabilities, options)
+    .find((item) => item.active) || buildWorkspaceNavigation("agent", capabilities, options)[0];
 }
 
 export function resolveWorkspaceNavigationTarget(workspaceId: string): WorkspaceNavigationTarget {

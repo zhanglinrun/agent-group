@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   OUTPUT_KIND_LABELS,
   TOOL_LABELS,
+  USER_WORKSPACES,
   WORKSPACE_PROMPTS,
   WORKSPACES,
+  isUserWorkspace,
   workspaceAgentMode,
   workspaceFromPath,
-  workspacePath
+  workspacePath,
+  userWorkspaceFromPath
 } from "./workspaces";
 
 describe("workspace routing model", () => {
@@ -19,6 +22,14 @@ describe("workspace routing model", () => {
     expect(workspaceFromPath("/workspace/mrag")).toBe("mrag");
     expect(workspaceFromPath("/workspace/trade")).toBe("trade");
     expect(workspaceFromPath("/missing")).toBe("agent");
+  });
+
+  it("keeps internal workspaces out of the user-facing product surface", () => {
+    expect(USER_WORKSPACES.map((workspace) => workspace.id)).toEqual(["agent", "image"]);
+    expect(isUserWorkspace("data")).toBe(false);
+    expect(isUserWorkspace("trade")).toBe(false);
+    expect(userWorkspaceFromPath("/workspace/data")).toBe("agent");
+    expect(userWorkspaceFromPath("/workspace/trade")).toBe("agent");
   });
 
   it("maps workspace ids back to paths and agent modes", () => {

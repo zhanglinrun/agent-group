@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isAdminRoute, WORKSPACE_ROUTES } from "./routes";
+import { INTERNAL_WORKSPACE_ROUTES, WORKSPACE_ROUTES, isAdminRoute } from "./routes";
 
 describe("app routes", () => {
   it("detects admin routes", () => {
@@ -9,10 +9,14 @@ describe("app routes", () => {
     expect(isAdminRoute("/workspace/image")).toBe(false);
   });
 
-  it("keeps workspace routes registered", () => {
+  it("keeps user workspace routes focused", () => {
+    expect(WORKSPACE_ROUTES).toEqual(["/", "/workspace/image"]);
+  });
+
+  it("keeps internal workspace routes registered", () => {
     expect(WORKSPACE_ROUTES).toContain("/workspace/image");
-    expect(WORKSPACE_ROUTES).toContain("/workspace/data");
-    expect(WORKSPACE_ROUTES).toContain("/workspace/mrag");
-    expect(WORKSPACE_ROUTES).toContain("/workspace/trade");
+    expect(INTERNAL_WORKSPACE_ROUTES).toContain("/workspace/data");
+    expect(INTERNAL_WORKSPACE_ROUTES).toContain("/workspace/mrag");
+    expect(INTERNAL_WORKSPACE_ROUTES).toContain("/workspace/trade");
   });
 });

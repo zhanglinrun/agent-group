@@ -15,6 +15,7 @@ import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
 import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputReader;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputView;
 import org.springframework.stereotype.Component;
@@ -254,6 +255,7 @@ public class AcademicReplayProjector {
         data.put("resultSummary", safe(invocation.getResultSummary()));
         data.put("resultJson", safe(invocation.getResultJson()));
         data.put("structuredOutput", outputView.getStructuredOutput());
+        data.put("resultKind", toolResultKind(invocation.getToolName(), outputView));
         data.put("artifactCount", outputView.getArtifactCount());
         data.put("fileRefs", outputView.getFileRefs().stream()
                 .map(AcademicToolFileRef::toMap)
@@ -265,6 +267,44 @@ public class AcademicReplayProjector {
         data.put("latencyMillis", invocation.getLatencyMillis() == null ? 0L : invocation.getLatencyMillis());
         data.put("errorMessage", safe(invocation.getErrorMessage()));
         return data;
+    }
+
+    private String toolResultKind(String toolName, AcademicToolOutputView outputView) {
+        String normalized = safe(toolName).toLowerCase();
+        if (normalized.contains(AcademicToolOutputNames.TRADE_AUDIT)) {
+            return "audit";
+        }
+        if (normalized.contains(AcademicToolOutputNames.CODE_INTERPRETER)
+                || normalized.contains(AcademicToolOutputNames.SCRIPT_RUNNER)) {
+            return "code";
+        }
+        if (normalized.contains(AcademicToolOutputNames.IMAGE_GENERATION)) {
+            return "image";
+        }
+        if (normalized.contains(AcademicToolOutputNames.MULTIMODAL_AGENT)) {
+            return "multimodal";
+        }
+        if (normalized.contains(AcademicToolOutputNames.DEEP_SEARCH) || normalized.contains("search")) {
+            return "search";
+        }
+        if (normalized.contains(AcademicToolOutputNames.WEB_FETCH) || normalized.contains("web")) {
+            return "web";
+        }
+        if (normalized.contains(AcademicToolOutputNames.NL2SQL)) {
+            return "sql";
+        }
+        if (normalized.contains(AcademicToolOutputNames.TABLE_RAG)) {
+            return "schema";
+        }
+        if (normalized.contains(AcademicToolOutputNames.DATA_ANALYSIS)) {
+            return "data";
+        }
+        if (normalized.contains(AcademicToolOutputNames.FILE_TOOL)
+                || (normalized.contains(AcademicToolOutputNames.REPORT_TOOL)
+                && outputView != null && !outputView.getFileRefs().isEmpty())) {
+            return "file";
+        }
+        return "summary";
     }
 
     private Map<String, Object> llm(AcademicLlmInvocation invocation) {
