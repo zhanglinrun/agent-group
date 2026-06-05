@@ -147,7 +147,12 @@ import {
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
 import { APP_ROUTES } from "./routes";
 import { AGENT_MODES } from "./agentModes";
-import { buildTradeAuditPrompt, summarizeTradeWorkspace, tradeOrderStatusLabel } from "./tradeWorkspace";
+import {
+  buildTradeAuditPrompt,
+  buildTradeHistoryAuditPrompt,
+  summarizeTradeWorkspace,
+  tradeOrderStatusLabel
+} from "./tradeWorkspace";
 import {
   DEFAULT_MCP_SERVER_FORM,
   buildMcpServerPayload
@@ -1287,15 +1292,8 @@ function BearDoctorAcademicApp() {
   const openWorkspaceHistoryItem = useCallback(async (item) => {
     const sessionId = item?.sessionId;
     if (item?.workspaceId === "trade" && !sessionId) {
-      const source = item.source && typeof item.source === "object" ? item.source : {};
       setSelectedAgent("trade-audit");
-      setInputMessage(buildTradeAuditPrompt({
-        ...source,
-        orderId: source.orderId || item.id,
-        productName: source.productName || item.title,
-        orderStatus: source.orderStatus || source.status || item.status,
-        marketType: source.marketType ?? (String(item.summary || "").includes("拼团") ? 1 : 0)
-      }));
+      setInputMessage(buildTradeHistoryAuditPrompt(item));
       setConnectionError("");
       return;
     }

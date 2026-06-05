@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildTradeAuditPrompt, summarizeTradeWorkspace, tradeOrderStatusLabel } from "./tradeWorkspace";
+import {
+  buildTradeAuditPrompt,
+  buildTradeHistoryAuditPrompt,
+  summarizeTradeWorkspace,
+  tradeOrderStatusLabel
+} from "./tradeWorkspace";
 
 describe("trade workspace summary", () => {
   it("marks paid group orders as waiting for settlement before quota grant", () => {
@@ -60,5 +65,23 @@ describe("trade workspace summary", () => {
     expect(prompt).toContain("T1001");
     expect(prompt).toContain("trade_audit");
     expect(prompt).toContain("Agent");
+  });
+
+  it("builds an agent audit prompt from a trade history item", () => {
+    const prompt = buildTradeHistoryAuditPrompt({
+      id: "O1001",
+      title: "Agent quota",
+      status: "PAY_SUCCESS",
+      summary: "\u62fc\u56e2\u8ba2\u5355",
+      source: {
+        teamId: "T1001",
+        payAmount: 19.9
+      }
+    });
+
+    expect(prompt).toContain("O1001");
+    expect(prompt).toContain("T1001");
+    expect(prompt).toContain("19.9");
+    expect(prompt).toContain("trade_audit");
   });
 });

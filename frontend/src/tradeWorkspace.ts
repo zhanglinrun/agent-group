@@ -21,6 +21,14 @@ export type TradeWorkspaceSummary = {
   consistencyHints: string[];
 };
 
+export type TradeHistoryAuditItem = {
+  id?: unknown;
+  title?: unknown;
+  status?: unknown;
+  summary?: unknown;
+  source?: Record<string, unknown> | null;
+};
+
 const WAITING_GROUP_STATUSES = new Set(["PAY_SUCCESS", "PAY_SUCCEEDED", "PAID", "WAIT_GROUP", "GROUP_WAITING"]);
 const SETTLED_GROUP_STATUSES = new Set(["GROUP_SETTLED", "DEAL_DONE"]);
 const DONE_STATUSES = new Set(["DEAL_DONE", "FINISHED", "COMPLETED"]);
@@ -33,6 +41,10 @@ function numberValue(value: unknown): number {
 
 function textValue(value: unknown): string {
   return String(value || "").trim();
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function orderStatus(order: Record<string, unknown>): string {
@@ -77,6 +89,18 @@ export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
     `订单类型：${marketType}`,
     "请优先调用 trade_audit 读取后端事实，区分支付成功、成团、额度到账、退款回滚和 Agent 消耗流水，并给出结论和下一步处理建议。"
   ].filter(Boolean).join("\n");
+}
+
+export function buildTradeHistoryAuditPrompt(item: TradeHistoryAuditItem | null | undefined): string {
+  const historyItem = recordValue(item);
+  const source = recordValue(historyItem.source);
+  return buildTradeAuditPrompt({
+    ...source,
+    orderId: source.orderId || historyItem.id,
+    productName: source.productName || historyItem.title,
+    orderStatus: source.orderStatus || source.status || historyItem.status,
+    marketType: source.marketType ?? (textValue(historyItem.summary).includes("\u62fc\u56e2") ? 1 : 0)
+  });
 }
 
 export function summarizeTradeWorkspace(input: TradeWorkspaceInput): TradeWorkspaceSummary {
