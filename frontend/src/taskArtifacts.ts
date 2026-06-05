@@ -10,6 +10,9 @@ export type UiArtifact = {
   downloadUrl: string;
   previewUrl?: string;
   contentType?: string;
+  toolName?: string;
+  toolInvocationId?: string;
+  toolCallId?: string;
 };
 
 export type UiResultPanel = {
@@ -251,7 +254,10 @@ export function toUiArtifact(value: unknown): UiArtifact {
     content: text(data.content) || fileName,
     downloadUrl,
     previewUrl,
-    contentType: text(data.contentType) || text(data.mimeType)
+    contentType: text(data.contentType) || text(data.mimeType),
+    toolName: firstText(data.toolName, data.sourceName),
+    toolInvocationId: firstText(data.toolInvocationId, data.invocationId),
+    toolCallId: text(data.toolCallId)
   };
 }
 
@@ -259,10 +265,20 @@ export function toolResultArtifacts(event: unknown): UiArtifact[] {
   const payload = asObject(event);
   const data = asObject(payload.data ?? payload);
   const structuredOutput = unwrapToolOutput(firstObject(data.structuredOutput, data.resultJson, data));
+  const toolName = firstText(data.toolName, structuredOutput.toolName);
+  const toolInvocationId = firstText(data.toolInvocationId, data.invocationId, structuredOutput.toolInvocationId, structuredOutput.invocationId);
+  const toolCallId = firstText(data.toolCallId, structuredOutput.toolCallId);
+  const withSource = (value: unknown): UnknownMap => ({
+    toolName,
+    toolInvocationId,
+    toolCallId,
+    ...asObject(value)
+  });
   const refs = [
-    ...asArray(data.fileRefs),
-    ...asArray(data.artifactRefs),
-    ...asArray(structuredOutput.fileRefs)
+    ...asArray(data.fileRefs).map(withSource),
+    ...asArray(data.artifactRefs).map(withSource),
+    ...asArray(structuredOutput.fileRefs).map(withSource),
+    ...asArray(structuredOutput.artifactRefs).map(withSource)
   ];
   return refs.map(toUiArtifact).filter((artifact) => Boolean(artifact.fileName || artifact.downloadUrl));
 }

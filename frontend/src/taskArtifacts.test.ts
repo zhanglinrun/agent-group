@@ -31,6 +31,9 @@ describe("task artifact projection", () => {
     const artifacts = toolResultArtifacts({
       event: "tool_result",
       data: {
+        invocationId: "tool-1",
+        toolCallId: "call-1",
+        toolName: "report_tool",
         fileRefs: [{ fileId: "file-1", fileName: "chart.png", downloadUrl: "/files/chart.png" }],
         structuredOutput: {
           fileRefs: [{ fileId: "file-2", fileName: "analysis.csv", downloadUrl: "/files/analysis.csv" }]
@@ -39,6 +42,38 @@ describe("task artifact projection", () => {
     });
 
     expect(artifacts.map((item) => item.fileName)).toEqual(["chart.png", "analysis.csv"]);
+    expect(artifacts[0]).toMatchObject({
+      toolName: "report_tool",
+      toolInvocationId: "tool-1",
+      toolCallId: "call-1"
+    });
+  });
+
+  it("keeps explicit artifact source when file refs already include it", () => {
+    const [artifact] = toolResultArtifacts({
+      event: "tool_result",
+      data: {
+        invocationId: "parent-tool",
+        toolName: "report_tool",
+        structuredOutput: {
+          artifactRefs: [
+            {
+              artifactId: "artifact-1",
+              fileName: "audit.md",
+              downloadUrl: "/files/audit.md",
+              toolName: "trade_audit",
+              toolInvocationId: "audit-tool"
+            }
+          ]
+        }
+      }
+    });
+
+    expect(artifact).toMatchObject({
+      toolName: "trade_audit",
+      toolInvocationId: "audit-tool",
+      fileName: "audit.md"
+    });
   });
 
   it("deduplicates artifacts by stable id", () => {
