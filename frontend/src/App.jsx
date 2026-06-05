@@ -75,13 +75,13 @@ import {
 import { buildPlannerHistory } from "./plannerHistory";
 import { buildAgentRunDigest } from "./agentRunDigest";
 import {
+  eventArtifacts,
   mergeArtifacts,
   mergeResultPanels,
   replayEventsToArtifacts,
   replayEventsToResultPanels,
   runDetailToResultPanels,
   toUiArtifact,
-  toolResultArtifacts,
   toolResultPanels
 } from "./taskArtifacts";
 import { normalizeFileUrlForBrowser } from "./fileUrl";
@@ -1185,7 +1185,7 @@ function BearDoctorAcademicApp() {
     }
     if (["run_start", "plan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
-      const artifacts = event.event === "tool_result" ? toolResultArtifacts(event) : [];
+      const artifacts = eventArtifacts(event);
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
       updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,

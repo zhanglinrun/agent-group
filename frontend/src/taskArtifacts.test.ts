@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  eventArtifacts,
   mergeArtifacts,
   mergeResultPanels,
   replayEventsToArtifacts,
@@ -76,6 +77,31 @@ describe("task artifact projection", () => {
     });
   });
 
+  it("extracts artifact refs from non-tool run events", () => {
+    const artifacts = eventArtifacts({
+      event: "run_done",
+      data: {
+        invocationId: "report-1",
+        toolName: "report_tool",
+        artifactRefs: [
+          { artifactId: "artifact-1", fileName: "final-report.md", downloadUrl: "/files/final-report.md" }
+        ],
+        resultMap: JSON.stringify({
+          artifactRefs: [
+            { artifactId: "artifact-1", fileName: "final-report.md", downloadUrl: "/files/final-report.md" }
+          ]
+        })
+      }
+    });
+
+    expect(artifacts).toHaveLength(1);
+    expect(artifacts[0]).toMatchObject({
+      fileName: "final-report.md",
+      toolName: "report_tool",
+      toolInvocationId: "report-1"
+    });
+  });
+
   it("deduplicates artifacts by stable id", () => {
     const first = toUiArtifact({ fileId: "file-1", fileName: "report.md", downloadUrl: "/files/report.md" });
     const second = toUiArtifact({ fileId: "file-1", fileName: "report.md", downloadUrl: "/files/report.md" });
@@ -101,6 +127,26 @@ describe("task artifact projection", () => {
     ]);
 
     expect(artifacts.map((item) => item.fileName)).toEqual(["report.md", "chart.png"]);
+  });
+
+  it("replays artifact refs carried by run events", () => {
+    const artifacts = replayEventsToArtifacts([
+      {
+        events: [
+          {
+            event: "run_done",
+            data: {
+              toolName: "report_tool",
+              artifactRefs: [
+                { artifactId: "artifact-1", fileName: "run-report.md", downloadUrl: "/files/run-report.md" }
+              ]
+            }
+          }
+        ]
+      }
+    ]);
+
+    expect(artifacts.map((item) => item.fileName)).toEqual(["run-report.md"]);
   });
 
   it("projects data analysis structured output into result panels", () => {

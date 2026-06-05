@@ -140,6 +140,43 @@ function firstArray(...values: unknown[]): unknown[] {
   return [];
 }
 
+function artifactRefsFrom(data: UnknownMap, structuredOutput: UnknownMap): UiArtifact[] {
+  const resultMap = parseJsonObject(data.resultMap);
+  const nestedResultMap = parseJsonObject(resultMap.resultMap);
+  const toolName = firstText(data.toolName, resultMap.toolName, nestedResultMap.toolName, structuredOutput.toolName);
+  const toolInvocationId = firstText(
+    data.toolInvocationId,
+    data.invocationId,
+    resultMap.toolInvocationId,
+    resultMap.invocationId,
+    nestedResultMap.toolInvocationId,
+    nestedResultMap.invocationId,
+    structuredOutput.toolInvocationId,
+    structuredOutput.invocationId
+  );
+  const toolCallId = firstText(data.toolCallId, resultMap.toolCallId, nestedResultMap.toolCallId, structuredOutput.toolCallId);
+  const withSource = (value: unknown): UnknownMap => ({
+    toolName,
+    toolInvocationId,
+    toolCallId,
+    ...asObject(value)
+  });
+  const refs = [
+    ...asArray(data.fileRefs).map(withSource),
+    ...asArray(data.artifactRefs).map(withSource),
+    ...asArray(resultMap.fileRefs).map(withSource),
+    ...asArray(resultMap.artifactRefs).map(withSource),
+    ...asArray(nestedResultMap.fileRefs).map(withSource),
+    ...asArray(nestedResultMap.artifactRefs).map(withSource),
+    ...asArray(structuredOutput.fileRefs).map(withSource),
+    ...asArray(structuredOutput.artifactRefs).map(withSource)
+  ];
+  return mergeArtifacts(
+    [],
+    refs.map(toUiArtifact).filter((artifact) => Boolean(artifact.fileName || artifact.downloadUrl || artifact.previewUrl))
+  );
+}
+
 function columnsFromRows(rows: UnknownMap[]): string[] {
   const result = new Set<string>();
   for (const row of rows) {
@@ -265,22 +302,21 @@ export function toolResultArtifacts(event: unknown): UiArtifact[] {
   const payload = asObject(event);
   const data = asObject(payload.data ?? payload);
   const structuredOutput = unwrapToolOutput(firstObject(data.structuredOutput, data.resultJson, data));
-  const toolName = firstText(data.toolName, structuredOutput.toolName);
-  const toolInvocationId = firstText(data.toolInvocationId, data.invocationId, structuredOutput.toolInvocationId, structuredOutput.invocationId);
-  const toolCallId = firstText(data.toolCallId, structuredOutput.toolCallId);
-  const withSource = (value: unknown): UnknownMap => ({
-    toolName,
-    toolInvocationId,
-    toolCallId,
-    ...asObject(value)
-  });
-  const refs = [
-    ...asArray(data.fileRefs).map(withSource),
-    ...asArray(data.artifactRefs).map(withSource),
-    ...asArray(structuredOutput.fileRefs).map(withSource),
-    ...asArray(structuredOutput.artifactRefs).map(withSource)
-  ];
-  return refs.map(toUiArtifact).filter((artifact) => Boolean(artifact.fileName || artifact.downloadUrl));
+  return artifactRefsFrom(data, structuredOutput);
+}
+
+export function eventArtifacts(event: unknown): UiArtifact[] {
+  const payload = asObject(event);
+  const eventName = text(payload.event);
+  const data = asObject(payload.data ?? payload);
+  if (eventName === "artifact_delta") {
+    return mergeArtifacts([], [toUiArtifact(data)]);
+  }
+  if (eventName === "tool_result") {
+    return toolResultArtifacts(event);
+  }
+  const structuredOutput = unwrapToolOutput(firstObject(data.structuredOutput, data.resultJson, data.resultMap, data.result));
+  return artifactRefsFrom(data, structuredOutput);
 }
 
 export function toolResultPanels(event: unknown): UiResultPanel[] {
@@ -368,9 +404,10 @@ export function replayEventsToArtifacts(replays: unknown[] = []): UiArtifact[] {
       const item = asObject(event);
       if (item.event === "artifact_delta") {
         result.push(toUiArtifact(item.data));
-      }
-      if (item.event === "tool_result") {
+      } else if (item.event === "tool_result") {
         result.push(...toolResultArtifacts(item));
+      } else {
+        result.push(...eventArtifacts(item));
       }
     }
   }
