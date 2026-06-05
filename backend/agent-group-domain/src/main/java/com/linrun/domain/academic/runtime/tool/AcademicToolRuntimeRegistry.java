@@ -6,9 +6,12 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutp
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class AcademicToolRuntimeRegistry {
@@ -55,6 +58,39 @@ public class AcademicToolRuntimeRegistry {
                 .toList();
     }
 
+    public synchronized AcademicToolRuntimeSummary runtimeSummary() {
+        return runtimeSummary(List.of());
+    }
+
+    public synchronized AcademicToolRuntimeSummary runtimeSummary(Collection<String> expectedToolNames) {
+        List<AcademicToolDefinition> definitions = listDefinitions();
+        List<String> registeredToolNames = definitions.stream()
+                .map(AcademicToolDefinition::getName)
+                .toList();
+        List<String> enabledToolNames = definitions.stream()
+                .filter(AcademicToolDefinition::isEnabled)
+                .map(AcademicToolDefinition::getName)
+                .toList();
+        List<String> disabledToolNames = definitions.stream()
+                .filter(definition -> !definition.isEnabled())
+                .map(AcademicToolDefinition::getName)
+                .toList();
+        Set<String> enabledToolNameSet = new LinkedHashSet<>(enabledToolNames);
+        List<String> missingExpectedToolNames = sanitizeExpectedToolNames(expectedToolNames).stream()
+                .filter(toolName -> !enabledToolNameSet.contains(toolName))
+                .toList();
+        return new AcademicToolRuntimeSummary(
+                definitions.size(),
+                enabledToolNames.size(),
+                disabledToolNames.size(),
+                registeredToolNames,
+                enabledToolNames,
+                disabledToolNames,
+                missingExpectedToolNames,
+                countBy(definitions, AcademicToolDefinition::getCategory),
+                countBy(definitions, AcademicToolDefinition::getSource));
+    }
+
     public AcademicToolCallResult call(AcademicToolCallCommand command) {
         long startedAt = System.nanoTime();
         RegisteredTool tool = resolve(command == null ? "" : command.getToolName());
@@ -83,6 +119,28 @@ public class AcademicToolRuntimeRegistry {
 
     public synchronized List<String> toolNames() {
         return new ArrayList<>(tools.keySet());
+    }
+
+    private List<String> sanitizeExpectedToolNames(Collection<String> expectedToolNames) {
+        if (expectedToolNames == null || expectedToolNames.isEmpty()) {
+            return List.of();
+        }
+        return expectedToolNames.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
+    }
+
+    private Map<String, Integer> countBy(List<AcademicToolDefinition> definitions,
+                                         Function<AcademicToolDefinition, String> classifier) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (AcademicToolDefinition definition : definitions) {
+            String key = classifier.apply(definition);
+            String safeKey = StringUtils.hasText(key) ? key.trim() : "unknown";
+            counts.put(safeKey, counts.getOrDefault(safeKey, 0) + 1);
+        }
+        return counts;
     }
 
     private synchronized RegisteredTool resolve(String toolName) {

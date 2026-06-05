@@ -121,6 +121,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals("ready", toolRuntime.get("status"));
         assertTrue(((List<?>) toolRuntime.get("evidence")).contains("data_analysis"));
         assertTrue(((List<?>) toolRuntime.get("evidence")).contains("code_interpreter"));
+        assertTrue(((List<?>) toolRuntime.get("evidence"))
+                .contains("AcademicToolRuntimeSummary 统计 total/enabled/disabled/category/source"));
         assertTrue(((List<?>) toolRuntime.get("runtimeEnabledTools")).contains("data_analysis"));
         assertTrue(((List<?>) toolRuntime.get("missingRuntimeTools")).contains("code_interpreter"));
         assertTrue(((List<?>) toolRuntime.get("gaps")).isEmpty());

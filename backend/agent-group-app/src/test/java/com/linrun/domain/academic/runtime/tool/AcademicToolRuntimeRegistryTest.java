@@ -76,6 +76,27 @@ class AcademicToolRuntimeRegistryTest {
         assertEquals(List.of("A3001"), result.getArtifactIds());
     }
 
+    @Test
+    void shouldSummarizeRuntimeCoverageByStatusCategoryAndSource() {
+        AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
+        registry.register(definition("data_analysis", true), command -> Map.of("ok", true));
+        registry.register(definition("code_interpreter", false), command -> Map.of("ok", true));
+
+        AcademicToolRuntimeSummary summary = registry.runtimeSummary(List.of(
+                "data_analysis", "code_interpreter", "report_tool", "data_analysis", ""));
+
+        assertEquals(2, summary.totalCount());
+        assertEquals(1, summary.enabledCount());
+        assertEquals(1, summary.disabledCount());
+        assertEquals(List.of("data_analysis", "code_interpreter"), summary.registeredToolNames());
+        assertEquals(List.of("data_analysis"), summary.enabledToolNames());
+        assertEquals(List.of("code_interpreter"), summary.disabledToolNames());
+        assertEquals(List.of("code_interpreter", "report_tool"), summary.missingExpectedToolNames());
+        assertEquals(2, summary.categoryCounts().get("test"));
+        assertEquals(2, summary.sourceCounts().get("unit"));
+        assertFalse(summary.coversAllExpectedTools());
+    }
+
     private AcademicToolDefinition definition(String name, boolean enabled) {
         return AcademicToolDefinition.builder(name)
                 .description("test tool")

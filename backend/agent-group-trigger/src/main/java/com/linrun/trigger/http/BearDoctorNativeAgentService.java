@@ -610,7 +610,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "工具运行时",
                         "ready",
                         "统一工具注册、结构化输出、产物登记和运行账本已接入，外部端口未配置时按可用工具降级。",
-                        implementedTools,
+                        mergeEvidence(implementedTools, List.of("AcademicToolRuntimeSummary 统计 total/enabled/disabled/category/source")),
                         missingRuntimeTools
                 ),
                 capabilityItem(
@@ -668,6 +668,17 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         List.of()
                 )
         );
+    }
+
+    private List<String> mergeEvidence(List<String> primary, List<String> additional) {
+        List<String> evidence = new ArrayList<>();
+        if (primary != null) {
+            evidence.addAll(primary);
+        }
+        if (additional != null) {
+            evidence.addAll(additional);
+        }
+        return evidence;
     }
 
     private List<Map<String, Object>> tradeQuotaSettlementRules() {
