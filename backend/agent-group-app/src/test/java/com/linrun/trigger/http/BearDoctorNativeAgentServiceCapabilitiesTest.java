@@ -107,9 +107,16 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals("ready", toolReadiness(readiness, "data_analysis").get("status"));
         assertEquals("missing", toolReadiness(readiness, "code_interpreter").get("status"));
         assertEquals("external port is not configured", toolReadiness(readiness, "code_interpreter").get("message"));
+        assertTrue(((List<?>) toolReadiness(readiness, "code_interpreter").get("inputFields")).contains("task"));
+        assertTrue(((List<?>) toolReadiness(readiness, "code_interpreter").get("outputKinds")).contains("code"));
+        assertTrue(((List<?>) toolReadiness(readiness, "code_interpreter").get("workspaces")).contains("agent"));
 
         assertNotNull(capabilities.get("workspaceProfiles"));
         List<Map<String, Object>> workspaceProfiles = (List<Map<String, Object>>) capabilities.get("workspaceProfiles");
+        Map<String, Object> agentWorkspace = workspace(workspaceProfiles, "agent");
+        assertTrue(((List<?>) agentWorkspace.get("primaryTools")).contains("code_interpreter"));
+        assertTrue(((List<?>) agentWorkspace.get("missingTools")).contains("code_interpreter"));
+
         Map<String, Object> dataWorkspace = workspaceProfiles.stream()
                 .filter(item -> "data".equals(item.get("id")))
                 .findFirst()
@@ -204,8 +211,15 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         List<Map<String, Object>> readiness = (List<Map<String, Object>>) capabilities.get("toolRuntimeReadiness");
         assertEquals(implementedTools.size(), readiness.size());
         assertTrue(readiness.stream().allMatch(item -> "ready".equals(item.get("status"))));
+        assertTrue(((List<?>) toolReadiness(readiness, "code_interpreter").get("workspaces")).contains("agent"));
+        assertTrue(((List<?>) toolReadiness(readiness, "data_analysis").get("inputFields")).contains("task"));
+        assertTrue(((List<?>) toolReadiness(readiness, "image_generation").get("outputKinds")).contains("image"));
 
         List<Map<String, Object>> workspaceProfiles = (List<Map<String, Object>>) capabilities.get("workspaceProfiles");
+        Map<String, Object> agentWorkspace = workspace(workspaceProfiles, "agent");
+        assertEquals("ready", agentWorkspace.get("status"));
+        assertTrue(((List<?>) agentWorkspace.get("availableTools")).contains("code_interpreter"));
+
         Map<String, Object> dataWorkspace = workspace(workspaceProfiles, "data");
         assertEquals("ready", dataWorkspace.get("status"));
         assertTrue(((List<?>) dataWorkspace.get("missingTools")).isEmpty());

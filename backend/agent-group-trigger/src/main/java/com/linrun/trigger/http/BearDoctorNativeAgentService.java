@@ -368,10 +368,10 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         result.put("quotaMode", "spring-ai-usage-with-estimated-fallback");
         result.put("apiDocs", "/swagger-ui/index.html");
         result.put("agentExecutionModes", agentExecutionModes());
-        result.put("toolRuntimeReadiness", toolRuntimeReadiness(academicTools));
-        result.put("capabilityMatrix", capabilityMatrix(academicTools, manualSkillCount, resolvedSkillsDirectory, agentAdminStatistics));
         List<Map<String, Object>> workspaceProfiles = workspaceProfiles(academicTools);
         result.put("workspaceProfiles", workspaceProfiles);
+        result.put("toolRuntimeReadiness", toolRuntimeReadiness(academicTools, workspaceProfiles));
+        result.put("capabilityMatrix", capabilityMatrix(academicTools, manualSkillCount, resolvedSkillsDirectory, agentAdminStatistics));
         result.put("toolCatalog", toolCatalog(academicTools, workspaceProfiles));
         return result;
     }
@@ -453,7 +453,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         List<String> toolNames = toolNames(academicTools);
         return List.of(
                 workspaceProfile("agent", "/", "chat", "file",
-                        List.of("planning", "web_fetch", "deep_search", "report_tool"),
+                        List.of("planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"),
                         List.of("answer", "reference", "artifact"), "", "", toolNames),
                 workspaceProfile("image", "/workspace/image", "image", "file-or-image",
                         List.of("image_generation", "multimodal_agent", "file_tool"),
@@ -643,7 +643,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         );
     }
 
-    private List<Map<String, Object>> toolRuntimeReadiness(List<Map<String, Object>> academicTools) {
+    private List<Map<String, Object>> toolRuntimeReadiness(List<Map<String, Object>> academicTools,
+                                                           List<Map<String, Object>> workspaceProfiles) {
         List<String> availableToolNames = toolNames(academicTools);
         Map<String, Map<String, Object>> byName = new LinkedHashMap<>();
         for (Map<String, Object> tool : academicTools == null ? List.<Map<String, Object>>of() : academicTools) {
@@ -662,10 +663,63 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                     item.put("category", String.valueOf(source.getOrDefault("category", categoryForTool(toolName))));
                     item.put("source", String.valueOf(source.getOrDefault("source", ready ? "runtime" : "port")));
                     item.put("requiredArguments", source.getOrDefault("requiredArguments", List.of()));
+                    item.put("inputFields", source.getOrDefault("inputFields", fallbackInputFields(toolName)));
+                    item.put("outputKinds", outputKindsForTool(toolName));
+                    item.put("workspaces", workspacesUsingTool(toolName, workspaceProfiles));
                     item.put("message", ready ? "registered" : "external port is not configured");
                     item.put("hint", ready ? "" : toolRuntimeHint(toolName));
                     return item;
                 })
+                .toList();
+    }
+
+    private List<String> fallbackInputFields(String toolName) {
+        return switch (toolName) {
+            case AcademicToolOutputNames.WEB_FETCH -> List.of("url", "query");
+            case AcademicToolOutputNames.DATA_ANALYSIS -> List.of("task", "rows", "columns");
+            case AcademicToolOutputNames.REPORT_TOOL -> List.of("title", "content", "format");
+            case AcademicToolOutputNames.PLANNING -> List.of("goal", "context");
+            case AcademicToolOutputNames.CODE_INTERPRETER -> List.of("task", "language", "code");
+            case AcademicToolOutputNames.IMAGE_GENERATION -> List.of("prompt", "size", "mode");
+            case AcademicToolOutputNames.MULTIMODAL_AGENT -> List.of("question", "imageUrls", "fileIds");
+            case AcademicToolOutputNames.DEEP_SEARCH -> List.of("query", "scope");
+            case AcademicToolOutputNames.FILE_TOOL -> List.of("action", "fileId", "fileName");
+            case AcademicToolOutputNames.SCRIPT_RUNNER -> List.of("scriptName", "runtime", "arguments");
+            case AcademicToolOutputNames.TABLE_RAG -> List.of("query", "modelCodeList");
+            case AcademicToolOutputNames.NL2SQL -> List.of("query", "schemaInfo");
+            case AcademicToolOutputNames.TRADE_AUDIT -> List.of("question", "orderId", "userId");
+            default -> List.of();
+        };
+    }
+
+    private List<String> outputKindsForTool(String toolName) {
+        return switch (toolName) {
+            case AcademicToolOutputNames.WEB_FETCH -> List.of("web", "file");
+            case AcademicToolOutputNames.DATA_ANALYSIS -> List.of("table", "summary");
+            case AcademicToolOutputNames.REPORT_TOOL -> List.of("report", "artifact");
+            case AcademicToolOutputNames.PLANNING -> List.of("plan", "flow");
+            case AcademicToolOutputNames.CODE_INTERPRETER -> List.of("code", "file", "summary");
+            case AcademicToolOutputNames.IMAGE_GENERATION -> List.of("image", "artifact");
+            case AcademicToolOutputNames.MULTIMODAL_AGENT -> List.of("multimodal", "evidence");
+            case AcademicToolOutputNames.DEEP_SEARCH -> List.of("answer", "reference");
+            case AcademicToolOutputNames.FILE_TOOL -> List.of("file", "content");
+            case AcademicToolOutputNames.SCRIPT_RUNNER -> List.of("script", "artifact");
+            case AcademicToolOutputNames.TABLE_RAG -> List.of("schema", "evidence");
+            case AcademicToolOutputNames.NL2SQL -> List.of("sql", "table");
+            case AcademicToolOutputNames.TRADE_AUDIT -> List.of("order", "quota", "audit");
+            default -> List.of("result");
+        };
+    }
+
+    private List<String> workspacesUsingTool(String toolName, List<Map<String, Object>> workspaceProfiles) {
+        if (!StringUtils.hasText(toolName) || workspaceProfiles == null) {
+            return List.of();
+        }
+        return workspaceProfiles.stream()
+                .filter(profile -> profile.get("primaryTools") instanceof List<?> tools
+                        && tools.stream().map(String::valueOf).anyMatch(toolName::equals))
+                .map(profile -> String.valueOf(profile.getOrDefault("id", "")).trim())
+                .filter(StringUtils::hasText)
                 .toList();
     }
 

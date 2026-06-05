@@ -2727,17 +2727,21 @@ function BearDoctorAcademicApp() {
                 )}
                 {visibleToolReadiness.length > 0 && (
                   <div className="agent-tool-readiness">
-                    {visibleToolReadiness.map((tool) => (
-                      <span
-                        key={tool.name}
-                        className={tool.status === "ready" ? "ready" : "missing"}
-                        title={tool.hint || tool.message || ""}
-                      >
-                        <b>{TOOL_LABELS[tool.name] || tool.name}</b>
-                        <em>{tool.status}</em>
-                        {tool.status !== "ready" && tool.hint && <small>{tool.hint}</small>}
-                      </span>
-                    ))}
+                    {visibleToolReadiness.map((tool) => {
+                      const meta = toolReadinessMeta(tool);
+                      return (
+                        <span
+                          key={tool.name}
+                          className={tool.status === "ready" ? "ready" : "missing"}
+                          title={[tool.hint || tool.message || "", meta].filter(Boolean).join("\n")}
+                        >
+                          <b>{TOOL_LABELS[tool.name] || tool.name}</b>
+                          <em>{tool.status}</em>
+                          {meta && <small>{meta}</small>}
+                          {tool.status !== "ready" && tool.hint && <small className="tool-runtime-hint">{tool.hint}</small>}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
                 <CapabilityMatrixPanel items={visibleCapabilityMatrix} executionModes={visibleExecutionModes} />
@@ -2884,6 +2888,28 @@ function BearDoctorAcademicApp() {
 function formatWorkspaceHistoryTime(value = "") {
   const text = String(value || "").replace("T", " ").trim();
   return text.length > 19 ? text.slice(0, 19) : text;
+}
+
+function compactToolList(items = [], limit = 2) {
+  const cleanItems = (items || []).filter(Boolean);
+  const visible = cleanItems.slice(0, limit);
+  if (visible.length === 0) return "";
+  const more = Math.max(0, cleanItems.length - visible.length);
+  return `${visible.join("/")}${more ? ` +${more}` : ""}`;
+}
+
+function toolReadinessMeta(tool = {}) {
+  const inputText = compactToolList(
+    tool.requiredArguments?.length ? tool.requiredArguments : tool.inputFields,
+    2
+  );
+  const outputText = compactToolList(tool.outputKinds, 2);
+  const workspaceText = compactToolList(tool.workspaces, 2);
+  return [
+    inputText ? `入参 ${inputText}` : "",
+    outputText ? `输出 ${outputText}` : "",
+    workspaceText ? `工作区 ${workspaceText}` : ""
+  ].filter(Boolean).join(" · ");
 }
 
 function CapabilityMatrixPanel({ items = [], executionModes = [] }) {

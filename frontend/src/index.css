@@ -5133,6 +5133,7 @@ body {
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   font-size: 12px;
 }
@@ -5164,6 +5165,11 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bear-doctor-app .agent-tool-readiness small.tool-runtime-hint {
+  flex: 1 1 100%;
+  max-width: 320px;
 }
 
 .bear-doctor-app .agent-capability-matrix {

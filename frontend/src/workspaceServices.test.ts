@@ -21,6 +21,7 @@ import {
 
 describe("workspace service profiles", () => {
   it("maps product workspaces to stable task types and tools", () => {
+    expect(workspaceServiceProfile("agent").primaryTools).toContain("code_interpreter");
     expect(workspaceServiceProfile("image").taskType).toBe("image");
     expect(workspaceServiceProfile("image").runEndpoint).toBe("/api/v1/academic/workspace/image/generate");
     expect(workspaceServiceProfile("data").primaryTools).toContain("nl2sql");
@@ -220,8 +221,29 @@ describe("workspace service profiles", () => {
   it("normalizes visible tool runtime readiness", () => {
     expect(visibleToolRuntimeReadiness({
       toolRuntimeReadiness: [
-        { name: "data_analysis", status: "ready", category: "data", source: "runtime", message: "registered" },
-        { name: "code_interpreter", status: "missing", category: "code", source: "port", message: "external port is not configured", hint: "启动工具服务" },
+        {
+          name: "data_analysis",
+          status: "ready",
+          category: "data",
+          source: "runtime",
+          requiredArguments: ["task"],
+          inputFields: ["task", "rows", "columns"],
+          outputKinds: ["table", "summary"],
+          workspaces: ["data", "trade"],
+          message: "registered"
+        },
+        {
+          name: "code_interpreter",
+          status: "missing",
+          category: "code",
+          source: "port",
+          requiredArguments: ["task"],
+          inputFields: ["task", "language", "code"],
+          outputKinds: ["code", "file"],
+          workspaces: ["agent"],
+          message: "external port is not configured",
+          hint: "启动工具服务"
+        },
         { name: "", status: "ready" }
       ]
     }, 2)).toEqual([
@@ -230,6 +252,10 @@ describe("workspace service profiles", () => {
         status: "ready",
         category: "data",
         source: "runtime",
+        requiredArguments: ["task"],
+        inputFields: ["task", "rows", "columns"],
+        outputKinds: ["table", "summary"],
+        workspaces: ["data", "trade"],
         message: "registered",
         hint: ""
       },
@@ -238,6 +264,10 @@ describe("workspace service profiles", () => {
         status: "missing",
         category: "code",
         source: "port",
+        requiredArguments: ["task"],
+        inputFields: ["task", "language", "code"],
+        outputKinds: ["code", "file"],
+        workspaces: ["agent"],
         message: "external port is not configured",
         hint: "启动工具服务"
       }

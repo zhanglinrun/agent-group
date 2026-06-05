@@ -224,7 +224,19 @@ public class AcademicToolCallbackFactory {
         result.put("category", definition.getCategory());
         result.put("source", definition.getSource());
         result.put("requiredArguments", definition.getRequiredArguments());
+        result.put("inputFields", inputFields(definition.getInputSchema()));
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> inputFields(Map<String, Object> inputSchema) {
+        if (inputSchema == null || !(inputSchema.get("properties") instanceof Map<?, ?> properties)) {
+            return List.of();
+        }
+        return properties.keySet().stream()
+                .map(String::valueOf)
+                .filter(StringUtils::hasText)
+                .toList();
     }
 
     private static List<String> categories(boolean webAccessEnabled) {

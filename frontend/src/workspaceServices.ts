@@ -96,6 +96,10 @@ export interface ToolRuntimeReadiness {
   status: string;
   category: string;
   source: string;
+  requiredArguments: string[];
+  inputFields: string[];
+  outputKinds: string[];
+  workspaces: string[];
   message: string;
   hint: string;
 }
@@ -152,7 +156,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     taskType: "chat",
     title: "通用 Agent",
     summary: "统一承载聊天、文件问答、深度研究、PPT 和技能任务。",
-    primaryTools: ["planning", "web_fetch", "deep_search", "report_tool"],
+    primaryTools: ["planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["answer", "reference", "artifact"],
     runEndpoint: "/api/v1/academic/stream",
@@ -264,6 +268,10 @@ export function visibleToolRuntimeReadiness(
         status: String(record.status || "missing"),
         category: String(record.category || ""),
         source: String(record.source || ""),
+        requiredArguments: stringList(record.requiredArguments),
+        inputFields: stringList(record.inputFields),
+        outputKinds: stringList(record.outputKinds),
+        workspaces: stringList(record.workspaces),
         message: String(record.message || ""),
         hint: String(record.hint || "")
       };
