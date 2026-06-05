@@ -87,6 +87,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals(true, dynamicReplan.get("enabled"));
         assertTrue(((List<?>) dynamicReplan.get("executionModes")).contains("deep"));
         assertTrue(((List<?>) dynamicReplan.get("streamEvents")).contains("flow_delta:REPLANNED"));
+        assertTrue(((List<?>) multiAgent.get("evidence"))
+                .contains("AcademicReActExecutionService 记录 thought/action/observation"));
         assertTrue(((List<?>) multiAgent.get("evidence")).contains("plan_delta 支持 replan 计划版本"));
 
         Map<String, Object> mcp = matrix.stream()

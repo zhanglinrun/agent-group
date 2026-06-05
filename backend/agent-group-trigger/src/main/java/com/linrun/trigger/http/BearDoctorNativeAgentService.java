@@ -597,7 +597,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "多智能体协同",
                         "ready",
                         "ReAct、Plan Execute、Flow 阶段推进、动态重规划和会话执行记忆已接入主链路。",
-                        List.of("chat/file/skills 使用 ReAct 链路", "deep 使用 Plan Execute", "实时流和回放输出 plan_delta/flow_delta",
+                        List.of("chat/file/skills 使用 ReAct 链路", "AcademicReActExecutionService 记录 thought/action/observation",
+                                "deep 使用 Plan Execute", "实时流和回放输出 plan_delta/flow_delta",
                                 "flow_delta 支持 REPLANNED 状态", "plan_delta 支持 replan 计划版本", "同会话历史执行记忆会注入下一轮上下文"),
                         List.of()
                 ),
