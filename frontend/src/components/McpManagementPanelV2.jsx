@@ -1,6 +1,6 @@
 import { Activity, Check, Download, Globe2, Loader2, Play, Plus, RotateCcw, Settings, Upload } from "lucide-react";
 import { mcpCacheStatusText } from "../mcpCacheStatus";
-import { buildMcpRuntimeSummary } from "../mcpRuntimeSummary";
+import { buildMcpRuntimeSummary, resolveMcpToolAvailability } from "../mcpRuntimeSummary";
 import { MCP_TRANSPORT_OPTIONS, normalizeMcpTransport } from "../mcpServerForm";
 
 export default function McpManagementPanelV2({
@@ -41,7 +41,8 @@ export default function McpManagementPanelV2({
   const enabledToolCount = (tools || []).filter((tool) => tool.enabled).length;
   const transport = normalizeMcpTransport(serverForm.transport);
   const healthStatus = health?.overallStatus || "unknown";
-  const callableTools = (tools || []).filter((tool) => tool.enabled !== false);
+  const toolAvailability = (tool) => resolveMcpToolAvailability(tool, servers);
+  const callableTools = (tools || []).filter((tool) => toolAvailability(tool).callable);
   const runtimeSummary = buildMcpRuntimeSummary({ servers, tools, health });
 
   return (
@@ -375,12 +376,16 @@ export default function McpManagementPanelV2({
           <div className="mcp-list-title">工具</div>
           {(tools || []).length === 0 && <p className="mcp-empty">暂无缓存工具</p>}
           <div className="mcp-tool-cloud">
-            {(tools || []).map((tool) => (
-              <span key={tool.qualifiedName || `${tool.serverId}.${tool.toolName}`} className={tool.enabled ? "enabled" : ""}>
-                <b>{tool.qualifiedName || tool.toolName}</b>
-                {tool.description && <small>{tool.description}</small>}
-              </span>
-            ))}
+            {(tools || []).map((tool) => {
+              const availability = toolAvailability(tool);
+              return (
+                <span key={tool.qualifiedName || `${tool.serverId}.${tool.toolName}`} className={availability.className}>
+                  <b>{tool.qualifiedName || tool.toolName}</b>
+                  {tool.description && <small>{tool.description}</small>}
+                  <small>{availability.label}</small>
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>

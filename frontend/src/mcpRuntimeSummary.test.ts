@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMcpRuntimeSummary } from "./mcpRuntimeSummary";
+import { buildMcpRuntimeSummary, resolveMcpToolAvailability } from "./mcpRuntimeSummary";
 
 describe("mcp runtime summary", () => {
   it("marks runtime as empty before any server is registered", () => {
@@ -96,5 +96,51 @@ describe("mcp runtime summary", () => {
       "cache",
       "transport"
     ]);
+  });
+
+  it("marks tools on expired cache servers as not callable", () => {
+    const availability = resolveMcpToolAvailability(
+      { serverId: "research", qualifiedName: "research.search", enabled: true },
+      [{ serverId: "research", enabled: true, cacheStatus: "expired" }]
+    );
+
+    expect(availability).toMatchObject({
+      callable: false,
+      state: "cache-expired",
+      className: "expired"
+    });
+  });
+
+  it("marks tools as callable when server and tool are enabled with fresh cache", () => {
+    const availability = resolveMcpToolAvailability(
+      { serverId: "research", qualifiedName: "research.search", enabled: true },
+      [{ serverId: "research", enabled: true, cacheStatus: "fresh" }]
+    );
+
+    expect(availability).toMatchObject({
+      callable: true,
+      state: "callable",
+      className: "enabled"
+    });
+  });
+
+  it("marks disabled servers and tools as not callable", () => {
+    expect(resolveMcpToolAvailability(
+      { serverId: "research", qualifiedName: "research.search", enabled: true },
+      [{ serverId: "research", enabled: false, cacheStatus: "fresh" }]
+    )).toMatchObject({
+      callable: false,
+      state: "server-disabled",
+      className: "disabled"
+    });
+
+    expect(resolveMcpToolAvailability(
+      { serverId: "research", qualifiedName: "research.search", enabled: false },
+      [{ serverId: "research", enabled: true, cacheStatus: "fresh" }]
+    )).toMatchObject({
+      callable: false,
+      state: "tool-disabled",
+      className: "disabled"
+    });
   });
 });

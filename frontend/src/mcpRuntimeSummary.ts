@@ -24,6 +24,15 @@ export interface McpRuntimeSummaryInput {
   health?: unknown;
 }
 
+export type McpToolAvailabilityState = "callable" | "server-missing" | "server-disabled" | "tool-disabled" | "cache-expired";
+
+export interface McpToolAvailability {
+  callable: boolean;
+  state: McpToolAvailabilityState;
+  label: string;
+  className: string;
+}
+
 function asObject(value: unknown): UnknownMap {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as UnknownMap
@@ -42,6 +51,12 @@ function bool(value: unknown): boolean {
   if (typeof value === "boolean") return value;
   const normalized = text(value).toLowerCase();
   return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+function notFalse(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  const normalized = text(value).toLowerCase();
+  return !["false", "0", "no"].includes(normalized);
 }
 
 function numberValue(value: unknown): number {
@@ -106,6 +121,25 @@ function cacheMetric(servers: UnknownMap[]): string {
 function transportMetric(servers: UnknownMap[]): string {
   const transports = unique(servers.map((server) => text(server.transport) || "streamable_http"));
   return transports.length ? transports.slice(0, 3).join(" / ") : "-";
+}
+
+export function resolveMcpToolAvailability(tool: unknown, servers: unknown[] = []): McpToolAvailability {
+  const toolData = asObject(tool);
+  const serverId = text(toolData.serverId) || text(toolData.qualifiedName).split(".")[0];
+  const server = servers.map(asObject).find((item) => text(item.serverId) === serverId);
+  if (!serverId || !server) {
+    return { callable: false, state: "server-missing", label: "服务未同步", className: "missing" };
+  }
+  if (!notFalse(server.enabled)) {
+    return { callable: false, state: "server-disabled", label: "服务已停用", className: "disabled" };
+  }
+  if (!notFalse(toolData.enabled)) {
+    return { callable: false, state: "tool-disabled", label: "工具已停用", className: "disabled" };
+  }
+  if (text(server.cacheStatus) === "expired" || bool(server.cacheExpired)) {
+    return { callable: false, state: "cache-expired", label: "缓存过期，需重新发现", className: "expired" };
+  }
+  return { callable: true, state: "callable", label: "可供 Agent 使用", className: "enabled" };
 }
 
 function fallbackStatus(input: {
