@@ -195,7 +195,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     taskType: "trade-audit",
     title: "拼团交易工作区",
     summary: "围绕额度购买、拼团成团、支付退款和额度流水做闭环核查。",
-    primaryTools: ["planning", "data_analysis", "table_rag", "nl2sql", "report_tool"],
+    primaryTools: ["trade_audit", "planning", "data_analysis", "table_rag", "nl2sql", "report_tool"],
     attachmentMode: "none",
     outputKinds: ["order", "quota", "status", "audit-report"],
     runEndpoint: "/api/v1/academic/stream",

@@ -28,6 +28,7 @@ describe("workspace service profiles", () => {
     expect(workspaceServiceProfile("mrag").primaryTools).toContain("multimodal_agent");
     expect(workspaceServiceProfile("mrag").runEndpoint).toBe("/api/v1/academic/workspace/mrag/run");
     expect(workspaceServiceProfile("trade").taskType).toBe("trade-audit");
+    expect(workspaceServiceProfile("trade").primaryTools).toContain("trade_audit");
     expect(workspaceServiceProfile("trade").primaryTools).toContain("nl2sql");
     expect(workspaceServiceProfile("trade").runEndpoint).toBe("/api/v1/academic/stream");
     expect(workspaceServiceProfile("missing").id).toBe("agent");

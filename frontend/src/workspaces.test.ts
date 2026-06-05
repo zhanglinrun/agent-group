@@ -45,6 +45,7 @@ describe("workspace routing model", () => {
   it("provides readable labels for workspace tools and output kinds", () => {
     expect(TOOL_LABELS.image_generation).toBe("图像生成");
     expect(TOOL_LABELS.nl2sql).toBe("自然语言转 SQL");
+    expect(TOOL_LABELS.trade_audit).toBe("交易审计");
     expect(OUTPUT_KIND_LABELS.artifact).toBe("任务产物");
     expect(OUTPUT_KIND_LABELS["audit-report"]).toBe("审计报告");
   });

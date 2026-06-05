@@ -78,6 +78,7 @@ export const TOOL_LABELS: Record<string, string> = {
   script_runner: "脚本运行",
   table_rag: "表格检索",
   nl2sql: "自然语言转 SQL",
+  trade_audit: "交易审计",
   quota_usage: "额度对账"
 };
 
