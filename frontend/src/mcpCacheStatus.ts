@@ -7,7 +7,8 @@ export const MCP_CACHE_STATUS_LABELS: Record<string, string> = {
   empty: "未缓存",
   fresh: "缓存有效",
   unbounded: "长期有效",
-  expired: "缓存过期"
+  expired: "缓存过期",
+  disabled: "已停用"
 };
 
 export function formatMcpCacheAge(seconds: unknown): string {

@@ -3,10 +3,13 @@ package com.linrun.domain.academic.runtime.tool.mcp;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,5 +82,40 @@ class AcademicMcpRegistryTest {
         assertEquals("data.chart", restored.listTools("").getFirst().qualifiedName());
         assertTrue(restored.listEnabledTools().isEmpty());
         assertTrue(restored.lastDiscoveredAt("data").isPresent());
+    }
+
+    @Test
+    void shouldReportToolCacheFreshnessAndRefreshRequirement() {
+        LocalDateTime now = LocalDateTime.of(2026, 6, 5, 12, 0);
+        AcademicMcpRegistry registry = new AcademicMcpRegistry();
+        registry.registerServer(AcademicMcpServerDescriptor.builder("research")
+                .endpoint("http://localhost:8090/mcp")
+                .build());
+
+        AcademicMcpCacheStatus empty = registry.cacheStatus("research", Duration.ofMinutes(30), now);
+        assertEquals(AcademicMcpCacheStatus.STATUS_EMPTY, empty.cacheStatus());
+        assertTrue(empty.refreshRequired());
+
+        registry.cacheDiscoveredTools("research",
+                List.of(AcademicMcpToolDescriptor.builder("research", "web_fetch").build()),
+                now.minusMinutes(5));
+        AcademicMcpCacheStatus fresh = registry.cacheStatus("research", Duration.ofMinutes(30), now);
+        assertEquals(AcademicMcpCacheStatus.STATUS_FRESH, fresh.cacheStatus());
+        assertEquals(300, fresh.cacheAgeSeconds());
+        assertEquals(1, fresh.toolCount());
+        assertFalse(fresh.refreshRequired());
+
+        AcademicMcpCacheStatus expired = registry.cacheStatus("research", Duration.ofMinutes(1), now);
+        assertEquals(AcademicMcpCacheStatus.STATUS_EXPIRED, expired.cacheStatus());
+        assertTrue(expired.refreshRequired());
+
+        AcademicMcpCacheStatus unbounded = registry.cacheStatus("research", null, now);
+        assertEquals(AcademicMcpCacheStatus.STATUS_UNBOUNDED, unbounded.cacheStatus());
+        assertFalse(unbounded.refreshRequired());
+
+        registry.enableServer("research", false);
+        AcademicMcpCacheStatus disabled = registry.cacheStatus("research", Duration.ofMinutes(1), now);
+        assertEquals(AcademicMcpCacheStatus.STATUS_DISABLED, disabled.cacheStatus());
+        assertFalse(disabled.refreshRequired());
     }
 }

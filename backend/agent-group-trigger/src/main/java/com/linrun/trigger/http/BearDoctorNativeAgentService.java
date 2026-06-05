@@ -621,6 +621,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         List.of("管理接口: /agent/mcp/admin/**",
                                 "后台配置: agent.group.mcp.servers",
                                 "状态文件: agent.group.mcp.admin-state-file",
+                                "AcademicMcpCacheStatus 区分 empty/fresh/unbounded/expired/disabled",
                                 "已缓存 MCP 工具数: " + mcpToolCount),
                         mcpToolCount > 0 ? List.of() : List.of("当前未发现或未缓存外部 MCP 工具")
                 ),

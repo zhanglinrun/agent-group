@@ -4,6 +4,7 @@ import com.linrun.domain.academic.runtime.tool.AcademicToolDefinition;
 import com.linrun.types.exception.AppException;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,6 +35,12 @@ public class AcademicMcpRegistry {
 
     public synchronized AcademicMcpRegistry cacheDiscoveredTools(String serverId,
                                                                  List<AcademicMcpToolDescriptor> tools) {
+        return cacheDiscoveredTools(serverId, tools, LocalDateTime.now());
+    }
+
+    public synchronized AcademicMcpRegistry cacheDiscoveredTools(String serverId,
+                                                                 List<AcademicMcpToolDescriptor> tools,
+                                                                 LocalDateTime discoveredAt) {
         requireServer(serverId);
         Map<String, AcademicMcpToolDescriptor> cached = new LinkedHashMap<>();
         if (tools != null) {
@@ -44,7 +51,7 @@ public class AcademicMcpRegistry {
             }
         }
         toolsByServer.put(serverId, cached);
-        discoveredAtByServer.put(serverId, LocalDateTime.now());
+        discoveredAtByServer.put(serverId, discoveredAt == null ? LocalDateTime.now() : discoveredAt);
         return this;
     }
 
@@ -87,6 +94,27 @@ public class AcademicMcpRegistry {
 
     public synchronized Optional<LocalDateTime> lastDiscoveredAt(String serverId) {
         return Optional.ofNullable(discoveredAtByServer.get(serverId));
+    }
+
+    public synchronized AcademicMcpCacheStatus cacheStatus(String serverId, Duration cacheTtl) {
+        return cacheStatus(serverId, cacheTtl, LocalDateTime.now());
+    }
+
+    public synchronized AcademicMcpCacheStatus cacheStatus(String serverId,
+                                                           Duration cacheTtl,
+                                                           LocalDateTime now) {
+        AcademicMcpServerDescriptor server = requireServer(serverId);
+        return buildCacheStatus(server, cacheTtl, now);
+    }
+
+    public synchronized List<AcademicMcpCacheStatus> cacheStatuses(Duration cacheTtl) {
+        return cacheStatuses(cacheTtl, LocalDateTime.now());
+    }
+
+    public synchronized List<AcademicMcpCacheStatus> cacheStatuses(Duration cacheTtl, LocalDateTime now) {
+        return servers.values().stream()
+                .map(server -> buildCacheStatus(server, cacheTtl, now))
+                .toList();
     }
 
     public synchronized Snapshot snapshot() {
@@ -159,6 +187,40 @@ public class AcademicMcpRegistry {
             }
         });
         return this;
+    }
+
+    private AcademicMcpCacheStatus buildCacheStatus(AcademicMcpServerDescriptor server,
+                                                    Duration cacheTtl,
+                                                    LocalDateTime now) {
+        LocalDateTime effectiveNow = now == null ? LocalDateTime.now() : now;
+        LocalDateTime discoveredAt = discoveredAtByServer.get(server.getServerId());
+        long cacheAgeSeconds = discoveredAt == null
+                ? 0
+                : Math.max(0L, Duration.between(discoveredAt, effectiveNow).toSeconds());
+        int toolCount = toolsByServer.getOrDefault(server.getServerId(), Map.of()).size();
+        Long ttlSeconds = cacheTtl == null || cacheTtl.isNegative() ? null : cacheTtl.toSeconds();
+        return new AcademicMcpCacheStatus(server.getServerId(), server.isEnabled(), toolCount,
+                discoveredAt, cacheAgeSeconds, ttlSeconds,
+                cacheStatus(server, discoveredAt, cacheAgeSeconds, cacheTtl));
+    }
+
+    private String cacheStatus(AcademicMcpServerDescriptor server,
+                               LocalDateTime discoveredAt,
+                               long cacheAgeSeconds,
+                               Duration cacheTtl) {
+        if (!server.isEnabled()) {
+            return AcademicMcpCacheStatus.STATUS_DISABLED;
+        }
+        if (discoveredAt == null) {
+            return AcademicMcpCacheStatus.STATUS_EMPTY;
+        }
+        if (cacheTtl == null || cacheTtl.isNegative()) {
+            return AcademicMcpCacheStatus.STATUS_UNBOUNDED;
+        }
+        if (cacheAgeSeconds > cacheTtl.toSeconds()) {
+            return AcademicMcpCacheStatus.STATUS_EXPIRED;
+        }
+        return AcademicMcpCacheStatus.STATUS_FRESH;
     }
 
     private AcademicMcpServerDescriptor requireServer(String serverId) {

@@ -100,6 +100,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 .orElseThrow();
         assertTrue(((List<?>) mcp.get("evidence")).contains("后台配置: agent.group.mcp.servers"));
         assertTrue(((List<?>) mcp.get("evidence")).contains("状态文件: agent.group.mcp.admin-state-file"));
+        assertTrue(((List<?>) mcp.get("evidence"))
+                .contains("AcademicMcpCacheStatus 区分 empty/fresh/unbounded/expired/disabled"));
 
         Map<String, Object> agentAdmin = matrix.stream()
                 .filter(item -> "agent-admin".equals(item.get("key")))
