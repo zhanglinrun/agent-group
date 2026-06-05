@@ -92,6 +92,52 @@ public class AcademicMcpRegistry {
                 .toList();
     }
 
+    public synchronized AcademicMcpRegistrySummary summary() {
+        List<String> cachedServerIds = new ArrayList<>();
+        List<String> serversWithoutCachedTools = new ArrayList<>();
+        List<String> enabledServersWithoutCachedTools = new ArrayList<>();
+        Map<String, Integer> transportCounts = new LinkedHashMap<>();
+        int enabledServerCount = 0;
+        int registeredToolCount = 0;
+        int enabledToolCount = 0;
+
+        for (AcademicMcpServerDescriptor server : servers.values()) {
+            if (server.isEnabled()) {
+                enabledServerCount++;
+            }
+            String transport = StringUtils.hasText(server.getTransport()) ? server.getTransport().trim() : "unknown";
+            transportCounts.put(transport, transportCounts.getOrDefault(transport, 0) + 1);
+
+            List<AcademicMcpToolDescriptor> tools = new ArrayList<>(
+                    toolsByServer.getOrDefault(server.getServerId(), Map.of()).values());
+            registeredToolCount += tools.size();
+            if (server.isEnabled()) {
+                enabledToolCount += (int) tools.stream().filter(AcademicMcpToolDescriptor::isEnabled).count();
+            }
+            if (tools.isEmpty()) {
+                serversWithoutCachedTools.add(server.getServerId());
+                if (server.isEnabled()) {
+                    enabledServersWithoutCachedTools.add(server.getServerId());
+                }
+            } else {
+                cachedServerIds.add(server.getServerId());
+            }
+        }
+
+        return new AcademicMcpRegistrySummary(
+                servers.size(),
+                enabledServerCount,
+                Math.max(0, servers.size() - enabledServerCount),
+                registeredToolCount,
+                enabledToolCount,
+                cachedServerIds.size(),
+                serversWithoutCachedTools.size(),
+                cachedServerIds,
+                serversWithoutCachedTools,
+                enabledServersWithoutCachedTools,
+                transportCounts);
+    }
+
     public synchronized Optional<LocalDateTime> lastDiscoveredAt(String serverId) {
         return Optional.ofNullable(discoveredAtByServer.get(serverId));
     }

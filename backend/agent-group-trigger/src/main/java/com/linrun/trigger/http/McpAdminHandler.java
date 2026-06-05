@@ -2,6 +2,7 @@ package com.linrun.trigger.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpRegistry;
+import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpRegistrySummary;
 import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpServerDescriptor;
 import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor;
 import com.linrun.trigger.config.McpAdminProperties;
@@ -213,6 +214,7 @@ public class McpAdminHandler {
     }
 
     public Map<String, Object> health() {
+        AcademicMcpRegistrySummary summary = registry.summary();
         List<Map<String, Object>> serverChecks = registry.listServers().stream()
                 .map(this::serverHealth)
                 .toList();
@@ -238,6 +240,7 @@ public class McpAdminHandler {
         result.put("degradedServerCount", degradedServerCount);
         result.put("toolCount", registry.listTools("").size());
         result.put("enabledToolCount", registry.listEnabledTools().size());
+        result.put("registrySummary", registrySummary(summary));
         result.put("servers", serverChecks);
         return result;
     }
@@ -258,6 +261,24 @@ public class McpAdminHandler {
         AcademicMcpServerDescriptor server = requireServer(tool.getServerId());
         ensureToolCallable(server, tool);
         return toolInvoker.invoke(server, tool, arguments);
+    }
+
+    private Map<String, Object> registrySummary(AcademicMcpRegistrySummary summary) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("serverCount", summary.serverCount());
+        result.put("enabledServerCount", summary.enabledServerCount());
+        result.put("disabledServerCount", summary.disabledServerCount());
+        result.put("registeredToolCount", summary.registeredToolCount());
+        result.put("enabledToolCount", summary.enabledToolCount());
+        result.put("cachedServerCount", summary.cachedServerCount());
+        result.put("emptyCacheServerCount", summary.emptyCacheServerCount());
+        result.put("cachedServerIds", summary.cachedServerIds());
+        result.put("serversWithoutCachedTools", summary.serversWithoutCachedTools());
+        result.put("enabledServersWithoutCachedTools", summary.enabledServersWithoutCachedTools());
+        result.put("transportCounts", summary.transportCounts());
+        result.put("hasEnabledServerWithoutCache", summary.hasEnabledServerWithoutCache());
+        result.put("hasEnabledTool", summary.hasEnabledTool());
+        return result;
     }
 
     private Map<String, Object> serverHealth(AcademicMcpServerDescriptor server) {

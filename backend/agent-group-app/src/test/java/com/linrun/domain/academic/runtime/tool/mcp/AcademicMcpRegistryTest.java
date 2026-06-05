@@ -118,4 +118,42 @@ class AcademicMcpRegistryTest {
         assertEquals(AcademicMcpCacheStatus.STATUS_DISABLED, disabled.cacheStatus());
         assertFalse(disabled.refreshRequired());
     }
+
+    @Test
+    void shouldSummarizeServersToolsCacheAndTransportCoverage() {
+        AcademicMcpRegistry registry = new AcademicMcpRegistry();
+        registry.registerServer(AcademicMcpServerDescriptor.builder("research")
+                .endpoint("http://localhost:8090/mcp")
+                .build());
+        registry.registerServer(AcademicMcpServerDescriptor.builder("local")
+                .endpoint("stdio://local")
+                .transport("stdio")
+                .enabled(false)
+                .build());
+        registry.registerServer(AcademicMcpServerDescriptor.builder("preview")
+                .endpoint("http://localhost:8092/mcp")
+                .build());
+        registry.cacheDiscoveredTools("research", List.of(
+                AcademicMcpToolDescriptor.builder("research", "web_fetch").build(),
+                AcademicMcpToolDescriptor.builder("research", "disabled_search").enabled(false).build()));
+        registry.cacheDiscoveredTools("local", List.of(
+                AcademicMcpToolDescriptor.builder("local", "shell").build()));
+
+        AcademicMcpRegistrySummary summary = registry.summary();
+
+        assertEquals(3, summary.serverCount());
+        assertEquals(2, summary.enabledServerCount());
+        assertEquals(1, summary.disabledServerCount());
+        assertEquals(3, summary.registeredToolCount());
+        assertEquals(1, summary.enabledToolCount());
+        assertEquals(2, summary.cachedServerCount());
+        assertEquals(1, summary.emptyCacheServerCount());
+        assertEquals(List.of("research", "local"), summary.cachedServerIds());
+        assertEquals(List.of("preview"), summary.serversWithoutCachedTools());
+        assertEquals(List.of("preview"), summary.enabledServersWithoutCachedTools());
+        assertEquals(2, summary.transportCounts().get("streamable_http"));
+        assertEquals(1, summary.transportCounts().get("stdio"));
+        assertTrue(summary.hasEnabledServerWithoutCache());
+        assertTrue(summary.hasEnabledTool());
+    }
 }

@@ -150,6 +150,16 @@ class McpAdminHandlerTest {
         assertEquals("degraded", health.get("overallStatus"));
         assertEquals(1L, health.get("readyServerCount"));
         assertEquals(1L, health.get("degradedServerCount"));
+        Map<String, Object> summary = (Map<String, Object>) health.get("registrySummary");
+        assertEquals(2, summary.get("serverCount"));
+        assertEquals(2, summary.get("enabledServerCount"));
+        assertEquals(1, summary.get("registeredToolCount"));
+        assertEquals(1, summary.get("enabledToolCount"));
+        assertEquals(1, summary.get("cachedServerCount"));
+        assertEquals(1, summary.get("emptyCacheServerCount"));
+        assertEquals(List.of("local"), summary.get("enabledServersWithoutCachedTools"));
+        assertEquals(true, summary.get("hasEnabledServerWithoutCache"));
+        assertEquals(Map.of("streamable_http", 2), summary.get("transportCounts"));
         assertEquals("research.web_fetch", target.listTools("research", true).getFirst().get("qualifiedName"));
     }
 
