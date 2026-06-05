@@ -90,6 +90,40 @@ class AcademicSessionMemorySnapshotTest {
         assertEquals("MD", artifact.getArtifactType());
     }
 
+    @Test
+    void shouldPersistToolFileInfoAndPrimaryFileFieldsAsLedgerArtifacts() {
+        FakeLedgerRepository repository = new FakeLedgerRepository();
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
+                repository, new AcademicReplayProjector());
+
+        service.recordToolArtifacts(
+                new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "code"),
+                "TOOL1",
+                "code_interpreter",
+                Map.of(
+                        "fileInfo", List.of(Map.of(
+                                "displayName", "code-output.md",
+                                "domainUrl", "/tool/files/code-output.md",
+                                "mimeType", "text/markdown",
+                                "resourceKey", "code-output-resource",
+                                "size", 512)),
+                        "result", Map.of(
+                                "primaryFileName", "summary.csv",
+                                "ossUrl", "/files/summary.csv",
+                                "mimeType", "text/csv")));
+
+        assertEquals(2, repository.artifacts.size());
+        AcademicArtifact codeOutput = repository.artifacts.get(0);
+        AcademicArtifact summary = repository.artifacts.get(1);
+        assertEquals("code-output-resource", codeOutput.getArtifactId());
+        assertEquals("code-output.md", codeOutput.getTitle());
+        assertEquals("/tool/files/code-output.md", codeOutput.getDownloadUrl());
+        assertEquals("MD", codeOutput.getArtifactType());
+        assertEquals("summary.csv", summary.getTitle());
+        assertEquals("/files/summary.csv", summary.getDownloadUrl());
+        assertEquals("CSV", summary.getArtifactType());
+    }
+
     private static AcademicAgentRun run(String runId,
                                         String requestId,
                                         String sessionId,

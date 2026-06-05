@@ -30,12 +30,15 @@ public class AcademicToolFileRef {
     public static AcademicToolFileRef fromMap(Map<String, Object> map) {
         Map<String, Object> values = map == null ? Map.of() : map;
         return builder()
-                .artifactId(text(values.get("artifactId")))
-                .fileName(text(values.get("fileName")))
-                .downloadUrl(text(values.get("downloadUrl")))
-                .previewUrl(text(values.get("previewUrl")))
+                .artifactId(firstText(values.get("artifactId"), values.get("fileId"), values.get("resourceKey")))
+                .fileName(firstText(values.get("fileName"), values.get("filename"), values.get("primaryFileName"),
+                        values.get("displayName"), values.get("name"), values.get("resourceKey"), values.get("title")))
+                .downloadUrl(firstText(values.get("downloadUrl"), values.get("ossUrl"), values.get("domainUrl"),
+                        values.get("url"), values.get("previewUrl")))
+                .previewUrl(firstText(values.get("previewUrl"), values.get("domainUrl"), values.get("url"),
+                        values.get("ossUrl"), values.get("downloadUrl")))
                 .contentType(firstText(values.get("contentType"), values.get("mimeType"), values.get("artifactType")))
-                .fileSize(longValue(values.get("fileSize")))
+                .fileSize(longValue(firstText(values.get("fileSize"), values.get("size"))))
                 .build();
     }
 

@@ -483,17 +483,26 @@ public class AcademicExecutionLedgerService {
         List<AcademicToolFileRef> refs = new ArrayList<>();
         collectFileRefs(result.get("fileRefs"), refs);
         collectFileRefs(result.get("artifactRefs"), refs);
+        collectFileRefs(result.get("fileInfo"), refs);
+        collectFileRefs(result.get("fileList"), refs);
+        collectPrimaryFileRef(result, refs);
         Object nestedResult = result.get("result");
         if (nestedResult instanceof Map<?, ?> map) {
             Map<String, Object> nested = (Map<String, Object>) map;
             collectFileRefs(nested.get("fileRefs"), refs);
             collectFileRefs(nested.get("artifactRefs"), refs);
+            collectFileRefs(nested.get("fileInfo"), refs);
+            collectFileRefs(nested.get("fileList"), refs);
+            collectPrimaryFileRef(nested, refs);
         }
         Object structuredOutput = result.get("structuredOutput");
         if (structuredOutput instanceof Map<?, ?> map) {
             Map<String, Object> structured = (Map<String, Object>) map;
             collectFileRefs(structured.get("fileRefs"), refs);
             collectFileRefs(structured.get("artifactRefs"), refs);
+            collectFileRefs(structured.get("fileInfo"), refs);
+            collectFileRefs(structured.get("fileList"), refs);
+            collectPrimaryFileRef(structured, refs);
         }
         Map<String, AcademicToolFileRef> deduped = new LinkedHashMap<>();
         for (AcademicToolFileRef ref : refs) {
@@ -514,6 +523,18 @@ public class AcademicExecutionLedgerService {
             if (item instanceof Map<?, ?> map) {
                 refs.add(AcademicToolFileRef.fromMap((Map<String, Object>) map));
             }
+        }
+    }
+
+    private void collectPrimaryFileRef(Map<String, Object> values, List<AcademicToolFileRef> refs) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        AcademicToolFileRef fileRef = AcademicToolFileRef.fromMap(values);
+        if (StringUtils.hasText(fileRef.getFileName())
+                || StringUtils.hasText(fileRef.getDownloadUrl())
+                || StringUtils.hasText(fileRef.getPreviewUrl())) {
+            refs.add(fileRef);
         }
     }
 
