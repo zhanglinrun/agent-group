@@ -129,6 +129,7 @@ export interface WorkspaceHistoryItem {
   durationMillis: number;
   artifactUrl: string;
   artifactName: string;
+  source?: Record<string, unknown>;
 }
 
 export interface KnowledgeBaseCatalogItem {
@@ -319,7 +320,7 @@ export function visibleAgentExecutionModes(
 }
 
 export function workspaceSupportsHistory(workspaceId: string): boolean {
-  return workspaceId === "image" || workspaceId === "data" || workspaceId === "mrag";
+  return workspaceId === "image" || workspaceId === "data" || workspaceId === "mrag" || workspaceId === "trade";
 }
 
 function textValue(record: Record<string, unknown>, ...keys: string[]): string {
@@ -357,6 +358,23 @@ function imageHistorySummary(record: Record<string, unknown>, imageCount: number
     parts.push(size);
   }
   return parts.join(" · ");
+}
+
+function tradeOrderTypeText(record: Record<string, unknown>): string {
+  return Number(record.marketType || 0) === 1 ? "拼团订单" : "直接购买订单";
+}
+
+function tradeOrderAmountText(record: Record<string, unknown>): string {
+  const amount = textValue(record, "payAmount", "totalAmount", "amount");
+  return amount ? `支付 ${amount}` : "";
+}
+
+function tradeHistorySummary(record: Record<string, unknown>): string {
+  return [
+    tradeOrderTypeText(record),
+    textValue(record, "displayStatus", "status", "orderStatus", "payStatus"),
+    tradeOrderAmountText(record)
+  ].filter(Boolean).join(" · ");
 }
 
 export function knowledgeBaseCatalogKey(value: unknown): string {
@@ -410,6 +428,24 @@ export function normalizeWorkspaceHistoryItems(
   return value
     .map((item, index) => {
       const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      if (workspaceId === "trade") {
+        const orderId = textValue(record, "orderId", "outTradeNo", "payOrderId");
+        const productName = textValue(record, "productName", "goodsName", "productId");
+        return {
+          id: orderId || textValue(record, "id") || `trade-local-${index}`,
+          workspaceId,
+          sessionId: textValue(record, "sessionId"),
+          runId: textValue(record, "runId"),
+          title: productName || orderId || workspaceServiceProfile(workspaceId).title,
+          summary: tradeHistorySummary(record),
+          status: textValue(record, "displayStatus", "status", "orderStatus", "payStatus"),
+          createdAt: textValue(record, "orderTime", "payTime", "createTime", "createdAt", "updateTime"),
+          durationMillis: numberValue(record, "durationMillis"),
+          artifactUrl: "",
+          artifactName: "",
+          source: record
+        };
+      }
       const imageRefs = Array.isArray(record.images) ? record.images : [];
       const firstImage = imageRefs[0] && typeof imageRefs[0] === "object"
         ? imageRefs[0] as Record<string, unknown>

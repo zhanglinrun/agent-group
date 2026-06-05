@@ -928,15 +928,21 @@ function BearDoctorAcademicApp() {
       const query = {
         image: queryWorkspaceImageHistory,
         data: queryWorkspaceDataHistory,
-        mrag: queryWorkspaceMragHistory
+        mrag: queryWorkspaceMragHistory,
+        trade: ({ limit }) => queryUserOrderList({ pageSize: limit || 8 })
       }[targetWorkspaceId];
+      if (!query) {
+        throw new Error("工作区历史暂不可用");
+      }
       const res = await query({ limit: 8 });
       if (!apiSucceeded(res)) {
         throw new Error(normalizeUserMessage(res?.info || res?.message, "工作区历史读取失败"));
       }
-      const historyItems = targetWorkspaceId === "image" && Array.isArray(res.data?.batches) && res.data.batches.length
-        ? res.data.batches
-        : res.data?.items || [];
+      const historyItems = targetWorkspaceId === "trade"
+        ? res.data?.orderList || []
+        : targetWorkspaceId === "image" && Array.isArray(res.data?.batches) && res.data.batches.length
+          ? res.data.batches
+          : res.data?.items || [];
       setWorkspaceHistory({
         workspaceId: targetWorkspaceId,
         items: normalizeWorkspaceHistoryItems(targetWorkspaceId, historyItems, 8)
@@ -1288,6 +1294,19 @@ function BearDoctorAcademicApp() {
 
   const openWorkspaceHistoryItem = useCallback(async (item) => {
     const sessionId = item?.sessionId;
+    if (item?.workspaceId === "trade" && !sessionId) {
+      const source = item.source && typeof item.source === "object" ? item.source : {};
+      setSelectedAgent("trade-audit");
+      setInputMessage(buildTradeAuditPrompt({
+        ...source,
+        orderId: source.orderId || item.id,
+        productName: source.productName || item.title,
+        orderStatus: source.orderStatus || source.status || item.status,
+        marketType: source.marketType ?? (String(item.summary || "").includes("拼团") ? 1 : 0)
+      }));
+      setConnectionError("");
+      return;
+    }
     if (!sessionId) return;
     setWorkspaceRunDetail({ item, detail: null });
     setWorkspaceRunDetailLoading(false);
@@ -1334,7 +1353,10 @@ function BearDoctorAcademicApp() {
       loadQuota().catch(() => {}),
       loadOrders().catch(() => {})
     ]);
-  }, [loadQuota, loadOrders]);
+    if (activeWorkspace === "trade") {
+      await loadWorkspaceHistory("trade").catch(() => {});
+    }
+  }, [activeWorkspace, loadOrders, loadQuota, loadWorkspaceHistory]);
 
   useEffect(() => {
     ensureChat(currentChatId);
@@ -2942,19 +2964,24 @@ function WorkspaceHistoryPanel({
           {items.map((item) => {
             const isActive = item.sessionId && item.sessionId === currentSessionId;
             const createdAt = formatWorkspaceHistoryTime(item.createdAt);
+            const canOpen = Boolean(item.sessionId) || item.workspaceId === "trade";
             return (
               <button
                 type="button"
                 key={item.id}
                 className={`workspace-history-item ${isActive ? "active" : ""}`}
                 onClick={() => onOpen(item)}
-                disabled={!item.sessionId}
+                disabled={!canOpen}
               >
                 {item.artifactUrl ? (
                   <img src={item.artifactUrl} alt={item.artifactName || item.title} />
                 ) : (
                   <span className="workspace-history-icon">
-                    {item.workspaceId === "image" ? <ImagePlus size={16} /> : <FileText size={16} />}
+                    {item.workspaceId === "image"
+                      ? <ImagePlus size={16} />
+                      : item.workspaceId === "trade"
+                        ? <Wallet size={16} />
+                        : <FileText size={16} />}
                   </span>
                 )}
                 <span className="workspace-history-body">

@@ -289,7 +289,7 @@ describe("workspace service profiles", () => {
 
   it("normalizes workspace history items across workspace APIs", () => {
     expect(workspaceSupportsHistory("image")).toBe(true);
-    expect(workspaceSupportsHistory("trade")).toBe(false);
+    expect(workspaceSupportsHistory("trade")).toBe(true);
 
     expect(normalizeWorkspaceHistoryItems("image", [
       {
@@ -368,6 +368,26 @@ describe("workspace service profiles", () => {
       createdAt: "2026-06-05T11:20:30",
       artifactUrl: "/artifact/preview/ART2",
       artifactName: "poster-1.png"
+    });
+
+    expect(normalizeWorkspaceHistoryItems("trade", [
+      {
+        id: 1001,
+        orderId: "O1001",
+        productName: "Agent 额度包",
+        marketType: 1,
+        status: "PAY_SUCCESS",
+        displayStatus: "支付成功，等待成团",
+        payAmount: 19.9,
+        orderTime: "2026-06-05T12:20:30"
+      }
+    ])[0]).toMatchObject({
+      id: "O1001",
+      workspaceId: "trade",
+      title: "Agent 额度包",
+      summary: "拼团订单 · 支付成功，等待成团 · 支付 19.9",
+      status: "支付成功，等待成团",
+      createdAt: "2026-06-05T12:20:30"
     });
   });
 
