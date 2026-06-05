@@ -457,6 +457,25 @@ describe("workspace service profiles", () => {
       artifactName: "poster-1.png"
     });
 
+    const tradeAuditHistory = normalizeWorkspaceHistoryItems("trade", [
+      {
+        sessionId: "AS1001",
+        taskType: "trade-audit",
+        title: "\u6838\u67e5\u62fc\u56e2\u8ba2\u5355",
+        lastMessage: "\u652f\u4ed8\u6210\u529f\u4f46\u7b49\u5f85\u6210\u56e2",
+        updateTime: "2026-06-05T12:30:30"
+      }
+    ]);
+    expect(tradeAuditHistory[0]).toMatchObject({
+      id: "AS1001",
+      workspaceId: "trade",
+      sessionId: "AS1001",
+      title: "\u6838\u67e5\u62fc\u56e2\u8ba2\u5355",
+      summary: "\u652f\u4ed8\u6210\u529f\u4f46\u7b49\u5f85\u6210\u56e2",
+      status: "AGENT_AUDIT",
+      createdAt: "2026-06-05T12:30:30"
+    });
+
     expect(normalizeWorkspaceHistoryItems("trade", [
       {
         id: 1001,

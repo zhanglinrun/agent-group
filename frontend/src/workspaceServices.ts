@@ -396,6 +396,19 @@ function tradeHistorySummary(record: Record<string, unknown>): string {
   ].filter(Boolean).join(" · ");
 }
 
+function normalizeTaskType(value: unknown): string {
+  const taskType = String(value || "").trim().toLowerCase();
+  if (["trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade"].includes(taskType)) {
+    return "trade-audit";
+  }
+  return taskType;
+}
+
+function isTradeAuditSession(record: Record<string, unknown>): boolean {
+  return normalizeTaskType(record.taskType || record.agentType) === "trade-audit"
+    || (Boolean(textValue(record, "sessionId")) && !textValue(record, "orderId", "outTradeNo", "payOrderId"));
+}
+
 export function knowledgeBaseCatalogKey(value: unknown): string {
   const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const documentType = textValue(record, "documentType") || "默认知识库";
@@ -448,6 +461,23 @@ export function normalizeWorkspaceHistoryItems(
     .map((item, index) => {
       const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
       if (workspaceId === "trade") {
+        if (isTradeAuditSession(record)) {
+          const sessionId = textValue(record, "sessionId");
+          return {
+            id: sessionId || textValue(record, "id", "runId") || `trade-agent-${index}`,
+            workspaceId,
+            sessionId,
+            runId: textValue(record, "runId"),
+            title: textValue(record, "question", "title") || workspaceServiceProfile(workspaceId).title,
+            summary: textValue(record, "lastMessage", "summary", "finalSummary"),
+            status: textValue(record, "status") || "AGENT_AUDIT",
+            createdAt: textValue(record, "updateTime", "finishedAt", "startedAt", "createTime", "createdAt"),
+            durationMillis: numberValue(record, "durationMillis"),
+            artifactUrl: "",
+            artifactName: "",
+            source: record
+          };
+        }
         const orderId = textValue(record, "orderId", "outTradeNo", "payOrderId");
         const productName = textValue(record, "productName", "goodsName", "productId");
         return {

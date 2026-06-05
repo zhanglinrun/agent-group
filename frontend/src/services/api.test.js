@@ -23,6 +23,7 @@ import {
   queryAgentAdminStatistics,
   queryAcademicRunDetail,
   queryAcademicSessionDetail,
+  queryAcademicSessions,
   queryMcpServers,
   queryMcpTools,
   queryWorkspaceDataCatalog,
@@ -334,12 +335,13 @@ describe("mcp admin api client", () => {
   it("wires academic session and run detail APIs with user token", async () => {
     saveUserAuth({ token: "user-token" });
 
+    await queryAcademicSessions(12);
     await queryAcademicSessionDetail("AS 1001");
     await queryAcademicRunDetail("RUN 1001");
 
     expect(fetch).toHaveBeenNthCalledWith(
       1,
-      "/api/v1/academic/sessions/AS%201001",
+      "/api/v1/academic/sessions?limit=12",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -349,6 +351,16 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       2,
+      "/api/v1/academic/sessions/AS%201001",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token"
+        })
+      })
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
       "/api/v1/academic/runs/RUN%201001",
       expect.objectContaining({
         method: "GET",

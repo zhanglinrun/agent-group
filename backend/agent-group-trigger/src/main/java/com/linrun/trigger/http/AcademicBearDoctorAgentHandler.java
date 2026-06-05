@@ -928,6 +928,7 @@ public class AcademicBearDoctorAgentHandler {
     private AcademicSessionSummaryDTO toSummary(UserAccount user, AiSession session) {
         AcademicSessionSummaryDTO dto = new AcademicSessionSummaryDTO();
         dto.setSessionId(bearDoctorNativeAgentService.externalConversationId(user.getUserId(), session.getSessionId()));
+        dto.setTaskType(normalizeTaskType(session.getAgentType()));
         dto.setTitle(title(session.getQuestion(), session.getAgentType()));
         dto.setLastMessage(limit(session.getAnswer(), 120));
         dto.setUpdateTime(session.getUpdateTime() == null ? session.getCreateTime() : session.getUpdateTime());
@@ -1223,6 +1224,7 @@ public class AcademicBearDoctorAgentHandler {
             case "deep" -> "深度研究";
             case "image" -> "图像生成";
             case "data" -> "数据问答";
+            case "trade-audit" -> "交易审计";
             case "skills" -> "技能助手";
             case "manual-skills" -> "手动技能";
             default -> "新对话";

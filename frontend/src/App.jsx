@@ -934,11 +934,33 @@ function BearDoctorAcademicApp() {
     setWorkspaceRunDetailLoading(false);
     setWorkspaceRunDetailError("");
     try {
+      if (targetWorkspaceId === "trade") {
+        const [ordersRes, sessionsRes] = await Promise.all([
+          queryUserOrderList({ pageSize: 8 }),
+          queryAcademicSessions(30).catch(() => null)
+        ]);
+        if (!apiSucceeded(ordersRes)) {
+          throw new Error(normalizeUserMessage(ordersRes?.info || ordersRes?.message, "工作区历史读取失败"));
+        }
+        const auditSessions = apiSucceeded(sessionsRes) && Array.isArray(sessionsRes?.data)
+          ? sessionsRes.data.filter((item) => (
+            ["trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade"]
+              .includes(String(item?.taskType || item?.agentType || "").trim().toLowerCase())
+          ))
+          : [];
+        setWorkspaceHistory({
+          workspaceId: targetWorkspaceId,
+          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, [
+            ...auditSessions,
+            ...(ordersRes.data?.orderList || [])
+          ], 8)
+        });
+        return;
+      }
       const query = {
         image: queryWorkspaceImageHistory,
         data: queryWorkspaceDataHistory,
-        mrag: queryWorkspaceMragHistory,
-        trade: ({ limit }) => queryUserOrderList({ pageSize: limit || 8 })
+        mrag: queryWorkspaceMragHistory
       }[targetWorkspaceId];
       if (!query) {
         throw new Error("工作区历史暂不可用");
@@ -947,9 +969,7 @@ function BearDoctorAcademicApp() {
       if (!apiSucceeded(res)) {
         throw new Error(normalizeUserMessage(res?.info || res?.message, "工作区历史读取失败"));
       }
-      const historyItems = targetWorkspaceId === "trade"
-        ? res.data?.orderList || []
-        : targetWorkspaceId === "image" && Array.isArray(res.data?.batches) && res.data.batches.length
+      const historyItems = targetWorkspaceId === "image" && Array.isArray(res.data?.batches) && res.data.batches.length
           ? res.data.batches
           : res.data?.items || [];
       setWorkspaceHistory({
