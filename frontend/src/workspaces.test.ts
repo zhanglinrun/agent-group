@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  OUTPUT_KIND_LABELS,
+  TOOL_LABELS,
   WORKSPACE_PROMPTS,
   WORKSPACES,
   workspaceAgentMode,
@@ -38,5 +40,12 @@ describe("workspace routing model", () => {
       expect(WORKSPACE_PROMPTS[workspace.id].length).toBeGreaterThan(0);
       expect(WORKSPACE_PROMPTS[workspace.id].every((item) => item.prompt.length > 10)).toBe(true);
     }
+  });
+
+  it("provides readable labels for workspace tools and output kinds", () => {
+    expect(TOOL_LABELS.image_generation).toBe("图像生成");
+    expect(TOOL_LABELS.nl2sql).toBe("自然语言转 SQL");
+    expect(OUTPUT_KIND_LABELS.artifact).toBe("任务产物");
+    expect(OUTPUT_KIND_LABELS["audit-report"]).toBe("审计报告");
   });
 });

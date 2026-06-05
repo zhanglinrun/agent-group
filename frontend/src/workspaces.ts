@@ -80,3 +80,22 @@ export const TOOL_LABELS: Record<string, string> = {
   nl2sql: "自然语言转 SQL",
   quota_usage: "额度对账"
 };
+
+export const OUTPUT_KIND_LABELS: Record<string, string> = {
+  answer: "回答",
+  reference: "引用来源",
+  artifact: "任务产物",
+  image: "图片",
+  prompt: "提示词",
+  table: "表格",
+  sql: "查询语句",
+  chart: "图表",
+  report: "报告",
+  evidence: "证据",
+  file: "文件",
+  order: "订单",
+  quota: "额度",
+  status: "状态",
+  "audit-report": "审计报告",
+  preview: "预览"
+};

@@ -33,6 +33,7 @@ import AgentAdminPanel from "./components/AgentAdminPanel";
 import McpManagementPanelV2 from "./components/McpManagementPanelV2";
 import ThemeToggle from "./components/ThemeToggle";
 import {
+  OUTPUT_KIND_LABELS,
   TOOL_LABELS,
   WORKSPACE_PROMPTS,
   WORKSPACES,
@@ -3496,7 +3497,7 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, onPrompt, onOpe
       {(isImage || isData || isMrag) && (
         <div className="workspace-output-strip">
           {serviceProfile.outputKinds.map((kind) => (
-            <span key={kind}>{kind}</span>
+            <span key={kind}>{OUTPUT_KIND_LABELS[kind] || kind}</span>
           ))}
         </div>
       )}
