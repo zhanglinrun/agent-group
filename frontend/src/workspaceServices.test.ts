@@ -177,7 +177,8 @@ describe("workspace service profiles", () => {
       size: "1536x1024",
       batchCount: 4,
       sourceFileIds: [],
-      sourceImageUrls: []
+      sourceImageUrls: [],
+      maskImageUrls: []
     });
   });
 
@@ -192,8 +193,12 @@ describe("workspace service profiles", () => {
       sessionId: "IMG2",
       prompt: "edit style",
       mode: "edit",
-      sourceFileIds: ["F1"]
-    }).mode).toBe("edit");
+      sourceFileIds: ["F1"],
+      maskImageUrls: "https://example.com/mask-a.png\nhttps://example.com/mask-b.png"
+    })).toMatchObject({
+      mode: "edit",
+      maskImageUrls: ["https://example.com/mask-a.png", "https://example.com/mask-b.png"]
+    });
   });
 
   it("normalizes visible tool catalog groups", () => {

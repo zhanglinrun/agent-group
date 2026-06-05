@@ -1,6 +1,7 @@
 package com.linrun.trigger.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicWorkspaceImageGenerateRequest;
 import com.linrun.api.dto.AcademicWorkspaceImageGenerateResponse;
 import com.linrun.api.dto.AcademicWorkspaceImageHistoryResponse;
@@ -129,9 +130,26 @@ class AcademicWorkspaceImageServiceTest {
         artifact.setContent("/files/poster.png");
         artifact.setDownloadUrl("/files/poster.png");
         artifact.setCreateTime(LocalDateTime.now());
+        AcademicAgentRun run = run("RUN1001");
+        run.setSessionId("S1001");
+        run.setRequestId("IMGREQ1001");
+        run.setTaskType("workspace-image");
+        run.setQuestion("编辑拼团活动主图");
+        run.setFinalSummary("已生成 3 张图片");
+        run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
+        AcademicRunDetailResponse detail = new AcademicRunDetailResponse();
+        AcademicRunDetailResponse.ToolInvocation invocation = new AcademicRunDetailResponse.ToolInvocation();
+        invocation.setToolName(AcademicToolOutputNames.IMAGE_GENERATION);
+        invocation.setAction("workspace/image/generate");
+        invocation.setArgumentsJson("""
+                {"mode":"edit","size":"1536x1024","batchCount":3,"sourceImageUrls":["/objects/source-a.png","/objects/source-b.png"]}
+                """);
+        detail.setToolInvocations(List.of(invocation));
         when(userAccountService.requireUserByToken("Bearer token")).thenReturn(user);
         when(repository.querySessions("U1001", 10)).thenReturn(List.of(session));
         when(repository.queryArtifacts("U1001", "S1001")).thenReturn(List.of(artifact));
+        when(ledgerService.queryRuns("U1001", "S1001", 10)).thenReturn(List.of(run));
+        when(ledgerService.queryRunDetail("U1001", "RUN1001")).thenReturn(detail);
         AcademicWorkspaceImageService service = new AcademicWorkspaceImageService(
                 new ObjectMapper(), null, userAccountService, null, repository, ledgerService);
 
@@ -142,6 +160,11 @@ class AcademicWorkspaceImageServiceTest {
         assertEquals("IMG-1", response.getItems().getFirst().getArtifactId());
         assertEquals(1, response.getBatchTotal());
         assertEquals("IMG-1", response.getBatches().getFirst().getImages().getFirst().getArtifactId());
+        assertEquals("IMGREQ1001", response.getBatches().getFirst().getRequestId());
+        assertEquals("edit", response.getBatches().getFirst().getMode());
+        assertEquals("1536x1024", response.getBatches().getFirst().getSize());
+        assertEquals(3, response.getBatches().getFirst().getBatchCount());
+        assertEquals(2, response.getBatches().getFirst().getSourceImageCount());
     }
 
     private UserAccount user(String userId) {

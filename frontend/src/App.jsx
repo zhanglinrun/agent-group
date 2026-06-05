@@ -626,7 +626,8 @@ function BearDoctorAcademicApp() {
   const [imageWorkspaceDraft, setImageWorkspaceDraft] = useState({
     mode: "generate",
     size: "1024x1024",
-    batchCount: 1
+    batchCount: 1,
+    maskImageUrlsText: ""
   });
   const [dataWorkspaceDraft, setDataWorkspaceDraft] = useState({
     rowsJson: "",
@@ -1611,7 +1612,8 @@ function BearDoctorAcademicApp() {
           prompt: streamDraft.question,
           ...imageWorkspaceDraft,
           sourceFileIds,
-          sourceImageUrls
+          sourceImageUrls,
+          maskImageUrls: imageWorkspaceDraft.maskImageUrlsText
         });
       } catch (error) {
         setConnectionError(normalizeUserMessage(error.message, "图像工作区参数格式不正确"));
@@ -3056,6 +3058,17 @@ function ImageWorkspacePanel({ draft, onChange, hasReference }) {
             onChange={(event) => update("batchCount", event.target.value)}
           />
         </label>
+        {draft.mode === "edit" && (
+          <label className="image-mask-field">
+            <span>蒙版图片地址</span>
+            <textarea
+              rows="2"
+              value={draft.maskImageUrlsText || ""}
+              onChange={(event) => update("maskImageUrlsText", event.target.value)}
+              placeholder="https://example.com/mask.png"
+            />
+          </label>
+        )}
       </div>
     </section>
   );

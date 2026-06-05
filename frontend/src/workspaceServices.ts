@@ -82,6 +82,7 @@ export interface WorkspaceImageGeneratePayload {
   batchCount: number;
   sourceFileIds: string[];
   sourceImageUrls: string[];
+  maskImageUrls: string[];
 }
 
 export interface ToolCatalogGroup {
@@ -514,6 +515,10 @@ function splitTextList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function textOrArrayList(value: unknown): string[] {
+  return Array.isArray(value) ? stringList(value) : splitTextList(String(value || ""));
+}
+
 function parseJsonArray(value: string | undefined, label: string): unknown[] {
   const text = String(value || "").trim();
   if (!text) return [];
@@ -598,9 +603,11 @@ export function buildWorkspaceImageGeneratePayload(input: {
   batchCount?: number | string;
   sourceFileIds?: string[];
   sourceImageUrls?: string[];
+  maskImageUrls?: string[] | string;
 }): WorkspaceImageGeneratePayload {
   const sourceFileIds = stringList(input.sourceFileIds);
   const sourceImageUrls = stringList(input.sourceImageUrls);
+  const maskImageUrls = textOrArrayList(input.maskImageUrls);
   const requestedMode = String(input.mode || "").trim() === "edit" ? "edit" : "generate";
   if (requestedMode === "edit" && sourceFileIds.length === 0 && sourceImageUrls.length === 0) {
     throw new Error("图生图需要先上传参考图");
@@ -612,6 +619,7 @@ export function buildWorkspaceImageGeneratePayload(input: {
     size: String(input.size || "1024x1024").trim() || "1024x1024",
     batchCount: clampBatchCount(input.batchCount),
     sourceFileIds,
-    sourceImageUrls
+    sourceImageUrls,
+    maskImageUrls
   };
 }

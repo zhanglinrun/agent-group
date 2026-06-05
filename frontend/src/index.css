@@ -2852,10 +2852,10 @@ body {
 }
 
 .bear-doctor-app .image-workspace-grid select,
-.bear-doctor-app .image-workspace-grid input {
+.bear-doctor-app .image-workspace-grid input,
+.bear-doctor-app .image-workspace-grid textarea {
   width: 100%;
   min-width: 0;
-  height: 34px;
   padding: 0 10px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 8px;
@@ -2865,8 +2865,24 @@ body {
   font: inherit;
 }
 
+.bear-doctor-app .image-workspace-grid select,
+.bear-doctor-app .image-workspace-grid input {
+  height: 34px;
+}
+
+.bear-doctor-app .image-workspace-grid textarea {
+  min-height: 58px;
+  padding-top: 8px;
+  resize: vertical;
+}
+
+.bear-doctor-app .image-workspace-grid .image-mask-field {
+  grid-column: 1 / -1;
+}
+
 .bear-doctor-app .image-workspace-grid select:focus,
-.bear-doctor-app .image-workspace-grid input:focus {
+.bear-doctor-app .image-workspace-grid input:focus,
+.bear-doctor-app .image-workspace-grid textarea:focus {
   border-color: #60a5fa;
 }
 

@@ -2,6 +2,7 @@ package com.linrun.trigger.http;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicWorkspaceImageGenerateRequest;
 import com.linrun.api.dto.AcademicWorkspaceImageGenerateResponse;
 import com.linrun.api.dto.AcademicWorkspaceImageHistoryResponse;
@@ -155,7 +156,7 @@ public class AcademicWorkspaceImageService {
                 .limit(safeLimit)
                 .map(this::artifactRef)
                 .toList();
-        List<AcademicWorkspaceImageHistoryResponse.Batch> batches = historyBatches(runs, artifacts, safeLimit);
+        List<AcademicWorkspaceImageHistoryResponse.Batch> batches = historyBatches(user.getUserId(), runs, artifacts, safeLimit);
         AcademicWorkspaceImageHistoryResponse response = new AcademicWorkspaceImageHistoryResponse();
         response.setSessionId(firstText(sessionId));
         response.setTotal(items.size());
@@ -183,7 +184,8 @@ public class AcademicWorkspaceImageService {
         return runs == null ? List.of() : runs;
     }
 
-    private List<AcademicWorkspaceImageHistoryResponse.Batch> historyBatches(List<AcademicAgentRun> runs,
+    private List<AcademicWorkspaceImageHistoryResponse.Batch> historyBatches(String userId,
+                                                                              List<AcademicAgentRun> runs,
                                                                               List<AcademicArtifact> artifacts,
                                                                               int safeLimit) {
         Map<String, List<AcademicArtifact>> artifactsByRun = new LinkedHashMap<>();
@@ -204,7 +206,7 @@ public class AcademicWorkspaceImageService {
             if (runArtifacts == null || runArtifacts.isEmpty()) {
                 continue;
             }
-            batches.add(batch(run, runArtifacts));
+            batches.add(batch(run, runArtifacts, runArguments(userId, run)));
             if (batches.size() >= safeLimit) {
                 return batches;
             }
@@ -223,7 +225,8 @@ public class AcademicWorkspaceImageService {
     }
 
     private AcademicWorkspaceImageHistoryResponse.Batch batch(AcademicAgentRun run,
-                                                              List<AcademicArtifact> artifacts) {
+                                                              List<AcademicArtifact> artifacts,
+                                                              Map<String, Object> arguments) {
         AcademicWorkspaceImageHistoryResponse.Batch batch = batch(artifacts);
         batch.setRequestId(firstText(run.getRequestId()));
         batch.setSessionId(firstText(run.getSessionId(), batch.getSessionId()));
@@ -231,10 +234,54 @@ public class AcademicWorkspaceImageService {
         batch.setPrompt(firstText(run.getQuestion(), batch.getPrompt()));
         batch.setSummary(firstText(run.getFinalSummary(), batch.getSummary()));
         batch.setStatus(firstText(run.getStatus(), batch.getStatus()));
+        batch.setMode(firstText(arguments.get("mode"), batch.getMode()));
+        batch.setSize(firstText(arguments.get("size"), batch.getSize()));
+        batch.setBatchCount(intValue(arguments.get("batchCount"), batch.getBatchCount()));
+        batch.setSourceImageCount(listSize(arguments.get("sourceImageUrls")));
         batch.setStartedAt(run.getStartedAt());
         batch.setFinishedAt(run.getFinishedAt());
         batch.setDurationMillis(run.getDurationMillis());
         return batch;
+    }
+
+    private Map<String, Object> runArguments(String userId, AcademicAgentRun run) {
+        if (ledgerService == null || run == null || !StringUtils.hasText(run.getRunId())) {
+            return Map.of();
+        }
+        try {
+            AcademicRunDetailResponse detail = ledgerService.queryRunDetail(userId, run.getRunId());
+            if (detail == null || detail.getToolInvocations() == null) {
+                return Map.of();
+            }
+            return detail.getToolInvocations().stream()
+                    .filter(this::isImageToolInvocation)
+                    .findFirst()
+                    .map(invocation -> jsonMap(invocation.getArgumentsJson()))
+                    .orElse(Map.of());
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private boolean isImageToolInvocation(AcademicRunDetailResponse.ToolInvocation invocation) {
+        if (invocation == null) {
+            return false;
+        }
+        return AcademicToolOutputNames.IMAGE_GENERATION.equals(invocation.getToolName())
+                || ACTION.equals(invocation.getAction());
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> jsonMap(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Map.of();
+        }
+        try {
+            Object value = objectMapper.readValue(json, Map.class);
+            return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+        } catch (Exception ignored) {
+            return Map.of();
+        }
     }
 
     private AcademicWorkspaceImageHistoryResponse.Batch batch(List<AcademicArtifact> artifacts) {
@@ -448,6 +495,27 @@ public class AcademicWorkspaceImageService {
         String value = firstText(artifact.getTitle(), artifact.getContent(), artifact.getDownloadUrl());
         int slash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
         return slash >= 0 && slash + 1 < value.length() ? value.substring(slash + 1) : value;
+    }
+
+    private int intValue(Object value, int defaultValue) {
+        if (value instanceof Number number) {
+            return Math.max(0, number.intValue());
+        }
+        try {
+            return Math.max(0, Integer.parseInt(firstText(value)));
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
+    }
+
+    private int listSize(Object value) {
+        if (value instanceof List<?> list) {
+            return list.size();
+        }
+        if (value instanceof String text && StringUtils.hasText(text)) {
+            return 1;
+        }
+        return 0;
     }
 
     private String firstText(Object... values) {
