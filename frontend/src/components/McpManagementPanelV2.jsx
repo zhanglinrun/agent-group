@@ -1,27 +1,6 @@
 import { Activity, Check, Download, Globe2, Loader2, Play, Plus, RotateCcw, Settings, Upload } from "lucide-react";
+import { mcpCacheStatusText } from "../mcpCacheStatus";
 import { MCP_TRANSPORT_OPTIONS, normalizeMcpTransport } from "../mcpServerForm";
-
-const CACHE_STATUS_LABELS = {
-  empty: "未缓存",
-  fresh: "缓存有效",
-  unbounded: "长期有效",
-  expired: "缓存过期"
-};
-
-function formatCacheAge(seconds) {
-  const value = Number(seconds || 0);
-  if (!Number.isFinite(value) || value <= 0) return "";
-  if (value < 60) return `${Math.floor(value)} 秒`;
-  if (value < 3600) return `${Math.floor(value / 60)} 分钟`;
-  return `${Math.floor(value / 3600)} 小时`;
-}
-
-function cacheStatusText(server) {
-  const status = String(server?.cacheStatus || "empty");
-  const label = CACHE_STATUS_LABELS[status] || status;
-  const age = formatCacheAge(server?.cacheAgeSeconds);
-  return age ? `${label} · ${age}` : label;
-}
 
 export default function McpManagementPanelV2({
   adminForm,
@@ -119,7 +98,7 @@ export default function McpManagementPanelV2({
             <div className="mcp-health-list">
               {health.servers.slice(0, 4).map((server) => (
                 <span key={server.serverId} className={server.status}>
-                  {server.serverId} · {server.status} · {server.toolCount || 0} 个工具 · {cacheStatusText(server)}
+                  {server.serverId} · {server.status} · {server.toolCount || 0} 个工具 · {mcpCacheStatusText(server)}
                 </span>
               ))}
             </div>
@@ -338,7 +317,7 @@ export default function McpManagementPanelV2({
                 <b>{server.name || server.serverId}</b>
                 <span>{server.serverId} · {server.transport || "streamable_http"}</span>
                 <small>{server.endpoint}</small>
-                <small>缓存 {cacheStatusText(server)}</small>
+                <small>缓存 {mcpCacheStatusText(server)}</small>
               </div>
               <div>
                 <em>{server.toolCount || 0} 个工具</em>
