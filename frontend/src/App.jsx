@@ -152,6 +152,7 @@ import {
   buildTradeAuditPrompt,
   buildTradeHistoryAuditPrompt,
   summarizeTradeWorkspace,
+  tradeSettlementHint,
   tradeOrderStatusLabel
 } from "./tradeWorkspace";
 import {
@@ -3329,6 +3330,7 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAu
           {summary.recentOrders.length === 0 && <p className="trade-workspace-empty">暂无订单</p>}
           {summary.recentOrders.map((order, index) => {
             const status = order.orderStatus || order.status || order.payStatus;
+            const settlementHint = tradeSettlementHint(order);
             return (
               <article className="trade-order-card" key={order.orderId || order.outTradeNo || index}>
                 <div>
@@ -3337,6 +3339,9 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAu
                 </div>
                 <em>{Number(order.marketType || 0) === 1 ? "拼团" : "直购"}</em>
                 <b>{tradeOrderStatusLabel(status)}</b>
+                <small className={`trade-settlement-hint ${settlementHint.tone}`} title={settlementHint.detail}>
+                  {settlementHint.label}
+                </small>
                 <span>¥{tradeOrderAmount(order)}</span>
                 <button type="button" className="trade-order-audit" onClick={() => onAuditOrder?.(order)}>
                   <ShieldCheck size={14} />

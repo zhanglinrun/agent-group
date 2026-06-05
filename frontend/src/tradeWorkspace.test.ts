@@ -4,6 +4,7 @@ import {
   buildTradeAuditPrompt,
   buildTradeHistoryAuditPrompt,
   summarizeTradeWorkspace,
+  tradeSettlementHint,
   tradeOrderStatusLabel
 } from "./tradeWorkspace";
 
@@ -65,6 +66,49 @@ describe("trade workspace summary", () => {
     expect(prompt).toContain("T1001");
     expect(prompt).toContain("trade_audit");
     expect(prompt).toContain("Agent");
+    expect(prompt).toContain("暂不能发放额度");
+  });
+
+  it("keeps quota grant rules explicit for trade settlement states", () => {
+    expect(tradeSettlementHint({
+      orderId: "O1001",
+      marketType: 1,
+      orderStatus: "PAY_SUCCESS"
+    })).toMatchObject({
+      key: "waiting-group",
+      label: "等待成团",
+      quotaGrantAllowed: false
+    });
+
+    expect(tradeSettlementHint({
+      orderId: "O1002",
+      marketType: 1,
+      orderStatus: "GROUP_SETTLED"
+    })).toMatchObject({
+      key: "group-settled",
+      label: "核对到账",
+      quotaGrantAllowed: true
+    });
+
+    expect(tradeSettlementHint({
+      orderId: "O1003",
+      marketType: 0,
+      orderStatus: "PAY_SUCCESS"
+    })).toMatchObject({
+      key: "direct-paid",
+      label: "可到账",
+      quotaGrantAllowed: true
+    });
+
+    expect(tradeSettlementHint({
+      orderId: "O1004",
+      marketType: 1,
+      orderStatus: "REFUND_SUCCESS"
+    })).toMatchObject({
+      key: "refund-check",
+      label: "核对退款",
+      quotaGrantAllowed: false
+    });
   });
 
   it("builds an agent audit prompt from a trade history item", () => {

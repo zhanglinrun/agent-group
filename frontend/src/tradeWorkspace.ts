@@ -29,6 +29,14 @@ export type TradeHistoryAuditItem = {
   source?: Record<string, unknown> | null;
 };
 
+export type TradeSettlementHint = {
+  key: string;
+  label: string;
+  detail: string;
+  tone: "neutral" | "warn" | "ready" | "danger";
+  quotaGrantAllowed: boolean;
+};
+
 const WAITING_GROUP_STATUSES = new Set(["PAY_SUCCESS", "PAY_SUCCEEDED", "PAID", "WAIT_GROUP", "GROUP_WAITING"]);
 const SETTLED_GROUP_STATUSES = new Set(["GROUP_SETTLED", "DEAL_DONE"]);
 const DONE_STATUSES = new Set(["DEAL_DONE", "FINISHED", "COMPLETED"]);
@@ -72,6 +80,63 @@ export function tradeOrderStatusLabel(status: unknown): string {
   return labels[normalized] || normalized || "未知";
 }
 
+export function tradeSettlementHint(order: Record<string, unknown>): TradeSettlementHint {
+  const status = orderStatus(order);
+  const groupOrder = isGroupOrder(order);
+  if (REFUND_LIKE_STATUSES.has(status)) {
+    return {
+      key: "refund-check",
+      label: "核对退款",
+      detail: "退款或关闭后需要核对额度是否已回滚。",
+      tone: "danger",
+      quotaGrantAllowed: false
+    };
+  }
+  if (groupOrder && WAITING_GROUP_STATUSES.has(status)) {
+    return {
+      key: "waiting-group",
+      label: "等待成团",
+      detail: "拼团支付成功只表示名额已支付，暂不能发放额度。",
+      tone: "warn",
+      quotaGrantAllowed: false
+    };
+  }
+  if (groupOrder && SETTLED_GROUP_STATUSES.has(status)) {
+    return {
+      key: "group-settled",
+      label: "核对到账",
+      detail: "拼团已成团或交易完成，应核对额度流水是否到账。",
+      tone: "ready",
+      quotaGrantAllowed: true
+    };
+  }
+  if (!groupOrder && WAITING_GROUP_STATUSES.has(status)) {
+    return {
+      key: "direct-paid",
+      label: "可到账",
+      detail: "直购支付成功后可以发放额度，需要核对到账流水。",
+      tone: "ready",
+      quotaGrantAllowed: true
+    };
+  }
+  if (DONE_STATUSES.has(status)) {
+    return {
+      key: "deal-done",
+      label: "已完成",
+      detail: "交易已完成，应存在对应额度到账或消耗记录。",
+      tone: "ready",
+      quotaGrantAllowed: true
+    };
+  }
+  return {
+    key: "pending-check",
+    label: "待核查",
+    detail: "需要结合后端订单、支付、拼团和额度流水事实判断。",
+    tone: "neutral",
+    quotaGrantAllowed: false
+  };
+}
+
 export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
   const orderId = textValue(order.orderId || order.outTradeNo || order.payOrderId);
   const teamId = textValue(order.teamId || order.groupTeamId || order.activityId);
@@ -79,6 +144,7 @@ export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
   const product = textValue(order.productName || order.goodsName || order.productId);
   const amount = textValue(order.payAmount || order.totalAmount || order.amount || order.lockAmount);
   const marketType = isGroupOrder(order) ? "拼团订单" : "直接购买订单";
+  const settlement = tradeSettlementHint(order);
   return [
     "请按拼团交易审计 Flow 核查这笔订单。",
     orderId ? `订单号：${orderId}` : "",
@@ -87,6 +153,7 @@ export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
     amount ? `金额：${amount}` : "",
     status ? `当前状态：${status}` : "",
     `订单类型：${marketType}`,
+    `结算判断：${settlement.label}。${settlement.detail}`,
     "请优先调用 trade_audit 读取后端事实，区分支付成功、成团、额度到账、退款回滚和 Agent 消耗流水，并给出结论和下一步处理建议。"
   ].filter(Boolean).join("\n");
 }
