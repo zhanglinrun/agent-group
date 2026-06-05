@@ -12,9 +12,11 @@ import {
   visibleCapabilityMatrix,
   visibleToolCatalogGroups,
   visibleToolRuntimeReadiness,
+  visibleWorkspaceRuntimeCoverage,
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
   workspaceDisplayProfile,
+  workspaceRuntimeCoverage,
   workspaceServiceProfile,
   workspaceToolReadiness,
   workspaceSupportsHistory
@@ -273,6 +275,48 @@ describe("workspace service profiles", () => {
       { key: "analysis", count: 3, tools: ["data_analysis", "table_rag"] }
     ]);
     expect(visibleToolCatalogGroups({})).toEqual([]);
+  });
+
+  it("normalizes workspace runtime coverage from tool catalog", () => {
+    const capabilities = {
+      toolCatalog: {
+        workspaceCoverage: [
+          {
+            workspace: "data",
+            status: "degraded",
+            runEndpoint: "/api/v1/academic/workspace/data/run",
+            historyEndpoint: "/api/v1/academic/workspace/data/history",
+            availableTools: ["data_analysis", "table_rag"],
+            missingTools: ["nl2sql"]
+          }
+        ]
+      }
+    };
+
+    expect(visibleWorkspaceRuntimeCoverage(capabilities)).toEqual([
+      {
+        workspaceId: "data",
+        status: "degraded",
+        statusLabel: "部分覆盖",
+        runReady: true,
+        historyReady: true,
+        availableTools: ["data_analysis", "table_rag"],
+        missingTools: ["nl2sql"]
+      }
+    ]);
+    expect(workspaceRuntimeCoverage("data", capabilities)).toMatchObject({
+      status: "degraded",
+      statusLabel: "部分覆盖",
+      runReady: true,
+      historyReady: true
+    });
+    expect(workspaceRuntimeCoverage("image", {})).toMatchObject({
+      workspaceId: "image",
+      status: "pending",
+      runReady: true,
+      historyReady: true,
+      missingTools: ["image_generation", "multimodal_agent", "file_tool"]
+    });
   });
 
   it("normalizes visible tool runtime readiness", () => {

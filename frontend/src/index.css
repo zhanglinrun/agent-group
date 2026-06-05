@@ -2420,6 +2420,45 @@ body {
   color: #fde68a;
 }
 
+.bear-doctor-app .workspace-runtime-coverage {
+  width: min(760px, 100%);
+  margin: -8px auto 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.bear-doctor-app .workspace-runtime-coverage span {
+  min-height: 40px;
+  padding: 7px 9px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.22);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.bear-doctor-app .workspace-runtime-coverage.ready span {
+  border-color: rgba(34, 197, 94, 0.24);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.bear-doctor-app .workspace-runtime-coverage.degraded span,
+.bear-doctor-app .workspace-runtime-coverage.pending span,
+.bear-doctor-app .workspace-runtime-coverage.missing span {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.bear-doctor-app .workspace-runtime-coverage b {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .bear-doctor-app .workspace-tool-strip,
 .bear-doctor-app .workspace-output-strip {
   display: flex;

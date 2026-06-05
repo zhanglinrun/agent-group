@@ -56,6 +56,7 @@ import {
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
   workspaceDisplayProfile,
+  workspaceRuntimeCoverage,
   workspaceToolReadiness,
   workspaceServiceProfile,
   workspaceSupportsHistory
@@ -3556,6 +3557,7 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, onPrompt, onOpe
   const serviceProfile = profile || workspaceServiceProfile(workspace.id);
   const capabilityStatus = workspaceCapabilityStatus(workspace.id, capabilities);
   const toolReadiness = workspaceToolReadiness(workspace.id, capabilities);
+  const runtimeCoverage = workspaceRuntimeCoverage(workspace.id, capabilities);
   const isImage = workspace.id === "image";
   const isData = workspace.id === "data";
   const isMrag = workspace.id === "mrag";
@@ -3597,6 +3599,14 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, onPrompt, onOpe
             </div>
           )}
           {toolReadiness.actions[0] && <small>{toolReadiness.actions[0]}</small>}
+        </div>
+      )}
+      {showWorkspaceRuntime && (
+        <div className={`workspace-runtime-coverage ${runtimeCoverage.status}`}>
+          <span><b>覆盖</b>{runtimeCoverage.statusLabel}</span>
+          <span><b>运行</b>{runtimeCoverage.runReady ? "已接入" : "未接入"}</span>
+          <span><b>历史</b>{runtimeCoverage.historyReady ? "已接入" : "未接入"}</span>
+          <span><b>工具</b>{runtimeCoverage.availableTools.length}/{runtimeCoverage.availableTools.length + runtimeCoverage.missingTools.length}</span>
         </div>
       )}
       {showWorkspaceRuntime && (

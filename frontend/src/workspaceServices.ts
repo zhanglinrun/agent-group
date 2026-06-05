@@ -102,6 +102,16 @@ export interface ToolCatalogGroup {
   tools: string[];
 }
 
+export interface WorkspaceRuntimeCoverage {
+  workspaceId: string;
+  status: "ready" | "degraded" | "pending" | "missing";
+  statusLabel: string;
+  runReady: boolean;
+  historyReady: boolean;
+  availableTools: string[];
+  missingTools: string[];
+}
+
 export interface ToolRuntimeReadiness {
   name: string;
   status: string;
@@ -270,6 +280,43 @@ export function visibleToolCatalogGroups(
       };
     })
     .filter((group) => group.key)
+    .slice(0, Math.max(0, limit));
+}
+
+function workspaceCoverageRecords(capabilities: Record<string, unknown> | null | undefined): unknown[] {
+  const coverage = (capabilities?.toolCatalog as { workspaceCoverage?: unknown } | undefined)?.workspaceCoverage;
+  return Array.isArray(coverage) ? coverage : [];
+}
+
+function workspaceCoverageStatusLabel(status: string): string {
+  if (status === "ready") return "已覆盖";
+  if (status === "degraded") return "部分覆盖";
+  if (status === "pending") return "待接入";
+  return "未接入";
+}
+
+function normalizeWorkspaceCoverage(record: Record<string, unknown>): WorkspaceRuntimeCoverage {
+  const status = String(record.status || "missing") as WorkspaceRuntimeCoverage["status"];
+  const runEndpoint = String(record.runEndpoint || "");
+  const historyEndpoint = String(record.historyEndpoint || "");
+  return {
+    workspaceId: String(record.workspace || record.id || ""),
+    status: ["ready", "degraded", "pending", "missing"].includes(status) ? status : "missing",
+    statusLabel: workspaceCoverageStatusLabel(status),
+    runReady: Boolean(runEndpoint),
+    historyReady: Boolean(historyEndpoint),
+    availableTools: stringList(record.availableTools),
+    missingTools: stringList(record.missingTools)
+  };
+}
+
+export function visibleWorkspaceRuntimeCoverage(
+  capabilities: Record<string, unknown> | null | undefined,
+  limit = 5
+): WorkspaceRuntimeCoverage[] {
+  return workspaceCoverageRecords(capabilities)
+    .map((item) => normalizeWorkspaceCoverage(item && typeof item === "object" ? item as Record<string, unknown> : {}))
+    .filter((item) => item.workspaceId)
     .slice(0, Math.max(0, limit));
 }
 
@@ -683,6 +730,28 @@ export function workspaceToolReadiness(
     inputFields,
     outputKinds,
     actions
+  };
+}
+
+export function workspaceRuntimeCoverage(
+  workspaceId: string,
+  capabilities: Record<string, unknown> | null | undefined
+): WorkspaceRuntimeCoverage {
+  const coverage = visibleWorkspaceRuntimeCoverage(capabilities, 64)
+    .find((item) => item.workspaceId === workspaceId);
+  if (coverage) {
+    return coverage;
+  }
+  const profile = workspaceDisplayProfile(workspaceId, capabilities);
+  const fallbackStatus: WorkspaceRuntimeCoverage["status"] = profile.primaryTools.length > 0 ? "pending" : "missing";
+  return {
+    workspaceId,
+    status: fallbackStatus,
+    statusLabel: workspaceCoverageStatusLabel(fallbackStatus),
+    runReady: Boolean(profile.runEndpoint),
+    historyReady: Boolean(profile.historyEndpoint),
+    availableTools: [],
+    missingTools: profile.primaryTools
   };
 }
 
