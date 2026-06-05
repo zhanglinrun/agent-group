@@ -187,6 +187,16 @@ class McpAdminHandlerTest {
         assertEquals(60L, server.get("cacheTtlSeconds"));
         assertTrue((Long) server.get("cacheAgeSeconds") >= 60L);
         assertEquals(true, handler.listServers().getFirst().get("cacheExpired"));
+        assertEquals("stale.search", handler.listTools("", true).getFirst().get("qualifiedName"));
+        assertTrue(handler.listAgentToolDefinitions().isEmpty());
+
+        AppException agentCallException = assertThrows(AppException.class,
+                () -> handler.callAgentTool("mcp_stale__search", Map.of()));
+        AppException registeredCallException = assertThrows(AppException.class,
+                () -> handler.callRegisteredTool("stale.search", Map.of()));
+
+        assertEquals("MCP_0404", agentCallException.getCode());
+        assertEquals("MCP_0404", registeredCallException.getCode());
     }
 
     @Test

@@ -176,7 +176,7 @@ public class McpAdminHandler {
     }
 
     public List<Map<String, Object>> listAgentToolDefinitions() {
-        return registry.listEnabledTools().stream()
+        return listAgentReadyTools().stream()
                 .map(this::agentTool)
                 .toList();
     }
@@ -245,9 +245,7 @@ public class McpAdminHandler {
     public Map<String, Object> callAgentTool(String agentToolName, Map<String, Object> arguments) {
         AcademicMcpToolDescriptor tool = resolveAgentTool(agentToolName);
         AcademicMcpServerDescriptor server = requireServer(tool.getServerId());
-        if (!server.isEnabled() || !tool.isEnabled()) {
-            throw new AppException("MCP_0401", "mcp tool disabled: " + tool.qualifiedName());
-        }
+        ensureToolCallable(server, tool);
         return toolInvoker.invoke(server, tool, arguments == null ? Map.of() : arguments);
     }
 
@@ -258,9 +256,7 @@ public class McpAdminHandler {
         AcademicMcpToolDescriptor tool = registry.findTool(name)
                 .orElseGet(() -> resolveAgentTool(name));
         AcademicMcpServerDescriptor server = requireServer(tool.getServerId());
-        if (!server.isEnabled() || !tool.isEnabled()) {
-            throw new AppException("MCP_0401", "mcp tool disabled: " + tool.qualifiedName());
-        }
+        ensureToolCallable(server, tool);
         return toolInvoker.invoke(server, tool, arguments);
     }
 
@@ -451,6 +447,22 @@ public class McpAdminHandler {
                 .filter(tool -> agentToolName(tool).equals(agentToolName))
                 .findFirst()
                 .orElseThrow(() -> new AppException("MCP_0400", "unknown agent mcp tool: " + agentToolName));
+    }
+
+    private List<AcademicMcpToolDescriptor> listAgentReadyTools() {
+        return registry.listEnabledTools().stream()
+                .filter(tool -> !cacheExpired(requireServer(tool.getServerId())))
+                .toList();
+    }
+
+    private void ensureToolCallable(AcademicMcpServerDescriptor server, AcademicMcpToolDescriptor tool) {
+        if (!server.isEnabled() || !tool.isEnabled()) {
+            throw new AppException("MCP_0401", "mcp tool disabled: " + tool.qualifiedName());
+        }
+        if (cacheExpired(server)) {
+            throw new AppException("MCP_0404", "mcp tool cache expired, rediscover tools before agent use: "
+                    + tool.qualifiedName());
+        }
     }
 
     private AcademicMcpToolDescriptor tool(String serverId, Map<String, Object> body) {
