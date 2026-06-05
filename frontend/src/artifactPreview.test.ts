@@ -35,6 +35,40 @@ describe("artifact preview model", () => {
     });
   });
 
+  it("normalizes tool fileInfo fields into preview metadata", () => {
+    const model = buildArtifactPreviewModel({
+      displayName: "analysis.md",
+      domainUrl: "/tool/files/analysis.md",
+      mimeType: "text/markdown",
+      resourceKey: "analysis-resource"
+    });
+
+    expect(model).toMatchObject({
+      kind: "text",
+      canPreview: true,
+      fileName: "analysis.md",
+      title: "analysis.md",
+      type: "text/markdown",
+      url: "/tool/files/analysis.md",
+      downloadUrl: "/tool/files/analysis.md"
+    });
+  });
+
+  it("normalizes primary file fields into preview metadata", () => {
+    const model = buildArtifactPreviewModel({
+      primaryFileName: "summary.md",
+      ossUrl: "/files/summary.md",
+      mimeType: "text/markdown"
+    });
+
+    expect(model).toMatchObject({
+      kind: "text",
+      fileName: "summary.md",
+      url: "/files/summary.md",
+      downloadUrl: "/files/summary.md"
+    });
+  });
+
   it("rejects unsafe resource urls", () => {
     const model = buildArtifactPreviewModel({
       fileName: "bad.html",

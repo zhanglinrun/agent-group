@@ -23,6 +23,16 @@ function text(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
+    const result = text(value);
+    if (result) {
+      return result;
+    }
+  }
+  return "";
+}
+
 function safeResourceUrl(value: unknown): string {
   const normalized = normalizeFileUrlForBrowser(text(value));
   if (!normalized) {
@@ -76,21 +86,29 @@ export function buildArtifactPreviewModel(value: unknown): ArtifactPreviewModel 
   const artifact = value && typeof value === "object" && !Array.isArray(value)
     ? value as UnknownMap
     : {};
-  const previewUrl = safeResourceUrl(artifact.previewUrl);
-  const downloadUrl = safeResourceUrl(artifact.downloadUrl || artifact.ossUrl || artifact.url);
+  const previewUrl = safeResourceUrl(firstText(artifact.previewUrl, artifact.domainUrl, artifact.url, artifact.ossUrl));
+  const downloadUrl = safeResourceUrl(firstText(artifact.downloadUrl, artifact.ossUrl, artifact.domainUrl, artifact.url, artifact.previewUrl));
   const url = previewUrl || downloadUrl;
-  const fileName = text(artifact.fileName || artifact.filename || artifact.name || artifact.title)
+  const fileName = firstText(
+    artifact.fileName,
+    artifact.filename,
+    artifact.primaryFileName,
+    artifact.displayName,
+    artifact.name,
+    artifact.resourceKey,
+    artifact.title
+  )
     || fileNameFromUrl(url)
     || "artifact";
   const kind = artifactKind(artifact, fileName);
-  const inlineText = text(artifact.content);
+  const inlineText = firstText(artifact.content, artifact.text);
   const resolvedKind = url || inlineText ? kind : "none";
   return {
     kind: resolvedKind,
     canPreview: resolvedKind === "image" || resolvedKind === "html" || resolvedKind === "text" || Boolean(inlineText),
     title: text(artifact.title) || fileName,
     fileName,
-    type: text(artifact.type || artifact.artifactType || artifact.contentType || kind),
+    type: firstText(artifact.type, artifact.artifactType, artifact.contentType, artifact.mimeType, kind),
     url,
     downloadUrl,
     inlineText
