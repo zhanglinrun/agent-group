@@ -60,6 +60,13 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 "deep".equals(item.get("agentId"))
                         && "plan-execute".equals(item.get("family"))
                         && "Plan Execute".equals(item.get("executionMode"))));
+        Map<String, Object> deepMode = agentExecutionModes.stream()
+                .filter(item -> "deep".equals(item.get("agentId")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(true, deepMode.get("replanEnabled"));
+        assertTrue(((List<?>) deepMode.get("replanEvidence")).contains("plan_update/replan stream event"));
+        assertTrue(((List<?>) deepMode.get("replanEvidence")).contains("AcademicAgentFlowProgress.STATUS_REPLANNED"));
         assertTrue(agentExecutionModes.stream().anyMatch(item ->
                 "ppt".equals(item.get("agentId"))
                         && "flow".equals(item.get("family"))
@@ -71,6 +78,16 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(agentExecutionModes.stream().anyMatch(item ->
                 "chat".equals(item.get("agentId"))
                         && "react".equals(item.get("family"))));
+
+        Map<String, Object> multiAgent = matrix.stream()
+                .filter(item -> "multi-agent".equals(item.get("key")))
+                .findFirst()
+                .orElseThrow();
+        Map<String, Object> dynamicReplan = (Map<String, Object>) multiAgent.get("dynamicReplan");
+        assertEquals(true, dynamicReplan.get("enabled"));
+        assertTrue(((List<?>) dynamicReplan.get("executionModes")).contains("deep"));
+        assertTrue(((List<?>) dynamicReplan.get("streamEvents")).contains("flow_delta:REPLANNED"));
+        assertTrue(((List<?>) multiAgent.get("evidence")).contains("plan_delta 支持 replan 计划版本"));
 
         Map<String, Object> mcp = matrix.stream()
                 .filter(item -> "mcp".equals(item.get("key")))

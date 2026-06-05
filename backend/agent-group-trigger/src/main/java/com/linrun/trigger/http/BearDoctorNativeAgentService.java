@@ -404,7 +404,11 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 agentExecutionMode("chat", "对话助手", "react", "ReAct", "通用问答、交易解释和轻量工具调用"),
                 agentExecutionMode("file", "文件问答", "react", "ReAct", "文件理解、引用回答和上下文追问"),
                 agentExecutionMode("ppt", "PPT生成", "flow", "Flow", "需求澄清、大纲、搜索、模板和渲染状态流转"),
-                agentExecutionMode("deep", "深度研究", "plan-execute", "Plan Execute", "计划拆解、分步执行、反思和动态重规划"),
+                agentExecutionMode("deep", "深度研究", "plan-execute", "Plan Execute", "计划拆解、分步执行、反思和动态重规划",
+                        true,
+                        List.of("plan_update/replan stream event",
+                                "AcademicAgentFlowProgress.STATUS_REPLANNED",
+                                "planner history versions")),
                 agentExecutionMode("image", "图像生成", "react", "ReAct", "图像生成、图生图和多模态参考图处理"),
                 agentExecutionMode("data", "数据问答", "react", "ReAct", "数据分析、表格检索和自然语言转 SQL"),
                 agentExecutionMode("mrag", "MRAG 知识问答", "react", "ReAct", "多模态检索、知识库证据和资料交叉验证"),
@@ -419,12 +423,26 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                                    String family,
                                                    String executionMode,
                                                    String summary) {
+        return agentExecutionMode(agentId, name, family, executionMode, summary, false, List.of());
+    }
+
+    private Map<String, Object> agentExecutionMode(String agentId,
+                                                   String name,
+                                                   String family,
+                                                   String executionMode,
+                                                   String summary,
+                                                   boolean replanEnabled,
+                                                   List<String> replanEvidence) {
         Map<String, Object> mode = new LinkedHashMap<>();
         mode.put("agentId", agentId);
         mode.put("name", name);
         mode.put("family", family);
         mode.put("executionMode", executionMode);
         mode.put("summary", summary);
+        if (replanEnabled || (replanEvidence != null && !replanEvidence.isEmpty())) {
+            mode.put("replanEnabled", replanEnabled);
+            mode.put("replanEvidence", replanEvidence == null ? List.of() : replanEvidence);
+        }
         return mode;
     }
 
@@ -579,7 +597,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "多智能体协同",
                         "ready",
                         "ReAct、Plan Execute、Flow 阶段推进、动态重规划和会话执行记忆已接入主链路。",
-                        List.of("chat/file/skills 使用 ReAct 链路", "deep 使用 Plan Execute", "实时流和回放输出 plan_delta/flow_delta", "同会话历史执行记忆会注入下一轮上下文"),
+                        List.of("chat/file/skills 使用 ReAct 链路", "deep 使用 Plan Execute", "实时流和回放输出 plan_delta/flow_delta",
+                                "flow_delta 支持 REPLANNED 状态", "plan_delta 支持 replan 计划版本", "同会话历史执行记忆会注入下一轮上下文"),
                         List.of()
                 ),
                 capabilityItem(
@@ -772,6 +791,14 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         item.put("summary", summary);
         item.put("evidence", evidence == null ? List.of() : evidence);
         item.put("gaps", gaps == null ? List.of() : gaps);
+        if ("multi-agent".equals(key)) {
+            Map<String, Object> dynamicReplan = new LinkedHashMap<>();
+            dynamicReplan.put("enabled", true);
+            dynamicReplan.put("executionModes", List.of("deep"));
+            dynamicReplan.put("streamEvents", List.of("plan_delta:replan", "flow_delta:REPLANNED"));
+            dynamicReplan.put("historyEvidence", List.of("AcademicReplayProjector", "planner history versions"));
+            item.put("dynamicReplan", dynamicReplan);
+        }
         if ("tool-runtime".equals(key)) {
             List<String> implementedTools = evidence == null ? List.of() : evidence;
             List<String> missingRuntimeTools = gaps == null ? List.of() : gaps;

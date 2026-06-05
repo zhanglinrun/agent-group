@@ -122,6 +122,14 @@ export interface CapabilityMatrixItem {
   summary: string;
   evidence: string[];
   gaps: string[];
+  dynamicReplan?: DynamicReplanCapability;
+}
+
+export interface DynamicReplanCapability {
+  enabled: boolean;
+  executionModes: string[];
+  streamEvents: string[];
+  historyEvidence: string[];
 }
 
 export interface AgentExecutionModeItem {
@@ -130,6 +138,8 @@ export interface AgentExecutionModeItem {
   family: string;
   executionMode: string;
   summary: string;
+  replanEnabled?: boolean;
+  replanEvidence?: string[];
 }
 
 export interface WorkspaceHistoryItem {
@@ -302,7 +312,7 @@ export function visibleCapabilityMatrix(
   return matrix
     .map((item) => {
       const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
-      return {
+      const visibleItem: CapabilityMatrixItem = {
         key: String(record.key || record.label || ""),
         label: String(record.label || record.key || ""),
         status: String(record.status || "degraded"),
@@ -310,6 +320,19 @@ export function visibleCapabilityMatrix(
         evidence: stringList(record.evidence).slice(0, 4),
         gaps: stringList(record.gaps).slice(0, 3)
       };
+      const dynamicReplanRecord = record.dynamicReplan && typeof record.dynamicReplan === "object"
+        ? record.dynamicReplan as Record<string, unknown>
+        : null;
+      if (dynamicReplanRecord) {
+        visibleItem.dynamicReplan = {
+          enabled: dynamicReplanRecord.enabled === true
+            || String(dynamicReplanRecord.enabled || "").toLowerCase() === "true",
+          executionModes: stringList(dynamicReplanRecord.executionModes),
+          streamEvents: stringList(dynamicReplanRecord.streamEvents),
+          historyEvidence: stringList(dynamicReplanRecord.historyEvidence)
+        };
+      }
+      return visibleItem;
     })
     .filter((item) => item.key && item.label)
     .slice(0, Math.max(0, limit));
@@ -326,13 +349,20 @@ export function visibleAgentExecutionModes(
   return modes
     .map((item) => {
       const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
-      return {
+      const replanEvidence = stringList(record.replanEvidence);
+      const mode: AgentExecutionModeItem = {
         agentId: String(record.agentId || ""),
         name: String(record.name || record.agentId || ""),
         family: String(record.family || ""),
         executionMode: String(record.executionMode || ""),
         summary: String(record.summary || "")
       };
+      if (record.replanEnabled !== undefined || replanEvidence.length > 0) {
+        mode.replanEnabled = record.replanEnabled === true
+          || String(record.replanEnabled || "").toLowerCase() === "true";
+        mode.replanEvidence = replanEvidence;
+      }
+      return mode;
     })
     .filter((item) => item.agentId && item.name)
     .slice(0, Math.max(0, limit));

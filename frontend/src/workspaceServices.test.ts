@@ -341,7 +341,13 @@ describe("workspace service profiles", () => {
           status: "ready",
           summary: "ReAct、Plan Execute、Flow 已接入",
           evidence: ["chat uses ReAct", "deep uses Plan Execute", "flow_delta events"],
-          gaps: []
+          gaps: [],
+          dynamicReplan: {
+            enabled: true,
+            executionModes: ["deep"],
+            streamEvents: ["plan_delta:replan", "flow_delta:REPLANNED"],
+            historyEvidence: ["planner history versions"]
+          }
         },
         {
           key: "mcp",
@@ -359,18 +365,40 @@ describe("workspace service profiles", () => {
         status: "ready",
         summary: "ReAct、Plan Execute、Flow 已接入",
         evidence: ["chat uses ReAct", "deep uses Plan Execute", "flow_delta events"],
-        gaps: []
+        gaps: [],
+        dynamicReplan: {
+          enabled: true,
+          executionModes: ["deep"],
+          streamEvents: ["plan_delta:replan", "flow_delta:REPLANNED"],
+          historyEvidence: ["planner history versions"]
+        }
       }
     ]);
 
     expect(visibleAgentExecutionModes({
       agentExecutionModes: [
         { agentId: "chat", name: "对话助手", family: "react", executionMode: "ReAct", summary: "通用问答" },
-        { agentId: "deep", name: "深度研究", family: "plan-execute", executionMode: "Plan Execute", summary: "动态重规划" }
+        {
+          agentId: "deep",
+          name: "深度研究",
+          family: "plan-execute",
+          executionMode: "Plan Execute",
+          summary: "动态重规划",
+          replanEnabled: true,
+          replanEvidence: ["plan_update/replan stream event", "flow_delta:REPLANNED"]
+        }
       ]
     })).toEqual([
       { agentId: "chat", name: "对话助手", family: "react", executionMode: "ReAct", summary: "通用问答" },
-      { agentId: "deep", name: "深度研究", family: "plan-execute", executionMode: "Plan Execute", summary: "动态重规划" }
+      {
+        agentId: "deep",
+        name: "深度研究",
+        family: "plan-execute",
+        executionMode: "Plan Execute",
+        summary: "动态重规划",
+        replanEnabled: true,
+        replanEvidence: ["plan_update/replan stream event", "flow_delta:REPLANNED"]
+      }
     ]);
   });
 
