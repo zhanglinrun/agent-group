@@ -7,6 +7,8 @@ export interface AgentModeOption {
   executionMode: string;
   executionFamily: AgentExecutionFamily;
   summary: string;
+  replanEnabled?: boolean;
+  replanLabel?: string;
 }
 
 export const AGENT_MODES: AgentModeOption[] = [
@@ -40,7 +42,9 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "🔬",
     executionMode: "Plan Execute",
     executionFamily: "plan-execute",
-    summary: "计划拆解、分步执行、反思和动态重规划"
+    summary: "计划拆解、分步执行、反思和动态重规划",
+    replanEnabled: true,
+    replanLabel: "重规划"
   },
   {
     id: "image",

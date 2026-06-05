@@ -276,10 +276,6 @@ function safeResourceUrl(url = "") {
   return safeExternalUrl(value);
 }
 
-function artifactPreviewUrl(artifact = {}) {
-  return safeResourceUrl(artifact.previewUrl) || safeResourceUrl(artifact.downloadUrl);
-}
-
 function isImageArtifact(artifact = {}) {
   const type = String(artifact.contentType || artifact.type || "").toLowerCase();
   const name = String(artifact.fileName || artifact.title || artifact.previewUrl || artifact.downloadUrl || "").toLowerCase();
@@ -2689,7 +2685,10 @@ function BearDoctorAcademicApp() {
                   <span className="agent-icon">{agent.icon}</span>
                   <span className="agent-copy">
                     <span className="agent-name">{agent.name}</span>
-                    <span className={`agent-mode agent-mode-${agent.executionFamily}`}>{agent.executionMode}</span>
+                    <span className="agent-mode-row">
+                      <span className={`agent-mode agent-mode-${agent.executionFamily}`}>{agent.executionMode}</span>
+                      {agent.replanEnabled && <span className="agent-replan-badge">{agent.replanLabel || "重规划"}</span>}
+                    </span>
                   </span>
                   {selectedAgent === agent.id && <Check size={12} className="check-icon" />}
                 </button>
@@ -2931,12 +2930,23 @@ function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
     <div className="agent-capability-matrix">
       {executionModes.length > 0 && (
         <div className="agent-execution-modes">
-          {executionModes.map((mode) => (
-            <span key={mode.agentId} title={mode.summary || ""}>
-              <b>{mode.name}</b>
-              <em>{mode.executionMode || mode.family || "-"}</em>
-            </span>
-          ))}
+          {executionModes.map((mode) => {
+            const replanEvidence = compactToolList(mode.replanEvidence, 3);
+            const title = [mode.summary || "", replanEvidence ? `重规划证据 ${replanEvidence}` : ""]
+              .filter(Boolean)
+              .join("\n");
+            return (
+              <span
+                key={mode.agentId}
+                className={mode.replanEnabled ? "replan-enabled" : ""}
+                title={title}
+              >
+                <b>{mode.name}</b>
+                <em>{mode.executionMode || mode.family || "-"}</em>
+                {mode.replanEnabled && <small>重规划</small>}
+              </span>
+            );
+          })}
         </div>
       )}
       {items.map((item) => (
@@ -2953,6 +2963,20 @@ function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
             <div className="agent-capability-evidence">
               {item.evidence.map((evidence) => (
                 <span key={evidence}>{evidence}</span>
+              ))}
+            </div>
+          )}
+          {item.dynamicReplan?.enabled && (
+            <div
+              className="agent-dynamic-replan"
+              title={[
+                compactToolList(item.dynamicReplan.executionModes, 3),
+                compactToolList(item.dynamicReplan.historyEvidence, 3)
+              ].filter(Boolean).join("\n")}
+            >
+              <span>动态重规划</span>
+              {item.dynamicReplan.streamEvents?.slice(0, 2).map((event) => (
+                <em key={event}>{event}</em>
               ))}
             </div>
           )}

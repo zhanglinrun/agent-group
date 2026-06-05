@@ -7,6 +7,8 @@ describe("agent mode model", () => {
     expect(agentModeById("chat").executionFamily).toBe("react");
     expect(agentModeById("deep").executionFamily).toBe("plan-execute");
     expect(agentModeById("deep").executionMode).toBe("Plan Execute");
+    expect(agentModeById("deep").replanEnabled).toBe(true);
+    expect(agentModeById("deep").replanLabel).toBe("重规划");
     expect(agentModeById("ppt").executionFamily).toBe("flow");
     expect(agentModeById("trade-audit").executionFamily).toBe("flow");
     expect(agentModeById("manual-skills").executionFamily).toBe("skill-sop");

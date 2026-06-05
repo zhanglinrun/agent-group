@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Buffer } from "node:buffer";
 
 import {
   cacheMcpTools,
