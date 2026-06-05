@@ -133,6 +133,8 @@ export interface CapabilityMatrixItem {
   evidence: string[];
   gaps: string[];
   dynamicReplan?: DynamicReplanCapability;
+  settlementRules?: TradeQuotaSettlementRule[];
+  guardrails?: string[];
 }
 
 export interface DynamicReplanCapability {
@@ -140,6 +142,14 @@ export interface DynamicReplanCapability {
   executionModes: string[];
   streamEvents: string[];
   historyEvidence: string[];
+}
+
+export interface TradeQuotaSettlementRule {
+  key: string;
+  scenario: string;
+  requiredState: string;
+  quotaGrantAllowed: boolean;
+  operatorHint: string;
 }
 
 export interface AgentExecutionModeItem {
@@ -378,6 +388,25 @@ export function visibleCapabilityMatrix(
           streamEvents: stringList(dynamicReplanRecord.streamEvents),
           historyEvidence: stringList(dynamicReplanRecord.historyEvidence)
         };
+      }
+      if (Array.isArray(record.settlementRules)) {
+        visibleItem.settlementRules = record.settlementRules
+          .map((rule) => {
+            const ruleRecord = rule && typeof rule === "object" ? rule as Record<string, unknown> : {};
+            return {
+              key: String(ruleRecord.key || ""),
+              scenario: String(ruleRecord.scenario || ""),
+              requiredState: String(ruleRecord.requiredState || ""),
+              quotaGrantAllowed: ruleRecord.quotaGrantAllowed === true
+                || String(ruleRecord.quotaGrantAllowed || "").toLowerCase() === "true",
+              operatorHint: String(ruleRecord.operatorHint || "")
+            };
+          })
+          .filter((rule) => rule.key && rule.scenario);
+      }
+      const guardrails = stringList(record.guardrails);
+      if (guardrails.length > 0) {
+        visibleItem.guardrails = guardrails.slice(0, 3);
       }
       return visibleItem;
     })

@@ -446,6 +446,64 @@ describe("workspace service profiles", () => {
     ]);
   });
 
+  it("keeps trade quota settlement rules from capability matrix", () => {
+    expect(visibleCapabilityMatrix({
+      capabilityMatrix: [
+        {
+          key: "trade-quota",
+          label: "交易与额度闭环",
+          status: "ready",
+          summary: "额度发放由后端交易系统控制",
+          evidence: ["拼团 GROUP_SETTLED/DEAL_DONE 后才可发放额度"],
+          gaps: [],
+          guardrails: ["前端和 Agent 不能直接决定额度到账", "拼团支付成功不等于额度到账"],
+          settlementRules: [
+            {
+              key: "group-pay-success",
+              scenario: "拼团名额已支付",
+              requiredState: "PAY_SUCCESS",
+              quotaGrantAllowed: false,
+              operatorHint: "未成团前不能发放额度"
+            },
+            {
+              key: "group-settled",
+              scenario: "拼团已成团",
+              requiredState: "GROUP_SETTLED/DEAL_DONE",
+              quotaGrantAllowed: true,
+              operatorHint: "成团后核对额度流水"
+            }
+          ]
+        }
+      ]
+    })).toEqual([
+      {
+        key: "trade-quota",
+        label: "交易与额度闭环",
+        status: "ready",
+        summary: "额度发放由后端交易系统控制",
+        evidence: ["拼团 GROUP_SETTLED/DEAL_DONE 后才可发放额度"],
+        gaps: [],
+        guardrails: ["前端和 Agent 不能直接决定额度到账", "拼团支付成功不等于额度到账"],
+        settlementRules: [
+          {
+            key: "group-pay-success",
+            scenario: "拼团名额已支付",
+            requiredState: "PAY_SUCCESS",
+            quotaGrantAllowed: false,
+            operatorHint: "未成团前不能发放额度"
+          },
+          {
+            key: "group-settled",
+            scenario: "拼团已成团",
+            requiredState: "GROUP_SETTLED/DEAL_DONE",
+            quotaGrantAllowed: true,
+            operatorHint: "成团后核对额度流水"
+          }
+        ]
+      }
+    ]);
+  });
+
   it("normalizes workspace history items across workspace APIs", () => {
     expect(workspaceSupportsHistory("image")).toBe(true);
     expect(workspaceSupportsHistory("trade")).toBe(true);

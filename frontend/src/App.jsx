@@ -3004,6 +3004,27 @@ function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
               ))}
             </div>
           )}
+          {item.settlementRules?.length > 0 && (
+            <div className="agent-settlement-rules">
+              {item.settlementRules.slice(0, 4).map((rule) => (
+                <span
+                  key={rule.key}
+                  className={rule.quotaGrantAllowed ? "allowed" : "blocked"}
+                  title={rule.operatorHint}
+                >
+                  <b>{rule.scenario}</b>
+                  <em>{rule.quotaGrantAllowed ? "可发放" : "不发放"}</em>
+                </span>
+              ))}
+            </div>
+          )}
+          {item.guardrails?.length > 0 && (
+            <div className="agent-capability-guardrails">
+              {item.guardrails.map((guardrail) => (
+                <span key={guardrail}>{guardrail}</span>
+              ))}
+            </div>
+          )}
           <small>{item.gaps?.length > 0 ? item.gaps.join("；") : "无缺口"}</small>
         </article>
       ))}

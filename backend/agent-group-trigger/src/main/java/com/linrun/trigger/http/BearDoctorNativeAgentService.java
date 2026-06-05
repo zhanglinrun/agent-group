@@ -656,10 +656,52 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "交易与额度闭环",
                         "ready",
                         "直接购买、拼团成团、支付状态、额度发放、任务扣减和退款回滚通过后端交易系统控制。",
-                        List.of("额度扣减模式: spring-ai-usage-with-estimated-fallback", "前端交易工作区: /workspace/trade"),
+                        List.of("额度扣减模式: spring-ai-usage-with-estimated-fallback",
+                                "直购 PAY_SUCCESS 后可发放额度",
+                                "拼团 GROUP_SETTLED/DEAL_DONE 后才可发放额度",
+                                "前端交易工作区: /workspace/trade"),
                         List.of()
                 )
         );
+    }
+
+    private List<Map<String, Object>> tradeQuotaSettlementRules() {
+        return List.of(
+                tradeQuotaSettlementRule("direct-pay-success",
+                        "直购支付成功",
+                        "PAY_SUCCESS",
+                        true,
+                        "直购订单支付成功后可以发放额度，但仍需以后端支付单和额度流水为准。"),
+                tradeQuotaSettlementRule("group-pay-success",
+                        "拼团名额已支付",
+                        "PAY_SUCCESS",
+                        false,
+                        "拼团支付成功只表示名额已支付，未成团前不能发放额度。"),
+                tradeQuotaSettlementRule("group-settled",
+                        "拼团已成团",
+                        "GROUP_SETTLED/DEAL_DONE",
+                        true,
+                        "拼团已成团或交易完成后，才能给同团用户发放额度。"),
+                tradeQuotaSettlementRule("refund-success",
+                        "退款成功",
+                        "REFUND_SUCCESS/REFUNDED",
+                        false,
+                        "退款或误发时必须记录额度流水并回滚余额。")
+        );
+    }
+
+    private Map<String, Object> tradeQuotaSettlementRule(String key,
+                                                         String scenario,
+                                                         String requiredState,
+                                                         boolean quotaGrantAllowed,
+                                                         String operatorHint) {
+        Map<String, Object> rule = new LinkedHashMap<>();
+        rule.put("key", key);
+        rule.put("scenario", scenario);
+        rule.put("requiredState", requiredState);
+        rule.put("quotaGrantAllowed", quotaGrantAllowed);
+        rule.put("operatorHint", operatorHint);
+        return rule;
     }
 
     private List<Map<String, Object>> toolRuntimeReadiness(List<Map<String, Object>> academicTools,
@@ -798,6 +840,14 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             dynamicReplan.put("streamEvents", List.of("plan_delta:replan", "flow_delta:REPLANNED"));
             dynamicReplan.put("historyEvidence", List.of("AcademicReplayProjector", "planner history versions"));
             item.put("dynamicReplan", dynamicReplan);
+        }
+        if ("trade-quota".equals(key)) {
+            item.put("authoritativeSources", List.of("trade_order", "pay_order", "group_buy_team", "quota_flow"));
+            item.put("settlementRules", tradeQuotaSettlementRules());
+            item.put("guardrails", List.of(
+                    "前端和 Agent 不能直接决定额度到账",
+                    "拼团支付成功不等于额度到账",
+                    "高风险状态必须来自后端交易系统"));
         }
         if ("tool-runtime".equals(key)) {
             List<String> implementedTools = evidence == null ? List.of() : evidence;

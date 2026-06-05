@@ -118,6 +118,27 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(((List<?>) toolRuntime.get("missingRuntimeTools")).contains("code_interpreter"));
         assertTrue(((List<?>) toolRuntime.get("gaps")).isEmpty());
 
+        Map<String, Object> tradeQuota = matrix.stream()
+                .filter(item -> "trade-quota".equals(item.get("key")))
+                .findFirst()
+                .orElseThrow();
+        assertTrue(((List<?>) tradeQuota.get("authoritativeSources")).contains("quota_flow"));
+        assertTrue(((List<?>) tradeQuota.get("guardrails")).contains("拼团支付成功不等于额度到账"));
+        List<Map<String, Object>> settlementRules = (List<Map<String, Object>>) tradeQuota.get("settlementRules");
+        Map<String, Object> groupPaySuccess = settlementRules.stream()
+                .filter(item -> "group-pay-success".equals(item.get("key")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("PAY_SUCCESS", groupPaySuccess.get("requiredState"));
+        assertEquals(false, groupPaySuccess.get("quotaGrantAllowed"));
+        assertTrue(String.valueOf(groupPaySuccess.get("operatorHint")).contains("未成团前不能发放额度"));
+        Map<String, Object> groupSettled = settlementRules.stream()
+                .filter(item -> "group-settled".equals(item.get("key")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(true, groupSettled.get("quotaGrantAllowed"));
+        assertTrue(String.valueOf(groupSettled.get("requiredState")).contains("GROUP_SETTLED"));
+
         assertNotNull(capabilities.get("toolRuntimeReadiness"));
         List<Map<String, Object>> readiness = (List<Map<String, Object>>) capabilities.get("toolRuntimeReadiness");
         assertEquals(AcademicToolOutputNames.orderedRichToolNames().size(), readiness.size());
