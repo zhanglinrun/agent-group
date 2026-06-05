@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AcademicToolOutputReaderTest {
@@ -120,6 +121,27 @@ class AcademicToolOutputReaderTest {
         assertEquals("O1001", snapshot.get("orderId"));
         assertEquals("WAITING_GROUP_SETTLEMENT", findings.getFirst().get("code"));
         assertEquals("/artifacts/A2001", view.getFileRefs().getFirst().getDownloadUrl());
+    }
+
+    @Test
+    void shouldNotTreatPlainTitleAsFileRef() {
+        AcademicToolInvocation invocation = invocation("""
+                {
+                  "toolName": "planning_tool",
+                  "title": "Trade plan",
+                  "summary": "Plain text result",
+                  "result": {
+                    "title": "Nested title",
+                    "summary": "Nested plain text"
+                  }
+                }
+                """);
+
+        AcademicToolOutputView view = reader.read(invocation, List.of());
+
+        assertTrue(view.getFileRefs().isEmpty());
+        assertEquals(0, view.getArtifactCount());
+        assertFalse(view.getStructuredOutput().containsKey("fileRefs"));
     }
 
     @Test

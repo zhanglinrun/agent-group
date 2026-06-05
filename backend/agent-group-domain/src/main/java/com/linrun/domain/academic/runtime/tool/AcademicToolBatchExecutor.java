@@ -143,9 +143,7 @@ public class AcademicToolBatchExecutor {
         if (!result.getArtifactIds().isEmpty()) {
             return true;
         }
-        return !AcademicToolOutputProjector.extractArtifactIds(result.getResult()).isEmpty()
-                || result.getResult().containsKey("fileRefs")
-                || result.getResult().containsKey("artifactRefs");
+        return AcademicToolOutputProjector.hasArtifactReferences(result.getResult());
     }
 
     private AcademicLedgerContext.Context resolveContext(AcademicToolCallCommand command,

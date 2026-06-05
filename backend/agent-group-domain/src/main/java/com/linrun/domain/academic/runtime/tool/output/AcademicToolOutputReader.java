@@ -139,12 +139,30 @@ public class AcademicToolOutputReader {
         if (values == null || values.isEmpty()) {
             return;
         }
+        if (!hasPrimaryFilePayload(values)) {
+            return;
+        }
         AcademicToolFileRef fileRef = AcademicToolFileRef.fromMap(values);
         if (StringUtils.hasText(fileRef.getFileName())
                 || StringUtils.hasText(fileRef.getDownloadUrl())
                 || StringUtils.hasText(fileRef.getPreviewUrl())) {
             fileRefs.add(fileRef);
         }
+    }
+
+    private boolean hasPrimaryFilePayload(Map<String, Object> values) {
+        return StringUtils.hasText(firstObjectText(
+                values.get("primaryFileName"),
+                values.get("fileName"),
+                values.get("filename"),
+                values.get("displayName"),
+                values.get("name")))
+                || StringUtils.hasText(firstObjectText(
+                values.get("downloadUrl"),
+                values.get("ossUrl"),
+                values.get("domainUrl"),
+                values.get("url"),
+                values.get("previewUrl")));
     }
 
     private List<AcademicArtifact> artifactRefs(AcademicToolInvocation invocation,
@@ -281,6 +299,16 @@ public class AcademicToolOutputReader {
         if (!map.containsKey(key) && value != null) {
             map.put(key, value);
         }
+    }
+
+    private String firstObjectText(Object... values) {
+        for (Object value : values) {
+            String text = text(value);
+            if (StringUtils.hasText(text)) {
+                return text;
+            }
+        }
+        return "";
     }
 
     private String firstText(String... values) {

@@ -486,24 +486,9 @@ public class AcademicExecutionLedgerService {
         collectFileRefs(result.get("fileInfo"), refs);
         collectFileRefs(result.get("fileList"), refs);
         collectPrimaryFileRef(result, refs);
-        Object nestedResult = result.get("result");
-        if (nestedResult instanceof Map<?, ?> map) {
-            Map<String, Object> nested = (Map<String, Object>) map;
-            collectFileRefs(nested.get("fileRefs"), refs);
-            collectFileRefs(nested.get("artifactRefs"), refs);
-            collectFileRefs(nested.get("fileInfo"), refs);
-            collectFileRefs(nested.get("fileList"), refs);
-            collectPrimaryFileRef(nested, refs);
-        }
-        Object structuredOutput = result.get("structuredOutput");
-        if (structuredOutput instanceof Map<?, ?> map) {
-            Map<String, Object> structured = (Map<String, Object>) map;
-            collectFileRefs(structured.get("fileRefs"), refs);
-            collectFileRefs(structured.get("artifactRefs"), refs);
-            collectFileRefs(structured.get("fileInfo"), refs);
-            collectFileRefs(structured.get("fileList"), refs);
-            collectPrimaryFileRef(structured, refs);
-        }
+        collectNestedFileRefs(result.get("result"), refs);
+        collectNestedFileRefs(result.get("resultMap"), refs);
+        collectNestedFileRefs(result.get("structuredOutput"), refs);
         Map<String, AcademicToolFileRef> deduped = new LinkedHashMap<>();
         for (AcademicToolFileRef ref : refs) {
             String key = firstText(ref.getArtifactId(), ref.getDownloadUrl(), ref.getPreviewUrl(), ref.getFileName());
@@ -526,8 +511,23 @@ public class AcademicExecutionLedgerService {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private void collectNestedFileRefs(Object value, List<AcademicToolFileRef> refs) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> nested = (Map<String, Object>) map;
+            collectFileRefs(nested.get("fileRefs"), refs);
+            collectFileRefs(nested.get("artifactRefs"), refs);
+            collectFileRefs(nested.get("fileInfo"), refs);
+            collectFileRefs(nested.get("fileList"), refs);
+            collectPrimaryFileRef(nested, refs);
+        }
+    }
+
     private void collectPrimaryFileRef(Map<String, Object> values, List<AcademicToolFileRef> refs) {
         if (values == null || values.isEmpty()) {
+            return;
+        }
+        if (!hasPrimaryFilePayload(values)) {
             return;
         }
         AcademicToolFileRef fileRef = AcademicToolFileRef.fromMap(values);
@@ -536,6 +536,21 @@ public class AcademicExecutionLedgerService {
                 || StringUtils.hasText(fileRef.getPreviewUrl())) {
             refs.add(fileRef);
         }
+    }
+
+    private boolean hasPrimaryFilePayload(Map<String, Object> values) {
+        return StringUtils.hasText(firstObjectText(
+                values.get("primaryFileName"),
+                values.get("fileName"),
+                values.get("filename"),
+                values.get("displayName"),
+                values.get("name")))
+                || StringUtils.hasText(firstObjectText(
+                values.get("downloadUrl"),
+                values.get("ossUrl"),
+                values.get("domainUrl"),
+                values.get("url"),
+                values.get("previewUrl")));
     }
 
     private AcademicArtifact artifactFromFileRef(AcademicLedgerContext.Context context,
@@ -613,6 +628,16 @@ public class AcademicExecutionLedgerService {
 
     private boolean same(String left, String right) {
         return StringUtils.hasText(left) && left.equals(right);
+    }
+
+    private String firstObjectText(Object... values) {
+        for (Object value : values) {
+            String text = text(value);
+            if (StringUtils.hasText(text)) {
+                return text;
+            }
+        }
+        return "";
     }
 
     private String firstText(String... values) {

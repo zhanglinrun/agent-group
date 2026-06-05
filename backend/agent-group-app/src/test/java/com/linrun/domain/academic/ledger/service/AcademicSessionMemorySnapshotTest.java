@@ -124,6 +124,47 @@ class AcademicSessionMemorySnapshotTest {
         assertEquals("CSV", summary.getArtifactType());
     }
 
+    @Test
+    void shouldPersistResultMapPrimaryFileAsLedgerArtifact() {
+        FakeLedgerRepository repository = new FakeLedgerRepository();
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
+                repository, new AcademicReplayProjector());
+
+        service.recordToolArtifacts(
+                new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "report"),
+                "TOOL1",
+                "report_tool",
+                Map.of("resultMap", Map.of(
+                        "primaryFileName", "result-map.md",
+                        "ossUrl", "/files/result-map.md",
+                        "mimeType", "text/markdown")));
+
+        assertEquals(1, repository.artifacts.size());
+        AcademicArtifact artifact = repository.artifacts.getFirst();
+        assertEquals("result-map.md", artifact.getTitle());
+        assertEquals("/files/result-map.md", artifact.getDownloadUrl());
+        assertEquals("MD", artifact.getArtifactType());
+    }
+
+    @Test
+    void shouldNotPersistPlainToolTitleAsLedgerArtifact() {
+        FakeLedgerRepository repository = new FakeLedgerRepository();
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
+                repository, new AcademicReplayProjector());
+
+        service.recordToolArtifacts(
+                new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "plan"),
+                "TOOL1",
+                "planning_tool",
+                Map.of(
+                        "title", "Trade plan",
+                        "summary", "Plain text result",
+                        "result", Map.of("title", "Nested title"),
+                        "structuredOutput", Map.of("title", "Structured title")));
+
+        assertTrue(repository.artifacts.isEmpty());
+    }
+
     private static AcademicAgentRun run(String runId,
                                         String requestId,
                                         String sessionId,
