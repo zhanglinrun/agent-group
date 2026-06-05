@@ -67,6 +67,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals(true, deepMode.get("replanEnabled"));
         assertTrue(((List<?>) deepMode.get("replanEvidence")).contains("plan_update/replan stream event"));
         assertTrue(((List<?>) deepMode.get("replanEvidence")).contains("AcademicAgentFlowProgress.STATUS_REPLANNED"));
+        assertTrue(((List<?>) deepMode.get("replanEvidence")).contains("AcademicAgentFallbackReplanStrategy default recovery"));
         assertTrue(agentExecutionModes.stream().anyMatch(item ->
                 "ppt".equals(item.get("agentId"))
                         && "flow".equals(item.get("family"))
@@ -90,6 +91,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(((List<?>) multiAgent.get("evidence"))
                 .contains("AcademicReActExecutionService 记录 thought/action/observation"));
         assertTrue(((List<?>) multiAgent.get("evidence")).contains("plan_delta 支持 replan 计划版本"));
+        assertTrue(((List<?>) multiAgent.get("evidence"))
+                .contains("AcademicAgentFallbackReplanStrategy 失败步骤恢复和依赖改写"));
 
         Map<String, Object> mcp = matrix.stream()
                 .filter(item -> "mcp".equals(item.get("key")))

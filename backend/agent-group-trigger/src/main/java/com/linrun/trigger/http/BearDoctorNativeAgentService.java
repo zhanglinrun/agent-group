@@ -408,6 +408,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         true,
                         List.of("plan_update/replan stream event",
                                 "AcademicAgentFlowProgress.STATUS_REPLANNED",
+                                "AcademicAgentFallbackReplanStrategy default recovery",
                                 "planner history versions")),
                 agentExecutionMode("image", "图像生成", "react", "ReAct", "图像生成、图生图和多模态参考图处理"),
                 agentExecutionMode("data", "数据问答", "react", "ReAct", "数据分析、表格检索和自然语言转 SQL"),
@@ -599,7 +600,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "ReAct、Plan Execute、Flow 阶段推进、动态重规划和会话执行记忆已接入主链路。",
                         List.of("chat/file/skills 使用 ReAct 链路", "AcademicReActExecutionService 记录 thought/action/observation",
                                 "deep 使用 Plan Execute", "实时流和回放输出 plan_delta/flow_delta",
-                                "flow_delta 支持 REPLANNED 状态", "plan_delta 支持 replan 计划版本", "同会话历史执行记忆会注入下一轮上下文"),
+                                "flow_delta 支持 REPLANNED 状态", "plan_delta 支持 replan 计划版本",
+                                "AcademicAgentFallbackReplanStrategy 失败步骤恢复和依赖改写",
+                                "同会话历史执行记忆会注入下一轮上下文"),
                         List.of()
                 ),
                 capabilityItem(
@@ -839,7 +842,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             dynamicReplan.put("enabled", true);
             dynamicReplan.put("executionModes", List.of("deep"));
             dynamicReplan.put("streamEvents", List.of("plan_delta:replan", "flow_delta:REPLANNED"));
-            dynamicReplan.put("historyEvidence", List.of("AcademicReplayProjector", "planner history versions"));
+            dynamicReplan.put("historyEvidence", List.of("AcademicReplayProjector", "planner history versions",
+                    "AcademicAgentFallbackReplanStrategy"));
             item.put("dynamicReplan", dynamicReplan);
         }
         if ("trade-quota".equals(key)) {

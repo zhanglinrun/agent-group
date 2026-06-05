@@ -36,6 +36,7 @@ public class AcademicAgentFlowExecutionService {
         List<AcademicAgentFlowExecutionEvent> events = new ArrayList<>();
         int replanCount = 0;
         int executionStageIndex = 0;
+        AcademicAgentReplanStrategy activeReplanStrategy = resolveReplanStrategy(replanStrategy);
 
         while (!currentPlan.allCompleted()) {
             List<AcademicAgentFlowStage> stages = flowProjector.buildRemainingStages(currentPlan);
@@ -69,8 +70,8 @@ public class AcademicAgentFlowExecutionService {
                 events.add(stepEvent(AcademicAgentFlowExecutionEvent.TYPE_STEP_BLOCKED,
                         stageIndex, step, stepResult.note()));
 
-                if (replanStrategy != null && replanCount < maxReplanAttempts) {
-                    List<AcademicPlanStep> remaining = replanStrategy.replan(new AcademicAgentFlowReplanRequest(
+                if (activeReplanStrategy != null && replanCount < maxReplanAttempts) {
+                    List<AcademicPlanStep> remaining = activeReplanStrategy.replan(new AcademicAgentFlowReplanRequest(
                             currentPlan, step, stepResult, completedSteps(currentPlan), replanCount));
                     if (remaining != null && !remaining.isEmpty()) {
                         currentPlan = rebuildAfterReplan(currentPlan, remaining);
@@ -89,6 +90,13 @@ public class AcademicAgentFlowExecutionService {
             }
         }
         return new AcademicAgentFlowExecutionResult(currentPlan, events, replanCount, currentPlan.allCompleted());
+    }
+
+    private AcademicAgentReplanStrategy resolveReplanStrategy(AcademicAgentReplanStrategy replanStrategy) {
+        if (replanStrategy != null) {
+            return replanStrategy;
+        }
+        return maxReplanAttempts > 0 ? new AcademicAgentFallbackReplanStrategy() : null;
     }
 
     private AcademicAgentStepExecutionResult executeStep(String runId,
