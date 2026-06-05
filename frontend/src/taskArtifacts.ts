@@ -140,6 +140,23 @@ function firstArray(...values: unknown[]): unknown[] {
   return [];
 }
 
+function primaryFileRef(value: UnknownMap): UnknownMap[] {
+  const fileName = firstText(value.primaryFileName, value.fileName, value.filename, value.displayName, value.name);
+  const explicitUrl = firstText(value.downloadUrl, value.ossUrl, value.previewUrl, value.domainUrl);
+  const url = explicitUrl || (fileName ? text(value.url) : "");
+  if (!fileName && !url) {
+    return [];
+  }
+  return [{
+    fileName,
+    downloadUrl: firstText(value.downloadUrl, value.ossUrl, value.domainUrl, value.url, value.previewUrl),
+    previewUrl: firstText(value.previewUrl, value.domainUrl, value.url, value.ossUrl, value.downloadUrl),
+    fileSize: value.fileSize ?? value.size,
+    contentType: firstText(value.contentType, value.mimeType),
+    artifactType: firstText(value.artifactType, value.type)
+  }];
+}
+
 function artifactRefsFrom(data: UnknownMap, structuredOutput: UnknownMap): UiArtifact[] {
   const resultMap = parseJsonObject(data.resultMap);
   const nestedResultMap = parseJsonObject(resultMap.resultMap);
@@ -164,12 +181,23 @@ function artifactRefsFrom(data: UnknownMap, structuredOutput: UnknownMap): UiArt
   const refs = [
     ...asArray(data.fileRefs).map(withSource),
     ...asArray(data.artifactRefs).map(withSource),
+    ...asArray(data.fileInfo).map(withSource),
+    ...asArray(data.fileList).map(withSource),
     ...asArray(resultMap.fileRefs).map(withSource),
     ...asArray(resultMap.artifactRefs).map(withSource),
+    ...asArray(resultMap.fileInfo).map(withSource),
+    ...asArray(resultMap.fileList).map(withSource),
     ...asArray(nestedResultMap.fileRefs).map(withSource),
     ...asArray(nestedResultMap.artifactRefs).map(withSource),
+    ...asArray(nestedResultMap.fileInfo).map(withSource),
+    ...asArray(nestedResultMap.fileList).map(withSource),
     ...asArray(structuredOutput.fileRefs).map(withSource),
-    ...asArray(structuredOutput.artifactRefs).map(withSource)
+    ...asArray(structuredOutput.artifactRefs).map(withSource),
+    ...asArray(structuredOutput.fileInfo).map(withSource),
+    ...asArray(structuredOutput.fileList).map(withSource),
+    ...primaryFileRef(resultMap).map(withSource),
+    ...primaryFileRef(nestedResultMap).map(withSource),
+    ...primaryFileRef(structuredOutput).map(withSource)
   ];
   return mergeArtifacts(
     [],
@@ -276,18 +304,19 @@ function hasPanelContent(panel: UiResultPanel): boolean {
 
 export function toUiArtifact(value: unknown): UiArtifact {
   const data = asObject(value);
-  const fileName = text(data.fileName) || text(data.filename) || text(data.name) || text(data.title) || "artifact";
-  const downloadUrl = normalizeFileUrlForBrowser(text(data.downloadUrl) || text(data.ossUrl) || text(data.url));
-  const previewUrl = normalizeFileUrlForBrowser(text(data.previewUrl) || text(data.domainUrl));
+  const fileName = firstText(data.fileName, data.filename, data.primaryFileName, data.displayName, data.name, data.resourceKey, data.title) || "artifact";
+  const downloadUrl = normalizeFileUrlForBrowser(firstText(data.downloadUrl, data.ossUrl, data.domainUrl, data.url, data.previewUrl));
+  const previewUrl = normalizeFileUrlForBrowser(firstText(data.previewUrl, data.domainUrl, data.url, data.ossUrl));
   const id = text(data.artifactId)
     || text(data.fileId)
+    || text(data.resourceKey)
     || `${fileName}_${downloadUrl || previewUrl}`;
   return {
     id,
     title: text(data.title) || fileName || "生成文件",
-    type: text(data.artifactType) || text(data.type) || text(data.contentType) || "ARTIFACT",
+    type: text(data.artifactType) || text(data.type) || text(data.contentType) || text(data.mimeType) || "ARTIFACT",
     fileName,
-    fileSize: numberValue(data.fileSize),
+    fileSize: numberValue(data.fileSize ?? data.size),
     content: text(data.content) || fileName,
     downloadUrl,
     previewUrl,

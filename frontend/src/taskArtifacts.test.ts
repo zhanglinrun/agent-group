@@ -102,6 +102,70 @@ describe("task artifact projection", () => {
     });
   });
 
+  it("extracts fileInfo and fileList payloads from tool events", () => {
+    const artifacts = toolResultArtifacts({
+      event: "tool_result",
+      data: {
+        invocationId: "code-1",
+        toolName: "code_interpreter",
+        resultMap: {
+          fileInfo: [
+            {
+              displayName: "code-output.md",
+              domainUrl: "/tool/files/code-output.md",
+              size: 512,
+              mimeType: "text/markdown",
+              resourceKey: "code-output-resource"
+            }
+          ],
+          resultMap: {
+            fileList: [
+              {
+                fileName: "chart.png",
+                previewUrl: "/tool/files/chart.png",
+                downloadUrl: "/tool/files/chart.png",
+                contentType: "image/png"
+              }
+            ]
+          }
+        }
+      }
+    });
+
+    expect(artifacts.map((item) => item.fileName)).toEqual(["code-output.md", "chart.png"]);
+    expect(artifacts[0]).toMatchObject({
+      id: "code-output-resource",
+      fileSize: 512,
+      contentType: "text/markdown",
+      toolName: "code_interpreter",
+      toolInvocationId: "code-1"
+    });
+  });
+
+  it("extracts primary file fields from run event result maps", () => {
+    const [artifact] = eventArtifacts({
+      event: "run_done",
+      data: {
+        toolName: "report_tool",
+        resultMap: {
+          primaryFileName: "summary.md",
+          ossUrl: "/files/summary.md",
+          fileSize: "1024",
+          mimeType: "text/markdown"
+        }
+      }
+    });
+
+    expect(artifact).toMatchObject({
+      fileName: "summary.md",
+      downloadUrl: "/files/summary.md",
+      previewUrl: "/files/summary.md",
+      fileSize: 1024,
+      contentType: "text/markdown",
+      toolName: "report_tool"
+    });
+  });
+
   it("deduplicates artifacts by stable id", () => {
     const first = toUiArtifact({ fileId: "file-1", fileName: "report.md", downloadUrl: "/files/report.md" });
     const second = toUiArtifact({ fileId: "file-1", fileName: "report.md", downloadUrl: "/files/report.md" });
