@@ -6,6 +6,7 @@ describe("agent mode model", () => {
   it("keeps core multi-agent execution families visible", () => {
     expect(agentModeById("chat").executionFamily).toBe("react");
     expect(agentModeById("deep").executionFamily).toBe("plan-execute");
+    expect(agentModeById("deep").executionMode).toBe("Plan Execute");
     expect(agentModeById("ppt").executionFamily).toBe("flow");
     expect(agentModeById("trade-audit").executionFamily).toBe("flow");
     expect(agentModeById("manual-skills").executionFamily).toBe("skill-sop");

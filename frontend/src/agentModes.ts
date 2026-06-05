@@ -38,7 +38,7 @@ export const AGENT_MODES: AgentModeOption[] = [
     id: "deep",
     name: "深度研究",
     icon: "🔬",
-    executionMode: "Plan",
+    executionMode: "Plan Execute",
     executionFamily: "plan-execute",
     summary: "计划拆解、分步执行、反思和动态重规划"
   },
