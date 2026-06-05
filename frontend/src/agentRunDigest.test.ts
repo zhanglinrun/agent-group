@@ -61,4 +61,20 @@ describe("agent run digest", () => {
       tone: "warn"
     });
   });
+
+  it("surfaces replanning count and reason from plan execute timeline", () => {
+    const digest = buildAgentRunDigest({
+      timeline: [
+        { type: "plan", title: "初始计划", steps: ["先查订单"] },
+        { type: "flow", status: "replanned", message: "支付表不可用，改查额度流水" },
+        { type: "plan", title: "补救计划", changeType: "replan", replanReason: "支付表不可用，改查额度流水", steps: ["查额度流水"] },
+        { type: "flow", status: "running", message: "计划已重规划：支付表不可用，改查额度流水" }
+      ]
+    });
+
+    expect(digest.metrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "replans", value: "1 次", tone: "warn" })
+    ]));
+    expect(digest.highlights.join("\n")).toContain("重规划：支付表不可用，改查额度流水");
+  });
 });

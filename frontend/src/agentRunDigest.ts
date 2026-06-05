@@ -61,6 +61,25 @@ function latestPlanTitle(timeline: TimelineItem[]): string {
   return text(last?.title);
 }
 
+function replanCount(timeline: TimelineItem[]): number {
+  const planReplans = timeline.filter((item) => item.type === "plan" && text(item.changeType).toLowerCase() === "replan").length;
+  const flowReplans = timeline.filter((item) => item.type === "flow" && timelineItemStatus(item) === "replanned").length;
+  return Math.max(planReplans, flowReplans);
+}
+
+function latestReplanReason(timeline: TimelineItem[]): string {
+  const replanned = [...timeline].reverse().find((item) => {
+    if (item.type === "plan" && text(item.changeType).toLowerCase() === "replan") {
+      return text(item.replanReason);
+    }
+    if (item.type === "flow" && timelineItemStatus(item) === "replanned") {
+      return text(item.message);
+    }
+    return false;
+  });
+  return text(replanned?.replanReason) || text(replanned?.message);
+}
+
 function latestTimelineDetail(timeline: TimelineItem[]): string {
   const last = [...timeline].reverse().find((item) => {
     if (item.type === "thinking") return false;
@@ -82,6 +101,7 @@ export function buildAgentRunDigest(message: unknown): AgentRunDigest {
   const resultPanels = asArray(msg.resultPanels);
   const planCount = timeline.filter((item) => item.type === "plan").length;
   const flowCount = timeline.filter((item) => item.type === "flow").length;
+  const replans = replanCount(timeline);
   const toolItems = timeline.filter((item) => item.type === "tool");
   const failedTools = toolItems.filter(isTimelineAttentionItem).length;
   const runningTools = toolItems.filter((item) => timelineItemStatus(item) === "running").length;
@@ -102,6 +122,9 @@ export function buildAgentRunDigest(message: unknown): AgentRunDigest {
   const metrics: AgentRunDigestMetric[] = [];
   if (planCount > 0) {
     metrics.push({ key: "plans", label: "计划", value: plural(planCount, "版") });
+  }
+  if (replans > 0) {
+    metrics.push({ key: "replans", label: "重规划", value: plural(replans, "次"), tone: "warn" });
   }
   if (flowCount > 0) {
     metrics.push({ key: "flows", label: "推进", value: plural(flowCount, "次") });
@@ -128,8 +151,10 @@ export function buildAgentRunDigest(message: unknown): AgentRunDigest {
   }
 
   const toolNames = uniqueToolNames(timeline);
+  const replanReason = latestReplanReason(timeline);
   const highlights = [
     latestPlanTitle(timeline) ? `计划：${latestPlanTitle(timeline)}` : "",
+    replanReason ? `重规划：${replanReason}` : "",
     toolNames.length ? `工具：${toolNames.slice(0, 4).join("、")}` : "",
     artifacts.length ? `产物：${artifactTitle(artifacts[0]) || plural(artifacts.length, "个文件")}` : "",
     latestTimelineDetail(timeline) ? `最近：${latestTimelineDetail(timeline)}` : ""
