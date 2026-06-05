@@ -2,6 +2,7 @@ export type TimelineItem = Record<string, unknown> & {
   type: string;
   status?: string;
   invocationId?: string;
+  toolCallId?: string;
   stageIndex?: number;
 };
 
@@ -176,6 +177,7 @@ export function streamEventToTimelineItem(
     return {
       type: "tool",
       invocationId: text(data.invocationId),
+      toolCallId: text(data.toolCallId),
       toolName: text(data.toolName) || "工具调用",
       detail: text(data.action) || text(data.argumentsJson),
       status: "running"
@@ -185,6 +187,7 @@ export function streamEventToTimelineItem(
     return {
       type: "tool",
       invocationId: text(data.invocationId),
+      toolCallId: text(data.toolCallId),
       toolName: text(data.toolName) || "工具调用",
       detail: text(data.resultSummary) || text(data.errorMessage),
       status: normalizeTimelineStatus(data.status, "completed"),
@@ -243,15 +246,31 @@ export function streamEventToTimelineItem(
   return null;
 }
 
+function sameToolTimelineItem(left: TimelineItem, right: TimelineItem): boolean {
+  return Boolean(
+    left.type === "tool"
+      && right.type === "tool"
+      && (
+        (left.invocationId && right.invocationId && left.invocationId === right.invocationId)
+          || (left.toolCallId && right.toolCallId && left.toolCallId === right.toolCallId)
+      )
+  );
+}
+
 export function mergeTimelineEvent(timeline: TimelineItem[] = [], item: TimelineItem | null): TimelineItem[] {
   if (!item) {
     return timeline || [];
   }
-  if (item.type === "tool" && item.invocationId) {
-    const index = timeline.findIndex((entry) => entry.type === "tool" && entry.invocationId === item.invocationId);
+  if (item.type === "tool" && (item.invocationId || item.toolCallId)) {
+    const index = timeline.findIndex((entry) => sameToolTimelineItem(entry, item));
     if (index >= 0) {
       const next = [...timeline];
-      next[index] = { ...next[index], ...item };
+      next[index] = {
+        ...next[index],
+        ...item,
+        invocationId: item.invocationId || next[index].invocationId,
+        toolCallId: item.toolCallId || next[index].toolCallId
+      };
       return next;
     }
   }

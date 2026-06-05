@@ -77,6 +77,29 @@ describe("agent timeline projection", () => {
     });
   });
 
+  it("merges tool call and result by tool call id when invocation id is missing", () => {
+    const started = streamEventToTimelineItem({
+      event: "tool_call",
+      data: { invocationId: "tool-1", toolCallId: "call-1", toolName: "report_tool", action: "write report" }
+    });
+    const completed = streamEventToTimelineItem({
+      event: "tool_result",
+      data: { toolCallId: "call-1", toolName: "report_tool", resultSummary: "report done", latencyMillis: 20 }
+    });
+
+    const timeline = mergeTimelineEvent(mergeTimelineEvent([], started), completed);
+
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]).toMatchObject({
+      type: "tool",
+      invocationId: "tool-1",
+      toolCallId: "call-1",
+      toolName: "report_tool",
+      status: "completed",
+      detail: "report done"
+    });
+  });
+
   it("updates flow stages by stage index", () => {
     const running = streamEventToTimelineItem({
       event: "flow_delta",
@@ -185,6 +208,20 @@ describe("agent timeline projection", () => {
 
     expect(timeline).toHaveLength(1);
     expect(timeline[0]).toMatchObject({ status: "completed", detail: "ok" });
+  });
+
+  it("replays tool events merged by tool call id", () => {
+    const timeline = replayEventsToTimeline([
+      {
+        events: [
+          { event: "tool_call", data: { invocationId: "tool-1", toolCallId: "call-1", toolName: "web_fetch" } },
+          { event: "tool_result", data: { toolCallId: "call-1", toolName: "web_fetch", resultSummary: "ok" } }
+        ]
+      }
+    ]);
+
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]).toMatchObject({ toolCallId: "call-1", status: "completed", detail: "ok" });
   });
 
   it("replays quota and usage events from persisted runs", () => {
