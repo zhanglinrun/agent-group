@@ -4924,6 +4924,22 @@ body {
   gap: 8px;
 }
 
+.bear-doctor-app .result-artifact-title {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.bear-doctor-app .result-artifact-source {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bear-doctor-app .result-image-card strong {
   min-width: 0;
   color: var(--text-primary);

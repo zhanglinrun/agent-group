@@ -3734,6 +3734,18 @@ function formatPanelValue(value) {
   return String(value);
 }
 
+function artifactSourceLabel(file = {}) {
+  const source = file.toolName || file.sourceName || file.toolInvocationId || file.invocationId || file.toolCallId;
+  if (!source) return "";
+  return TOOL_LABELS[source] || String(source);
+}
+
+function artifactMetaLabel(file = {}) {
+  const typeLabel = file.fileSize ? formatFileSize(file.fileSize) : file.type || file.contentType || "文件";
+  const sourceLabel = artifactSourceLabel(file);
+  return sourceLabel ? `${typeLabel} · 来源 ${sourceLabel}` : typeLabel;
+}
+
 function hostFromUrl(url = "") {
   const value = String(url || "").trim();
   if (!value) return "";
@@ -3929,7 +3941,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                       <FileText size={15} />
                       <div>
                         <strong>{file.title || file.fileName || "网页文件"}</strong>
-                        <span>{file.fileSize ? formatFileSize(file.fileSize) : file.type || file.contentType || "文件"}</span>
+                        <span>{artifactMetaLabel(file)}</span>
                       </div>
                       {file.downloadUrl && (
                         <button type="button" onClick={() => onDownloadArtifact?.(file)}>
@@ -3981,7 +3993,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                       <FileText size={15} />
                       <div>
                         <strong>{file.title || file.fileName || "执行产物"}</strong>
-                        <span>{file.fileSize ? formatFileSize(file.fileSize) : file.type || file.contentType || "文件"}</span>
+                        <span>{artifactMetaLabel(file)}</span>
                       </div>
                       {file.downloadUrl && (
                         <button type="button" onClick={() => onDownloadArtifact?.(file)}>
@@ -4047,6 +4059,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                 <div className="result-image-grid">
                   {panel.fileRefs.slice(0, 6).map((file, index) => {
                     const imageUrl = safeResourceUrl(file.previewUrl || file.downloadUrl);
+                    const sourceLabel = artifactSourceLabel(file);
                     return (
                       <div className="result-image-card" key={`${panel.id}-image-${index}`}>
                         {imageUrl ? (
@@ -4057,7 +4070,10 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                           <FileText size={24} />
                         )}
                         <div>
-                          <strong>{file.title || file.fileName || "生成图片"}</strong>
+                          <div className="result-artifact-title">
+                            <strong>{file.title || file.fileName || "生成图片"}</strong>
+                            {sourceLabel && <span className="result-artifact-source">来源 {sourceLabel}</span>}
+                          </div>
                           {file.downloadUrl && (
                             <button type="button" onClick={() => onDownloadArtifact?.(file)}>
                               <Download size={14} />
@@ -4093,7 +4109,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                       <FileText size={15} />
                       <div>
                         <strong>{file.title || file.fileName || "多模态产物"}</strong>
-                        <span>{file.fileSize ? formatFileSize(file.fileSize) : file.type || file.contentType || "文件"}</span>
+                        <span>{artifactMetaLabel(file)}</span>
                       </div>
                       {file.downloadUrl && (
                         <button type="button" onClick={() => onDownloadArtifact?.(file)}>
@@ -4118,7 +4134,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                         <FileText size={15} />
                         <div>
                           <strong>{file.title || file.fileName || "文件"}</strong>
-                          <span>{file.fileSize ? formatFileSize(file.fileSize) : file.type || file.contentType || "文件"}</span>
+                          <span>{artifactMetaLabel(file)}</span>
                         </div>
                         {previewUrl && (
                           <a href={previewUrl} target="_blank" rel="noreferrer" aria-label="预览文件">
