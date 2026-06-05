@@ -1948,6 +1948,9 @@ function BearDoctorAcademicApp() {
         closeAssistantTimelineInChat(sessionId, assistantId);
         loadQuota().catch(() => {});
         loadSessions().catch(() => {});
+        if (currentWorkspace.id === "trade") {
+          loadWorkspaceHistory("trade").catch(() => {});
+        }
         refreshTaskStatus(sessionId).catch(() => {});
         window.setTimeout(() => refreshSessionDetail(sessionId).catch(() => {}), 300);
       },
