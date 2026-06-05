@@ -1426,8 +1426,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
-  padding: 0 12px;
+  min-height: 58px;
+  padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
@@ -1438,10 +1438,58 @@ body {
   transition: all 0.2s ease;
 }
 
+.bear-doctor-app .workspace-nav-icon {
+  width: 26px;
+  min-width: 26px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.bear-doctor-app .workspace-nav-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
 .bear-doctor-app .workspace-nav-item b {
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bear-doctor-app .workspace-nav-item em {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bear-doctor-app .workspace-nav-badge {
+  min-width: 38px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+}
+
+.bear-doctor-app .workspace-nav-badge.ready {
+  border-color: rgba(34, 197, 94, 0.38);
+  color: #16a34a;
+}
+
+.bear-doctor-app .workspace-nav-badge.partial {
+  border-color: rgba(245, 158, 11, 0.38);
+  color: #d97706;
 }
 
 .bear-doctor-app .workspace-nav-item:hover {

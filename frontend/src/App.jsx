@@ -35,7 +35,6 @@ import ThemeToggle from "./components/ThemeToggle";
 import {
   OUTPUT_KIND_LABELS,
   TOOL_LABELS,
-  WORKSPACE_PROMPTS,
   WORKSPACES,
   workspaceAgentMode,
   workspaceFromPath,
@@ -56,9 +55,6 @@ import {
   visibleToolRuntimeReadiness,
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
-  workspaceDisplayProfile,
-  workspaceRuntimeCoverage,
-  workspaceToolReadiness,
   workspaceServiceProfile,
   workspaceSupportsHistory
 } from "./workspaceServices";
@@ -156,6 +152,7 @@ import {
   tradeSettlementHint,
   tradeOrderStatusLabel
 } from "./tradeWorkspace";
+import { buildWorkspacePageModel } from "./workspacePageModel";
 import {
   DEFAULT_MCP_SERVER_FORM,
   buildMcpServerPayload
@@ -211,6 +208,12 @@ function apiSucceeded(res) {
 
 function createRuntimeId(prefix) {
   return `${prefix}${Date.now()}`;
+}
+
+function workspacePageStatusLabel(status) {
+  if (status === "ready") return "就绪";
+  if (status === "partial") return "部分";
+  return "待接入";
 }
 
 function attachReplayTimeline(messages = [], timeline = [], artifacts = [], resultPanels = []) {
@@ -703,9 +706,10 @@ function BearDoctorAcademicApp() {
   const currentWorkspace = useMemo(() => (
     WORKSPACES.find((workspace) => workspace.id === activeWorkspace) || WORKSPACES[0]
   ), [activeWorkspace]);
-  const currentWorkspaceProfile = useMemo(() => (
-    workspaceDisplayProfile(currentWorkspace.id, agentCapabilities, workspaceServiceProfile(currentWorkspace.id))
+  const currentWorkspacePage = useMemo(() => (
+    buildWorkspacePageModel(currentWorkspace.id, agentCapabilities)
   ), [agentCapabilities, currentWorkspace.id]);
+  const currentWorkspaceProfile = currentWorkspacePage.profile;
   const workspaceNavigation = useMemo(() => (
     buildWorkspaceNavigation(currentWorkspace.id, agentCapabilities)
   ), [agentCapabilities, currentWorkspace.id]);
@@ -2472,8 +2476,14 @@ function BearDoctorAcademicApp() {
                 className={`workspace-nav-item ${workspace.active ? "active" : ""}`}
                 onClick={() => openWorkspace(workspace.id)}
               >
-                <span>{workspace.icon}</span>
-                <b>{workspace.name}</b>
+                <span className="workspace-nav-icon">{workspace.icon}</span>
+                <span className="workspace-nav-copy">
+                  <b>{workspace.name}</b>
+                  <em>{workspace.primaryActionLabel}</em>
+                </span>
+                <span className={`workspace-nav-badge ${workspace.pageStatus}`}>
+                  {workspacePageStatusLabel(workspace.pageStatus)}
+                </span>
               </button>
             ))}
           </div>
@@ -2584,7 +2594,7 @@ function BearDoctorAcademicApp() {
                 onCallTool={handleCallMcpTool}
               />
             )}
-            {workspaceSupportsHistory(currentWorkspace.id) && (
+            {currentWorkspacePage.supportsHistory && (
               <WorkspaceHistoryPanel
                 workspace={currentWorkspace}
                 items={workspaceHistory.workspaceId === currentWorkspace.id ? workspaceHistory.items : []}
@@ -2660,6 +2670,7 @@ function BearDoctorAcademicApp() {
                 workspace={currentWorkspace}
                 profile={currentWorkspaceProfile}
                 capabilities={agentCapabilities}
+                pageModel={currentWorkspacePage}
                 onPrompt={quickPrompt}
                 onOpenRecharge={openRecharge}
               />
@@ -3604,17 +3615,18 @@ function MragKnowledgePanel({
   );
 }
 
-function WorkspaceEmptyState({ workspace, profile, capabilities, onPrompt, onOpenRecharge }) {
-  const prompts = WORKSPACE_PROMPTS[workspace.id] || WORKSPACE_PROMPTS.agent;
-  const serviceProfile = profile || workspaceServiceProfile(workspace.id);
+function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPrompt, onOpenRecharge }) {
+  const page = pageModel || buildWorkspacePageModel(workspace.id, capabilities);
+  const prompts = page.prompts;
+  const serviceProfile = profile || page.profile || workspaceServiceProfile(workspace.id);
   const capabilityStatus = workspaceCapabilityStatus(workspace.id, capabilities);
-  const toolReadiness = workspaceToolReadiness(workspace.id, capabilities);
-  const runtimeCoverage = workspaceRuntimeCoverage(workspace.id, capabilities);
+  const toolReadiness = page.toolReadiness;
+  const runtimeCoverage = page.runtimeCoverage;
   const isImage = workspace.id === "image";
   const isData = workspace.id === "data";
   const isMrag = workspace.id === "mrag";
   const isTrade = workspace.id === "trade";
-  const showWorkspaceRuntime = isImage || isData || isMrag || isTrade;
+  const showWorkspaceRuntime = page.supportsHistory || page.dedicatedRun || isTrade;
   const manualSkills = Array.isArray(capabilities?.manualSkills)
     ? capabilities.manualSkills.slice(0, 6)
     : [];

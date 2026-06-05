@@ -1,11 +1,14 @@
 import type { AgentMode, WorkspaceId } from "./workspaces";
 import { WORKSPACES, workspaceAgentMode, workspaceFromPath, workspacePath } from "./workspaces";
 import {
-  workspaceDisplayProfile,
-  workspaceRuntimeCoverage,
   type WorkspaceRuntimeCoverage,
   type WorkspaceServiceProfile
 } from "./workspaceServices";
+import {
+  buildWorkspacePageModel,
+  type WorkspacePageInputKind,
+  type WorkspacePageStatus
+} from "./workspacePageModel";
 
 export interface WorkspaceNavigationItem {
   id: WorkspaceId;
@@ -22,6 +25,11 @@ export interface WorkspaceNavigationItem {
   runtimeStatusLabel: string;
   availableTools: string[];
   missingTools: string[];
+  pageStatus: WorkspacePageStatus;
+  primaryActionLabel: string;
+  inputKinds: WorkspacePageInputKind[];
+  dedicatedRun: boolean;
+  dedicatedHistory: boolean;
 }
 
 export interface WorkspaceNavigationTarget {
@@ -36,8 +44,10 @@ export function buildWorkspaceNavigation(
 ): WorkspaceNavigationItem[] {
   const activeWorkspaceId = normalizeActiveWorkspaceId(activeWorkspaceIdOrPath);
   return WORKSPACES.map((workspace) => {
-    const profile = workspaceDisplayProfile(workspace.id, capabilities);
-    const coverage = workspaceRuntimeCoverage(workspace.id, capabilities);
+    const page = buildWorkspacePageModel(workspace.id, capabilities);
+    const profile = page.profile;
+    const coverage = page.runtimeCoverage;
+    const runAction = page.actions.find((action) => action.key === "run");
     return {
       id: workspace.id,
       name: workspace.name,
@@ -52,7 +62,12 @@ export function buildWorkspaceNavigation(
       runtimeStatus: coverage.status,
       runtimeStatusLabel: coverage.statusLabel,
       availableTools: coverage.availableTools,
-      missingTools: coverage.missingTools
+      missingTools: coverage.missingTools,
+      pageStatus: page.status,
+      primaryActionLabel: runAction?.label || "",
+      inputKinds: page.inputKinds,
+      dedicatedRun: page.dedicatedRun,
+      dedicatedHistory: page.dedicatedHistory
     };
   });
 }

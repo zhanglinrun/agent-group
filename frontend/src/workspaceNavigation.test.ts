@@ -46,8 +46,53 @@ describe("workspace navigation view model", () => {
       runEndpoint: "/api/custom/image",
       historyEndpoint: "/api/custom/image/history",
       runtimeStatus: "degraded",
+      pageStatus: "partial",
+      primaryActionLabel: "生成图像",
+      inputKinds: ["prompt", "file", "image-options"],
+      dedicatedRun: true,
+      dedicatedHistory: true,
       availableTools: ["image_generation"],
       missingTools: ["custom_render"]
+    });
+  });
+
+  it("exposes page actions for productized workspace switching", () => {
+    const navigation = buildWorkspaceNavigation("trade", {
+      workspaceProfiles: [
+        {
+          id: "trade",
+          availableTools: ["trade_audit"],
+          missingTools: ["data_analysis"],
+          runEndpoint: "/api/v1/academic/stream",
+          historyEndpoint: "/api/v1/trade/order/my"
+        }
+      ]
+    });
+
+    const trade = activeWorkspaceNavigationItem("trade", {
+      workspaceProfiles: [
+        {
+          id: "trade",
+          availableTools: ["trade_audit"],
+          missingTools: ["data_analysis"],
+          runEndpoint: "/api/v1/academic/stream",
+          historyEndpoint: "/api/v1/trade/order/my"
+        }
+      ]
+    });
+    const data = navigation.find((item) => item.id === "data");
+
+    expect(trade).toMatchObject({
+      id: "trade",
+      pageStatus: "partial",
+      primaryActionLabel: "核查交易链路",
+      inputKinds: ["prompt", "quota"],
+      dedicatedRun: false
+    });
+    expect(data).toMatchObject({
+      primaryActionLabel: "运行数据问答",
+      inputKinds: ["prompt", "file", "data-catalog"],
+      dedicatedRun: true
     });
   });
 
