@@ -7,6 +7,7 @@ import com.linrun.api.dto.GuideStreamEvent;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
 import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,33 @@ class AcademicBearDoctorAgentHandlerTest {
         assertEquals("image", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "workspace-image"));
         assertEquals("data", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "table-rag"));
         assertEquals("trade-audit", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "trade-flow"));
+        assertEquals("trade-audit", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "workspace-trade"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldStartWorkspaceTradeWithTradeAuditPlan() throws Exception {
+        AcademicBearDoctorAgentHandler handler = new AcademicBearDoctorAgentHandler(
+                null, null, null, null, null, null, null, null, new ObjectMapper());
+        AcademicAgentRun run = new AcademicAgentRun();
+        run.setRunId("RUN1000");
+        run.setTaskType("trade-audit");
+        run.setQuestion("audit group trade order");
+        run.setModelName("test-model");
+        run.setStatus(AcademicAgentRun.STATUS_RUNNING);
+        AcademicAgentPlan plan = new AcademicAgentRunPlanFactory().build("workspace-trade", false);
+
+        List<GuideStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "startEvents",
+                runState(run, plan), "S1000", "REQ1000", new AtomicInteger(1));
+
+        assertEquals(List.of("run_start", "plan_delta", "flow_delta"),
+                events.stream().map(GuideStreamEvent::getEvent).toList());
+        Map<String, Object> planData = (Map<String, Object>) events.get(1).getData();
+        List<Map<String, Object>> structuredSteps = (List<Map<String, Object>>) planData.get("structuredSteps");
+        List<Map<String, Object>> flowStages = (List<Map<String, Object>>) planData.get("flowStages");
+
+        assertEquals(6, structuredSteps.size());
+        assertTrue(flowStages.stream().anyMatch(stage -> List.of("S2", "S3").equals(stage.get("stepIds"))));
     }
 
     @Test

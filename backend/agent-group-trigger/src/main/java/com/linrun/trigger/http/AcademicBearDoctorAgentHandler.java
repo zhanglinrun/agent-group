@@ -1056,7 +1056,7 @@ public class AcademicBearDoctorAgentHandler {
             case "deep", "deep-research" -> "deep";
             case "image", "image-generation", "workspace-image" -> "image";
             case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
-            case "trade", "trade-audit", "trade-flow", "group-trade" -> "trade-audit";
+            case "trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade" -> "trade-audit";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";
