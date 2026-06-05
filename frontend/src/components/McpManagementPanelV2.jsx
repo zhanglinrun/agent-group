@@ -1,5 +1,6 @@
 import { Activity, Check, Download, Globe2, Loader2, Play, Plus, RotateCcw, Settings, Upload } from "lucide-react";
 import { mcpCacheStatusText } from "../mcpCacheStatus";
+import { buildMcpRuntimeSummary } from "../mcpRuntimeSummary";
 import { MCP_TRANSPORT_OPTIONS, normalizeMcpTransport } from "../mcpServerForm";
 
 export default function McpManagementPanelV2({
@@ -41,6 +42,7 @@ export default function McpManagementPanelV2({
   const transport = normalizeMcpTransport(serverForm.transport);
   const healthStatus = health?.overallStatus || "unknown";
   const callableTools = (tools || []).filter((tool) => tool.enabled !== false);
+  const runtimeSummary = buildMcpRuntimeSummary({ servers, tools, health });
 
   return (
     <section className="mcp-panel">
@@ -78,6 +80,31 @@ export default function McpManagementPanelV2({
       </div>
 
       {error && <div className="mcp-error">{error}</div>}
+
+      <div className={`mcp-runtime-summary ${runtimeSummary.status}`}>
+        <div className="mcp-runtime-summary-head">
+          <div>
+            <strong>{runtimeSummary.title}</strong>
+            <span>{runtimeSummary.actions[0] || "等待后台状态刷新"}</span>
+          </div>
+          <em>{runtimeSummary.statusLabel}</em>
+        </div>
+        <div className="mcp-runtime-metrics">
+          {runtimeSummary.metrics.map((metric) => (
+            <span className={metric.tone || ""} key={metric.key}>
+              <b>{metric.label}</b>
+              {metric.value}
+            </span>
+          ))}
+        </div>
+        {runtimeSummary.alerts.length > 0 && (
+          <div className="mcp-runtime-alerts">
+            {runtimeSummary.alerts.map((alert) => (
+              <span key={alert}>{alert}</span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="mcp-ops-grid">
         <div className="mcp-ops-card">
