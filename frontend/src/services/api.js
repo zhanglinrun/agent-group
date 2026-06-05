@@ -1,3 +1,4 @@
+import { isAcademicTerminalEvent, parseAcademicSseBlock, splitAcademicSseBlocks } from "../academicSse";
 import { normalizeFileUrlForBrowser } from "../fileUrl";
 
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
@@ -709,26 +710,6 @@ export function requestAcademicAttachStream(sessionId = getSessionId(), onEvent,
   }, onEvent, onDone, onError);
 }
 
-function parseAcademicStreamBlock(block, onEvent) {
-  const lines = block.split(/\r?\n/);
-  const dataLines = lines.filter(line => line.startsWith("data:"));
-  const data = (dataLines.length ? dataLines : lines)
-    .map(line => line.replace(/^data:\s*/, "").trim())
-    .filter(line => line && !line.startsWith("event:") && !line.startsWith("id:") && !line.startsWith("retry:"))
-    .join("");
-
-  if (!data) return null;
-
-  try {
-    const event = JSON.parse(data);
-    onEvent(event);
-    return event;
-  } catch (error) {
-    console.warn("解析学术 SSE 数据失败", error, data);
-    return null;
-  }
-}
-
 function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) {
   const abortController = new AbortController();
 
@@ -773,12 +754,13 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const blocks = buffer.split(/\r?\n\r?\n/);
-        buffer = blocks.pop() || "";
+        const { blocks, rest } = splitAcademicSseBlocks(buffer);
+        buffer = rest;
 
         for (const block of blocks) {
-          const event = parseAcademicStreamBlock(block, onEvent);
-          if (event?.event === "done" || event?.event === "error") {
+          const event = parseAcademicSseBlock(block);
+          if (event) onEvent?.(event);
+          if (isAcademicTerminalEvent(event)) {
             await reader.cancel().catch(() => {});
             finish();
             return;
@@ -788,7 +770,8 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
 
       buffer += decoder.decode();
       if (buffer.trim()) {
-        parseAcademicStreamBlock(buffer, onEvent);
+        const event = parseAcademicSseBlock(buffer);
+        if (event) onEvent?.(event);
       }
       finish();
     } catch (error) {
