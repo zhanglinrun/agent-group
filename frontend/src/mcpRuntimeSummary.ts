@@ -43,6 +43,12 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
+function stringArray(value: unknown): string[] {
+  return asArray(value)
+    .map((item) => text(item))
+    .filter(Boolean);
+}
+
 function text(value: unknown): string {
   return String(value ?? "").trim();
 }
@@ -106,10 +112,19 @@ function titleForStatus(status: McpRuntimeStatus): string {
   } as Record<McpRuntimeStatus, string>)[status];
 }
 
-function cacheMetric(servers: UnknownMap[]): string {
+function cacheMetric(servers: UnknownMap[], registrySummary: UnknownMap = {}): string {
   const fresh = servers.filter((server) => ["fresh", "unbounded"].includes(text(server.cacheStatus))).length;
   const expired = servers.filter((server) => text(server.cacheStatus) === "expired").length;
   const empty = servers.filter((server) => text(server.cacheStatus) === "empty" || !text(server.cacheStatus)).length;
+  if (servers.length === 0 && Object.keys(registrySummary).length > 0) {
+    const cached = numberValue(registrySummary.cachedServerCount);
+    const emptyCache = numberValue(registrySummary.emptyCacheServerCount);
+    const parts = [
+      cached ? `${cached} 已缓存` : "",
+      emptyCache ? `${emptyCache} 未缓存` : ""
+    ].filter(Boolean);
+    return parts.length ? parts.join(" / ") : "无缓存信息";
+  }
   const parts = [
     fresh ? `${fresh} 有效` : "",
     expired ? `${expired} 过期` : "",
@@ -118,7 +133,16 @@ function cacheMetric(servers: UnknownMap[]): string {
   return parts.length ? parts.join(" / ") : "无缓存信息";
 }
 
-function transportMetric(servers: UnknownMap[]): string {
+function transportMetric(servers: UnknownMap[], registrySummary: UnknownMap = {}): string {
+  const transportCounts = asObject(registrySummary.transportCounts);
+  const transportParts = Object.entries(transportCounts)
+    .map(([transport, count]) => ({ transport, count: numberValue(count) }))
+    .filter((item) => item.transport && item.count > 0)
+    .slice(0, 3)
+    .map((item) => `${item.transport} ${item.count}`);
+  if (transportParts.length > 0) {
+    return transportParts.join(" / ");
+  }
   const transports = unique(servers.map((server) => text(server.transport) || "streamable_http"));
   return transports.length ? transports.slice(0, 3).join(" / ") : "-";
 }
@@ -167,20 +191,24 @@ function fallbackStatus(input: {
 
 export function buildMcpRuntimeSummary(input: McpRuntimeSummaryInput = {}): McpRuntimeSummary {
   const health = asObject(input.health);
+  const registrySummary = asObject(health.registrySummary);
   const servers = asArray(input.servers).map(asObject);
   const tools = asArray(input.tools).map(asObject);
   const healthServers = asArray(health.servers).map(asObject);
   const serverChecks = healthServers.length ? healthServers : servers;
 
-  const serverCount = numberOr(health.serverCount, servers.length || serverChecks.length);
-  const toolCount = numberOr(health.toolCount, tools.length);
+  const serverCount = numberOr(registrySummary.serverCount, numberOr(health.serverCount, servers.length || serverChecks.length));
+  const toolCount = numberOr(registrySummary.registeredToolCount, numberOr(health.toolCount, tools.length));
   const enabledServerCount = numberOr(
-    health.enabledServerCount,
-    servers.filter((server) => bool(server.enabled)).length || serverChecks.filter((server) => bool(server.enabled)).length
+    registrySummary.enabledServerCount,
+    numberOr(
+      health.enabledServerCount,
+      servers.filter((server) => bool(server.enabled)).length || serverChecks.filter((server) => bool(server.enabled)).length
+    )
   );
   const enabledToolCount = numberOr(
-    health.enabledToolCount,
-    tools.filter((tool) => bool(tool.enabled)).length
+    registrySummary.enabledToolCount,
+    numberOr(health.enabledToolCount, tools.filter((tool) => bool(tool.enabled)).length)
   );
   const readyServerCount = numberOr(
     health.readyServerCount,
@@ -199,6 +227,10 @@ export function buildMcpRuntimeSummary(input: McpRuntimeSummaryInput = {}): McpR
   const noEnabledToolServers = enabledServers.filter((server) => (
     numberValue(server.toolCount) > 0 && numberValue(server.enabledToolCount) === 0
   ));
+  const enabledServersWithoutCachedTools = stringArray(registrySummary.enabledServersWithoutCachedTools);
+  const emptyCacheNames = emptyCacheServers.length
+    ? emptyCacheServers.map(serverName)
+    : enabledServersWithoutCachedTools;
 
   const fallback = fallbackStatus({
     serverCount,
@@ -207,7 +239,7 @@ export function buildMcpRuntimeSummary(input: McpRuntimeSummaryInput = {}): McpR
     degradedServerCount,
     enabledToolCount,
     expiredCacheCount: expiredCacheServers.length,
-    emptyEnabledCacheCount: emptyCacheServers.length
+    emptyEnabledCacheCount: Math.max(emptyCacheServers.length, enabledServersWithoutCachedTools.length)
   });
   const status = normalizeStatus(health.overallStatus, fallback);
 
@@ -215,7 +247,7 @@ export function buildMcpRuntimeSummary(input: McpRuntimeSummaryInput = {}): McpR
     serverCount === 0 ? "还没有注册 MCP 服务" : "",
     serverCount > 0 && enabledServerCount === 0 ? "所有 MCP 服务都处于停用状态" : "",
     expiredCacheServers.length ? `${expiredCacheServers.map(serverName).slice(0, 3).join("、")} 工具缓存已过期` : "",
-    emptyCacheServers.length ? `${emptyCacheServers.map(serverName).slice(0, 3).join("、")} 尚未缓存工具` : "",
+    emptyCacheNames.length ? `${emptyCacheNames.slice(0, 3).join("、")} 尚未缓存工具` : "",
     noEnabledToolServers.length ? `${noEnabledToolServers.map(serverName).slice(0, 3).join("、")} 没有启用工具` : "",
     enabledServerCount > 0 && enabledToolCount === 0 ? "当前没有可供 Agent 使用的 MCP 工具" : ""
   ]);
@@ -223,7 +255,7 @@ export function buildMcpRuntimeSummary(input: McpRuntimeSummaryInput = {}): McpR
   const actions = unique([
     serverCount === 0 ? "先注册一个 MCP 服务" : "",
     serverCount > 0 && enabledServerCount === 0 ? "启用至少一个 MCP 服务" : "",
-    expiredCacheServers.length || emptyCacheServers.length ? "重新发现并缓存工具" : "",
+    expiredCacheServers.length || emptyCacheNames.length ? "重新发现并缓存工具" : "",
     enabledServerCount > 0 && enabledToolCount === 0 ? "启用需要开放给 Agent 的工具" : "",
     status === "ready" ? "可以试调用工具或交给 Agent 使用" : ""
   ]);
@@ -254,13 +286,13 @@ export function buildMcpRuntimeSummary(input: McpRuntimeSummaryInput = {}): McpR
       {
         key: "cache",
         label: "缓存",
-        value: cacheMetric(serverChecks),
-        tone: expiredCacheServers.length || emptyCacheServers.length ? "warn" : "good"
+        value: cacheMetric(serverChecks, registrySummary),
+        tone: expiredCacheServers.length || emptyCacheNames.length ? "warn" : "good"
       },
       {
         key: "transport",
         label: "接入",
-        value: transportMetric(serverChecks)
+        value: transportMetric(serverChecks, registrySummary)
       }
     ],
     alerts,

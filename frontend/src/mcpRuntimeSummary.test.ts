@@ -98,6 +98,43 @@ describe("mcp runtime summary", () => {
     ]);
   });
 
+  it("uses registry summary when health omits server detail", () => {
+    const summary = buildMcpRuntimeSummary({
+      health: {
+        registrySummary: {
+          serverCount: 2,
+          enabledServerCount: 2,
+          registeredToolCount: 1,
+          enabledToolCount: 1,
+          cachedServerCount: 1,
+          emptyCacheServerCount: 1,
+          enabledServersWithoutCachedTools: ["local"],
+          transportCounts: {
+            streamable_http: 1,
+            stdio: 1
+          }
+        }
+      }
+    });
+
+    expect(summary.status).toBe("degraded");
+    expect(summary.alerts).toEqual(["local 尚未缓存工具"]);
+    expect(summary.actions).toContain("重新发现并缓存工具");
+    expect(summary.metrics.find((item) => item.key === "servers")).toMatchObject({
+      value: "2/2"
+    });
+    expect(summary.metrics.find((item) => item.key === "tools")).toMatchObject({
+      value: "1/1"
+    });
+    expect(summary.metrics.find((item) => item.key === "cache")).toMatchObject({
+      value: "1 已缓存 / 1 未缓存",
+      tone: "warn"
+    });
+    expect(summary.metrics.find((item) => item.key === "transport")).toMatchObject({
+      value: "streamable_http 1 / stdio 1"
+    });
+  });
+
   it("marks tools on expired cache servers as not callable", () => {
     const availability = resolveMcpToolAvailability(
       { serverId: "research", qualifiedName: "research.search", enabled: true },
