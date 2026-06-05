@@ -61,6 +61,64 @@ class AcademicReplayProjectorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void shouldReplayTradeAuditOutputWithArtifactRefs() {
+        AcademicAgentRun run = new AcademicAgentRun();
+        run.setRunId("RUN3001");
+        run.setSessionId("S3001");
+        run.setRequestId("REQ3001");
+        run.setTaskType("trade-audit");
+        run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
+        run.setStartedAt(LocalDateTime.now());
+        run.setDurationMillis(30L);
+
+        AcademicToolInvocation toolInvocation = new AcademicToolInvocation();
+        toolInvocation.setInvocationId("TOOL3001");
+        toolInvocation.setToolName(AcademicToolOutputNames.TRADE_AUDIT);
+        toolInvocation.setStatus(AcademicAgentRun.STATUS_SUCCESS);
+        toolInvocation.setResultSummary("trade facts checked");
+        toolInvocation.setResultJson("""
+                {
+                  "toolName": "trade_audit",
+                  "title": "O3001",
+                  "summary": "trade facts checked",
+                  "metadata": {
+                    "snapshot": {"orderId": "O3001"},
+                    "findings": [
+                      {"severity": "INFO", "code": "NO_BLOCKING_RISK"}
+                    ],
+                    "highestSeverity": "INFO",
+                    "reportMaterialized": true
+                  },
+                  "fileRefs": [{"artifactId": "A3001", "fileName": "trade-audit-O3001.md"}]
+                }
+                """);
+
+        AcademicArtifact artifact = new AcademicArtifact();
+        artifact.setArtifactId("A3001");
+        artifact.setToolInvocationId("TOOL3001");
+        artifact.setTitle("Trade Audit");
+        artifact.setContent("trade-audit-O3001.md");
+        artifact.setArtifactType("MD");
+        artifact.setDownloadUrl("/artifacts/A3001");
+
+        AcademicReplayResponse response = projector.project(run, List.of(), List.of(toolInvocation), List.of(artifact));
+
+        GuideStreamEvent<Map<String, Object>> toolResult = response.getEvents().stream()
+                .filter(event -> "tool_result".equals(event.getEvent()))
+                .findFirst()
+                .orElseThrow();
+        Map<String, Object> structuredOutput = (Map<String, Object>) toolResult.getData().get("structuredOutput");
+        List<Map<String, Object>> fileRefs = (List<Map<String, Object>>) toolResult.getData().get("fileRefs");
+        List<Map<String, Object>> artifactRefs = (List<Map<String, Object>>) toolResult.getData().get("artifactRefs");
+
+        assertEquals("trade", structuredOutput.get("auditKind"));
+        assertEquals(1, structuredOutput.get("findingCount"));
+        assertEquals("/artifacts/A3001", fileRefs.getFirst().get("downloadUrl"));
+        assertEquals("A3001", artifactRefs.getFirst().get("artifactId"));
+    }
+
+    @Test
     void shouldProjectReplanEventsWhenFailedToolIsRecoveredByLaterTool() {
         AcademicAgentRun run = new AcademicAgentRun();
         run.setRunId("RUN2001");

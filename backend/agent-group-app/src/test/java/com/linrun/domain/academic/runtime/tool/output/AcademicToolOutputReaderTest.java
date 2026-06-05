@@ -45,6 +45,53 @@ class AcademicToolOutputReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void shouldExposeTradeAuditFieldsAndStableReportRefs() {
+        AcademicToolInvocation invocation = invocation("""
+                {
+                  "toolName": "trade_audit",
+                  "title": "O1001",
+                  "summary": "trade facts checked",
+                  "metadata": {
+                    "snapshot": {"orderId": "O1001", "orderStatus": "PAY_SUCCESS"},
+                    "findings": [
+                      {
+                        "severity": "WARN",
+                        "code": "WAITING_GROUP_SETTLEMENT",
+                        "message": "Payment succeeded, but group settlement has not completed."
+                      }
+                    ],
+                    "highestSeverity": "WARN",
+                    "reportMaterialized": true
+                  },
+                  "fileRefs": [
+                    {
+                      "artifactId": "A2001",
+                      "fileName": "trade-audit-O1001.md",
+                      "contentType": "text/markdown"
+                    }
+                  ]
+                }
+                """);
+        invocation.setToolName(AcademicToolOutputNames.TRADE_AUDIT);
+        AcademicArtifact artifact = artifact("A2001", "TOOL1001", "Trade Audit", "trade-audit-O1001.md");
+        artifact.setArtifactType("MD");
+
+        AcademicToolOutputView view = reader.read(invocation, List.of(artifact));
+        Map<String, Object> output = view.getStructuredOutput();
+        List<Map<String, Object>> findings = (List<Map<String, Object>>) output.get("findings");
+        Map<String, Object> snapshot = (Map<String, Object>) output.get("snapshot");
+
+        assertEquals("trade", output.get("auditKind"));
+        assertEquals("WARN", output.get("highestSeverity"));
+        assertEquals(1, output.get("findingCount"));
+        assertEquals(Boolean.TRUE, output.get("reportMaterialized"));
+        assertEquals("O1001", snapshot.get("orderId"));
+        assertEquals("WAITING_GROUP_SETTLEMENT", findings.getFirst().get("code"));
+        assertEquals("/artifacts/A2001", view.getFileRefs().getFirst().getDownloadUrl());
+    }
+
+    @Test
     void shouldBuildFallbackOutputWhenResultJsonIsBlank() {
         AcademicToolInvocation invocation = invocation("");
         invocation.setResultSummary("报告已生成");

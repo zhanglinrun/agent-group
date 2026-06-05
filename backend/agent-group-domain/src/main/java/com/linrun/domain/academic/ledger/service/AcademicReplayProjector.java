@@ -281,6 +281,9 @@ public class AcademicReplayProjector {
         data.put("fileRefs", outputView.getFileRefs().stream()
                 .map(AcademicToolFileRef::toMap)
                 .toList());
+        data.put("artifactRefs", outputView.getArtifactRefs().stream()
+                .map(this::artifact)
+                .toList());
         data.put("retryCount", invocation.getRetryCount() == null ? 0 : invocation.getRetryCount());
         data.put("latencyMillis", invocation.getLatencyMillis() == null ? 0L : invocation.getLatencyMillis());
         data.put("errorMessage", safe(invocation.getErrorMessage()));
