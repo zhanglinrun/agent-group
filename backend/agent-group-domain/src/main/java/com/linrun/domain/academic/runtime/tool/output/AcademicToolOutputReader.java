@@ -91,17 +91,60 @@ public class AcademicToolOutputReader {
 
     @SuppressWarnings("unchecked")
     private List<AcademicToolFileRef> fileRefs(Map<String, Object> structuredOutput) {
-        Object value = structuredOutput.get("fileRefs");
-        if (!(value instanceof List<?> refs)) {
-            return List.of();
-        }
         List<AcademicToolFileRef> fileRefs = new ArrayList<>();
+        collectFileRefs(structuredOutput.get("fileRefs"), fileRefs);
+        collectFileRefs(structuredOutput.get("artifactRefs"), fileRefs);
+        collectFileRefs(structuredOutput.get("fileInfo"), fileRefs);
+        collectFileRefs(structuredOutput.get("fileList"), fileRefs);
+        collectPrimaryFileRef(structuredOutput, fileRefs);
+        collectNestedFileRefs(structuredOutput.get("result"), fileRefs);
+        collectNestedFileRefs(structuredOutput.get("resultMap"), fileRefs);
+        collectNestedFileRefs(structuredOutput.get("structuredOutput"), fileRefs);
+
+        Map<String, AcademicToolFileRef> deduped = new LinkedHashMap<>();
+        for (AcademicToolFileRef fileRef : fileRefs) {
+            String key = firstText(fileRef.getArtifactId(), fileRef.getDownloadUrl(), fileRef.getPreviewUrl(), fileRef.getFileName());
+            if (StringUtils.hasText(key)) {
+                deduped.putIfAbsent(key, fileRef);
+            }
+        }
+        return List.copyOf(deduped.values());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectFileRefs(Object value, List<AcademicToolFileRef> fileRefs) {
+        if (!(value instanceof List<?> refs)) {
+            return;
+        }
         for (Object ref : refs) {
             if (ref instanceof Map<?, ?> map) {
                 fileRefs.add(AcademicToolFileRef.fromMap((Map<String, Object>) map));
             }
         }
-        return fileRefs;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectNestedFileRefs(Object value, List<AcademicToolFileRef> fileRefs) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> nested = (Map<String, Object>) map;
+            collectFileRefs(nested.get("fileRefs"), fileRefs);
+            collectFileRefs(nested.get("artifactRefs"), fileRefs);
+            collectFileRefs(nested.get("fileInfo"), fileRefs);
+            collectFileRefs(nested.get("fileList"), fileRefs);
+            collectPrimaryFileRef(nested, fileRefs);
+        }
+    }
+
+    private void collectPrimaryFileRef(Map<String, Object> values, List<AcademicToolFileRef> fileRefs) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        AcademicToolFileRef fileRef = AcademicToolFileRef.fromMap(values);
+        if (StringUtils.hasText(fileRef.getFileName())
+                || StringUtils.hasText(fileRef.getDownloadUrl())
+                || StringUtils.hasText(fileRef.getPreviewUrl())) {
+            fileRefs.add(fileRef);
+        }
     }
 
     private List<AcademicArtifact> artifactRefs(AcademicToolInvocation invocation,

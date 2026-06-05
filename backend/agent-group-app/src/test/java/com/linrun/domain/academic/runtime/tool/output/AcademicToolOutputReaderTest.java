@@ -45,6 +45,37 @@ class AcademicToolOutputReaderTest {
     }
 
     @Test
+    void shouldReadFileInfoAndNestedPrimaryFileRefs() {
+        AcademicToolInvocation invocation = invocation("""
+                {
+                  "toolName": "code_interpreter",
+                  "fileInfo": [
+                    {
+                      "displayName": "code-output.md",
+                      "domainUrl": "/tool/files/code-output.md",
+                      "mimeType": "text/markdown",
+                      "resourceKey": "code-output-resource"
+                    }
+                  ],
+                  "result": {
+                    "primaryFileName": "summary.csv",
+                    "ossUrl": "/files/summary.csv",
+                    "mimeType": "text/csv"
+                  }
+                }
+                """);
+
+        AcademicToolOutputView view = reader.read(invocation, List.of());
+
+        assertEquals(2, view.getFileRefs().size());
+        assertEquals("code-output.md", view.getFileRefs().get(0).getFileName());
+        assertEquals("code-output-resource", view.getFileRefs().get(0).getArtifactId());
+        assertEquals("/tool/files/code-output.md", view.getFileRefs().get(0).getDownloadUrl());
+        assertEquals("summary.csv", view.getFileRefs().get(1).getFileName());
+        assertEquals("/files/summary.csv", view.getFileRefs().get(1).getDownloadUrl());
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void shouldExposeTradeAuditFieldsAndStableReportRefs() {
         AcademicToolInvocation invocation = invocation("""
