@@ -539,6 +539,71 @@ describe("task artifact projection", () => {
     expect(scriptPanel.metadata.runtime).toBe("node");
   });
 
+  it("projects reference resultMap code output into code panels", () => {
+    const [panel] = toolResultPanels({
+      event: "tool_result",
+      data: {
+        invocationId: "code-result-map-1",
+        toolName: "code_interpreter",
+        resultMap: {
+          codeOutput: "sum=6",
+          code: "print(sum([1,2,3]))",
+          explain: "calculated list sum",
+          fileInfo: [
+            {
+              resourceKey: "code-artifact-1",
+              displayName: "result.csv",
+              domainUrl: "/tool/files/result.csv",
+              mimeType: "text/csv"
+            }
+          ]
+        }
+      }
+    });
+
+    expect(panel.kind).toBe("code");
+    expect(panel.content).toBe("sum=6");
+    expect(panel.metadata.codeOutput).toBe("sum=6");
+    expect(panel.metadata.code).toBe("print(sum([1,2,3]))");
+    expect(panel.fileRefs[0].fileName).toBe("result.csv");
+  });
+
+  it("projects reference resultMap data output into data panels", () => {
+    const [panel] = toolResultPanels({
+      event: "tool_result",
+      data: {
+        invocationId: "data-result-map-1",
+        toolName: "data_analysis",
+        resultMap: {
+          summary: "rows=2",
+          data: "two order status rows",
+          columns: ["status", "count"],
+          sampleRows: [
+            { status: "PAY_SUCCESS", count: 10 },
+            { status: "GROUP_SETTLED", count: 8 }
+          ],
+          resultMap: {
+            fileList: [
+              {
+                fileId: "chart-1",
+                fileName: "status-chart.png",
+                previewUrl: "/tool/files/status-chart.png",
+                contentType: "image/png"
+              }
+            ]
+          }
+        }
+      }
+    });
+
+    expect(panel.kind).toBe("data");
+    expect(panel.summary).toBe("rows=2");
+    expect(panel.content).toBe("two order status rows");
+    expect(panel.columns).toEqual(["status", "count"]);
+    expect(panel.rows[0].status).toBe("PAY_SUCCESS");
+    expect(panel.fileRefs[0].fileName).toBe("status-chart.png");
+  });
+
   it("projects image generation files into image panels", () => {
     const [panel] = toolResultPanels({
       event: "tool_result",

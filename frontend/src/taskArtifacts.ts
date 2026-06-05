@@ -59,6 +59,13 @@ function text(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+function scalarText(value: unknown): string {
+  if (value && typeof value === "object") {
+    return "";
+  }
+  return text(value);
+}
+
 function numberValue(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -104,6 +111,36 @@ function unwrapToolOutput(value: UnknownMap): UnknownMap {
   };
 }
 
+function layeredToolOutput(data: UnknownMap): UnknownMap {
+  const fallback = unwrapToolOutput(data);
+  const resultMap = unwrapToolOutput(parseJsonObject(fallback.resultMap));
+  const nestedResultMap = unwrapToolOutput(parseJsonObject(resultMap.resultMap));
+  const result = unwrapToolOutput(parseJsonObject(fallback.result));
+  const explicit = unwrapToolOutput(firstObject(fallback.structuredOutput, fallback.resultJson));
+  const merged = {
+    ...nestedResultMap,
+    ...resultMap,
+    ...result,
+    ...fallback,
+    ...explicit
+  };
+
+  return {
+    ...merged,
+    toolName: firstText(explicit.toolName, fallback.toolName, resultMap.toolName, nestedResultMap.toolName, result.toolName),
+    action: firstText(explicit.action, fallback.action, resultMap.action, nestedResultMap.action, result.action),
+    title: firstText(explicit.title, resultMap.title, nestedResultMap.title, result.title, fallback.title),
+    summary: firstText(
+      explicit.summary,
+      resultMap.summary,
+      nestedResultMap.summary,
+      result.summary,
+      fallback.resultSummary,
+      fallback.summary
+    )
+  };
+}
+
 function stringArray(value: unknown): string[] {
   return asArray(value)
     .map(text)
@@ -138,6 +175,16 @@ function firstArray(...values: unknown[]): unknown[] {
     }
   }
   return [];
+}
+
+function firstScalarText(...values: unknown[]): string {
+  for (const value of values) {
+    const result = scalarText(value);
+    if (result) {
+      return result;
+    }
+  }
+  return "";
 }
 
 function primaryFileRef(value: UnknownMap): UnknownMap[] {
@@ -285,6 +332,37 @@ function stablePanelId(data: UnknownMap, structuredOutput: UnknownMap, toolName:
     || "tool_result";
 }
 
+function outputMetadata(structuredOutput: UnknownMap): UnknownMap {
+  const result: UnknownMap = {
+    ...firstObject(structuredOutput.resultMap),
+    ...firstObject(structuredOutput.data),
+    ...firstObject(structuredOutput.metadata)
+  };
+  for (const key of [
+    "task",
+    "language",
+    "runtime",
+    "success",
+    "exitCode",
+    "stdout",
+    "stderr",
+    "code",
+    "explain",
+    "codeOutput",
+    "prompt",
+    "size",
+    "model",
+    "finalUrl",
+    "url",
+    "statusCode"
+  ]) {
+    if (result[key] === undefined && structuredOutput[key] !== undefined) {
+      result[key] = structuredOutput[key];
+    }
+  }
+  return result;
+}
+
 function hasPanelContent(panel: UiResultPanel): boolean {
   return Boolean(
     panel.rows.length
@@ -330,7 +408,7 @@ export function toUiArtifact(value: unknown): UiArtifact {
 export function toolResultArtifacts(event: unknown): UiArtifact[] {
   const payload = asObject(event);
   const data = asObject(payload.data ?? payload);
-  const structuredOutput = unwrapToolOutput(firstObject(data.structuredOutput, data.resultJson, data));
+  const structuredOutput = layeredToolOutput(data);
   return artifactRefsFrom(data, structuredOutput);
 }
 
@@ -344,15 +422,15 @@ export function eventArtifacts(event: unknown): UiArtifact[] {
   if (eventName === "tool_result") {
     return toolResultArtifacts(event);
   }
-  const structuredOutput = unwrapToolOutput(firstObject(data.structuredOutput, data.resultJson, data.resultMap, data.result));
+  const structuredOutput = layeredToolOutput(data);
   return artifactRefsFrom(data, structuredOutput);
 }
 
 export function toolResultPanels(event: unknown): UiResultPanel[] {
   const payload = asObject(event);
   const data = asObject(payload.data ?? payload);
-  const structuredOutput = unwrapToolOutput(firstObject(data.structuredOutput, data.resultJson, data.resultSummary, data));
-  const metadata = firstObject(structuredOutput.metadata, structuredOutput.data);
+  const structuredOutput = layeredToolOutput(data);
+  const metadata = outputMetadata(structuredOutput);
   const rows = objectArray(firstArray(
     metadata.sampleRows,
     metadata.rows,
@@ -382,7 +460,12 @@ export function toolResultPanels(event: unknown): UiResultPanel[] {
     toolName,
     title: text(structuredOutput.title) || text(data.toolName) || "工具结果",
     summary: text(structuredOutput.summary) || text(data.resultSummary),
-    content: text(structuredOutput.content),
+    content: firstScalarText(
+      structuredOutput.content,
+      structuredOutput.codeOutput,
+      structuredOutput.data,
+      structuredOutput.toolResult
+    ),
     url,
     metadata,
     columns: columns.length ? columns : columnsFromRows(rows),
