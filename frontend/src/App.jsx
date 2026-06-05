@@ -1151,7 +1151,7 @@ function BearDoctorAcademicApp() {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
-    if (["run_start", "plan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error"].includes(event.event)) {
+    if (["run_start", "plan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
       const artifacts = event.event === "tool_result" ? toolResultArtifacts(event) : [];
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
@@ -1162,6 +1162,9 @@ function BearDoctorAcademicApp() {
         resultPanels: resultPanels.length ? mergeResultPanels(message.resultPanels, resultPanels) : message.resultPanels,
         showTimeline: true
       }));
+      if (event.event === "quota_delta") {
+        setQuota(data);
+      }
       return;
     }
     if (event.event === "task_status") {
@@ -1193,21 +1196,6 @@ function BearDoctorAcademicApp() {
       updateAssistantInChat(chatId, messageId, (message) => ({
         ...message,
         recommend: [...(message.recommend || []), ...items]
-      }));
-      return;
-    }
-    if (event.event === "quota_delta") {
-      setQuota(data);
-      return;
-    }
-    if (event.event === "usage_metric") {
-      updateAssistantInChat(chatId, messageId, (message) => ({
-        ...message,
-        timeline: [...(message.timeline || []), {
-          type: "tool",
-          toolName: `额度消耗 ${data.consumedQuota ?? "-"}，剩余额度 ${data.remainingQuota ?? "-"}`,
-          status: "completed"
-        }]
       }));
       return;
     }

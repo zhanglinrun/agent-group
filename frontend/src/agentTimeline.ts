@@ -132,6 +132,30 @@ export function streamEventToTimelineItem(
       content: normalizeMessage(data.errorMessage || data.message, "处理失败")
     };
   }
+  if (eventName === "quota_delta") {
+    return {
+      type: "tool",
+      status: "completed",
+      toolName: "额度账户",
+      detail: [
+        text(data.quotaBalance) ? `余额 ${text(data.quotaBalance)}` : "",
+        text(data.usedQuota) ? `已用 ${text(data.usedQuota)}` : "",
+        text(data.frozenQuota) ? `冻结 ${text(data.frozenQuota)}` : ""
+      ].filter(Boolean).join(" · ")
+    };
+  }
+  if (eventName === "usage_metric") {
+    return {
+      type: "tool",
+      status: "completed",
+      toolName: "额度消耗",
+      detail: [
+        text(data.consumedQuota) ? `本次 ${text(data.consumedQuota)}` : "",
+        text(data.remainingQuota) ? `剩余 ${text(data.remainingQuota)}` : "",
+        text(data.modelName || data.model) ? text(data.modelName || data.model) : ""
+      ].filter(Boolean).join(" · ")
+    };
+  }
   return null;
 }
 

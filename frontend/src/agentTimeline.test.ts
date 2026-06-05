@@ -90,6 +90,28 @@ describe("agent timeline projection", () => {
     });
   });
 
+  it("projects quota and usage events into timeline items", () => {
+    expect(streamEventToTimelineItem({
+      event: "quota_delta",
+      data: { quotaBalance: 88, usedQuota: 12, frozenQuota: 3 }
+    })).toMatchObject({
+      type: "tool",
+      status: "completed",
+      toolName: "额度账户",
+      detail: "余额 88 · 已用 12 · 冻结 3"
+    });
+
+    expect(streamEventToTimelineItem({
+      event: "usage_metric",
+      data: { consumedQuota: 2.5, remainingQuota: 85.5, modelName: "qwen-plus" }
+    })).toMatchObject({
+      type: "tool",
+      status: "completed",
+      toolName: "额度消耗",
+      detail: "本次 2.5 · 剩余 85.5 · qwen-plus"
+    });
+  });
+
   it("replays events through the same merge rules", () => {
     const timeline = replayEventsToTimeline([
       {
@@ -102,6 +124,22 @@ describe("agent timeline projection", () => {
 
     expect(timeline).toHaveLength(1);
     expect(timeline[0]).toMatchObject({ status: "completed", detail: "ok" });
+  });
+
+  it("replays quota and usage events from persisted runs", () => {
+    const timeline = replayEventsToTimeline([
+      {
+        events: [
+          { event: "quota_delta", data: { quotaBalance: 100, usedQuota: 10 } },
+          { event: "usage_metric", data: { consumedQuota: 1.5, remainingQuota: 98.5 } }
+        ]
+      }
+    ]);
+
+    expect(timeline).toEqual([
+      expect.objectContaining({ toolName: "额度账户", detail: "余额 100 · 已用 10" }),
+      expect.objectContaining({ toolName: "额度消耗", detail: "本次 1.5 · 剩余 98.5" })
+    ]);
   });
 
   it("does not merge flow stages across plan versions", () => {
