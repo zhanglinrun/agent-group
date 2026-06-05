@@ -337,6 +337,28 @@ function numberValue(record: Record<string, unknown>, key: string): number {
   return Number.isFinite(value) ? value : 0;
 }
 
+function imageHistorySummary(record: Record<string, unknown>, imageCount: number): string {
+  const mode = textValue(record, "mode");
+  const size = textValue(record, "size");
+  const sourceImageCount = numberValue(record, "sourceImageCount");
+  const parts: string[] = [];
+  if (mode === "edit") {
+    parts.push("图生图");
+  } else if (mode === "generate") {
+    parts.push("文生图");
+  }
+  if (imageCount > 0) {
+    parts.push(`${imageCount} 张`);
+  }
+  if (sourceImageCount > 0) {
+    parts.push(`${sourceImageCount} 张参考图`);
+  }
+  if (size) {
+    parts.push(size);
+  }
+  return parts.join(" · ");
+}
+
 export function knowledgeBaseCatalogKey(value: unknown): string {
   const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const documentType = textValue(record, "documentType") || "默认知识库";
@@ -398,8 +420,9 @@ export function normalizeWorkspaceHistoryItems(
       const artifactName = textValue(firstImage, "fileName", "title", "artifactType")
         || textValue(record, "fileName", "title", "artifactType");
       const title = textValue(record, "question", "prompt", "title", "fileName", "runId", "artifactId");
-      const imageCount = Number(record.batchCount || imageRefs.length || 0);
-      const summary = textValue(record, "summary", "fileName", "artifactType", "status")
+      const imageCount = numberValue(record, "batchCount") || imageRefs.length;
+      const summary = (workspaceId === "image" ? imageHistorySummary(record, imageCount) : "")
+        || textValue(record, "summary", "fileName", "artifactType", "status")
         || (imageCount > 0 ? `${imageCount} 张图片` : "");
       return {
         id: textValue(record, "id", "requestId", "artifactId", "runId") || `${workspaceId}-${sessionId || "local"}-${index}`,

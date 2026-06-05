@@ -343,7 +343,10 @@ describe("workspace service profiles", () => {
         prompt: "生成三张活动海报",
         summary: "生成成功",
         status: "SUCCESS",
+        mode: "edit",
+        size: "1536x1024",
         batchCount: 3,
+        sourceImageCount: 2,
         finishedAt: "2026-06-05T11:20:30",
         images: [
           {
@@ -359,7 +362,7 @@ describe("workspace service profiles", () => {
       sessionId: "S2",
       runId: "R2",
       title: "生成三张活动海报",
-      summary: "生成成功",
+      summary: "图生图 · 3 张 · 2 张参考图 · 1536x1024",
       status: "SUCCESS",
       createdAt: "2026-06-05T11:20:30",
       artifactUrl: "/artifact/preview/ART2",
