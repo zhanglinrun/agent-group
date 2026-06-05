@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -150,6 +151,42 @@ class McpAdminHandlerTest {
         assertEquals(1L, health.get("readyServerCount"));
         assertEquals(1L, health.get("degradedServerCount"));
         assertEquals("research.web_fetch", target.listTools("research", true).getFirst().get("qualifiedName"));
+    }
+
+    @Test
+    void shouldReportExpiredToolCacheInHealth() {
+        McpAdminHandler handler = new McpAdminHandler();
+        String staleDiscoveredAt = LocalDateTime.now().minusSeconds(120).toString();
+
+        handler.importState(Map.of(
+                "replace", true,
+                "snapshot", Map.of(
+                        "servers", List.of(Map.of(
+                                "serverId", "stale",
+                                "name", "stale server",
+                                "endpoint", "http://localhost:8099/mcp",
+                                "transport", "streamable_http",
+                                "enabled", true,
+                                "metadata", Map.of("toolCacheTtlSeconds", 60))),
+                        "toolsByServer", Map.of("stale", List.of(Map.of(
+                                "serverId", "stale",
+                                "toolName", "search",
+                                "description", "search stale cache",
+                                "inputSchema", Map.of(),
+                                "enabled", true,
+                                "discoveredAt", staleDiscoveredAt))),
+                        "discoveredAtByServer", Map.of("stale", staleDiscoveredAt))));
+
+        Map<String, Object> health = handler.health();
+        Map<String, Object> server = ((List<Map<String, Object>>) health.get("servers")).getFirst();
+
+        assertEquals("degraded", health.get("overallStatus"));
+        assertEquals("degraded", server.get("status"));
+        assertEquals("expired", server.get("cacheStatus"));
+        assertEquals(true, server.get("cacheExpired"));
+        assertEquals(60L, server.get("cacheTtlSeconds"));
+        assertTrue((Long) server.get("cacheAgeSeconds") >= 60L);
+        assertEquals(true, handler.listServers().getFirst().get("cacheExpired"));
     }
 
     @Test

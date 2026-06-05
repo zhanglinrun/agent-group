@@ -144,7 +144,8 @@ public class McpAdminHandler {
                 "toolCount", tools.size(),
                 "cached", cache,
                 "tools", tools.stream().map(this::tool).toList(),
-                "lastDiscoveredAt", registry.lastDiscoveredAt(serverId).map(LocalDateTime::toString).orElse(""));
+                "lastDiscoveredAt", registry.lastDiscoveredAt(serverId).map(LocalDateTime::toString).orElse(""),
+                "cache", cacheState(server));
     }
 
     public Map<String, Object> cacheTools(String serverId, Map<String, Object> request) {
@@ -159,7 +160,8 @@ public class McpAdminHandler {
                 "serverId", serverId,
                 "toolCount", tools.size(),
                 "tools", registry.listTools(serverId).stream().map(this::tool).toList(),
-                "lastDiscoveredAt", registry.lastDiscoveredAt(serverId).map(LocalDateTime::toString).orElse(""));
+                "lastDiscoveredAt", registry.lastDiscoveredAt(serverId).map(LocalDateTime::toString).orElse(""),
+                "cache", cacheState(requireServer(serverId)));
     }
 
     public List<Map<String, Object>> listServers() {
@@ -275,6 +277,9 @@ public class McpAdminHandler {
         } else if (tools.isEmpty()) {
             status = "degraded";
             message = "no cached tools, discover tools before agent use";
+        } else if (cacheExpired(server)) {
+            status = "degraded";
+            message = "cached tools expired, rediscover tools before agent use";
         } else {
             status = "ready";
             message = "cached tools ready";
@@ -290,6 +295,7 @@ public class McpAdminHandler {
         result.put("toolCount", tools.size());
         result.put("enabledToolCount", tools.stream().filter(AcademicMcpToolDescriptor::isEnabled).count());
         result.put("lastDiscoveredAt", lastDiscoveredAt);
+        result.putAll(cacheState(server));
         return result;
     }
 
@@ -469,6 +475,7 @@ public class McpAdminHandler {
         result.put("metadata", server.getMetadata());
         result.put("toolCount", registry.listTools(server.getServerId()).size());
         result.put("lastDiscoveredAt", registry.lastDiscoveredAt(server.getServerId()).map(LocalDateTime::toString).orElse(""));
+        result.putAll(cacheState(server));
         return result;
     }
 
@@ -507,6 +514,37 @@ public class McpAdminHandler {
         return "stdio".equals(Objects.toString(transport, "").trim().toLowerCase(Locale.ROOT));
     }
 
+    private boolean cacheExpired(AcademicMcpServerDescriptor server) {
+        Object expired = cacheState(server).get("cacheExpired");
+        return expired instanceof Boolean value && value;
+    }
+
+    private Map<String, Object> cacheState(AcademicMcpServerDescriptor server) {
+        LocalDateTime discoveredAt = registry.lastDiscoveredAt(server.getServerId()).orElse(null);
+        long ttlSeconds = cacheTtlSeconds(server.getMetadata());
+        long ageSeconds = discoveredAt == null
+                ? 0
+                : Math.max(0, Duration.between(discoveredAt, LocalDateTime.now()).toSeconds());
+        boolean expired = discoveredAt != null && ttlSeconds > 0 && ageSeconds > ttlSeconds;
+        String status = discoveredAt == null
+                ? "empty"
+                : expired ? "expired" : ttlSeconds > 0 ? "fresh" : "unbounded";
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("cacheStatus", status);
+        result.put("cacheAgeSeconds", ageSeconds);
+        result.put("cacheTtlSeconds", ttlSeconds);
+        result.put("cacheExpired", expired);
+        return result;
+    }
+
+    private long cacheTtlSeconds(Map<String, Object> metadata) {
+        long primary = number(metadata == null ? null : metadata.get("toolCacheTtlSeconds"), -1);
+        if (primary >= 0) {
+            return primary;
+        }
+        return Math.max(0, number(metadata == null ? null : metadata.get("cacheTtlSeconds"), 0));
+    }
+
     private boolean bool(Object value, boolean fallback) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -518,6 +556,21 @@ public class McpAdminHandler {
     private String defaultText(Object value, String fallback) {
         String text = text(value);
         return StringUtils.hasText(text) ? text : fallback;
+    }
+
+    private long number(Object value, long fallback) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        String text = text(value);
+        if (!StringUtils.hasText(text)) {
+            return fallback;
+        }
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     @SuppressWarnings("unchecked")

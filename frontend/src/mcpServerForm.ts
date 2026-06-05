@@ -7,6 +7,7 @@ export interface McpServerFormState {
   transport: McpTransport | string;
   enabled: boolean;
   timeoutSeconds: string;
+  toolCacheTtlSeconds: string;
   headersText: string;
   command: string;
   argsText: string;
@@ -29,6 +30,7 @@ export const DEFAULT_MCP_SERVER_FORM: McpServerFormState = {
   transport: "streamable_http",
   enabled: true,
   timeoutSeconds: "120",
+  toolCacheTtlSeconds: "3600",
   headersText: "",
   command: "",
   argsText: "",
@@ -78,6 +80,10 @@ function buildMetadata(form: Partial<McpServerFormState>, transport: McpTranspor
   const timeoutSeconds = positiveNumber(form.timeoutSeconds);
   if (timeoutSeconds) {
     metadata.timeoutSeconds = timeoutSeconds;
+  }
+  const toolCacheTtlSeconds = positiveNumber(form.toolCacheTtlSeconds);
+  if (toolCacheTtlSeconds) {
+    metadata.toolCacheTtlSeconds = toolCacheTtlSeconds;
   }
 
   const headers = parseJsonObject(form.headersText, "headers");

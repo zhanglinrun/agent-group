@@ -27,6 +27,7 @@ describe("mcp server form payload", () => {
       enabled: true,
       metadata: {
         timeoutSeconds: 120,
+        toolCacheTtlSeconds: 3600,
         headers: { Authorization: "Bearer demo" },
         openConnectionOnStartup: false
       }
