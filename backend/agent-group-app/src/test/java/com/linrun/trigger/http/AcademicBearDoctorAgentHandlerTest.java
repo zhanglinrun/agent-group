@@ -142,6 +142,21 @@ class AcademicBearDoctorAgentHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void shouldIncludeToolCallIdInToolResultEventData() {
+        AcademicBearDoctorAgentHandler handler = new AcademicBearDoctorAgentHandler(
+                null, null, null, null, null, null, null, null, new ObjectMapper());
+
+        Map<String, Object> data = ReflectionTestUtils.invokeMethod(handler, "toolResult",
+                "TOOL1001", "CALL1001", "report_tool", AcademicAgentRun.STATUS_SUCCESS,
+                "{}", Map.of(), "", 12L);
+
+        assertEquals("TOOL1001", data.get("invocationId"));
+        assertEquals("CALL1001", data.get("toolCallId"));
+        assertEquals("report_tool", data.get("toolName"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void shouldConvertStructuredReplanEventToPlanAndFlowDeltas() throws Exception {
         AcademicBearDoctorAgentHandler handler = new AcademicBearDoctorAgentHandler(
                 null, null, null, null, null, null, null, null, new ObjectMapper());

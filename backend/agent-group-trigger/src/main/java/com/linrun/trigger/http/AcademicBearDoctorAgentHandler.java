@@ -442,7 +442,7 @@ public class AcademicBearDoctorAgentHandler {
         events.add(event("task_status", sessionId, requestId, sequence,
                 status("TOOL", "工具调用完成：" + nullToBlank(toolName))));
         events.add(event("tool_result", sessionId, requestId, sequence,
-                toolResult(invocationId, toolName, status, resultText, structuredOutput, errorMessage, latencyMillis)));
+                toolResult(invocationId, toolCallId, toolName, status, resultText, structuredOutput, errorMessage, latencyMillis)));
         return events;
     }
 
@@ -739,6 +739,7 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     private Map<String, Object> toolResult(String invocationId,
+                                           String toolCallId,
                                            String toolName,
                                            String status,
                                            String resultText,
@@ -747,6 +748,7 @@ public class AcademicBearDoctorAgentHandler {
                                            long latencyMillis) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("invocationId", nullToBlank(invocationId));
+        data.put("toolCallId", nullToBlank(toolCallId));
         data.put("toolName", nullToBlank(toolName));
         data.put("status", nullToBlank(status));
         data.put("resultSummary", limit(resultText, 1024));

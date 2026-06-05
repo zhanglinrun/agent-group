@@ -248,6 +248,7 @@ public class AcademicReplayProjector {
         AcademicToolOutputView outputView = toolOutputReader.read(invocation, artifacts);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("invocationId", safe(invocation.getInvocationId()));
+        data.put("toolCallId", safe(invocation.getToolCallId()));
         data.put("toolName", safe(invocation.getToolName()));
         data.put("status", safe(invocation.getStatus()));
         data.put("resultSummary", safe(invocation.getResultSummary()));

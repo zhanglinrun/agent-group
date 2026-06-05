@@ -33,6 +33,7 @@ class AcademicReplayProjectorTest {
 
         AcademicToolInvocation toolInvocation = new AcademicToolInvocation();
         toolInvocation.setInvocationId("TOOL1001");
+        toolInvocation.setToolCallId("CALL1001");
         toolInvocation.setToolName(AcademicToolOutputNames.REPORT_TOOL);
         toolInvocation.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         toolInvocation.setResultSummary("报告已生成");
@@ -56,6 +57,7 @@ class AcademicReplayProjectorTest {
                 .filter(event -> "tool_result".equals(event.getEvent()))
                 .findFirst()
                 .orElseThrow();
+        assertEquals("CALL1001", toolResult.getData().get("toolCallId"));
         assertEquals(1, toolResult.getData().get("artifactCount"));
         assertFalse(((Map<?, ?>) toolResult.getData().get("structuredOutput")).isEmpty());
     }
