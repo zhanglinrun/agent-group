@@ -6,6 +6,9 @@ export interface PlannerHistoryVersion {
   stepCount: number;
   stageCount: number;
   flowUpdates: number;
+  revision: number;
+  changeType: string;
+  replanReason: string;
   status: "planned" | "running" | "completed" | "blocked" | "replanned";
   summary: string;
   latest: boolean;
@@ -54,12 +57,16 @@ export function buildPlannerHistory(timeline: TimelineItem[] = []): PlannerHisto
   for (const item of timeline || []) {
     if (item.type === "plan") {
       const steps = planSteps(item);
+      const revision = Number(item.revision || versions.length + 1);
       versions.push({
         id: `plan-${versions.length + 1}`,
         title: String(item.title || `执行计划 ${versions.length + 1}`),
         stepCount: steps.length,
         stageCount: Array.isArray(item.flowStages) ? item.flowStages.length : 0,
         flowUpdates: 0,
+        revision: Number.isFinite(revision) && revision > 0 ? revision : versions.length + 1,
+        changeType: String(item.changeType || (versions.length > 0 ? "replan" : "initial")),
+        replanReason: String(item.replanReason || ""),
         status: "planned",
         summary: firstStepSummary(item),
         latest: false
@@ -73,7 +80,10 @@ export function buildPlannerHistory(timeline: TimelineItem[] = []): PlannerHisto
       versions[currentIndex] = {
         ...current,
         flowUpdates: current.flowUpdates + 1,
-        status: mergeStatus(current.status, flowStatusRank(String(item.status || "")))
+        status: mergeStatus(current.status, flowStatusRank(String(item.status || ""))),
+        replanReason: String(item.status || "").toLowerCase() === "replanned" && item.message
+          ? String(item.message)
+          : current.replanReason
       };
     }
   }

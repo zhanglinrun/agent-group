@@ -31,14 +31,31 @@ describe("planner history projection", () => {
   it("keeps replanned versions and marks latest", () => {
     const history = buildPlannerHistory([
       { type: "plan", title: "初始计划", steps: ["先查订单"] },
-      { type: "flow", stageIndex: 0, status: "REPLANNED" },
-      { type: "plan", title: "重规划计划", steps: ["改查退款"] },
+      { type: "flow", stageIndex: 0, status: "REPLANNED", message: "支付记录不足，改查退款" },
+      {
+        type: "plan",
+        title: "重规划计划",
+        revision: 2,
+        changeType: "replan",
+        replanReason: "支付记录不足，改查退款",
+        steps: ["改查退款"]
+      },
       { type: "flow", stageIndex: 0, status: "COMPLETED" }
     ]);
 
     expect(history).toHaveLength(2);
-    expect(history[0]).toMatchObject({ status: "replanned", latest: false });
-    expect(history[1]).toMatchObject({ status: "completed", latest: true });
+    expect(history[0]).toMatchObject({
+      status: "replanned",
+      replanReason: "支付记录不足，改查退款",
+      latest: false
+    });
+    expect(history[1]).toMatchObject({
+      revision: 2,
+      changeType: "replan",
+      replanReason: "支付记录不足，改查退款",
+      status: "completed",
+      latest: true
+    });
   });
 
   it("counts staged plan steps", () => {

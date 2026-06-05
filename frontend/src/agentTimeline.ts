@@ -72,6 +72,9 @@ export function streamEventToTimelineItem(
       type: "plan",
       status: "completed",
       title: text(data.title) || "执行计划",
+      revision: Number(data.revision || data.planRevision || 0),
+      changeType: text(data.changeType),
+      replanReason: text(data.replanReason),
       steps: normalizePlanSteps(data),
       flowStages: Array.isArray(data.flowStages) ? data.flowStages : []
     };

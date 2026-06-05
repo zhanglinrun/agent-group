@@ -69,6 +69,27 @@ describe("agent timeline projection", () => {
     });
   });
 
+  it("keeps plan revision and replan reason from plan events", () => {
+    const plan = streamEventToTimelineItem({
+      event: "plan_delta",
+      data: {
+        title: "重规划计划",
+        revision: 2,
+        changeType: "replan",
+        replanReason: "网页资料不足，改查额度流水",
+        steps: ["改查额度流水"]
+      }
+    });
+
+    expect(plan).toMatchObject({
+      type: "plan",
+      title: "重规划计划",
+      revision: 2,
+      changeType: "replan",
+      replanReason: "网页资料不足，改查额度流水"
+    });
+  });
+
   it("replays events through the same merge rules", () => {
     const timeline = replayEventsToTimeline([
       {

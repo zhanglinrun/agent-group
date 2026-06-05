@@ -4076,10 +4076,14 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                       <span className={`planner-history-status ${version.status}`}>{version.status}</span>
                       <strong>{index + 1}. {version.title}</strong>
                       <small>
+                        第 {version.revision || index + 1} 版
+                        {version.changeType === "replan" ? "，重规划" : ""}
+                        {"，"}
                         {version.stageCount > 0 ? `${version.stageCount} 阶段，` : ""}
                         {version.stepCount} 步
                         {version.flowUpdates > 0 ? `，${version.flowUpdates} 次推进` : ""}
                       </small>
+                      {version.replanReason && <em>原因：{version.replanReason}</em>}
                       {version.summary && <em>{version.summary}</em>}
                     </div>
                   ))}
