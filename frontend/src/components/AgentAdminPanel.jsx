@@ -33,6 +33,8 @@ const EMPTY_FORM = {
   enabled: true
 };
 
+const EMPTY_RUNTIME_MAP = {};
+
 const RUNTIME_SECTION_LABELS = {
   agentClients: "Client",
   models: "Model",
@@ -91,8 +93,8 @@ export default function AgentAdminPanel({
     () => configs.filter((config) => config.enabled !== false).length,
     [configs]
   );
-  const runtimeSections = runtimeSnapshot?.runtimeSections || {};
-  const runtimePolicies = runtimeSnapshot?.runtimePolicies || {};
+  const runtimeSections = runtimeSnapshot?.runtimeSections || EMPTY_RUNTIME_MAP;
+  const runtimePolicies = runtimeSnapshot?.runtimePolicies || EMPTY_RUNTIME_MAP;
   const codeInterpreterPolicy = runtimePolicies.codeInterpreter || {};
   const scriptRunnerPolicy = runtimePolicies.scriptRunner || {};
   const runtimeSectionItems = useMemo(

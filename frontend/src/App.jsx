@@ -158,6 +158,7 @@ import {
   DEFAULT_MCP_SERVER_FORM,
   buildMcpServerPayload
 } from "./mcpServerForm";
+import { buildMcpRuntimeSummary } from "./mcpRuntimeSummary";
 
 const AGENTS = AGENT_MODES;
 
@@ -735,6 +736,10 @@ function BearDoctorAcademicApp() {
   const visibleExecutionModes = useMemo(() => (
     visibleAgentExecutionModes(agentCapabilities, 6)
   ), [agentCapabilities]);
+  const mcpRuntimeLoaded = mcpServers.length > 0 || mcpTools.length > 0 || Boolean(mcpHealth);
+  const mcpRuntimeSummary = useMemo(() => (
+    buildMcpRuntimeSummary({ servers: mcpServers, tools: mcpTools, health: mcpHealth })
+  ), [mcpHealth, mcpServers, mcpTools]);
   const tradeWorkspaceSummary = useMemo(() => (
     summarizeTradeWorkspace({ quota, flows: quotaFlows, orders })
   ), [quota, quotaFlows, orders]);
@@ -2755,6 +2760,23 @@ function BearDoctorAcademicApp() {
                         </span>
                       );
                     })}
+                  </div>
+                )}
+                {mcpRuntimeLoaded && (
+                  <div className={`agent-mcp-runtime-overview ${mcpRuntimeSummary.status}`}>
+                    <div className="agent-mcp-runtime-head">
+                      <b>MCP</b>
+                      <em>{mcpRuntimeSummary.statusLabel}</em>
+                    </div>
+                    {mcpRuntimeSummary.metrics.slice(0, 4).map((metric) => (
+                      <span key={metric.key} className={metric.tone || ""}>
+                        <b>{metric.label}</b>
+                        {metric.value}
+                      </span>
+                    ))}
+                    <button type="button" onClick={toggleMcpPanel}>
+                      {mcpRuntimeSummary.actions[0] || "查看 MCP 管理"}
+                    </button>
                   </div>
                 )}
                 <CapabilityMatrixPanel items={visibleCapabilityMatrix} executionModes={visibleExecutionModes} />
