@@ -41,6 +41,7 @@ import {
   workspaceFromPath,
   workspacePath
 } from "./workspaces";
+import { buildWorkspaceNavigation } from "./workspaceNavigation";
 import {
   buildKnowledgeBaseCatalog,
   buildWorkspaceDataCatalogDraft,
@@ -704,6 +705,9 @@ function BearDoctorAcademicApp() {
   ), [activeWorkspace]);
   const currentWorkspaceProfile = useMemo(() => (
     workspaceDisplayProfile(currentWorkspace.id, agentCapabilities, workspaceServiceProfile(currentWorkspace.id))
+  ), [agentCapabilities, currentWorkspace.id]);
+  const workspaceNavigation = useMemo(() => (
+    buildWorkspaceNavigation(currentWorkspace.id, agentCapabilities)
   ), [agentCapabilities, currentWorkspace.id]);
   const backendText = auth?.token ? `已登录：${auth.nickname || auth.username || auth.userId}` : "未登录";
   const currentTaskStatus = taskStatusByChat[currentChatId] || {};
@@ -2461,11 +2465,11 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="workspace-nav">
-            {WORKSPACES.map((workspace) => (
+            {workspaceNavigation.map((workspace) => (
               <button
                 type="button"
                 key={workspace.id}
-                className={`workspace-nav-item ${activeWorkspace === workspace.id ? "active" : ""}`}
+                className={`workspace-nav-item ${workspace.active ? "active" : ""}`}
                 onClick={() => openWorkspace(workspace.id)}
               >
                 <span>{workspace.icon}</span>
