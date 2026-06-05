@@ -41,7 +41,8 @@ public class OutlineStrategy implements PptStateStrategy {
 
         // 根据模板的schema和搜索信息来生成大纲
         String templateSchema = template.getTemplateSchema();
-        String prompt = PptBuilderPrompts.getOutlinePrompt(requirement, templateSchema, template.getTemplateName(), searchInfo);
+        String prompt = context.enhancePrompt(
+                PptBuilderPrompts.getOutlinePrompt(requirement, templateSchema, template.getTemplateName(), searchInfo));
 
         StringBuilder outlineContent = new StringBuilder();
 

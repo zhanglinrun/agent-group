@@ -4,6 +4,7 @@ import com.linrun.domain.agent.knowledge.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
+import com.linrun.domain.agent.knowledge.model.KnowledgeFragmentStatus;
 import com.linrun.infrastructure.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IKnowledgeDocumentDao;
 import org.springframework.stereotype.Repository;
@@ -54,5 +55,15 @@ public class MyBatisKnowledgeDocumentRepository implements KnowledgeDocumentRepo
     @Override
     public void updateDocumentStatus(KnowledgeDocument document) {
         knowledgeDocumentDao.updateDocumentStatus(AgentPOConverter.toPO(document));
+    }
+
+    @Override
+    public void updateFragmentsStatusByDocumentId(String documentId,
+                                                  KnowledgeFragmentStatus status,
+                                                  boolean enabled) {
+        knowledgeDocumentDao.updateFragmentsStatusByDocumentId(
+                documentId,
+                status == null ? null : status.name(),
+                enabled);
     }
 }

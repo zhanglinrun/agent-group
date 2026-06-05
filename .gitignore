@@ -40,6 +40,7 @@ frontend/dist/
 .env.*
 !.env.example
 logs/
+data/
 docs/performance/jmeter/results/
 docs/performance/jmeter/reports/
 outputs/*
@@ -49,6 +50,16 @@ outputs/*
 !tools/runtime-bin/
 !tools/runtime-bin/ffmpeg.cmd
 !tools/runtime-bin/ffmpeg.exe
+tools/reactor-tool/.env
+tools/reactor-tool/.env.*
+tools/reactor-tool/.venv/
+tools/reactor-tool/**/__pycache__/
+tools/reactor-tool/.pytest_cache/
+tools/reactor-tool/skilloutput/
+tools/reactor-tool/file_db_dir/
+tools/reactor-tool/autobots.db
+tools/reactor-tool/*.exe
+tools/reactor-tool/reactor_tool/logs/
 backend/agent-group-app/ffmpeg.exe
 
 ### Mac OS ###

@@ -14,6 +14,7 @@ import com.linrun.domain.trade.service.task.NotifyTaskService;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.api.dto.UploadKnowledgeDocumentRequest;
 import com.linrun.api.dto.UploadKnowledgeDocumentResponse;
+import com.linrun.api.dto.UploadKnowledgeWebUrlRequest;
 import com.linrun.domain.agent.knowledge.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.agent.knowledge.adapter.KnowledgeObjectStorageClient;
 import com.linrun.domain.agent.knowledge.adapter.KnowledgeVectorRepository;
@@ -159,6 +160,18 @@ class KnowledgeDocumentUploadHandlerTest {
                 () -> service.uploadFile(file, "G10001", "", "额度资料", "v1"));
 
         assertEquals("UPLOAD_0004", exception.getCode());
+    }
+
+    @Test
+    void shouldRejectPrivateWebUrl() {
+        KnowledgeDocumentUploadHandler service = service(new FakeKnowledgeDocumentRepository());
+        UploadKnowledgeWebUrlRequest request = new UploadKnowledgeWebUrlRequest();
+        request.setUrl("http://127.0.0.1:8080/wiki");
+        request.setGoodsId("global");
+
+        AppException exception = assertThrows(AppException.class, () -> service.uploadWebUrl(request));
+
+        assertEquals("UPLOAD_0018", exception.getCode());
     }
 
     private KnowledgeDocumentUploadHandler service(FakeKnowledgeDocumentRepository repository) {

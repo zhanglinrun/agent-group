@@ -36,6 +36,7 @@ class MyBatisGuideDataRepositoryTest {
     @Test
     void shouldFuseVectorAndKeywordReferences() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
+        guideDataDao.references = List.of(reference("KF90001", "product detail", "standard tablet for study"));
         FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository(List.of(fragment("KF90001")));
         MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
                 guideDataDao,
@@ -72,7 +73,10 @@ class MyBatisGuideDataRepositoryTest {
         GuideReferencePO parent = reference("KFPARENT", "policy", "parent full refund policy");
         GuideReferencePO sibling = reference("KFSIBLING", "policy", "sibling unformed group refund");
         sibling.setBrotherGroupId("BRO90001");
-        guideDataDao.references = List.of(parent, sibling);
+        GuideReferencePO child = reference("KFCHILD", "policy", "child refund");
+        child.setParentFragmentId("KFPARENT");
+        child.setBrotherGroupId("BRO90001");
+        guideDataDao.references = List.of(parent, sibling, child);
         KnowledgeFragment hit = fragment("KFCHILD", "child refund");
         hit.setParentFragmentId("KFPARENT");
         hit.setBrotherGroupId("BRO90001");

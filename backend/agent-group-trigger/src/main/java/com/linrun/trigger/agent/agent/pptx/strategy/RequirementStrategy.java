@@ -33,6 +33,7 @@ public class RequirementStrategy implements PptStateStrategy {
         String prompt = PptBuilderPrompts.REQUIREMENT_PROMPT;
 
         messages.add(new SystemMessage(prompt));
+        context.addExecutionMemory(messages);
 
         // 加载历史记忆
         context.loadChatHistory(inst.getConversationId(), messages, true, true);

@@ -137,7 +137,10 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     }
 
     private List<GuideReference> expandVectorFragment(KnowledgeFragment fragment, AtomicInteger rank) {
-        GuideReference hit = toGuideReference(fragment, 0);
+        GuideReference hit = activeVectorHit(fragment);
+        if (hit == null) {
+            return List.of();
+        }
         if (!shouldExpandKnowledgeContext()) {
             return List.of(hit);
         }
@@ -156,6 +159,22 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
             }
         }
         return expanded.isEmpty() ? List.of(hit) : new ArrayList<>(expanded.values());
+    }
+
+    private GuideReference activeVectorHit(KnowledgeFragment fragment) {
+        if (fragment == null) {
+            return null;
+        }
+        if (!StringUtils.hasText(fragment.getFragmentId())) {
+            return toGuideReference(fragment, 0);
+        }
+        GuideReference reference = AgentPOConverter.toEntity(
+                guideDataDao.queryReferenceByFragmentId(fragment.getFragmentId()));
+        if (reference == null) {
+            return null;
+        }
+        reference.setRank(0);
+        return reference;
     }
 
     private void appendExpanded(Map<String, GuideReference> expanded,

@@ -50,13 +50,20 @@ public class PPTBuilderAgent extends BaseAgent {
 
     private final List<ToolCallback> toolCallbacks;
     private final PptIntentRecognizer intentRecognizer;
+    private final String executionMemoryPrompt;
     private PptStateStrategyContext strategyContext;
 
     public PPTBuilderAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks, AiSessionService sessionService, AgentTaskManager taskManager) {
+        this(chatModel, toolCallbacks, "", sessionService, taskManager);
+    }
+
+    public PPTBuilderAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks, String executionMemoryPrompt,
+                           AiSessionService sessionService, AgentTaskManager taskManager) {
         super("PPTBuilderAgent", chatModel, "pptx");
         this.sessionService = sessionService;
         this.taskManager = taskManager;
         this.toolCallbacks = toolCallbacks;
+        this.executionMemoryPrompt = executionMemoryPrompt == null ? "" : executionMemoryPrompt;
 
         // 通过AppContextClient获取其他Service
         this.pptInstService = AppContextClient.getBean(AiPptInstService.class);
@@ -195,7 +202,8 @@ public class PPTBuilderAgent extends BaseAgent {
                 sessionService,
                 taskManager,
                 toolCallbacks,
-                chatMemory
+                chatMemory,
+                executionMemoryPrompt
         );
         strategyContext.setCurrentConversationId(currentConversationId);
         strategyContext.setCurrentSessionId(currentSessionId);

@@ -48,7 +48,7 @@ public class SchemaStrategy implements PptStateStrategy {
         String templateSchema = template.getTemplateSchema();
         String outline = inst.getOutline();
 
-        String prompt = PptBuilderPrompts.getSchemaGenerationPrompt(templateSchema, outline);
+        String prompt = context.enhancePrompt(PptBuilderPrompts.getSchemaGenerationPrompt(templateSchema, outline));
 
         Disposable disposable = Mono.fromCallable(() -> {
                     String json = ThinkTagParser.stripThinkTags(
@@ -98,7 +98,7 @@ public class SchemaStrategy implements PptStateStrategy {
 
         Disposable disposable = Mono.fromCallable(() -> {
                     String json = ThinkTagParser.stripThinkTags(
-                            context.getChatModel().call(new Prompt(modifyPrompt)).getResult().getOutput().getText());
+                            context.getChatModel().call(new Prompt(context.enhancePrompt(modifyPrompt))).getResult().getOutput().getText());
                     PptSchema pptSchema = parsePptSchema(json);
                     String pptSchemaJson = JSON.toJSONString(pptSchema);
 

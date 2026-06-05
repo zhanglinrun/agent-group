@@ -52,7 +52,8 @@ public class TemplateStrategy implements PptStateStrategy {
             ));
         }
 
-        String prompt = PptBuilderPrompts.getTemplateSelectionPrompt(requirement, templatesInfo.toString());
+        String prompt = context.enhancePrompt(
+                PptBuilderPrompts.getTemplateSelectionPrompt(requirement, templatesInfo.toString()));
 
         BeanOutputConverter<TemplateSelectionResult> converter = new BeanOutputConverter<>(
                 new ParameterizedTypeReference<>() {

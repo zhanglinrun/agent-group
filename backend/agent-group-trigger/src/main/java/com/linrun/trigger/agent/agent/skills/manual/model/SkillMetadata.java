@@ -1,7 +1,10 @@
 package com.linrun.trigger.agent.agent.skills.manual.model;
 
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -15,8 +18,13 @@ public record SkillMetadata(
         Path skillPath,
         SkillSource source,
         List<String> allowedTools,
-        Path skillFile
+        Path skillFile,
+        Map<String, SkillScriptDefinition> scripts
 ) {
+
+    public SkillMetadata {
+        scripts = scripts == null ? new LinkedHashMap<>() : new LinkedHashMap<>(scripts);
+    }
 
     public enum SkillSource {
         /**
@@ -27,6 +35,15 @@ public record SkillMetadata(
          * 用户技能目录
          */
         USER
+    }
+
+    public List<String> buildScriptSummaries() {
+        if (scripts == null || scripts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return scripts.values().stream()
+                .map(SkillScriptDefinition::toSummaryLine)
+                .toList();
     }
 
     public static Builder builder() {
@@ -89,6 +106,7 @@ public record SkillMetadata(
         private SkillSource source;
         private List<String> allowedTools;
         private Path skillFile;
+        private Map<String, SkillScriptDefinition> scripts = new LinkedHashMap<>();
 
         public Builder name(String name) {
             this.name = name;
@@ -120,12 +138,17 @@ public record SkillMetadata(
             return this;
         }
 
+        public Builder scripts(Map<String, SkillScriptDefinition> scripts) {
+            this.scripts = scripts == null ? new LinkedHashMap<>() : new LinkedHashMap<>(scripts);
+            return this;
+        }
+
         public SkillMetadata build() {
             Objects.requireNonNull(name, "name must not be null");
             Objects.requireNonNull(description, "description must not be null");
             Objects.requireNonNull(skillPath, "skillPath must not be null");
             Objects.requireNonNull(source, "source must not be null");
-            return new SkillMetadata(name, description, skillPath, source, allowedTools, skillFile);
+            return new SkillMetadata(name, description, skillPath, source, allowedTools, skillFile, scripts);
         }
     }
 }

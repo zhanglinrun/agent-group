@@ -25,7 +25,7 @@ public final class SkillPromptFormatter {
         }
 
         String skillList = skills.stream()
-                .map(s -> "- **" + s.name() + "**：" + s.description())
+                .map(SkillPromptFormatter::formatSkill)
                 .collect(Collectors.joining("\n"));
 
         return """
@@ -42,8 +42,9 @@ public final class SkillPromptFormatter {
                 1. 用户要求使用某个技能
                 2. 调用 read_skill("技能名称") 来获取技能的完整指令
                 3. 仔细阅读返回的技能内容
-                4. 按照技能中的指令来完成任务
-                5. 绝对不要把技能名称当作工具来调用！
+                4. 如果技能内容引用了参考文件、脚本或 assets，可以用 list_skill_directory、glob_skill_files、grep_skill_files、read_skill_file 查看技能目录内文件
+                5. 按照技能中的指令来完成任务
+                6. 绝对不要把技能名称当作工具来调用！
 
                 **示例：**
                   用户："使用 pdf 技能"
@@ -51,5 +52,16 @@ public final class SkillPromptFormatter {
                   工具：返回 PDF 提取指令
                   助手：[按照指令提取 PDF 内容]
                 """.formatted(skillList);
+    }
+
+    private static String formatSkill(SkillMetadata skill) {
+        String line = "- **" + skill.name() + "**：" + skill.description();
+        List<String> scripts = skill.buildScriptSummaries();
+        if (scripts.isEmpty()) {
+            return line;
+        }
+        return line + "\n  可用脚本：\n" + scripts.stream()
+                .map(summary -> "  " + summary)
+                .collect(Collectors.joining("\n"));
     }
 }

@@ -1,0 +1,22 @@
+export const APP_ROUTES = {
+  admin: "/admin",
+  adminLegacy: "/admin.html",
+  agent: "/",
+  workspaceImage: "/workspace/image",
+  workspaceData: "/workspace/data",
+  workspaceMrag: "/workspace/mrag",
+  workspaceTrade: "/workspace/trade"
+} as const;
+
+export const WORKSPACE_ROUTES = [
+  APP_ROUTES.agent,
+  APP_ROUTES.workspaceImage,
+  APP_ROUTES.workspaceData,
+  APP_ROUTES.workspaceMrag,
+  APP_ROUTES.workspaceTrade
+] as const;
+
+export function isAdminRoute(pathname: string): boolean {
+  const path = String(pathname || "/").replace(/\/+$/, "") || "/";
+  return path === APP_ROUTES.admin || path === APP_ROUTES.adminLegacy;
+}

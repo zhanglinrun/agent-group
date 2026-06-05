@@ -1,3 +1,5 @@
+import { normalizeFileUrlForBrowser } from "../fileUrl";
+
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
 const USER_AUTH_KEY = "agentGroupUserAuth";
 const MODEL_CONFIG_KEY = "agentGroupModelConfig";
@@ -368,7 +370,7 @@ function parseDownloadFileName(disposition, fallbackName) {
 }
 
 export async function downloadAcademicArtifact(downloadUrl, fallbackName = "artifact") {
-  const response = await fetch(downloadUrl, {
+  const response = await fetch(normalizeFileUrlForBrowser(downloadUrl), {
     method: "GET",
     headers: {
       ...userAuthHeader()
@@ -416,7 +418,269 @@ export async function queryAcademicTaskStatus(sessionId = getSessionId()) {
   });
 }
 
-export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId(), modelConfig, webSearchEnabled = false }, onEvent, onDone, onError) {
+export async function generateWorkspaceImage(payload = {}) {
+  return request("/api/v1/academic/workspace/image/generate", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: payload.sessionId || getSessionId(),
+      prompt: payload.prompt || payload.question || "",
+      mode: payload.mode || "generate",
+      size: payload.size || "1024x1024",
+      batchCount: payload.batchCount || 1,
+      sourceFileIds: payload.sourceFileIds || [],
+      sourceImageUrls: payload.sourceImageUrls || [],
+      maskImageUrls: payload.maskImageUrls || []
+    })
+  });
+}
+
+export async function queryWorkspaceImageHistory({ sessionId = "", limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (sessionId) params.set("sessionId", sessionId);
+  params.set("limit", String(limit));
+  return request(`/api/v1/academic/workspace/image/history?${params.toString()}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function runWorkspaceData(payload = {}) {
+  return request("/api/v1/academic/workspace/data/run", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: payload.sessionId || getSessionId(),
+      question: payload.question || payload.prompt || "",
+      rows: payload.rows || [],
+      columns: payload.columns || [],
+      modelCodeList: payload.modelCodeList || [],
+      schemaInfo: payload.schemaInfo || [],
+      businessKnowledge: payload.businessKnowledge || "",
+      dbType: payload.dbType || "mysql",
+      useVector: payload.useVector !== false,
+      useElastic: Boolean(payload.useElastic),
+      topK: payload.topK || 5,
+      maxSteps: payload.maxSteps || 10,
+      includeTableRag: payload.includeTableRag !== false,
+      includeNl2Sql: payload.includeNl2Sql !== false,
+      includeAnalysis: payload.includeAnalysis !== false,
+      metadata: payload.metadata || {}
+    })
+  });
+}
+
+export async function queryWorkspaceDataHistory({ sessionId = "", limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (sessionId) params.set("sessionId", sessionId);
+  params.set("limit", String(limit));
+  return request(`/api/v1/academic/workspace/data/history?${params.toString()}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function queryWorkspaceDataCatalog() {
+  return request("/api/v1/academic/workspace/data/catalog", {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function runWorkspaceMrag(payload = {}) {
+  return request("/api/v1/academic/workspace/mrag/run", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: payload.sessionId || getSessionId(),
+      question: payload.question || payload.prompt || "",
+      text: payload.text || "",
+      imageUrls: payload.imageUrls || [],
+      fileUrls: payload.fileUrls || [],
+      modelCodeList: payload.modelCodeList || [],
+      sourceTypes: payload.sourceTypes || [],
+      topK: payload.topK || 5,
+      maxResults: payload.maxResults || 5,
+      includeMultimodal: payload.includeMultimodal !== false,
+      includeTableRag: payload.includeTableRag !== false,
+      includeDeepSearch: payload.includeDeepSearch !== false,
+      useVector: payload.useVector !== false,
+      useElastic: Boolean(payload.useElastic),
+      metadata: payload.metadata || {}
+    })
+  });
+}
+
+export async function queryWorkspaceMragHistory({ sessionId = "", limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (sessionId) params.set("sessionId", sessionId);
+  params.set("limit", String(limit));
+  return request(`/api/v1/academic/workspace/mrag/history?${params.toString()}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function queryAgentCapabilities() {
+  return request("/agent/capabilities", {
+    method: "GET"
+  });
+}
+
+export async function queryMcpServers() {
+  return request("/api/v1/mcp/admin/servers", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function registerMcpServer(payload) {
+  return request("/api/v1/mcp/admin/servers", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function enableMcpServer(serverId, enabled) {
+  return request(`/api/v1/mcp/admin/servers/${encodeURIComponent(serverId)}/enabled`, {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: Boolean(enabled) })
+  });
+}
+
+export async function cacheMcpTools(serverId, payload) {
+  return request(`/api/v1/mcp/admin/servers/${encodeURIComponent(serverId)}/tools/cache`, {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || { tools: [] })
+  });
+}
+
+export async function discoverMcpTools(serverId, payload) {
+  return request(`/api/v1/mcp/admin/servers/${encodeURIComponent(serverId)}/tools/discover`, {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || { cache: true })
+  });
+}
+
+export async function queryMcpTools({ serverId = "", enabledOnly = false } = {}) {
+  const params = new URLSearchParams();
+  if (serverId) params.set("serverId", serverId);
+  params.set("enabledOnly", String(Boolean(enabledOnly)));
+  return request(`/api/v1/mcp/admin/tools?${params.toString()}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function queryMcpHealth() {
+  return request("/api/v1/mcp/admin/health", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function exportMcpState() {
+  return request("/api/v1/mcp/admin/export", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function importMcpState(payload) {
+  return request("/api/v1/mcp/admin/import", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function callMcpTool(toolName, payload) {
+  return request(`/api/v1/mcp/admin/tools/${encodeURIComponent(toolName)}/call`, {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || { arguments: {} })
+  });
+}
+
+export async function queryAgentAdminConfigs({ category = "", enabledOnly = false } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  params.set("enabledOnly", String(Boolean(enabledOnly)));
+  return request(`/api/v1/agent/admin/configs?${params.toString()}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function upsertAgentAdminConfig(payload) {
+  return request("/api/v1/agent/admin/configs", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function enableAgentAdminConfig(configId, enabled) {
+  return request(`/api/v1/agent/admin/configs/${encodeURIComponent(configId)}/enabled`, {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: Boolean(enabled) })
+  });
+}
+
+export async function deleteAgentAdminConfig(configId) {
+  return request(`/api/v1/agent/admin/configs/${encodeURIComponent(configId)}`, {
+    auth: true,
+    method: "DELETE"
+  });
+}
+
+export async function exportAgentAdminState() {
+  return request("/api/v1/agent/admin/export", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function importAgentAdminState(payload) {
+  return request("/api/v1/agent/admin/import", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function queryAgentAdminStatistics() {
+  return request("/api/v1/agent/admin/statistics", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function queryAgentAdminRuntimeSnapshot() {
+  return request("/api/v1/agent/admin/runtime-snapshot", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId(), modelConfig, webSearchEnabled = false, outputStyle = "" }, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/stream", {
     sessionId,
     question,
@@ -425,14 +689,16 @@ export function requestAcademicStream({ question, taskType, fileId, imageUrl, im
     imageUrl: imageUrl || "",
     imageName: imageName || "",
     webSearchEnabled: Boolean(webSearchEnabled),
+    outputStyle: outputStyle || "",
     ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, webSearchEnabled = false, onEvent, onDone, onError) {
+export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, webSearchEnabled = false, outputStyle = "", onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/resume", {
     sessionId,
     webSearchEnabled: Boolean(webSearchEnabled),
+    outputStyle: outputStyle || "",
     ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
@@ -638,6 +904,21 @@ export async function uploadKnowledgeDocument(file, goodsId, documentName, docum
   });
 }
 
+export async function uploadKnowledgeWebUrl(payload = {}) {
+  return request("/api/v1/knowledge/document/upload-web-url", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: payload.url || "",
+      goodsId: payload.goodsId || "global",
+      documentName: payload.documentName || "",
+      documentType: payload.documentType || "MRAG Web Page",
+      knowledgeVersion: payload.knowledgeVersion || ""
+    })
+  });
+}
+
 export async function rebuildKnowledgeVector() {
   return request("/api/v1/knowledge/vector/rebuild", {
     auth: true,
@@ -658,6 +939,27 @@ export async function getKnowledgeDocuments() {
   return request("/api/v1/knowledge/document/list?limit=10", {
     auth: true,
     method: "GET"
+  });
+}
+
+export async function getKnowledgeFragments(documentId) {
+  return request(`/api/v1/knowledge/document/fragments?documentId=${encodeURIComponent(documentId || "")}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function getKnowledgeDocumentFullContent(documentId) {
+  return request(`/api/v1/knowledge/document/full-content?documentId=${encodeURIComponent(documentId || "")}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function deleteKnowledgeDocument(documentId) {
+  return request(`/api/v1/knowledge/document/${encodeURIComponent(documentId || "")}`, {
+    auth: true,
+    method: "DELETE"
   });
 }
 

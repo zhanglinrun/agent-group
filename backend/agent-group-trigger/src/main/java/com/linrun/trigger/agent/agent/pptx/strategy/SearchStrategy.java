@@ -28,7 +28,7 @@ public class SearchStrategy implements PptStateStrategy {
         String requirement = inst.getRequirement();
 
         // 构建搜索提示
-        String searchPrompt = PptBuilderPrompts.getSearchInfoPrompt(requirement);
+        String searchPrompt = context.enhancePrompt(PptBuilderPrompts.getSearchInfoPrompt(requirement));
 
         // 获取 SimpleReactAgent 并注入 tavily 搜索工具
         SimpleReactAgent agent = SimpleReactAgent.builder()

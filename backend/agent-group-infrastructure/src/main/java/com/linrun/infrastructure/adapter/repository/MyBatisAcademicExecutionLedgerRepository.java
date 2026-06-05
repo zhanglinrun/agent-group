@@ -52,6 +52,11 @@ public class MyBatisAcademicExecutionLedgerRepository implements AcademicExecuti
     }
 
     @Override
+    public void saveArtifact(AcademicArtifact artifact) {
+        academicAgentDao.insertArtifact(AcademicPOConverter.toPO(artifact));
+    }
+
+    @Override
     public Optional<AcademicAgentRun> queryRun(String userId, String runId) {
         return Optional.ofNullable(AcademicPOConverter.toEntity(academicAgentDao.queryRun(userId, runId)));
     }

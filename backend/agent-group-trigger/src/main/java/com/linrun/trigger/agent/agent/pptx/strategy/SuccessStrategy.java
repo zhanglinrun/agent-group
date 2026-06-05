@@ -41,6 +41,8 @@ public class SuccessStrategy implements PptStateStrategy {
             prompt = PptBuilderPrompts.getSummaryPrompt(requirement, fileUrl, pageCount);
         }
 
+        prompt = context.enhancePrompt(prompt);
+
         StringBuilder llmResponse = new StringBuilder();
 
         Disposable disposable = context.getChatClient().prompt()

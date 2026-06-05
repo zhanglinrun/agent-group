@@ -12,6 +12,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.util.StringUtils;
 import com.alibaba.fastjson2.JSON;
 import reactor.core.publisher.Sinks;
 
@@ -34,6 +35,7 @@ public class PptStateStrategyContext {
     private final AgentTaskManager taskManager;
     private final List<ToolCallback> toolCallbacks;
     private final ChatMemory chatMemory;
+    private final String executionMemoryPrompt;
 
     private Long currentSessionId;
     private String currentConversationId;
@@ -50,6 +52,22 @@ public class PptStateStrategyContext {
                                     AgentTaskManager taskManager,
                                     List<ToolCallback> toolCallbacks,
                                     ChatMemory chatMemory) {
+        this(chatClient, chatModel, pptInstService, pptTemplateService, pythonRenderService,
+                imageGenerationService, minioService, sessionService, taskManager, toolCallbacks,
+                chatMemory, "");
+    }
+
+    public PptStateStrategyContext(ChatClient chatClient, ChatModel chatModel,
+                                    AiPptInstService pptInstService,
+                                    AiPptTemplateService pptTemplateService,
+                                    PptPythonRenderService pythonRenderService,
+                                    ImageGenerationService imageGenerationService,
+                                    MinioService minioService,
+                                    AiSessionService sessionService,
+                                    AgentTaskManager taskManager,
+                                    List<ToolCallback> toolCallbacks,
+                                    ChatMemory chatMemory,
+                                    String executionMemoryPrompt) {
         this.chatClient = chatClient;
         this.chatModel = chatModel;
         this.pptInstService = pptInstService;
@@ -61,6 +79,7 @@ public class PptStateStrategyContext {
         this.taskManager = taskManager;
         this.toolCallbacks = toolCallbacks;
         this.chatMemory = chatMemory;
+        this.executionMemoryPrompt = executionMemoryPrompt == null ? "" : executionMemoryPrompt;
     }
 
     // ===== Getters =====
@@ -107,6 +126,23 @@ public class PptStateStrategyContext {
 
     public ChatMemory getChatMemory() {
         return chatMemory;
+    }
+
+    public String getExecutionMemoryPrompt() {
+        return executionMemoryPrompt;
+    }
+
+    public void addExecutionMemory(List<Message> messages) {
+        if (messages != null && StringUtils.hasText(executionMemoryPrompt)) {
+            messages.add(new SystemMessage(executionMemoryPrompt));
+        }
+    }
+
+    public String enhancePrompt(String prompt) {
+        if (!StringUtils.hasText(executionMemoryPrompt)) {
+            return prompt;
+        }
+        return executionMemoryPrompt + "\n\n" + (prompt == null ? "" : prompt);
     }
 
     public Long getCurrentSessionId() {

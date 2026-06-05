@@ -18,6 +18,15 @@ import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProjector;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowStage;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgress;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressProjector;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressResult;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
+import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
@@ -28,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -47,6 +57,9 @@ public class AcademicBearDoctorAgentHandler {
     private final AcademicArtifactService academicArtifactService;
     private final AcademicExecutionLedgerService academicExecutionLedgerService;
     private final ObjectMapper objectMapper;
+    private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
+    private final AcademicAgentFlowProjector flowProjector = new AcademicAgentFlowProjector();
+    private final AcademicAgentFlowProgressProjector flowProgressProjector = new AcademicAgentFlowProgressProjector();
 
     public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
                                     UserAccountService userAccountService,
@@ -103,14 +116,21 @@ public class AcademicBearDoctorAgentHandler {
             String modelName = modelName(safeRequest);
             AcademicAgentRun run = academicExecutionLedgerService.startRun(
                     user.getUserId(), sessionId, requestId, taskType, query, modelName);
+            String executionMemoryPrompt = joinPrompts(
+                    outputStylePrompt(effectiveOutputStyle(taskType, safeRequest.getOutputStyle())),
+                    executionMemoryPrompt(user.getUserId(), sessionId, requestId)
+            );
             AcademicLedgerContext.Context ledgerContext = new AcademicLedgerContext.Context(
                     run.getRunId(), requestId, sessionId, user.getUserId(), taskType);
-            RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt, webSearchEnabled);
+            AcademicAgentPlan executionPlan = runPlanFactory.build(taskType, webSearchEnabled);
+            RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt,
+                    webSearchEnabled, executionPlan);
 
             return Flux.concat(
                             Flux.fromIterable(startEvents(runState, sessionId, requestId, sequence)),
                             Flux.defer(() -> bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
-                                    webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(), safeRequest.getLlmModel()))
+                                    webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(),
+                                    safeRequest.getLlmModel(), executionMemoryPrompt))
                                     .doOnSubscribe(subscription -> AcademicLedgerContext.set(ledgerContext))
                                     .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence, runState))
                                     .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(
@@ -217,6 +237,11 @@ public class AcademicBearDoctorAgentHandler {
         } catch (Exception ignored) {
             response.setReplays(List.of());
         }
+        try {
+            response.setMemory(academicExecutionLedgerService.querySessionMemory(user.getUserId(), sessionId, "", 8));
+        } catch (Exception ignored) {
+            response.setMemory(new AcademicSessionDetailResponse.MemorySnapshot());
+        }
         response.setMessages(messages);
         return response;
     }
@@ -277,6 +302,8 @@ public class AcademicBearDoctorAgentHandler {
                         status("THINKING", content(node))));
                 case "tool_start" -> toolStartEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_end" -> toolEndEvents(node, sessionId, requestId, sequence, runState);
+                case "plan_update" -> planUpdateEvents(node, sessionId, requestId, sequence, runState);
+                case "replan", "replanned" -> replanEvents(node, sessionId, requestId, sequence, runState);
                 case "reference" -> referenceEvents(node, sessionId, requestId, sequence);
                 case "recommend" -> List.of(event("recommend_delta", sessionId, requestId, sequence, recommend(node)));
                 case "error" -> List.of(event("error", sessionId, requestId, sequence,
@@ -293,10 +320,57 @@ public class AcademicBearDoctorAgentHandler {
                                                   String sessionId,
                                                   String requestId,
                                                   AtomicInteger sequence) {
-        return List.of(
-                event("run_start", sessionId, requestId, sequence, runStart(runState.run)),
-                event("plan_delta", sessionId, requestId, sequence, plan(runState))
-        );
+        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        events.add(event("run_start", sessionId, requestId, sequence, runStart(runState.run)));
+        events.add(event("plan_delta", sessionId, requestId, sequence, plan(runState)));
+        AcademicAgentFlowProgressResult progress = flowProgressProjector.start(runState.executionPlan);
+        runState.currentFlowStageIndex = progress.getCurrentStageIndex();
+        events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
+        return events;
+    }
+
+    private List<GuideStreamEvent<?>> replanEvents(JsonNode node,
+                                                   String sessionId,
+                                                   String requestId,
+                                                   AtomicInteger sequence,
+                                                   RunState runState) {
+        return planChangeEvents(node, sessionId, requestId, sequence, runState, true);
+    }
+
+    private List<GuideStreamEvent<?>> planUpdateEvents(JsonNode node,
+                                                       String sessionId,
+                                                       String requestId,
+                                                       AtomicInteger sequence,
+                                                       RunState runState) {
+        return planChangeEvents(node, sessionId, requestId, sequence, runState, false);
+    }
+
+    private List<GuideStreamEvent<?>> planChangeEvents(JsonNode node,
+                                                       String sessionId,
+                                                       String requestId,
+                                                       AtomicInteger sequence,
+                                                       RunState runState,
+                                                       boolean replanned) {
+        AcademicAgentPlan replannedPlan = replannedPlan(node, runState.executionPlan);
+        runState.executionPlan = replannedPlan;
+        runState.currentFlowStageIndex = -1;
+        String reason = firstText(node, "reason", "message", "content", "detail");
+        String prefix = replanned ? "计划已重规划" : "计划已更新";
+        String message = StringUtils.hasText(reason) ? prefix + "：" + reason : prefix;
+        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        events.add(event("task_status", sessionId, requestId, sequence, status(replanned ? "REPLAN" : "PLAN", message)));
+        events.add(event("plan_delta", sessionId, requestId, sequence, plan(runState)));
+        List<AcademicAgentFlowStage> stages = flowProjector.buildRemainingStages(replannedPlan);
+        if (!stages.isEmpty()) {
+            AcademicAgentFlowStage firstStage = stages.getFirst();
+            runState.currentFlowStageIndex = firstStage.getStageIndex();
+            Map<String, Object> data = flowStage(firstStage);
+            data.put("runId", runState.run.getRunId());
+            data.put("status", replanned ? "REPLANNED" : "RUNNING");
+            data.put("message", message);
+            events.add(event("flow_delta", sessionId, requestId, sequence, data));
+        }
+        return events;
     }
 
     private List<GuideStreamEvent<?>> answerEvents(JsonNode node,
@@ -332,6 +406,10 @@ public class AcademicBearDoctorAgentHandler {
                 runState.ledgerContext, toolCallId, toolName, action, argumentsJson);
         runState.toolInvocations.put(toolKey(toolCallId, toolName), invocationId);
         List<GuideStreamEvent<?>> events = new ArrayList<>();
+        AcademicAgentFlowProgressResult progress = flowProgressProjector.advanceToTool(
+                runState.executionPlan, runState.currentFlowStageIndex, toolName);
+        runState.currentFlowStageIndex = progress.getCurrentStageIndex();
+        events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         events.add(event("task_status", sessionId, requestId, sequence,
                 status("TOOL", "开始调用工具：" + nullToBlank(toolName))));
         events.add(event("tool_call", sessionId, requestId, sequence,
@@ -354,13 +432,18 @@ public class AcademicBearDoctorAgentHandler {
                 ? firstText(node, "message", "error", "detail")
                 : "";
         long latencyMillis = longValue(node, "latencyMillis", 0L);
+        Map<String, Object> structuredOutput = parseObject(resultText);
         academicExecutionLedgerService.recordToolFinish(invocationId, status,
                 limit(resultText, 1024), resultText, integer(node, "retryCount", 0), errorMessage, latencyMillis);
+        if (AcademicAgentRun.STATUS_SUCCESS.equals(status) && !structuredOutput.isEmpty()) {
+            academicExecutionLedgerService.recordToolArtifacts(
+                    runState.ledgerContext, invocationId, toolName, structuredOutput);
+        }
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         events.add(event("task_status", sessionId, requestId, sequence,
                 status("TOOL", "工具调用完成：" + nullToBlank(toolName))));
         events.add(event("tool_result", sessionId, requestId, sequence,
-                toolResult(invocationId, toolName, status, resultText, errorMessage, latencyMillis)));
+                toolResult(invocationId, toolName, status, resultText, structuredOutput, errorMessage, latencyMillis)));
         return events;
     }
 
@@ -378,10 +461,15 @@ public class AcademicBearDoctorAgentHandler {
                 customModel, message, durationMillis);
         academicExecutionLedgerService.finishRun(runState.run, AcademicAgentRun.STATUS_FAILED,
                 runState.answer.toString(), code, message, durationMillis);
-        return List.of(
-                event("run_error", sessionId, requestId, sequence, runDone(runState.run)),
-                errorEvent(sessionId, requestId, sequence, error, customModel)
-        );
+        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        AcademicAgentFlowProgressResult progress = flowProgressProjector.blockCurrent(
+                runState.executionPlan, runState.currentFlowStageIndex,
+                normalizeErrorMessage(message, customModel));
+        runState.currentFlowStageIndex = progress.getCurrentStageIndex();
+        events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
+        events.add(event("run_error", sessionId, requestId, sequence, runDone(runState.run)));
+        events.add(errorEvent(sessionId, requestId, sequence, error, customModel));
+        return events;
     }
 
     private List<GuideStreamEvent<?>> completionEvents(UserAccount user,
@@ -407,12 +495,18 @@ public class AcademicBearDoctorAgentHandler {
                         academicArtifactService.toEventPayload(artifact)));
             }
         }
+        AcademicAgentFlowProgressResult progress = flowProgressProjector.completeRemaining(
+                runState.executionPlan, runState.currentFlowStageIndex);
+        runState.currentFlowStageIndex = progress.getCurrentStageIndex();
+        events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         QuotaAccountResponse quota = userQuotaService.queryAccountResponse(user.getUserId());
+        BigDecimal consumedQuota = userQuotaService.estimatePreCheckCost(taskType);
         events.add(event("quota_delta", sessionId, requestId, sequence, quota));
         events.add(event("usage_metric", sessionId, requestId, sequence, Map.of(
-                "consumedQuota", userQuotaService.estimatePreCheckCost(taskType),
+                "consumedQuota", consumedQuota,
                 "remainingQuota", quota.getQuotaBalance(),
                 "model", runState.modelName)));
+        recordQuotaUsageSnapshot(runState, quota, consumedQuota, taskType);
         long durationMillis = System.currentTimeMillis() - runState.startedAt;
         academicExecutionLedgerService.recordLlmInvocation(runState.ledgerContext, runState.modelName,
                 runState.question, runState.answer.toString(), AcademicAgentRun.STATUS_SUCCESS,
@@ -422,6 +516,54 @@ public class AcademicBearDoctorAgentHandler {
         events.add(event("run_done", sessionId, requestId, sequence, runDone(runState.run)));
         events.add(event("done", sessionId, requestId, sequence, "done"));
         return events;
+    }
+
+    private void recordQuotaUsageSnapshot(RunState runState,
+                                          QuotaAccountResponse quota,
+                                          BigDecimal consumedQuota,
+                                          String taskType) {
+        if (runState == null || runState.ledgerContext == null) {
+            return;
+        }
+        Map<String, Object> output = quotaUsageStructuredOutput(quota, consumedQuota, taskType, runState.modelName);
+        String invocationId = academicExecutionLedgerService.recordToolStart(
+                runState.ledgerContext,
+                "quota-usage-" + runState.run.getRequestId(),
+                AcademicToolOutputNames.QUOTA_USAGE,
+                "quota_snapshot",
+                "{}");
+        academicExecutionLedgerService.recordToolFinish(
+                invocationId,
+                AcademicAgentRun.STATUS_SUCCESS,
+                String.valueOf(output.getOrDefault("summary", "")),
+                toJson(output),
+                0,
+                "",
+                0L);
+    }
+
+    private Map<String, Object> quotaUsageStructuredOutput(QuotaAccountResponse quota,
+                                                           BigDecimal consumedQuota,
+                                                           String taskType,
+                                                           String modelName) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("taskType", nullToBlank(taskType));
+        metadata.put("model", nullToBlank(modelName));
+        metadata.put("estimatedConsumedQuota", consumedQuota == null ? BigDecimal.ZERO : consumedQuota);
+        if (quota != null) {
+            metadata.put("userId", nullToBlank(quota.getUserId()));
+            metadata.put("remainingQuota", quota.getQuotaBalance());
+            metadata.put("usedQuota", quota.getUsedQuota());
+            metadata.put("frozenQuota", quota.getFrozenQuota());
+        }
+
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("toolName", AcademicToolOutputNames.QUOTA_USAGE);
+        output.put("title", "额度对账快照");
+        output.put("summary", "本次 Agent 运行完成后记录额度余额和预估消耗");
+        output.put("content", "额度只能以账户流水和后端交易状态为准；该快照用于历史回放和运行对账。");
+        output.put("metadata", metadata);
+        return output;
     }
 
     private Map<String, Object> runStart(AcademicAgentRun run) {
@@ -438,18 +580,146 @@ public class AcademicBearDoctorAgentHandler {
     private Map<String, Object> plan(RunState runState) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("runId", runState.run.getRunId());
-        data.put("steps", planSteps(runState.run.getTaskType(), runState.webSearchEnabled));
+        AcademicAgentPlan executionPlan = runState.executionPlan;
+        data.put("title", executionPlan.getTitle());
+        data.put("steps", executionPlan.getSteps().stream()
+                .map(AcademicPlanStep::getInstruction)
+                .toList());
+        data.put("structuredSteps", executionPlan.getSteps().stream()
+                .map(this::planStep)
+                .toList());
+        data.put("flowStages", flowProjector.buildRemainingStages(executionPlan).stream()
+                .map(this::flowStage)
+                .toList());
         return data;
     }
 
-    private List<String> planSteps(String taskType, boolean webSearchEnabled) {
-        return switch (normalizeTaskType(taskType)) {
-            case "file" -> List.of("读取文件", "检索相关内容", "生成回答");
-            case "ppt" -> List.of("拆解主题", webSearchEnabled ? "搜索资料" : "整理素材", "生成演示文稿");
-            case "deep" -> List.of("拆解问题", webSearchEnabled ? "搜索资料" : "梳理已有信息", "汇总结论");
-            case "skills" -> List.of("选择技能", "执行工具", "整理产物");
-            default -> List.of("理解问题", webSearchEnabled ? "检索或搜索" : "组织回答", "生成回答");
-        };
+    private AcademicAgentPlan replannedPlan(JsonNode node, AcademicAgentPlan currentPlan) {
+        JsonNode planNode = node.path("plan");
+        String title = firstText(planNode, "title", "planTitle");
+        if (!StringUtils.hasText(title)) {
+            title = firstText(node, "title", "planTitle");
+        }
+        if (!StringUtils.hasText(title) && currentPlan != null) {
+            title = currentPlan.getTitle();
+        }
+        List<AcademicPlanStep> steps = planSteps(firstPresentNode(
+                planNode.path("structuredSteps"),
+                planNode.path("steps"),
+                node.path("structuredSteps"),
+                node.path("remainingSteps"),
+                node.path("steps")));
+        if (steps.isEmpty() && currentPlan != null) {
+            return currentPlan.copy();
+        }
+        return new AcademicAgentPlan(title, steps);
+    }
+
+    private List<AcademicPlanStep> planSteps(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull() || !node.isArray()) {
+            return List.of();
+        }
+        List<AcademicPlanStep> steps = new ArrayList<>();
+        int index = 0;
+        for (JsonNode item : node) {
+            index++;
+            String instruction = item.isTextual()
+                    ? item.asText()
+                    : firstText(item, "instruction", "task", "title", "content", "description");
+            if (!StringUtils.hasText(instruction)) {
+                continue;
+            }
+            String stepId = item.isObject() ? firstText(item, "stepId", "id") : "";
+            if (!StringUtils.hasText(stepId)) {
+                stepId = "S" + (steps.size() + 1);
+            }
+            int order = item.isObject() ? Math.max(1, integer(item, "order", index)) : index;
+            AcademicPlanStep.Builder builder = AcademicPlanStep.builder(stepId, instruction)
+                    .order(order)
+                    .assignedAgent(item.isObject() ? firstText(item, "assignedAgent", "agent") : "")
+                    .dependencies(stringList(item.path("dependencies")));
+            String status = item.isObject() ? firstText(item, "status") : "";
+            if (StringUtils.hasText(status)) {
+                builder.status(status);
+            }
+            steps.add(builder.build());
+        }
+        return steps;
+    }
+
+    private JsonNode firstPresentNode(JsonNode... nodes) {
+        if (nodes == null) {
+            return objectMapper.createArrayNode();
+        }
+        for (JsonNode node : nodes) {
+            if (node != null && !node.isMissingNode() && !node.isNull()) {
+                if (node.isArray() && !node.isEmpty()) {
+                    return node;
+                }
+                if (!node.isArray()) {
+                    return node;
+                }
+            }
+        }
+        return objectMapper.createArrayNode();
+    }
+
+    private List<String> stringList(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull() || !node.isArray()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (JsonNode item : node) {
+            String value = item.asText("");
+            if (StringUtils.hasText(value)) {
+                result.add(value.trim());
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Object> planStep(AcademicPlanStep step) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("stepId", step.getStepId());
+        data.put("instruction", step.getInstruction());
+        data.put("order", step.getOrder());
+        data.put("status", step.getStatus());
+        data.put("assignedAgent", step.getAssignedAgent());
+        data.put("dependencies", step.getDependencies());
+        return data;
+    }
+
+    private Map<String, Object> flowStage(AcademicAgentFlowStage stage) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("stageIndex", stage.getStageIndex());
+        data.put("stepIds", stage.stepIds());
+        data.put("steps", stage.getSteps().stream()
+                .map(this::planStep)
+                .toList());
+        return data;
+    }
+
+    private List<GuideStreamEvent<?>> flowProgressEvents(AcademicAgentFlowProgressResult progress,
+                                                         String sessionId,
+                                                         String requestId,
+                                                         AtomicInteger sequence,
+                                                         RunState runState) {
+        if (progress == null || progress.getEvents().isEmpty()) {
+            return List.of();
+        }
+        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        for (AcademicAgentFlowProgress item : progress.getEvents()) {
+            events.add(event("flow_delta", sessionId, requestId, sequence, flowProgress(runState, item)));
+        }
+        return events;
+    }
+
+    private Map<String, Object> flowProgress(RunState runState, AcademicAgentFlowProgress progress) {
+        Map<String, Object> data = flowStage(progress.getStage());
+        data.put("runId", runState.run.getRunId());
+        data.put("status", progress.getStatus());
+        data.put("message", progress.getMessage());
+        return data;
     }
 
     private Map<String, Object> toolCall(String runId,
@@ -473,6 +743,7 @@ public class AcademicBearDoctorAgentHandler {
                                            String toolName,
                                            String status,
                                            String resultText,
+                                           Map<String, Object> structuredOutput,
                                            String errorMessage,
                                            long latencyMillis) {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -483,6 +754,11 @@ public class AcademicBearDoctorAgentHandler {
         data.put("resultJson", nullToBlank(resultText));
         data.put("errorMessage", nullToBlank(errorMessage));
         data.put("latencyMillis", Math.max(0L, latencyMillis));
+        if (structuredOutput != null && !structuredOutput.isEmpty()) {
+            data.put("structuredOutput", structuredOutput);
+            putIfPresent(data, "fileRefs", structuredOutput.get("fileRefs"));
+            putIfPresent(data, "artifactRefs", structuredOutput.get("artifactRefs"));
+        }
         return data;
     }
 
@@ -778,7 +1054,11 @@ public class AcademicBearDoctorAgentHandler {
             case "paper", "file" -> "file";
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
+            case "image", "image-generation", "workspace-image" -> "image";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
+            case "trade", "trade-audit", "trade-flow", "group-trade" -> "trade-audit";
             case "skills" -> "skills";
+            case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";
         };
     }
@@ -791,10 +1071,123 @@ public class AcademicBearDoctorAgentHandler {
         };
     }
 
+    private String executionMemoryPrompt(String userId, String sessionId, String currentRequestId) {
+        try {
+            return buildExecutionMemoryPrompt(academicExecutionLedgerService.querySessionMemory(
+                    userId, sessionId, currentRequestId, 6));
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String outputStylePrompt(String outputStyle) {
+        return switch (normalizeOutputStyle(outputStyle)) {
+            case "brief" -> """
+                    ## Output style
+                    Keep the final answer concise. Prioritize direct conclusions, key evidence and next actions.
+                    """;
+            case "report" -> """
+                    ## Output style
+                    Produce a structured report. Use clear sections, evidence, assumptions, risks and actionable conclusions.
+                    """;
+            case "interview" -> """
+                    ## Output style
+                    Explain the answer as an interview project highlight. Emphasize architecture, trade-offs, failure handling, observability and business value.
+                    """;
+            case "trade-audit" -> """
+                    ## Output style
+                    Treat quota, order, payment and group-buy state as backend system facts. Do not infer balances or settlement from the model. Clearly separate paid, waiting-for-group-settlement, credited and refunded states.
+                    """;
+            case "html" -> """
+                    ## Output style
+                    When a deliverable is needed, prefer an HTML-style report structure with title, summary, sections, tables and a final conclusion.
+                    """;
+            default -> "";
+        };
+    }
+
+    private String effectiveOutputStyle(String taskType, String outputStyle) {
+        if (StringUtils.hasText(outputStyle)) {
+            return outputStyle;
+        }
+        return "trade-audit".equals(normalizeTaskType(taskType)) ? "trade-audit" : "";
+    }
+
+    private String normalizeOutputStyle(String outputStyle) {
+        String style = nullToBlank(outputStyle).trim().toLowerCase();
+        return switch (style) {
+            case "brief", "report", "interview", "trade-audit", "html" -> style;
+            default -> "";
+        };
+    }
+
+    private String joinPrompts(String... prompts) {
+        if (prompts == null || prompts.length == 0) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String prompt : prompts) {
+            if (!StringUtils.hasText(prompt)) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append("\n\n");
+            }
+            builder.append(prompt.trim());
+        }
+        return builder.toString();
+    }
+
+    private String buildExecutionMemoryPrompt(AcademicSessionDetailResponse.MemorySnapshot memory) {
+        if (memory == null || memory.getRuns().isEmpty()) {
+            return "";
+        }
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("## Session execution memory\n");
+        prompt.append("Use this memory only as context for the current user request. ");
+        prompt.append("Do not claim an artifact is newly created unless it is produced in the current run.\n");
+        if (StringUtils.hasText(memory.getSummary())) {
+            prompt.append("Summary: ").append(limit(memory.getSummary(), 600)).append('\n');
+        }
+        if (StringUtils.hasText(memory.getHistoryDialogue())) {
+            prompt.append('\n').append(limit(memory.getHistoryDialogue(), 3000)).append('\n');
+        }
+        if (!memory.getReusableArtifacts().isEmpty()) {
+            prompt.append("\nReusable artifacts:\n");
+            for (AcademicSessionDetailResponse.Artifact artifact : memory.getReusableArtifacts()) {
+                prompt.append("- ")
+                        .append(firstText(artifact.getTitle(), artifact.getFileName(), artifact.getArtifactId()));
+                if (StringUtils.hasText(artifact.getDownloadUrl())) {
+                    prompt.append(" url=").append(artifact.getDownloadUrl());
+                }
+                prompt.append('\n');
+            }
+        }
+        if (!memory.getToolObservations().isEmpty()) {
+            prompt.append("\nRecent tool observations:\n");
+            for (AcademicSessionDetailResponse.ToolObservation observation : memory.getToolObservations()) {
+                prompt.append("- ")
+                        .append(firstText(observation.getToolName(), "tool"))
+                        .append(" [").append(firstText(observation.getStatus(), "UNKNOWN")).append("]");
+                if (StringUtils.hasText(observation.getResultSummary())) {
+                    prompt.append(": ").append(limit(observation.getResultSummary(), 300));
+                }
+                prompt.append('\n');
+            }
+        }
+        return limit(prompt.toString().trim(), 5000);
+    }
+
     private String normalizeQuery(AcademicAgentStreamRequest request, String taskType) {
         String question = request == null ? "" : nullToBlank(request.getQuestion()).trim();
         if ("ppt".equals(taskType)) {
             return normalizePptQuery(question);
+        }
+        if ("image".equals(taskType) && !StringUtils.hasText(question)) {
+            return "请生成一张适合项目展示的智能体平台概念图。";
+        }
+        if ("data".equals(taskType) && !StringUtils.hasText(question)) {
+            return "请分析当前拼团交易、额度消耗和订单状态的关键指标。";
         }
         if (StringUtils.hasText(question)) {
             return question;
@@ -828,7 +1221,10 @@ public class AcademicBearDoctorAgentHandler {
             case "file" -> "文件问答";
             case "ppt" -> "PPT生成";
             case "deep" -> "深度研究";
+            case "image" -> "图像生成";
+            case "data" -> "数据问答";
             case "skills" -> "技能助手";
+            case "manual-skills" -> "手动技能";
             default -> "新对话";
         };
     }
@@ -857,6 +1253,45 @@ public class AcademicBearDoctorAgentHandler {
             return value.isTextual() ? value.asText("") : value.toString();
         }
         return "";
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseObject(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Map.of();
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof Map<?, ?> map) {
+                return new LinkedHashMap<>((Map<String, Object>) map);
+            }
+        } catch (Exception ignored) {
+        }
+        return Map.of();
+    }
+
+    private String toJson(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return "{}";
+        }
+        try {
+            return objectMapper == null ? "{}" : objectMapper.writeValueAsString(data);
+        } catch (Exception ignored) {
+            return "{}";
+        }
+    }
+
+    private void putIfPresent(Map<String, Object> data, String key, Object value) {
+        if (!StringUtils.hasText(key) || value == null) {
+            return;
+        }
+        if (value instanceof List<?> list && list.isEmpty()) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map && map.isEmpty()) {
+            return;
+        }
+        data.put(key, value);
     }
 
     private String text(JsonNode node, String field) {
@@ -909,6 +1344,15 @@ public class AcademicBearDoctorAgentHandler {
         return "";
     }
 
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
     private String toolKey(String toolCallId, String toolName) {
         return StringUtils.hasText(toolCallId) ? toolCallId : nullToBlank(toolName);
     }
@@ -929,21 +1373,25 @@ public class AcademicBearDoctorAgentHandler {
         private final String modelName;
         private final long startedAt;
         private final boolean webSearchEnabled;
+        private AcademicAgentPlan executionPlan;
         private final StringBuilder answer = new StringBuilder();
         private final Map<String, String> toolInvocations = new LinkedHashMap<>();
+        private int currentFlowStageIndex = -1;
 
         private RunState(AcademicAgentRun run,
                          AcademicLedgerContext.Context ledgerContext,
                          String question,
                          String modelName,
                          long startedAt,
-                         boolean webSearchEnabled) {
+                         boolean webSearchEnabled,
+                         AcademicAgentPlan executionPlan) {
             this.run = run;
             this.ledgerContext = ledgerContext;
             this.question = question;
             this.modelName = modelName;
             this.startedAt = startedAt;
             this.webSearchEnabled = webSearchEnabled;
+            this.executionPlan = executionPlan;
         }
     }
 

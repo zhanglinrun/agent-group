@@ -24,4 +24,8 @@ public interface IKnowledgeDocumentDao {
                                                      @Param("limit") int limit);
 
     int updateDocumentStatus(KnowledgeDocumentPO document);
+
+    int updateFragmentsStatusByDocumentId(@Param("documentId") String documentId,
+                                          @Param("fragmentStatus") String fragmentStatus,
+                                          @Param("enabled") boolean enabled);
 }

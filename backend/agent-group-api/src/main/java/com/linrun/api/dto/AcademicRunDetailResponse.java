@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class AcademicRunDetailResponse implements Serializable {
@@ -58,6 +59,9 @@ public class AcademicRunDetailResponse implements Serializable {
         private String argumentsJson;
         private String resultSummary;
         private String resultJson;
+        private Map<String, Object> structuredOutput;
+        private List<AcademicSessionDetailResponse.Artifact> artifactRefs = new ArrayList<>();
+        private Integer artifactCount;
         private String status;
         private Integer retryCount;
         private String errorMessage;

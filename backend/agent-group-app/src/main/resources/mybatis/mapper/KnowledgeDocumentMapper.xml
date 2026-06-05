@@ -205,4 +205,12 @@
             update_time = #{updateTime}
         where document_id = #{documentId}
     </update>
+
+    <update id="updateFragmentsStatusByDocumentId">
+        update knowledge_fragment
+        set fragment_status = #{fragmentStatus},
+            enabled = #{enabled},
+            update_time = now()
+        where document_id = #{documentId}
+    </update>
 </mapper>

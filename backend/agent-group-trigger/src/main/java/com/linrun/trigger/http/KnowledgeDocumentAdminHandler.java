@@ -1,15 +1,19 @@
 package com.linrun.trigger.http;
 
 import com.linrun.api.dto.KnowledgeDocumentDTO;
+import com.linrun.api.dto.KnowledgeDocumentFullContentResponse;
 import com.linrun.api.dto.KnowledgeFragmentDTO;
 import com.linrun.domain.agent.knowledge.adapter.KnowledgeDocumentRepository;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
+import com.linrun.domain.agent.knowledge.model.KnowledgeFragmentStatus;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -38,8 +42,57 @@ public class KnowledgeDocumentAdminHandler {
             throw new AppException("0001", "documentId cannot be blank");
         }
         return knowledgeDocumentRepository.queryFragmentsByDocumentId(documentId).stream()
+                .sorted(Comparator.comparing(
+                        KnowledgeFragment::getRankNo,
+                        Comparator.nullsLast(Integer::compareTo)))
                 .map(this::toFragmentDTO)
                 .toList();
+    }
+
+    public KnowledgeDocumentFullContentResponse queryFullContent(String documentId) {
+        KnowledgeDocument document = queryRequiredDocument(documentId);
+        List<KnowledgeFragment> fragments = knowledgeDocumentRepository.queryFragmentsByDocumentId(document.getDocumentId()).stream()
+                .sorted(Comparator.comparing(
+                        KnowledgeFragment::getRankNo,
+                        Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+        KnowledgeDocumentFullContentResponse response = new KnowledgeDocumentFullContentResponse();
+        response.setDocumentId(document.getDocumentId());
+        response.setDocumentName(document.getDocumentName());
+        response.setDocumentType(document.getDocumentType());
+        response.setKnowledgeVersion(document.getKnowledgeVersion());
+        response.setSourceType(document.getSourceType());
+        response.setSourceName(document.getSourceName());
+        response.setDocumentStatus(document.getDocumentStatus() == null ? null : document.getDocumentStatus().name());
+        response.setEnabled(document.getEnabled());
+        response.setFragmentCount(fragments.size());
+        response.setFragments(fragments.stream().map(this::toFragmentDTO).toList());
+        response.setContent(fragments.stream()
+                .map(KnowledgeFragment::getContent)
+                .filter(StringUtils::hasText)
+                .reduce((left, right) -> left + "\n\n" + right)
+                .orElse(""));
+        return response;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public KnowledgeDocumentDTO disableDocument(String documentId) {
+        KnowledgeDocument document = queryRequiredDocument(documentId);
+        document.disable();
+        knowledgeDocumentRepository.updateDocumentStatus(document);
+        knowledgeDocumentRepository.updateFragmentsStatusByDocumentId(
+                document.getDocumentId(),
+                KnowledgeFragmentStatus.DISABLED,
+                false);
+        return toDocumentDTO(document);
+    }
+
+    private KnowledgeDocument queryRequiredDocument(String documentId) {
+        if (!StringUtils.hasText(documentId)) {
+            throw new AppException("0001", "documentId cannot be blank");
+        }
+        return knowledgeDocumentRepository.queryDocumentByDocumentId(documentId)
+                .orElseThrow(() -> new AppException("KNOWLEDGE_0001", "knowledge document not found"));
     }
 
     private KnowledgeDocumentStatus parseStatus(String status) {

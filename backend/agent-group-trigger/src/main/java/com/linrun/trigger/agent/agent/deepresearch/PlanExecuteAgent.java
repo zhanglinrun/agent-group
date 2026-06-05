@@ -26,6 +26,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.util.StringUtils;
 import reactor.core.Disposable;
 import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
@@ -58,6 +59,7 @@ public class PlanExecuteAgent extends BaseAgent {
 
     // 工具重试次数
     private final int maxToolRetries;
+    private String systemPrompt = "";
 
     // 用于管理所有需要取消的Disposable
     private Disposable.Composite compositeDisposable;
@@ -75,12 +77,26 @@ public class PlanExecuteAgent extends BaseAgent {
                             ChatMemory chatMemory,
                             AiSessionService sessionService,
                             AgentTaskManager taskManager) {
+        this(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries, "",
+                chatMemory, sessionService, taskManager);
+    }
+
+    public PlanExecuteAgent(ChatModel chatModel,
+                            List<ToolCallback> tools,
+                            int maxRounds,
+                            int contextCharLimit,
+                            int maxToolRetries,
+                            String systemPrompt,
+                            ChatMemory chatMemory,
+                            AiSessionService sessionService,
+                            AgentTaskManager taskManager) {
         super("PlanExecuteAgent", chatModel, "plan-execute");
         this.chatClient = ChatClient.builder(chatModel).build();
         this.tools = tools;
         this.maxRounds = maxRounds;
         this.contextCharLimit = contextCharLimit;
         this.maxToolRetries = maxToolRetries;
+        this.systemPrompt = systemPrompt == null ? "" : systemPrompt;
         this.toolSemaphore = new Semaphore(3);
         this.chatMemory = chatMemory;
         this.sessionService = sessionService;
@@ -112,6 +128,8 @@ public class PlanExecuteAgent extends BaseAgent {
         private AiSessionService sessionService;
 
         private AgentTaskManager taskManager;
+
+        private String systemPrompt = "";
 
         public Builder sessionService(AiSessionService sessionService) {
             this.sessionService = sessionService;
@@ -158,9 +176,15 @@ public class PlanExecuteAgent extends BaseAgent {
             return this;
         }
 
+        public Builder systemPrompt(String systemPrompt) {
+            this.systemPrompt = systemPrompt == null ? "" : systemPrompt;
+            return this;
+        }
+
         public PlanExecuteAgent build() {
             Objects.requireNonNull(chatModel, "chatModel must not be null");
-            return new PlanExecuteAgent(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries, chatMemory, sessionService, taskManager);
+            return new PlanExecuteAgent(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries,
+                    systemPrompt, chatMemory, sessionService, taskManager);
         }
     }
 
@@ -239,6 +263,9 @@ public class PlanExecuteAgent extends BaseAgent {
         List<Message> history = getChatHistory(conversationId);
         if (CollectionUtils.isNotEmpty(history)) {
             history.forEach(state::add);
+        }
+        if (StringUtils.hasText(systemPrompt)) {
+            state.add(new SystemMessage(systemPrompt));
         }
         state.add(new UserMessage(question));
 
@@ -722,6 +749,7 @@ public class PlanExecuteAgent extends BaseAgent {
         List<PlanTask> planTasks = converter.convert(ThinkTagParser.stripThinkTags(json));
 
         emit(sink, hasSentFinal, "\n✅ 执行计划已生成，共 " + planTasks.size() + " 个任务\n", "thinking", thinkingBuffer);
+        emitPlanUpdate(sink, hasSentFinal, state, planTasks);
 
         // 将执行计划表格式化为纯文本展示
         if (!planTasks.isEmpty()) {
@@ -732,6 +760,39 @@ public class PlanExecuteAgent extends BaseAgent {
             emit(sink, hasSentFinal, planText.toString(), "thinking", thinkingBuffer);
         }
         return planTasks;
+    }
+
+    private void emitPlanUpdate(Sinks.Many<String> sink,
+                                AtomicBoolean finished,
+                                OverAllState state,
+                                List<PlanTask> planTasks) {
+        if (finished.get() || CollectionUtils.isEmpty(planTasks)) {
+            return;
+        }
+        sink.tryEmitNext(createPlanUpdateEvent(state.getRound(), planTasks));
+    }
+
+    static String createPlanUpdateEvent(int round, List<PlanTask> planTasks) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", round > 1 ? "replan" : "plan_update");
+        payload.put("title", round > 1 ? "第 " + round + " 轮补充执行计划" : "深度研究执行计划");
+        payload.put("reason", round > 1 ? "根据上一轮评估反馈调整剩余任务" : "模型已生成可执行计划");
+        payload.put("structuredSteps", (planTasks == null ? List.<PlanTask>of() : planTasks).stream()
+                .filter(Objects::nonNull)
+                .filter(task -> StringUtils.hasText(task.instruction()))
+                .map(PlanExecuteAgent::planTaskPayload)
+                .toList());
+        return JSON.toJSONString(payload);
+    }
+
+    private static Map<String, Object> planTaskPayload(PlanTask task) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("stepId", StringUtils.hasText(task.id()) ? task.id() : "S" + Math.max(1, task.order()));
+        data.put("instruction", task.instruction());
+        data.put("order", Math.max(1, task.order()));
+        data.put("assignedAgent", "executor");
+        data.put("dependencies", List.of());
+        return data;
     }
 
     private Map<String, TaskResult> executePlan(List<PlanTask> plan, OverAllState state, Sinks.Many<String> sink,
@@ -903,7 +964,7 @@ public class PlanExecuteAgent extends BaseAgent {
                     .chatModel(chatModel)
                     .tools(tools)
                     .maxRounds(5)
-                    .systemPrompt(PlanExecutePrompts.EXECUTE)
+                    .systemPrompt(joinPrompts(PlanExecutePrompts.EXECUTE, systemPrompt))
                     .build();
 
             SimpleReactResult result = agent.callWithReference(null, fullContext);
@@ -1201,5 +1262,22 @@ public class PlanExecuteAgent extends BaseAgent {
                     .append("\n");
         }
         return sb.toString();
+    }
+
+    private String joinPrompts(String... prompts) {
+        if (prompts == null || prompts.length == 0) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String prompt : prompts) {
+            if (!StringUtils.hasText(prompt)) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append("\n\n");
+            }
+            builder.append(prompt.trim());
+        }
+        return builder.toString();
     }
 }

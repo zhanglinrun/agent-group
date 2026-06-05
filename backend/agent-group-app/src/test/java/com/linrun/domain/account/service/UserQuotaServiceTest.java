@@ -40,6 +40,16 @@ class UserQuotaServiceTest {
         assertEquals("AS1780458958046", quotaRepository.usages.get(1).getSessionId());
     }
 
+    @Test
+    void tradeAuditPreCheckUsesTradeTaskCost() {
+        UserQuotaService service = new UserQuotaService(
+                new InMemoryQuotaRepository(BigDecimal.TEN),
+                mock(GuideDataRepository.class),
+                mock(TradeOrderRepository.class));
+
+        assertEquals(BigDecimal.valueOf(2), service.estimatePreCheckCost("trade-audit"));
+    }
+
     private static class InMemoryQuotaRepository implements UserQuotaRepository {
         private BigDecimal balance;
         private BigDecimal used = BigDecimal.ZERO;

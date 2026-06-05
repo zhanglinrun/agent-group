@@ -8,12 +8,18 @@ import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputReader;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputView;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,6 +29,7 @@ public class AcademicExecutionLedgerService {
 
     private final AcademicExecutionLedgerRepository ledgerRepository;
     private final AcademicReplayProjector replayProjector;
+    private final AcademicToolOutputReader toolOutputReader = new AcademicToolOutputReader();
 
     public AcademicExecutionLedgerService(AcademicExecutionLedgerRepository ledgerRepository,
                                           AcademicReplayProjector replayProjector) {
@@ -167,6 +174,32 @@ public class AcademicExecutionLedgerService {
         }
     }
 
+    public void recordToolArtifacts(AcademicLedgerContext.Context context,
+                                    String toolInvocationId,
+                                    String toolName,
+                                    Map<String, Object> result) {
+        if (context == null
+                || !StringUtils.hasText(context.runId())
+                || !StringUtils.hasText(context.userId())
+                || !StringUtils.hasText(context.sessionId())) {
+            return;
+        }
+        List<AcademicToolFileRef> fileRefs = fileRefs(result);
+        if (fileRefs.isEmpty()) {
+            return;
+        }
+        for (AcademicToolFileRef fileRef : fileRefs) {
+            AcademicArtifact artifact = artifactFromFileRef(context, toolInvocationId, toolName, fileRef);
+            if (artifact == null) {
+                continue;
+            }
+            try {
+                ledgerRepository.saveArtifact(artifact);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     public List<AcademicAgentRun> queryRuns(String userId, String sessionId, int limit) {
         return ledgerRepository.queryRuns(userId, sessionId, Math.max(1, Math.min(limit, 50)));
     }
@@ -183,6 +216,54 @@ public class AcademicExecutionLedgerService {
                 .toList();
     }
 
+    public AcademicSessionDetailResponse.MemorySnapshot querySessionMemory(String userId,
+                                                                           String sessionId,
+                                                                           String currentRequestId,
+                                                                           int limit) {
+        AcademicSessionDetailResponse.MemorySnapshot memory = new AcademicSessionDetailResponse.MemorySnapshot();
+        memory.setSessionId(safe(sessionId));
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(sessionId)) {
+            return memory;
+        }
+        List<AcademicAgentRun> latestRuns = ledgerRepository.queryRuns(
+                userId, sessionId, Math.max(1, Math.min(limit, 20)));
+        List<AcademicAgentRun> runs = new ArrayList<>();
+        for (int index = latestRuns.size() - 1; index >= 0; index--) {
+            AcademicAgentRun run = latestRuns.get(index);
+            if (same(run.getRequestId(), currentRequestId)) {
+                continue;
+            }
+            runs.add(run);
+        }
+
+        List<AcademicSessionDetailResponse.ToolObservation> observations = new ArrayList<>();
+        Map<String, AcademicSessionDetailResponse.Artifact> reusableArtifacts = new LinkedHashMap<>();
+        StringBuilder dialogue = new StringBuilder("## Session Memory\n");
+        for (AcademicAgentRun run : runs) {
+            List<AcademicToolInvocation> toolInvocations = ledgerRepository.queryToolInvocations(run.getRunId());
+            List<AcademicArtifact> artifacts = ledgerRepository.queryArtifactsByRun(run.getRunId());
+            memory.getRuns().add(runMemory(run));
+            appendRunDialogue(dialogue, run, toolInvocations, artifacts);
+            for (AcademicArtifact artifact : artifacts) {
+                if (isReusableArtifact(artifact)) {
+                    reusableArtifacts.put(artifact.getArtifactId(), artifact(artifact));
+                }
+            }
+            for (AcademicToolInvocation invocation : toolInvocations) {
+                AcademicSessionDetailResponse.ToolObservation observation = toolObservation(invocation, artifacts);
+                observations.add(observation);
+                for (AcademicSessionDetailResponse.Artifact artifact : observation.getArtifactRefs()) {
+                    reusableArtifacts.put(artifact.getArtifactId(), artifact);
+                }
+            }
+        }
+        memory.setToolObservations(observations);
+        memory.setReusableArtifacts(new ArrayList<>(reusableArtifacts.values()));
+        memory.setHistoryDialogue(dialogue.toString().trim());
+        memory.setSummary(memorySummary(memory));
+        return memory;
+    }
+
     public AcademicReplayResponse queryRunReplay(String userId, String runId) {
         AcademicAgentRun run = ledgerRepository.queryRun(userId, runId)
                 .orElseThrow(() -> new AppException("LEDGER_0001", "运行记录不存在或无权访问"));
@@ -190,15 +271,18 @@ public class AcademicExecutionLedgerService {
     }
 
     private AcademicRunDetailResponse detail(AcademicAgentRun run) {
+        List<AcademicLlmInvocation> llmInvocations = ledgerRepository.queryLlmInvocations(run.getRunId());
+        List<AcademicToolInvocation> toolInvocations = ledgerRepository.queryToolInvocations(run.getRunId());
+        List<AcademicArtifact> artifacts = ledgerRepository.queryArtifactsByRun(run.getRunId());
         AcademicRunDetailResponse response = new AcademicRunDetailResponse();
         response.setRun(run(run));
-        response.setLlmInvocations(ledgerRepository.queryLlmInvocations(run.getRunId()).stream()
+        response.setLlmInvocations(llmInvocations.stream()
                 .map(this::llm)
                 .toList());
-        response.setToolInvocations(ledgerRepository.queryToolInvocations(run.getRunId()).stream()
-                .map(this::tool)
+        response.setToolInvocations(toolInvocations.stream()
+                .map(invocation -> tool(invocation, artifacts))
                 .toList());
-        response.setArtifacts(ledgerRepository.queryArtifactsByRun(run.getRunId()).stream()
+        response.setArtifacts(artifacts.stream()
                 .map(this::artifact)
                 .toList());
         return response;
@@ -229,6 +313,19 @@ public class AcademicExecutionLedgerService {
         return dto;
     }
 
+    private AcademicSessionDetailResponse.RunMemory runMemory(AcademicAgentRun run) {
+        AcademicSessionDetailResponse.RunMemory dto = new AcademicSessionDetailResponse.RunMemory();
+        dto.setRunId(run.getRunId());
+        dto.setRequestId(run.getRequestId());
+        dto.setTaskType(run.getTaskType());
+        dto.setQuestion(run.getQuestion());
+        dto.setStatus(run.getStatus());
+        dto.setFinalSummary(run.getFinalSummary());
+        dto.setStartedAt(run.getStartedAt());
+        dto.setFinishedAt(run.getFinishedAt());
+        return dto;
+    }
+
     private AcademicRunDetailResponse.LlmInvocation llm(AcademicLlmInvocation invocation) {
         AcademicRunDetailResponse.LlmInvocation dto = new AcademicRunDetailResponse.LlmInvocation();
         dto.setInvocationId(invocation.getInvocationId());
@@ -247,7 +344,9 @@ public class AcademicExecutionLedgerService {
         return dto;
     }
 
-    private AcademicRunDetailResponse.ToolInvocation tool(AcademicToolInvocation invocation) {
+    private AcademicRunDetailResponse.ToolInvocation tool(AcademicToolInvocation invocation,
+                                                          List<AcademicArtifact> artifacts) {
+        AcademicToolOutputView outputView = toolOutputReader.read(invocation, artifacts);
         AcademicRunDetailResponse.ToolInvocation dto = new AcademicRunDetailResponse.ToolInvocation();
         dto.setInvocationId(invocation.getInvocationId());
         dto.setToolCallId(invocation.getToolCallId());
@@ -256,12 +355,38 @@ public class AcademicExecutionLedgerService {
         dto.setArgumentsJson(invocation.getArgumentsJson());
         dto.setResultSummary(invocation.getResultSummary());
         dto.setResultJson(invocation.getResultJson());
+        dto.setStructuredOutput(outputView.getStructuredOutput());
+        dto.setArtifactRefs(outputView.getArtifactRefs().stream()
+                .map(this::artifact)
+                .toList());
+        dto.setArtifactCount(outputView.getArtifactCount());
         dto.setStatus(invocation.getStatus());
         dto.setRetryCount(invocation.getRetryCount());
         dto.setErrorMessage(invocation.getErrorMessage());
         dto.setStartedAt(invocation.getStartedAt());
         dto.setFinishedAt(invocation.getFinishedAt());
         dto.setLatencyMillis(invocation.getLatencyMillis());
+        return dto;
+    }
+
+    private AcademicSessionDetailResponse.ToolObservation toolObservation(AcademicToolInvocation invocation,
+                                                                          List<AcademicArtifact> artifacts) {
+        AcademicToolOutputView outputView = toolOutputReader.read(invocation, artifacts);
+        AcademicSessionDetailResponse.ToolObservation dto = new AcademicSessionDetailResponse.ToolObservation();
+        dto.setRunId(invocation.getRunId());
+        dto.setInvocationId(invocation.getInvocationId());
+        dto.setToolCallId(invocation.getToolCallId());
+        dto.setToolName(invocation.getToolName());
+        dto.setAction(invocation.getAction());
+        dto.setArgumentsJson(invocation.getArgumentsJson());
+        dto.setResultSummary(firstText(invocation.getResultSummary(), text(outputView.getStructuredOutput().get("summary"))));
+        dto.setStatus(invocation.getStatus());
+        dto.setErrorMessage(invocation.getErrorMessage());
+        dto.setCreatedAt(outputView.getCreatedAt());
+        dto.setArtifactRefs(outputView.getArtifactRefs().stream()
+                .filter(this::isReusableArtifact)
+                .map(this::artifact)
+                .toList());
         return dto;
     }
 
@@ -279,6 +404,68 @@ public class AcademicExecutionLedgerService {
         return dto;
     }
 
+    private void appendRunDialogue(StringBuilder dialogue,
+                                   AcademicAgentRun run,
+                                   List<AcademicToolInvocation> toolInvocations,
+                                   List<AcademicArtifact> artifacts) {
+        dialogue.append("\n### Run ").append(firstText(run.getRequestId(), run.getRunId())).append('\n');
+        appendLine(dialogue, "Task", run.getTaskType());
+        appendLine(dialogue, "Question", run.getQuestion());
+        appendLine(dialogue, "Status", run.getStatus());
+        appendLine(dialogue, "Summary", run.getFinalSummary());
+        if (toolInvocations == null || toolInvocations.isEmpty()) {
+            dialogue.append("Tool Observations: none\n");
+        } else {
+            dialogue.append("Tool Observations:\n");
+            for (AcademicToolInvocation invocation : toolInvocations) {
+                AcademicToolOutputView outputView = toolOutputReader.read(invocation, artifacts);
+                dialogue.append("- ").append(firstText(invocation.getToolName(), "tool"))
+                        .append(" [").append(firstText(invocation.getStatus(), "UNKNOWN")).append("]");
+                String summary = firstText(invocation.getResultSummary(), text(outputView.getStructuredOutput().get("summary")));
+                if (StringUtils.hasText(summary)) {
+                    dialogue.append(": ").append(limit(summary, 300));
+                }
+                if (!outputView.getArtifactRefs().isEmpty()) {
+                    dialogue.append(" files=");
+                    dialogue.append(outputView.getArtifactRefs().stream()
+                            .filter(this::isReusableArtifact)
+                            .map(this::fileName)
+                            .filter(StringUtils::hasText)
+                            .toList());
+                }
+                dialogue.append('\n');
+            }
+        }
+    }
+
+    private void appendLine(StringBuilder dialogue, String label, String value) {
+        if (StringUtils.hasText(value)) {
+            dialogue.append(label).append(": ").append(limit(value, 500)).append('\n');
+        }
+    }
+
+    private String memorySummary(AcademicSessionDetailResponse.MemorySnapshot memory) {
+        String latestQuestion = memory.getRuns().isEmpty()
+                ? ""
+                : safe(memory.getRuns().get(memory.getRuns().size() - 1).getQuestion());
+        List<String> parts = new ArrayList<>();
+        parts.add("runs=" + memory.getRuns().size());
+        parts.add("toolObservations=" + memory.getToolObservations().size());
+        parts.add("reusableArtifacts=" + memory.getReusableArtifacts().size());
+        if (StringUtils.hasText(latestQuestion)) {
+            parts.add("latestQuestion=" + limit(latestQuestion, 120));
+        }
+        return String.join(", ", parts);
+    }
+
+    private boolean isReusableArtifact(AcademicArtifact artifact) {
+        if (artifact == null) {
+            return false;
+        }
+        return !"INTERNAL".equalsIgnoreCase(artifact.getArtifactType())
+                && !"INTERNAL".equalsIgnoreCase(artifact.getSourceType());
+    }
+
     private String fileName(AcademicArtifact artifact) {
         String content = safe(artifact.getContent());
         int slash = Math.max(content.lastIndexOf('/'), content.lastIndexOf('\\'));
@@ -286,6 +473,138 @@ public class AcademicExecutionLedgerService {
             return content.substring(slash + 1);
         }
         return StringUtils.hasText(content) ? content : safe(artifact.getTitle());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<AcademicToolFileRef> fileRefs(Map<String, Object> result) {
+        if (result == null || result.isEmpty()) {
+            return List.of();
+        }
+        List<AcademicToolFileRef> refs = new ArrayList<>();
+        collectFileRefs(result.get("fileRefs"), refs);
+        collectFileRefs(result.get("artifactRefs"), refs);
+        Object nestedResult = result.get("result");
+        if (nestedResult instanceof Map<?, ?> map) {
+            Map<String, Object> nested = (Map<String, Object>) map;
+            collectFileRefs(nested.get("fileRefs"), refs);
+            collectFileRefs(nested.get("artifactRefs"), refs);
+        }
+        Object structuredOutput = result.get("structuredOutput");
+        if (structuredOutput instanceof Map<?, ?> map) {
+            Map<String, Object> structured = (Map<String, Object>) map;
+            collectFileRefs(structured.get("fileRefs"), refs);
+            collectFileRefs(structured.get("artifactRefs"), refs);
+        }
+        Map<String, AcademicToolFileRef> deduped = new LinkedHashMap<>();
+        for (AcademicToolFileRef ref : refs) {
+            String key = firstText(ref.getArtifactId(), ref.getDownloadUrl(), ref.getPreviewUrl(), ref.getFileName());
+            if (StringUtils.hasText(key)) {
+                deduped.putIfAbsent(key, ref);
+            }
+        }
+        return new ArrayList<>(deduped.values());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void collectFileRefs(Object value, List<AcademicToolFileRef> refs) {
+        if (!(value instanceof List<?> list)) {
+            return;
+        }
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                refs.add(AcademicToolFileRef.fromMap((Map<String, Object>) map));
+            }
+        }
+    }
+
+    private AcademicArtifact artifactFromFileRef(AcademicLedgerContext.Context context,
+                                                 String toolInvocationId,
+                                                 String toolName,
+                                                 AcademicToolFileRef fileRef) {
+        String fileName = firstText(fileRef.getFileName(), fileNameFromUrl(fileRef.getDownloadUrl()));
+        String downloadUrl = firstText(fileRef.getDownloadUrl(), fileRef.getPreviewUrl());
+        if (!StringUtils.hasText(fileName) && !StringUtils.hasText(downloadUrl)) {
+            return null;
+        }
+        String artifactId = firstText(fileRef.getArtifactId(), stableArtifactId(context, toolInvocationId, fileName, downloadUrl));
+        AcademicArtifact artifact = new AcademicArtifact();
+        artifact.setArtifactId(artifactId);
+        artifact.setUserId(context.userId());
+        artifact.setSessionId(context.sessionId());
+        artifact.setRunId(context.runId());
+        artifact.setToolInvocationId(safe(toolInvocationId));
+        artifact.setSourceType("TOOL");
+        artifact.setSourceName(firstText(toolName, "tool"));
+        artifact.setArtifactType(artifactType(fileName, fileRef.getContentType()));
+        artifact.setTitle(firstText(fileName, artifactId));
+        artifact.setContent(firstText(fileName, downloadUrl));
+        artifact.setDownloadUrl(downloadUrl);
+        artifact.setCreateTime(LocalDateTime.now());
+        return artifact;
+    }
+
+    private String stableArtifactId(AcademicLedgerContext.Context context,
+                                    String toolInvocationId,
+                                    String fileName,
+                                    String downloadUrl) {
+        String seed = context.runId() + ":" + safe(toolInvocationId) + ":" + safe(fileName) + ":" + safe(downloadUrl);
+        return "ART" + UUID.nameUUIDFromBytes(seed.getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .toString()
+                .replace("-", "");
+    }
+
+    private String artifactType(String fileName, String contentType) {
+        String ext = extension(fileName);
+        if (StringUtils.hasText(ext)) {
+            return ext.toUpperCase();
+        }
+        String type = safe(contentType).toLowerCase();
+        if (type.contains("markdown")) {
+            return "MD";
+        }
+        if (type.contains("json")) {
+            return "JSON";
+        }
+        if (type.contains("html")) {
+            return "HTML";
+        }
+        if (type.contains("image/")) {
+            return type.substring(type.indexOf('/') + 1).toUpperCase();
+        }
+        return StringUtils.hasText(contentType) ? contentType.toUpperCase() : "ARTIFACT";
+    }
+
+    private String extension(String fileName) {
+        String text = safe(fileName);
+        int index = text.lastIndexOf('.');
+        return index >= 0 && index + 1 < text.length() ? text.substring(index + 1) : "";
+    }
+
+    private String fileNameFromUrl(String url) {
+        String text = safe(url);
+        int query = text.indexOf('?');
+        if (query >= 0) {
+            text = text.substring(0, query);
+        }
+        int slash = Math.max(text.lastIndexOf('/'), text.lastIndexOf('\\'));
+        return slash >= 0 && slash + 1 < text.length() ? text.substring(slash + 1) : "";
+    }
+
+    private boolean same(String left, String right) {
+        return StringUtils.hasText(left) && left.equals(right);
+    }
+
+    private String firstText(String... values) {
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private String text(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private long estimateTokens(String text) {

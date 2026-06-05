@@ -44,6 +44,8 @@ public class FailedStrategy implements PptStateStrategy {
             prompt = PptBuilderPrompts.getFailurePrompt("PPT生成过程中遇到未知错误");
         }
 
+        prompt = context.enhancePrompt(prompt);
+
         StringBuilder responseBuffer = new StringBuilder();
 
         Disposable disposable = context.getChatClient().prompt()

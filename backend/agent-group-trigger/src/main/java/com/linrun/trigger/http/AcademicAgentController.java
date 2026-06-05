@@ -207,6 +207,7 @@ public class AcademicAgentController {
         target.setLlmApiKey(source.getLlmApiKey());
         target.setLlmModel(source.getLlmModel());
         target.setWebSearchEnabled(source.getWebSearchEnabled());
+        target.setOutputStyle(source.getOutputStyle());
     }
 
     private String toJson(GuideStreamEvent<?> event) {

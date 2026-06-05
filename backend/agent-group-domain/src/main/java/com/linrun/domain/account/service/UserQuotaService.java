@@ -243,6 +243,14 @@ public class UserQuotaService {
         if (type.contains("code") || type.contains("repo") || type.contains("deep")) {
             return BigDecimal.valueOf(3);
         }
+        if (type.contains("trade") || type.contains("audit") || type.contains("quota")
+                || type.contains("order") || type.contains("payment") || type.contains("group")) {
+            return BigDecimal.valueOf(2);
+        }
+        if (type.contains("data") || type.contains("nl2sql") || type.contains("table")
+                || type.contains("mrag") || type.contains("multimodal")) {
+            return BigDecimal.valueOf(3);
+        }
         return BigDecimal.ONE;
     }
 

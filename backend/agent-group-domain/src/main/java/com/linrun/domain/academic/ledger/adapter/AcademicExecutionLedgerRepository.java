@@ -22,6 +22,8 @@ public interface AcademicExecutionLedgerRepository {
 
     void finishToolInvocation(AcademicToolInvocation invocation);
 
+    void saveArtifact(AcademicArtifact artifact);
+
     Optional<AcademicAgentRun> queryRun(String userId, String runId);
 
     Optional<AcademicAgentRun> queryRunByRequestId(String userId, String requestId);

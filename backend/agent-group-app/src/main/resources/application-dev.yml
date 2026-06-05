@@ -130,6 +130,17 @@ agent:
       image:
         max-file-size-bytes: ${AGENT_GROUP_MULTIMODAL_IMAGE_MAX_FILE_SIZE_BYTES:5242880}
         allowed-content-types: ${AGENT_GROUP_MULTIMODAL_IMAGE_ALLOWED_CONTENT_TYPES:image/jpeg,image/png,image/webp,image/gif}
+    reactor-tool:
+      enabled: ${AGENT_GROUP_REACTOR_TOOL_ENABLED:false}
+      base-url: ${AGENT_GROUP_REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+      api-key: ${AGENT_GROUP_REACTOR_TOOL_API_KEY:}
+    mcp:
+      admin-state-file: ${AGENT_GROUP_MCP_ADMIN_STATE_FILE:data/mcp-admin-state.json}
+      persist-imported-state: ${AGENT_GROUP_MCP_PERSIST_IMPORTED_STATE:true}
+      servers: []
+    agent-admin:
+      state-file: ${AGENT_GROUP_AGENT_ADMIN_STATE_FILE:data/agent-admin-state.json}
+      persist-imported-state: ${AGENT_GROUP_AGENT_ADMIN_PERSIST_IMPORTED_STATE:true}
     upload:
       allowed-extensions: ${AGENT_GROUP_UPLOAD_ALLOWED_EXTENSIONS:md,txt,pdf,docx,png,jpg,jpeg,webp}
       max-file-size-bytes: ${AGENT_GROUP_UPLOAD_MAX_FILE_SIZE_BYTES:10485760}

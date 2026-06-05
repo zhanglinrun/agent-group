@@ -6,6 +6,17 @@ import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProjector;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgress;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressProjector;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressResult;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowStage;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
+import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputReader;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputView;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
@@ -17,6 +28,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class AcademicReplayProjector {
+
+    private final AcademicToolOutputReader toolOutputReader = new AcademicToolOutputReader();
+    private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
+    private final AcademicAgentFlowProjector flowProjector = new AcademicAgentFlowProjector();
+    private final AcademicAgentFlowProgressProjector flowProgressProjector = new AcademicAgentFlowProgressProjector();
 
     public AcademicReplayResponse project(AcademicAgentRun run,
                                           List<AcademicLlmInvocation> llmInvocations,
@@ -32,11 +48,36 @@ public class AcademicReplayProjector {
 
         AtomicInteger sequence = new AtomicInteger(1);
         List<GuideStreamEvent<Map<String, Object>>> events = new ArrayList<>();
+        List<AcademicToolInvocation> tools = safeList(toolInvocations);
+        boolean webSearchUsed = hasSearchTool(tools);
+        AcademicAgentPlan executionPlan = runPlanFactory.build(run.getTaskType(), webSearchUsed);
+        int planRevision = 1;
         events.add(event("run_start", run, sequence, runStart(run)));
-        events.add(event("plan_delta", run, sequence, plan(run, hasSearchTool(toolInvocations))));
-        for (AcademicToolInvocation invocation : safeList(toolInvocations)) {
+        events.add(event("plan_delta", run, sequence, plan(run, executionPlan, planRevision, "")));
+        AcademicAgentFlowProgressResult startProgress = flowProgressProjector.start(executionPlan);
+        int currentStageIndex = startProgress.getCurrentStageIndex();
+        events.addAll(flowProgressEvents(run, sequence, startProgress));
+        for (int index = 0; index < tools.size(); index++) {
+            AcademicToolInvocation invocation = tools.get(index);
+            AcademicAgentFlowProgressResult toolProgress = flowProgressProjector.advanceToTool(
+                    executionPlan, currentStageIndex, invocation.getToolName());
+            currentStageIndex = toolProgress.getCurrentStageIndex();
+            events.addAll(flowProgressEvents(run, sequence, toolProgress));
             events.add(event("tool_call", run, sequence, toolCall(invocation)));
-            events.add(event("tool_result", run, sequence, toolResult(invocation)));
+            events.add(event("tool_result", run, sequence, toolResult(invocation, artifacts)));
+            if (isFailed(invocation) && hasLaterSuccessTool(tools, index)) {
+                String replanReason = replanReason(invocation);
+                events.add(event("flow_delta", run, sequence,
+                        replanFlow(run, executionPlan, currentStageIndex, replanReason)));
+                executionPlan = runPlanFactory.build(run.getTaskType(), webSearchUsed);
+                currentStageIndex = -1;
+                planRevision++;
+                events.add(event("plan_delta", run, sequence,
+                        plan(run, executionPlan, planRevision, replanReason)));
+                AcademicAgentFlowProgressResult replannedStart = flowProgressProjector.start(executionPlan);
+                currentStageIndex = replannedStart.getCurrentStageIndex();
+                events.addAll(flowProgressEvents(run, sequence, replannedStart));
+            }
         }
         for (AcademicLlmInvocation invocation : safeList(llmInvocations)) {
             events.add(event("llm_delta", run, sequence, llm(invocation)));
@@ -44,6 +85,10 @@ public class AcademicReplayProjector {
         for (AcademicArtifact artifact : safeList(artifacts)) {
             events.add(event("artifact_delta", run, sequence, artifact(artifact)));
         }
+        AcademicAgentFlowProgressResult finalProgress = AcademicAgentRun.STATUS_FAILED.equals(run.getStatus())
+                ? flowProgressProjector.blockCurrent(executionPlan, currentStageIndex, run.getErrorMessage())
+                : flowProgressProjector.completeRemaining(executionPlan, currentStageIndex);
+        events.addAll(flowProgressEvents(run, sequence, finalProgress));
         events.add(event(AcademicAgentRun.STATUS_FAILED.equals(run.getStatus()) ? "run_error" : "run_done",
                 run, sequence, runDone(run)));
         response.setEvents(events);
@@ -73,10 +118,92 @@ public class AcademicReplayProjector {
         return data;
     }
 
-    private Map<String, Object> plan(AcademicAgentRun run, boolean webSearchUsed) {
+    private Map<String, Object> plan(AcademicAgentRun run,
+                                     AcademicAgentPlan executionPlan,
+                                     int revision,
+                                     String replanReason) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("runId", safe(run.getRunId()));
-        data.put("steps", planSteps(run.getTaskType(), webSearchUsed));
+        data.put("revision", Math.max(1, revision));
+        data.put("changeType", revision > 1 ? "replan" : "initial");
+        data.put("replanReason", safe(replanReason));
+        data.put("title", revision > 1 ? executionPlan.getTitle() + "（重规划 " + revision + "）" : executionPlan.getTitle());
+        data.put("steps", executionPlan.getSteps().stream()
+                .map(AcademicPlanStep::getInstruction)
+                .toList());
+        data.put("structuredSteps", executionPlan.getSteps().stream()
+                .map(this::planStep)
+                .toList());
+        data.put("flowStages", flowProjector.buildRemainingStages(executionPlan).stream()
+                .map(this::flowStage)
+                .toList());
+        return data;
+    }
+
+    private Map<String, Object> planStep(AcademicPlanStep step) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("stepId", step.getStepId());
+        data.put("instruction", step.getInstruction());
+        data.put("order", step.getOrder());
+        data.put("status", step.getStatus());
+        data.put("assignedAgent", step.getAssignedAgent());
+        data.put("dependencies", step.getDependencies());
+        return data;
+    }
+
+    private Map<String, Object> flowStage(AcademicAgentFlowStage stage) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("stageIndex", stage.getStageIndex());
+        data.put("stepIds", stage.stepIds());
+        data.put("steps", stage.getSteps().stream()
+                .map(this::planStep)
+                .toList());
+        return data;
+    }
+
+    private List<GuideStreamEvent<Map<String, Object>>> flowProgressEvents(AcademicAgentRun run,
+                                                                           AtomicInteger sequence,
+                                                                           AcademicAgentFlowProgressResult progress) {
+        if (progress == null || progress.getEvents().isEmpty()) {
+            return List.of();
+        }
+        List<GuideStreamEvent<Map<String, Object>>> events = new ArrayList<>();
+        for (AcademicAgentFlowProgress item : progress.getEvents()) {
+            events.add(event("flow_delta", run, sequence, flowProgress(run, item)));
+        }
+        return events;
+    }
+
+    private Map<String, Object> flowProgress(AcademicAgentRun run, AcademicAgentFlowProgress progress) {
+        Map<String, Object> data = flowStage(progress.getStage());
+        data.put("runId", safe(run.getRunId()));
+        data.put("status", progress.getStatus());
+        data.put("message", progress.getMessage());
+        return data;
+    }
+
+    private Map<String, Object> replanFlow(AcademicAgentRun run,
+                                           AcademicAgentPlan executionPlan,
+                                           int currentStageIndex,
+                                           String replanReason) {
+        List<AcademicAgentFlowStage> stages = flowProjector.buildRemainingStages(executionPlan);
+        if (stages.isEmpty()) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("stageIndex", -1);
+            data.put("stepIds", List.of());
+            data.put("steps", List.of());
+            data.put("runId", safe(run.getRunId()));
+            data.put("status", "REPLANNED");
+            data.put("message", safe(replanReason));
+            return data;
+        }
+        AcademicAgentFlowStage stage = stages.get(Math.max(0, Math.min(
+                currentStageIndex < 0 ? 0 : currentStageIndex,
+                stages.size() - 1)));
+        Map<String, Object> data = flowStage(stage);
+        data.put("runId", safe(run.getRunId()));
+        data.put("status", "REPLANNED");
+        data.put("message", safe(replanReason));
         return data;
     }
 
@@ -85,6 +212,8 @@ public class AcademicReplayProjector {
             case "file" -> List.of("读取文件", "检索相关内容", "生成回答");
             case "ppt" -> List.of("拆解主题", webSearchUsed ? "搜索资料" : "整理素材", "生成演示文稿");
             case "deep" -> List.of("拆解问题", webSearchUsed ? "搜索资料" : "梳理已有信息", "汇总结论");
+            case "image" -> List.of("拆解画面", "调用图像工具", "整理图像产物");
+            case "data" -> List.of("确认口径", "查询或分析数据", "输出结论");
             case "skills", "manual-skills" -> List.of("选择技能", "执行工具", "整理产物");
             default -> List.of("理解问题", webSearchUsed ? "检索或搜索" : "组织回答", "生成回答");
         };
@@ -100,6 +229,32 @@ public class AcademicReplayProjector {
         return false;
     }
 
+    private boolean hasLaterSuccessTool(List<AcademicToolInvocation> toolInvocations, int currentIndex) {
+        for (int index = currentIndex + 1; index < toolInvocations.size(); index++) {
+            AcademicToolInvocation invocation = toolInvocations.get(index);
+            if (AcademicAgentRun.STATUS_SUCCESS.equals(safe(invocation.getStatus()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFailed(AcademicToolInvocation invocation) {
+        return invocation != null && AcademicAgentRun.STATUS_FAILED.equals(safe(invocation.getStatus()));
+    }
+
+    private String replanReason(AcademicToolInvocation invocation) {
+        String toolName = safe(invocation.getToolName());
+        String reason = safe(invocation.getErrorMessage());
+        if (reason.isEmpty()) {
+            reason = safe(invocation.getResultSummary());
+        }
+        if (reason.isEmpty()) {
+            reason = "工具执行失败后切换后续步骤";
+        }
+        return toolName.isEmpty() ? "计划已重规划：" + reason : "计划已重规划：" + toolName + " 失败，" + reason;
+    }
+
     private Map<String, Object> toolCall(AcademicToolInvocation invocation) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("invocationId", safe(invocation.getInvocationId()));
@@ -112,13 +267,20 @@ public class AcademicReplayProjector {
         return data;
     }
 
-    private Map<String, Object> toolResult(AcademicToolInvocation invocation) {
+    private Map<String, Object> toolResult(AcademicToolInvocation invocation,
+                                           List<AcademicArtifact> artifacts) {
+        AcademicToolOutputView outputView = toolOutputReader.read(invocation, artifacts);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("invocationId", safe(invocation.getInvocationId()));
         data.put("toolName", safe(invocation.getToolName()));
         data.put("status", safe(invocation.getStatus()));
         data.put("resultSummary", safe(invocation.getResultSummary()));
         data.put("resultJson", safe(invocation.getResultJson()));
+        data.put("structuredOutput", outputView.getStructuredOutput());
+        data.put("artifactCount", outputView.getArtifactCount());
+        data.put("fileRefs", outputView.getFileRefs().stream()
+                .map(AcademicToolFileRef::toMap)
+                .toList());
         data.put("retryCount", invocation.getRetryCount() == null ? 0 : invocation.getRetryCount());
         data.put("latencyMillis", invocation.getLatencyMillis() == null ? 0L : invocation.getLatencyMillis());
         data.put("errorMessage", safe(invocation.getErrorMessage()));

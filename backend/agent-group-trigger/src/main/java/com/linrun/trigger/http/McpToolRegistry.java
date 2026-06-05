@@ -1,48 +1,57 @@
 package com.linrun.trigger.http;
 
+import com.linrun.domain.academic.runtime.tool.AcademicToolCallCommand;
+import com.linrun.domain.academic.runtime.tool.AcademicToolCallResult;
+import com.linrun.domain.academic.runtime.tool.AcademicToolCollection;
+import com.linrun.domain.academic.runtime.tool.AcademicToolCollectionFactory;
+import com.linrun.domain.academic.runtime.tool.AcademicToolDefinition;
+import com.linrun.domain.academic.runtime.tool.AcademicToolRuntimeRegistry;
 import com.linrun.types.exception.AppException;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 public class McpToolRegistry {
 
-    private final Map<String, RegisteredTool> tools = new LinkedHashMap<>();
+    private final AcademicToolRuntimeRegistry runtimeRegistry = new AcademicToolRuntimeRegistry();
+    private final AcademicToolCollectionFactory collectionFactory = new AcademicToolCollectionFactory(runtimeRegistry);
 
     public McpToolRegistry register(Map<String, Object> definition,
                                     Function<Map<String, Object>, Map<String, Object>> handler) {
-        String name = definition == null ? "" : String.valueOf(definition.getOrDefault("name", ""));
-        if (name.isBlank()) {
-            throw new IllegalArgumentException("tool name cannot be blank");
-        }
-        tools.put(name, new RegisteredTool(definition, handler));
+        AcademicToolDefinition toolDefinition =
+                AcademicToolDefinition.fromMcpDefinition(definition, "mcp", "agent-group");
+        runtimeRegistry.register(toolDefinition, command -> handler.apply(command.getArguments()));
         return this;
     }
 
     public List<Map<String, Object>> listTools() {
-        return tools.values().stream()
-                .map(RegisteredTool::definition)
-                .map(LinkedHashMap::new)
-                .map(map -> (Map<String, Object>) map)
+        return runtimeRegistry.listEnabledDefinitions().stream()
+                .map(AcademicToolDefinition::toMcpDefinition)
                 .toList();
     }
 
     public Map<String, Object> callTool(String name, Map<String, Object> arguments) {
-        RegisteredTool tool = tools.get(name);
-        if (tool == null) {
-            throw new AppException("MCP_0001", "unknown tool: " + name);
+        AcademicToolCallResult result = runtimeRegistry.call(AcademicToolCallCommand.builder(name)
+                .action("tools/call")
+                .arguments(arguments == null ? Map.of() : arguments)
+                .build());
+        if (!result.isSuccess()) {
+            throw new AppException(result.getErrorCode(), result.getErrorMessage());
         }
-        return tool.handler().apply(arguments == null ? Map.of() : arguments);
+        return result.getResult();
     }
 
     public List<String> toolNames() {
-        return new ArrayList<>(tools.keySet());
+        return new ArrayList<>(runtimeRegistry.toolNames());
     }
 
-    private record RegisteredTool(Map<String, Object> definition,
-                                  Function<Map<String, Object>, Map<String, Object>> handler) {
+    public AcademicToolCollection asToolCollection(String scene) {
+        return collectionFactory.buildAll(scene);
+    }
+
+    public AcademicToolCollection asToolCollection(String scene, List<String> toolNames) {
+        return collectionFactory.buildByToolNames(scene, toolNames);
     }
 }

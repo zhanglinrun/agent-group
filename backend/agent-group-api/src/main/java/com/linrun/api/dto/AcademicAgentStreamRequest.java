@@ -15,6 +15,7 @@ public class AcademicAgentStreamRequest implements Serializable {
     private String imageUrl;
     private String imageName;
     private Boolean webSearchEnabled;
+    private String outputStyle;
     private String llmBaseUrl;
     private String llmApiKey;
     private String llmModel;
