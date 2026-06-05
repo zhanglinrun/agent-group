@@ -56,6 +56,7 @@ import {
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
   workspaceDisplayProfile,
+  workspaceToolReadiness,
   workspaceServiceProfile,
   workspaceSupportsHistory
 } from "./workspaceServices";
@@ -3509,10 +3510,12 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, onPrompt, onOpe
   const prompts = WORKSPACE_PROMPTS[workspace.id] || WORKSPACE_PROMPTS.agent;
   const serviceProfile = profile || workspaceServiceProfile(workspace.id);
   const capabilityStatus = workspaceCapabilityStatus(workspace.id, capabilities);
+  const toolReadiness = workspaceToolReadiness(workspace.id, capabilities);
   const isImage = workspace.id === "image";
   const isData = workspace.id === "data";
   const isMrag = workspace.id === "mrag";
   const isTrade = workspace.id === "trade";
+  const showWorkspaceRuntime = isImage || isData || isMrag || isTrade;
   const manualSkills = Array.isArray(capabilities?.manualSkills)
     ? capabilities.manualSkills.slice(0, 6)
     : [];
@@ -3524,21 +3527,41 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, onPrompt, onOpe
       </div>
       <h2>{workspace.name}</h2>
       <p>{serviceProfile.summary}</p>
-      {(isImage || isData || isMrag) && (
+      {showWorkspaceRuntime && (
         <div className="workspace-meter">
           {capabilityStatus.map((item) => (
             <span key={item.key} className={item.active ? "active" : ""}>{item.label}</span>
           ))}
         </div>
       )}
-      {(isImage || isData || isMrag) && (
+      {showWorkspaceRuntime && (
+        <div className={`workspace-readiness-card ${toolReadiness.status}`}>
+          <div className="workspace-readiness-head">
+            <strong>工具准备度</strong>
+            <em>{toolReadiness.statusLabel}</em>
+          </div>
+          <div className="workspace-readiness-metrics">
+            <span><b>可用</b>{toolReadiness.readyTools.length}/{toolReadiness.requiredTools.length}</span>
+            <span><b>输出</b>{toolReadiness.outputKinds.map((kind) => OUTPUT_KIND_LABELS[kind] || kind).slice(0, 4).join("、") || "-"}</span>
+          </div>
+          {toolReadiness.missingTools.length > 0 && (
+            <div className="workspace-readiness-missing">
+              {toolReadiness.missingTools.slice(0, 4).map((toolName) => (
+                <span key={toolName}>{TOOL_LABELS[toolName] || toolName}</span>
+              ))}
+            </div>
+          )}
+          {toolReadiness.actions[0] && <small>{toolReadiness.actions[0]}</small>}
+        </div>
+      )}
+      {showWorkspaceRuntime && (
         <div className="workspace-tool-strip">
           {serviceProfile.primaryTools.map((toolName) => (
             <span key={toolName}>{TOOL_LABELS[toolName] || toolName}</span>
           ))}
         </div>
       )}
-      {(isImage || isData || isMrag) && (
+      {showWorkspaceRuntime && (
         <div className="workspace-output-strip">
           {serviceProfile.outputKinds.map((kind) => (
             <span key={kind}>{OUTPUT_KIND_LABELS[kind] || kind}</span>

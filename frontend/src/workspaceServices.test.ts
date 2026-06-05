@@ -16,6 +16,7 @@ import {
   workspaceCapabilityStatus,
   workspaceDisplayProfile,
   workspaceServiceProfile,
+  workspaceToolReadiness,
   workspaceSupportsHistory
 } from "./workspaceServices";
 
@@ -84,6 +85,62 @@ describe("workspace service profiles", () => {
     expect(profile.outputKinds).toEqual(["image", "preview"]);
     expect(profile.runEndpoint).toBe("/api/custom/image");
     expect(status.find((item) => item.key === "primary-tools")?.label).toBe("核心工具 1/2");
+  });
+
+  it("summarizes workspace tool readiness from backend workspace profile", () => {
+    expect(workspaceToolReadiness("trade", {
+      workspaceProfiles: [
+        {
+          id: "trade",
+          primaryTools: ["trade_audit", "data_analysis", "report_tool"],
+          availableTools: ["trade_audit", "data_analysis"],
+          missingTools: ["report_tool"],
+          outputKinds: ["order", "quota", "audit-report"]
+        }
+      ],
+      toolRuntimeReadiness: [
+        {
+          name: "trade_audit",
+          status: "ready",
+          inputFields: ["question", "orderId"],
+          outputKinds: ["order", "quota"],
+          workspaces: ["trade"]
+        },
+        {
+          name: "report_tool",
+          status: "missing",
+          inputFields: ["title", "content"],
+          outputKinds: ["report"],
+          workspaces: ["trade"]
+        }
+      ]
+    })).toMatchObject({
+      status: "partial",
+      statusLabel: "部分就绪",
+      readyTools: ["trade_audit", "data_analysis"],
+      missingTools: ["report_tool"],
+      requiredTools: ["trade_audit", "data_analysis", "report_tool"],
+      inputFields: ["question", "orderId", "title", "content"],
+      outputKinds: ["order", "quota", "audit-report", "report"],
+      actions: [
+        "补齐 report_tool 工具运行时",
+        "检查后端能力接口的 workspaceProfiles 配置"
+      ]
+    });
+  });
+
+  it("falls back to academic tool list when detailed readiness is not available", () => {
+    const readiness = workspaceToolReadiness("image", {
+      academicTools: [
+        { name: "image_generation" },
+        { name: "file_tool" }
+      ]
+    });
+
+    expect(readiness.status).toBe("partial");
+    expect(readiness.readyTools).toEqual(["image_generation", "file_tool"]);
+    expect(readiness.missingTools).toEqual(["multimodal_agent"]);
+    expect(readiness.actions[0]).toBe("补齐 multimodal_agent 工具运行时");
   });
 
   it("builds stream draft with workspace defaults", () => {

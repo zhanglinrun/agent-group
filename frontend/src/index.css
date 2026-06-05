@@ -2329,6 +2329,85 @@ body {
   background: rgba(22, 101, 52, 0.18);
 }
 
+.bear-doctor-app .workspace-readiness-card {
+  width: min(760px, 100%);
+  margin: -12px auto 20px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.42);
+  display: grid;
+  gap: 9px;
+}
+
+.bear-doctor-app .workspace-readiness-card.ready {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.bear-doctor-app .workspace-readiness-card.partial,
+.bear-doctor-app .workspace-readiness-card.missing {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.bear-doctor-app .workspace-readiness-head,
+.bear-doctor-app .workspace-readiness-metrics,
+.bear-doctor-app .workspace-readiness-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bear-doctor-app .workspace-readiness-head {
+  justify-content: space-between;
+}
+
+.bear-doctor-app .workspace-readiness-head strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.bear-doctor-app .workspace-readiness-head em,
+.bear-doctor-app .workspace-readiness-metrics span,
+.bear-doctor-app .workspace-readiness-missing span,
+.bear-doctor-app .workspace-readiness-card small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.bear-doctor-app .workspace-readiness-head em {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.28);
+  color: var(--accent-light);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.bear-doctor-app .workspace-readiness-metrics span,
+.bear-doctor-app .workspace-readiness-missing span {
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.22);
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .workspace-readiness-metrics b {
+  margin-right: 5px;
+  color: var(--text-primary);
+}
+
+.bear-doctor-app .workspace-readiness-missing span {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(245, 158, 11, 0.09);
+  color: #fde68a;
+}
+
 .bear-doctor-app .workspace-tool-strip,
 .bear-doctor-app .workspace-output-strip {
   display: flex;

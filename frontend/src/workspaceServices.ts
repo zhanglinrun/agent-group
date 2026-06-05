@@ -22,6 +22,17 @@ export interface WorkspaceCapabilityStatus {
   active: boolean;
 }
 
+export interface WorkspaceToolReadinessSummary {
+  status: "ready" | "partial" | "missing";
+  statusLabel: string;
+  readyTools: string[];
+  missingTools: string[];
+  requiredTools: string[];
+  inputFields: string[];
+  outputKinds: string[];
+  actions: string[];
+}
+
 interface BackendWorkspaceProfile {
   id?: string;
   primaryTools?: string[];
@@ -555,6 +566,64 @@ export function workspaceCapabilityStatus(
       active: manualSkillCount > 0
     }
   ];
+}
+
+export function workspaceToolReadiness(
+  workspaceId: string,
+  capabilities: Record<string, unknown> | null | undefined
+): WorkspaceToolReadinessSummary {
+  const profile = workspaceDisplayProfile(workspaceId, capabilities);
+  const backendProfile = backendWorkspaceProfile(workspaceId, capabilities);
+  const readiness = visibleToolRuntimeReadiness(capabilities, 64);
+  const byName = new Map(readiness.map((tool) => [tool.name, tool]));
+  const academicToolNames = new Set(
+    ((capabilities?.academicTools as Array<{ name?: string }> | undefined) || [])
+      .map((tool) => String(tool.name || ""))
+      .filter(Boolean)
+  );
+  const readyTools = backendProfile
+    ? stringList(backendProfile.availableTools)
+    : profile.primaryTools.filter((toolName) => (
+      byName.get(toolName)?.status === "ready" || academicToolNames.has(toolName)
+    ));
+  const missingTools = backendProfile
+    ? stringList(backendProfile.missingTools)
+    : profile.primaryTools.filter((toolName) => {
+      const tool = byName.get(toolName);
+      return tool ? tool.status !== "ready" : !readyTools.includes(toolName);
+    });
+  const selectedTools = profile.primaryTools
+    .map((toolName) => byName.get(toolName))
+    .filter(Boolean) as ToolRuntimeReadiness[];
+  const inputFields = Array.from(new Set(
+    selectedTools.flatMap((tool) => tool.inputFields).filter(Boolean)
+  )).slice(0, 8);
+  const outputKinds = Array.from(new Set([
+    ...profile.outputKinds,
+    ...selectedTools.flatMap((tool) => tool.outputKinds)
+  ].filter(Boolean))).slice(0, 8);
+  const status = profile.primaryTools.length === 0 || readyTools.length === 0
+    ? "missing"
+    : missingTools.length > 0
+      ? "partial"
+      : "ready";
+  const actions = [
+    status === "ready" ? "可以直接运行当前工作区任务" : "",
+    missingTools.length > 0 ? `补齐 ${missingTools.slice(0, 3).join("、")} 工具运行时` : "",
+    readiness.length === 0 ? "刷新 Agent 能力后再检查工具准备度" : "",
+    backendProfile && missingTools.length > 0 ? "检查后端能力接口的 workspaceProfiles 配置" : ""
+  ].filter(Boolean);
+
+  return {
+    status,
+    statusLabel: status === "ready" ? "已就绪" : status === "partial" ? "部分就绪" : "未就绪",
+    readyTools,
+    missingTools,
+    requiredTools: profile.primaryTools,
+    inputFields,
+    outputKinds,
+    actions
+  };
 }
 
 export function buildWorkspaceStreamDraft(input: {
