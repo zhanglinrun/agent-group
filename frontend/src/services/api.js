@@ -10,7 +10,8 @@ const DEFAULT_MODEL_CONFIG = {
   enabled: false,
   baseUrl: "https://dashscope.aliyuncs.com/compatible-mode",
   apiKey: "",
-  model: "qwen3.6-plus"
+  model: "qwen3.6-plus",
+  keyMasked: ""
 };
 
 function volatileStorage() {
@@ -160,7 +161,8 @@ function normalizeModelConfig(config = {}) {
     enabled: Boolean(config.enabled),
     baseUrl: normalizeModelBaseUrl(config.baseUrl),
     apiKey: String(config.apiKey || "").trim(),
-    model: String(config.model || DEFAULT_MODEL_CONFIG.model).trim()
+    model: String(config.model || DEFAULT_MODEL_CONFIG.model).trim(),
+    keyMasked: String(config.keyMasked || "").trim()
   };
 }
 
@@ -172,7 +174,7 @@ export function getModelConfig() {
   }
 }
 
-export function saveModelConfig(config) {
+function rememberModelConfig(config) {
   const normalized = normalizeModelConfig(config);
   writeVolatileJson(MODEL_CONFIG_KEY, { ...normalized, apiKey: "" });
   return normalized;
@@ -180,19 +182,12 @@ export function saveModelConfig(config) {
 
 export function modelConfigReady(config) {
   const normalized = normalizeModelConfig(config);
-  return !normalized.enabled || (Boolean(normalized.baseUrl) && Boolean(normalized.apiKey));
+  return !normalized.enabled || (Boolean(normalized.baseUrl) && Boolean(normalized.model)
+    && (Boolean(normalized.apiKey) || Boolean(normalized.keyMasked)));
 }
 
 function modelConfigPayload(config) {
-  const normalized = normalizeModelConfig(config);
-  if (!normalized.enabled) {
-    return {};
-  }
-  return {
-    llmBaseUrl: normalized.baseUrl,
-    llmApiKey: normalized.apiKey,
-    llmModel: normalized.model
-  };
+  return {};
 }
 
 function authHeader() {
@@ -295,6 +290,36 @@ export async function getQuotaAccount() {
     userAuth: true,
     method: "GET"
   });
+}
+
+export async function getUserModelConfig() {
+  const res = await request("/api/v1/quota/model-config", {
+    userAuth: true,
+    method: "GET"
+  });
+  if (res.code === "0000") {
+    rememberModelConfig(res.data || {});
+  }
+  return res;
+}
+
+export async function saveModelConfig(config) {
+  const normalized = normalizeModelConfig(config);
+  const res = await request("/api/v1/quota/model-config", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      enabled: normalized.enabled,
+      baseUrl: normalized.baseUrl,
+      apiKey: normalized.apiKey,
+      model: normalized.model
+    })
+  });
+  if (res.code === "0000") {
+    rememberModelConfig({ ...res.data, apiKey: "" });
+  }
+  return res;
 }
 
 export async function uploadAcademicFile(file, sessionId = getSessionId()) {
@@ -813,22 +838,6 @@ export async function createDirectOrder(product, userId) {
   });
 }
 
-export async function lockGroupBuyOrder(product, userId) {
-  return request("/api/v1/group/trade/lock", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      userId,
-      goodsId: product.id || product.goodsId,
-      activityId: product.activityId,
-      teamId: product.teamId || "",
-      idempotentKey: `IDEMP_${Date.now()}`,
-      payChannel: "MOCK_PAY"
-    })
-  });
-}
-
 export async function queryGroupBuyMarketConfig(product, userId) {
   return request("/api/v1/gbm/index/query_group_buy_market_config", {
     userAuth: true,
@@ -979,7 +988,7 @@ export async function queryUserOrderList(options = 10) {
 }
 
 export async function queryAdminOrderList(options = {}) {
-  return request("/api/v1/alipay/query_user_order_list", {
+  return request("/api/v1/trade/order/admin", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1002,7 +1011,7 @@ export async function queryRefundOrderList(options = {}) {
   if (options.userId !== undefined) {
     body.userId = options.userId;
   }
-  return request("/api/v1/alipay/query_refund_order_list", {
+  return request("/api/v1/trade/order/admin/refunds", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },

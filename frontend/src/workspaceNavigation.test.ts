@@ -8,7 +8,7 @@ import {
 
 describe("workspace navigation view model", () => {
   it("marks active workspace from id or route path", () => {
-    expect(buildWorkspaceNavigation("data").find((item) => item.active)?.id).toBe("data");
+    expect(buildWorkspaceNavigation("data", null, { includeInternal: true }).find((item) => item.active)?.id).toBe("data");
     expect(buildWorkspaceNavigation("/workspace/image/").find((item) => item.active)?.id).toBe("image");
     expect(activeWorkspaceNavigationItem("/missing").id).toBe("agent");
   });
@@ -57,7 +57,7 @@ describe("workspace navigation view model", () => {
   });
 
   it("exposes page actions for productized workspace switching", () => {
-    const navigation = buildWorkspaceNavigation("trade", {
+    const capabilities = {
       workspaceProfiles: [
         {
           id: "trade",
@@ -67,19 +67,11 @@ describe("workspace navigation view model", () => {
           historyEndpoint: "/api/v1/trade/order/my"
         }
       ]
-    });
+    };
 
-    const trade = activeWorkspaceNavigationItem("trade", {
-      workspaceProfiles: [
-        {
-          id: "trade",
-          availableTools: ["trade_audit"],
-          missingTools: ["data_analysis"],
-          runEndpoint: "/api/v1/academic/stream",
-          historyEndpoint: "/api/v1/trade/order/my"
-        }
-      ]
-    });
+    const navigation = buildWorkspaceNavigation("trade", capabilities, { includeInternal: true });
+
+    const trade = activeWorkspaceNavigationItem("trade", capabilities, { includeInternal: true });
     const data = navigation.find((item) => item.id === "data");
 
     expect(trade).toMatchObject({

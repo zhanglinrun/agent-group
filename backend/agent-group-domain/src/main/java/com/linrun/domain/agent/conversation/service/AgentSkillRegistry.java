@@ -26,7 +26,7 @@ public class AgentSkillRegistry {
                 "额度包建议技能",
                 "把用户任务转成额度包候选、知识依据和推荐理由",
                 "价格、名额和活动口径只能来自工具结果",
-                List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL)));
+                List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.QUOTA_RECOMMEND, AgentToolRegistry.GROUP_TRIAL)));
         register(new AgentSkill(
                 AFTER_SALE_POLICY,
                 "售后解释技能",

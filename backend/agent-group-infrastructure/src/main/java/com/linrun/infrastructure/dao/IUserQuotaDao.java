@@ -1,6 +1,8 @@
 package com.linrun.infrastructure.dao;
 
 import com.linrun.infrastructure.po.ModelUsageRecordPO;
+import com.linrun.infrastructure.po.UserMembershipAccountPO;
+import com.linrun.infrastructure.po.UserModelConfigPO;
 import com.linrun.infrastructure.po.UserQuotaAccountPO;
 import com.linrun.infrastructure.po.UserQuotaFlowPO;
 import org.apache.ibatis.annotations.Mapper;
@@ -31,4 +33,14 @@ public interface IUserQuotaDao {
     List<UserQuotaFlowPO> queryRecentFlows(@Param("userId") String userId, @Param("limit") int limit);
 
     void insertUsage(ModelUsageRecordPO usageRecord);
+
+    UserMembershipAccountPO queryMembership(@Param("userId") String userId);
+
+    void upsertMembership(UserMembershipAccountPO membership);
+
+    int decreaseMembershipQuota(@Param("userId") String userId, @Param("amount") BigDecimal amount);
+
+    UserModelConfigPO queryModelConfig(@Param("userId") String userId);
+
+    void upsertModelConfig(UserModelConfigPO modelConfig);
 }

@@ -12,7 +12,10 @@ insert into dynamic_config (
 ('groupSettlementNotifyMQ', 'agent.group.notify.group-settlement', 'group settlement notify mq'),
 ('groupRefundNotifyType', 'HTTP', 'group refund notify type'),
 ('groupRefundNotifyUrl', '', 'group refund notify url'),
-('groupRefundNotifyMQ', 'agent.group.notify.group-refund', 'group refund notify mq')
+('groupRefundNotifyMQ', 'agent.group.notify.group-refund', 'group refund notify mq'),
+('agentBillingPromptCostPer1k', '0.10', 'platform prompt quota cost per 1k tokens'),
+('agentBillingCompletionCostPer1k', '0.30', 'platform completion quota cost per 1k tokens'),
+('agentBillingCustomModelServiceRate', '0.10', 'custom model service fee rate')
 on duplicate key update
   config_value = values(config_value),
   remark = values(remark);

@@ -2,6 +2,8 @@ package com.linrun.domain.account.service;
 
 import com.linrun.domain.account.adapter.UserQuotaRepository;
 import com.linrun.domain.account.model.ModelUsageRecord;
+import com.linrun.domain.account.model.UserMembershipAccount;
+import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.domain.account.model.UserQuotaFlow;
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
@@ -47,12 +49,14 @@ class UserQuotaServiceTest {
                 mock(GuideDataRepository.class),
                 mock(TradeOrderRepository.class));
 
-        assertEquals(BigDecimal.valueOf(2), service.estimatePreCheckCost("trade-audit"));
+        assertEquals(new BigDecimal("0.20"), service.estimatePreCheckCost("trade-audit"));
     }
 
     private static class InMemoryQuotaRepository implements UserQuotaRepository {
         private BigDecimal balance;
         private BigDecimal used = BigDecimal.ZERO;
+        private UserMembershipAccount membership;
+        private UserModelConfig modelConfig;
         private final List<UserQuotaFlow> flows = new ArrayList<>();
         private final List<ModelUsageRecord> usages = new ArrayList<>();
         private final Set<String> flowKeys = new HashSet<>();
@@ -123,6 +127,35 @@ class UserQuotaServiceTest {
         @Override
         public void saveUsage(ModelUsageRecord usageRecord) {
             usages.add(usageRecord);
+        }
+
+        @Override
+        public Optional<UserMembershipAccount> queryMembership(String userId) {
+            return Optional.ofNullable(membership);
+        }
+
+        @Override
+        public void upsertMembership(UserMembershipAccount membership) {
+            this.membership = membership;
+        }
+
+        @Override
+        public int decreaseMembershipQuota(String userId, BigDecimal amount) {
+            if (membership == null || membership.remainingQuota().compareTo(amount) < 0) {
+                return 0;
+            }
+            membership.setMonthlyUsedQuota(membership.getMonthlyUsedQuota().add(amount));
+            return 1;
+        }
+
+        @Override
+        public Optional<UserModelConfig> queryModelConfig(String userId) {
+            return Optional.ofNullable(modelConfig);
+        }
+
+        @Override
+        public void upsertModelConfig(UserModelConfig modelConfig) {
+            this.modelConfig = modelConfig;
         }
     }
 }

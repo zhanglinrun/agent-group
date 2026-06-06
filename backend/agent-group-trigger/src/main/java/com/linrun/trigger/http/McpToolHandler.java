@@ -103,7 +103,7 @@ public class McpToolHandler {
                         Map.of("question", stringSchema("User question."))),
                 tool(AgentToolRegistry.KNOWLEDGE_SEARCH, "Search quota package, campaign, and after-sale knowledge fragments.",
                         Map.of("question", stringSchema("User question."))),
-                tool(AgentToolRegistry.GUIDE_RECOMMEND, "Return quota package recommendation and evidence.",
+                tool(AgentToolRegistry.QUOTA_RECOMMEND, "Return quota package recommendation and evidence.",
                         Map.of("question", stringSchema("User question."))),
                 tool(QUOTA_PACKAGE_CATALOG, "List quota packages with current group-buy campaign fields.",
                         Map.of(
@@ -164,7 +164,7 @@ public class McpToolHandler {
             case INTENT_RECOGNITION -> intentRecognition(text(arguments.get("question")));
             case QUERY_ROUTE -> queryRoute(text(arguments.get("question")));
             case AgentToolRegistry.KNOWLEDGE_SEARCH -> knowledgeSearch(text(arguments.get("question")));
-            case AgentToolRegistry.GUIDE_RECOMMEND -> guideRecommend(text(arguments.get("question")));
+            case AgentToolRegistry.QUOTA_RECOMMEND -> guideRecommend(text(arguments.get("question")));
             case QUOTA_PACKAGE_CATALOG -> quotaPackageCatalog(text(arguments.get("keyword")), integer(arguments.get("limit"), 20));
             case QUOTA_PACKAGE_DETAIL -> quotaPackageDetail(text(arguments.get("goodsId")));
             case AgentToolRegistry.GROUP_TRIAL -> groupTrial(text(arguments.get("goodsId")));

@@ -2,6 +2,8 @@ package com.linrun.infrastructure.adapter.repository;
 
 import com.linrun.domain.account.adapter.UserQuotaRepository;
 import com.linrun.domain.account.model.ModelUsageRecord;
+import com.linrun.domain.account.model.UserMembershipAccount;
+import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.domain.account.model.UserQuotaFlow;
 import com.linrun.infrastructure.converter.AccountPOConverter;
@@ -64,5 +66,30 @@ public class MyBatisUserQuotaRepository implements UserQuotaRepository {
     @Override
     public void saveUsage(ModelUsageRecord usageRecord) {
         userQuotaDao.insertUsage(AccountPOConverter.toPO(usageRecord));
+    }
+
+    @Override
+    public Optional<UserMembershipAccount> queryMembership(String userId) {
+        return Optional.ofNullable(AccountPOConverter.toEntity(userQuotaDao.queryMembership(userId)));
+    }
+
+    @Override
+    public void upsertMembership(UserMembershipAccount membership) {
+        userQuotaDao.upsertMembership(AccountPOConverter.toPO(membership));
+    }
+
+    @Override
+    public int decreaseMembershipQuota(String userId, BigDecimal amount) {
+        return userQuotaDao.decreaseMembershipQuota(userId, amount);
+    }
+
+    @Override
+    public Optional<UserModelConfig> queryModelConfig(String userId) {
+        return Optional.ofNullable(AccountPOConverter.toEntity(userQuotaDao.queryModelConfig(userId)));
+    }
+
+    @Override
+    public void upsertModelConfig(UserModelConfig modelConfig) {
+        userQuotaDao.upsertModelConfig(AccountPOConverter.toPO(modelConfig));
     }
 }

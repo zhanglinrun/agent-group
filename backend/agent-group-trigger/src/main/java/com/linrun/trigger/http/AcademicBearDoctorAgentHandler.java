@@ -113,7 +113,9 @@ public class AcademicBearDoctorAgentHandler {
             boolean webSearchEnabled = Boolean.TRUE.equals(safeRequest.getWebSearchEnabled());
             long startedAt = System.currentTimeMillis();
             AtomicInteger sequence = new AtomicInteger(1);
-            String modelName = modelName(safeRequest);
+            String modelName = modelName(user.getUserId(), safeRequest);
+            boolean customModelConfigured = userQuotaService.hasEnabledModelConfig(user.getUserId())
+                    || hasCustomModelConfig(safeRequest);
             AcademicAgentRun run = academicExecutionLedgerService.startRun(
                     user.getUserId(), sessionId, requestId, taskType, query, modelName);
             String executionMemoryPrompt = joinPrompts(
@@ -136,7 +138,7 @@ public class AcademicBearDoctorAgentHandler {
                                     .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(
                                             user, sessionId, requestId, sequence, taskType, startedAt, runState)))))
                     .onErrorResume(error -> Flux.fromIterable(errorEvents(
-                            sessionId, requestId, sequence, error, hasCustomModelConfig(safeRequest), runState)))
+                            sessionId, requestId, sequence, error, customModelConfigured, runState)))
                     .doFinally(signalType -> AcademicLedgerContext.clear());
         });
     }
@@ -1232,9 +1234,19 @@ public class AcademicBearDoctorAgentHandler {
         };
     }
 
-    private String modelName(AcademicAgentStreamRequest request) {
+    private String modelName(String userId, AcademicAgentStreamRequest request) {
         if (request != null && StringUtils.hasText(request.getLlmModel())) {
             return request.getLlmModel().trim();
+        }
+        try {
+            if (!userQuotaService.hasEnabledModelConfig(userId)) {
+                return "bear-doctor-agent";
+            }
+            String storedModel = userQuotaService.queryModelConfigResponse(userId).getModel();
+            if (StringUtils.hasText(storedModel)) {
+                return storedModel.trim();
+            }
+        } catch (Exception ignored) {
         }
         return "bear-doctor-agent";
     }

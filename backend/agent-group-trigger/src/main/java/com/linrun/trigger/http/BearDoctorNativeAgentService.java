@@ -34,6 +34,7 @@ import com.linrun.trigger.agent.tool.SkillsTool;
 import com.linrun.trigger.agent.tool.ToolMergeUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.linrun.domain.account.model.UserAccount;
+import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
@@ -79,6 +80,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
@@ -184,9 +186,10 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         String safeAgentType = normalizeAgentType(agentType);
         String safeConversationId = StringUtils.hasText(conversationId) ? conversationId.trim() : "S" + System.currentTimeMillis();
         String internalConversationId = internalConversationId(user.getUserId(), safeConversationId);
-        ChatModel runtimeChatModel = chatModel(internalConversationId, llmBaseUrl, llmApiKey, llmModel);
-        BigDecimal quotaCost = userQuotaService.estimatePreCheckCost(safeAgentType);
-        userQuotaService.assertEnoughQuota(user.getUserId(), quotaCost);
+        RuntimeModelSelection modelSelection = chatModel(user.getUserId(), internalConversationId, llmBaseUrl, llmApiKey, llmModel);
+        ChatModel runtimeChatModel = modelSelection.chatModel();
+        BigDecimal quotaCost = userQuotaService.estimatePreCheckCost(safeAgentType, modelSelection.customModelUsed());
+        userQuotaService.assertEnoughQuota(user.getUserId(), quotaCost, modelSelection.customModelUsed());
         validateFileAccess(user.getUserId(), internalConversationId, fileId);
         long startNanos = System.nanoTime();
         StringBuilder observedContent = new StringBuilder();
@@ -235,7 +238,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                 && shouldConsumeQuota(signalType, observedContent, tokenUsage)) {
                             long latencyMillis = Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
                             consumeQuota(user.getUserId(), safeConversationId, safeAgentType, query,
-                                    observedContent.toString(), latencyMillis, tokenUsage);
+                                    observedContent.toString(), latencyMillis, tokenUsage, modelSelection.customModelUsed());
                             fillAgentType(internalConversationId, safeAgentType);
                         }
                     } finally {
@@ -1824,19 +1827,26 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         return agent;
     }
 
-    private ChatModel chatModel(String conversationId,
-                                String llmBaseUrl,
-                                String llmApiKey,
-                                String llmModel) {
+    private RuntimeModelSelection chatModel(String userId,
+                                            String conversationId,
+                                            String llmBaseUrl,
+                                            String llmApiKey,
+                                            String llmModel) {
+        Optional<UserModelConfig> storedConfig = userQuotaService.queryRuntimeModelConfig(userId);
+        if (storedConfig.isPresent()) {
+            UserModelConfig config = storedConfig.get();
+            ChatModel chatModel = customChatModel(config.getBaseUrl(), config.getApiKey(), config.getModel());
+            return new RuntimeModelSelection(new UsageRecordingChatModel(chatModel, conversationId), true);
+        }
         if (hasCustomModelConfig(llmBaseUrl, llmApiKey, llmModel)) {
             ChatModel chatModel = customChatModel(llmBaseUrl, llmApiKey, llmModel);
-            return new UsageRecordingChatModel(chatModel, conversationId);
+            return new RuntimeModelSelection(new UsageRecordingChatModel(chatModel, conversationId), true);
         }
         ChatModel chatModel = chatModelProvider.getIfAvailable();
         if (chatModel == null) {
             throw new AppException("AGENT_0007", "模型客户端不可用，请检查大模型配置");
         }
-        return new UsageRecordingChatModel(chatModel, conversationId);
+        return new RuntimeModelSelection(new UsageRecordingChatModel(chatModel, conversationId), false);
     }
 
     private ChatModel customChatModel(String llmBaseUrl, String llmApiKey, String llmModel) {
@@ -1920,7 +1930,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                               String query,
                               String observedContent,
                               long latencyMillis,
-                              BearDoctorTokenUsageRecorder.Snapshot tokenUsage) {
+                              BearDoctorTokenUsageRecorder.Snapshot tokenUsage,
+                              boolean customModelUsed) {
         GuideTokenUsage usage = hasRealUsage(tokenUsage)
                 ? new GuideTokenUsage(tokenUsage.promptTokens(), tokenUsage.completionTokens(),
                 tokenUsage.totalTokens(), BigDecimal.ZERO)
@@ -1929,7 +1940,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 ? tokenUsage.model()
                 : "bear-doctor-agent-estimated";
         userQuotaService.consumeForAcademicTask(userId, conversationId, agentType,
-                usage, model, latencyMillis);
+                usage, model, latencyMillis, customModelUsed);
     }
 
     private boolean hasRealUsage(BearDoctorTokenUsageRecorder.Snapshot tokenUsage) {
@@ -2048,5 +2059,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 return message(e);
             }
         }
+    }
+
+    private record RuntimeModelSelection(ChatModel chatModel, boolean customModelUsed) {
     }
 }

@@ -1,6 +1,5 @@
 export const APP_ROUTES = {
   admin: "/admin",
-  adminLegacy: "/admin.html",
   agent: "/",
   workspaceImage: "/workspace/image",
   workspaceData: "/workspace/data",
@@ -22,5 +21,5 @@ export const INTERNAL_WORKSPACE_ROUTES = [
 
 export function isAdminRoute(pathname: string): boolean {
   const path = String(pathname || "/").replace(/\/+$/, "") || "/";
-  return path === APP_ROUTES.admin || path === APP_ROUTES.adminLegacy;
+  return path === APP_ROUTES.admin;
 }

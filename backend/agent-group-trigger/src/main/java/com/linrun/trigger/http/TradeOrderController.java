@@ -4,7 +4,10 @@ import com.linrun.api.dto.CreateDirectOrderRequest;
 import com.linrun.api.dto.MockPayCallbackRequest;
 import com.linrun.api.dto.CreateDirectOrderResponse;
 import com.linrun.api.dto.MockPayCallbackResponse;
+import com.linrun.api.dto.QueryOrderListRequest;
 import com.linrun.api.dto.QueryOrderListResponse;
+import com.linrun.api.dto.QueryRefundOrderListRequest;
+import com.linrun.api.dto.QueryRefundOrderListResponse;
 import com.linrun.api.dto.TradeStatusFlowDTO;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -75,6 +78,48 @@ public class TradeOrderController {
         return Response.success(tradeStatusFlowService.queryByOrderId(orderId), RequestTraceContext.getRequestId());
     }
 
+    @PostMapping("/admin")
+    public Response<QueryOrderListResponse> queryAdminOrders(@RequestBody(required = false) QueryOrderListRequest request) {
+        QueryOrderListRequest safeRequest = request == null ? new QueryOrderListRequest() : request;
+        int safePageSize = safePageSize(safeRequest.getPageSize() == null ? 20 : safeRequest.getPageSize(), 100);
+        List<TradeOrderEntity> orders = StringUtils.hasText(safeRequest.getUserId())
+                ? tradeOrderRepository.queryUserTradeOrders(
+                        safeRequest.getUserId(),
+                        safeRequest.getLastId(),
+                        safePageSize + 1,
+                        safeRequest.getMarketType(),
+                        safeRequest.getOrderStatus(),
+                        safeRequest.getKeyword())
+                : tradeOrderRepository.queryTradeOrders(
+                        safeRequest.getLastId(),
+                        safePageSize + 1,
+                        safeRequest.getMarketType(),
+                        safeRequest.getOrderStatus(),
+                        safeRequest.getKeyword());
+
+        QueryOrderListResponse response = new QueryOrderListResponse();
+        response.setHasMore(orders.size() > safePageSize);
+        orders.stream().limit(safePageSize).forEach(order -> response.getOrderList().add(toOrderInfo(order)));
+        response.setLastId(response.getOrderList().isEmpty()
+                ? safeRequest.getLastId()
+                : response.getOrderList().get(response.getOrderList().size() - 1).getId());
+        return Response.success(response, RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/admin/refunds")
+    public Response<QueryRefundOrderListResponse> queryAdminRefunds(@RequestBody(required = false) QueryRefundOrderListRequest request) {
+        QueryRefundOrderListRequest safeRequest = request == null ? new QueryRefundOrderListRequest() : request;
+        int safePageSize = safePageSize(safeRequest.getPageSize() == null ? 20 : safeRequest.getPageSize(), 100);
+        List<RefundOrderEntity> refunds = tradeOrderRepository.queryRefundOrders(
+                safeRequest.getUserId(),
+                safeRequest.getRefundStatus(),
+                safePageSize);
+
+        QueryRefundOrderListResponse response = new QueryRefundOrderListResponse();
+        response.setRefundList(refunds.stream().map(this::toRefundInfo).toList());
+        return Response.success(response, RequestTraceContext.getRequestId());
+    }
+
     @GetMapping("/my")
     public Response<QueryOrderListResponse> queryMyOrders(
             @RequestHeader(value = "Authorization", required = false) String token,
@@ -84,7 +129,7 @@ public class TradeOrderController {
             @RequestParam(required = false) String orderStatus,
             @RequestParam(required = false) String keyword) {
         UserAccount user = userAccountService.requireUserByToken(token);
-        int safePageSize = Math.max(1, Math.min(pageSize, 50));
+        int safePageSize = safePageSize(pageSize, 50);
         List<TradeOrderEntity> orders = tradeOrderRepository.queryUserTradeOrders(
                 user.getUserId(),
                 lastId,
@@ -124,6 +169,25 @@ public class TradeOrderController {
             info.setPayUrl(payOrder.getPayUrl());
         }
         return info;
+    }
+
+    private QueryRefundOrderListResponse.RefundInfo toRefundInfo(RefundOrderEntity refundOrder) {
+        QueryRefundOrderListResponse.RefundInfo info = new QueryRefundOrderListResponse.RefundInfo();
+        info.setId(refundOrder.getId());
+        info.setRefundId(refundOrder.getRefundId());
+        info.setOrderId(refundOrder.getOrderId());
+        info.setPayOrderId(refundOrder.getPayOrderId());
+        info.setUserId(refundOrder.getUserId());
+        info.setRefundAmount(refundOrder.getRefundAmount());
+        info.setRefundStatus(refundOrder.getRefundStatus() == null ? null : refundOrder.getRefundStatus().name());
+        info.setRefundReason(refundOrder.getRefundReason());
+        info.setCreateTime(refundOrder.getCreateTime());
+        info.setRefundTime(refundOrder.getRefundTime());
+        return info;
+    }
+
+    private int safePageSize(int pageSize, int maxPageSize) {
+        return Math.max(1, Math.min(pageSize, maxPageSize));
     }
 
     private String resolveDisplayStatus(TradeOrderEntity order) {

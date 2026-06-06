@@ -17,8 +17,6 @@ public class AgentToolRegistry {
 
     public static final String KNOWLEDGE_SEARCH = "knowledge_search";
     public static final String QUOTA_RECOMMEND = "quota_recommend";
-    @Deprecated
-    public static final String GUIDE_RECOMMEND = QUOTA_RECOMMEND;
     public static final String GROUP_TRIAL = "group_trial";
     public static final String ORDER_STATUS = "order_status";
 

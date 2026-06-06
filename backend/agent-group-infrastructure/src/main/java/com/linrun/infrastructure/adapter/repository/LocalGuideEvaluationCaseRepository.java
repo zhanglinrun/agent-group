@@ -169,9 +169,9 @@ public class LocalGuideEvaluationCaseRepository implements GuideEvaluationCaseRe
             return List.of(AgentToolRegistry.ORDER_STATUS);
         }
         if (needsGroupTrial(question, intentType)) {
-            return List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL);
+            return List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.QUOTA_RECOMMEND, AgentToolRegistry.GROUP_TRIAL);
         }
-        return List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND);
+        return List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.QUOTA_RECOMMEND);
     }
 
     private boolean needsGroupTrial(String question, GuideIntentType intentType) {

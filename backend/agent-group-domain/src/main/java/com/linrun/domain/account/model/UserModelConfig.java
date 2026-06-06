@@ -1,0 +1,88 @@
+package com.linrun.domain.account.model;
+
+import java.time.LocalDateTime;
+
+public class UserModelConfig {
+
+    private String userId;
+    private Boolean enabled = false;
+    private String baseUrl;
+    private String model;
+    private String apiKey;
+    private String encryptedApiKey;
+    private String keyMasked;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
+    public String getEncryptedApiKey() {
+        return encryptedApiKey;
+    }
+
+    public void setEncryptedApiKey(String encryptedApiKey) {
+        this.encryptedApiKey = encryptedApiKey;
+    }
+
+    public String getKeyMasked() {
+        return keyMasked;
+    }
+
+    public void setKeyMasked(String keyMasked) {
+        this.keyMasked = keyMasked;
+    }
+
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    public LocalDateTime getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(LocalDateTime updateTime) {
+        this.updateTime = updateTime;
+    }
+}

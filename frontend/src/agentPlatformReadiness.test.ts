@@ -170,7 +170,7 @@ describe("agent platform readiness", () => {
     expect(summary?.statusLabel).toBe("已就绪");
     expect(summary?.gaps).toEqual([]);
     expect(summary?.actions).toEqual(["Agent 与拼团交易闭环已具备完整演示面"]);
-    expect(summary?.metrics.map((item) => item.value)).toEqual(["4/4", "1", "13/13", "5/5", "3"]);
+    expect(summary?.metrics.map((item) => item.value)).toEqual(["4/4", "1", "13/13", "2/2", "3"]);
   });
 
   it("returns null before capabilities are loaded", () => {

@@ -74,7 +74,7 @@ public class AgentPlannerService {
         tools.add(AgentToolCall.of(AgentToolRegistry.KNOWLEDGE_SEARCH,
                 arguments("question", question, "limit", "3"),
                 "先检索额度包说明、活动规则和退款规则，保证回答有依据。"));
-        tools.add(AgentToolCall.of(AgentToolRegistry.GUIDE_RECOMMEND,
+        tools.add(AgentToolCall.of(AgentToolRegistry.QUOTA_RECOMMEND,
                 arguments("question", question),
                 "结合用户任务、额度需求和知识片段完成额度包推荐。"));
         if (shouldTrialGroup(question, intent)) {

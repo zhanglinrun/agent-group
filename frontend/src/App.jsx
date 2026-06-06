@@ -104,6 +104,7 @@ import {
   getModelConfig,
   getQuotaSummary,
   getSessionId,
+  getUserModelConfig,
   getUserAuth,
   importMcpState,
   lockMarketPayOrder,
@@ -602,7 +603,6 @@ function App() {
   return (
     <Routes>
       <Route path={APP_ROUTES.admin} element={<AdminDashboard />} />
-      <Route path={APP_ROUTES.adminLegacy} element={<AdminDashboard />} />
       <Route path="/*" element={<BearDoctorAcademicApp />} />
     </Routes>
   );
@@ -675,6 +675,8 @@ function BearDoctorAcademicApp() {
   const [runningChatIds, setRunningChatIds] = useState({});
   const [connectionError, setConnectionError] = useState("");
   const [quota, setQuota] = useState(null);
+  const [membership, setMembership] = useState(null);
+  const [billingPolicy, setBillingPolicy] = useState(null);
   const [quotaFlows, setQuotaFlows] = useState([]);
   const [packages, setPackages] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -850,7 +852,17 @@ function BearDoctorAcademicApp() {
     const res = await getQuotaSummary(20);
     if (res.code === "0000") {
       setQuota(res.data?.account || null);
+      setMembership(res.data?.membership || null);
+      setBillingPolicy(res.data?.billingPolicy || null);
       setQuotaFlows(res.data?.flows || []);
+    }
+  }, []);
+
+  const loadModelConfig = useCallback(async () => {
+    if (!getUserAuth()?.token) return;
+    const res = await getUserModelConfig();
+    if (res.code === "0000") {
+      setModelConfig({ ...getModelConfig(), ...(res.data || {}), apiKey: "" });
     }
   }, []);
 
@@ -1408,9 +1420,10 @@ function BearDoctorAcademicApp() {
   useEffect(() => {
     if (!auth?.token) return;
     loadQuota().catch((error) => setConnectionError(normalizeUserMessage(error.message, "额度读取失败")));
+    loadModelConfig().catch(() => {});
     loadSessions().catch(() => {});
     loadOrders().catch(() => {});
-  }, [auth, loadOrders, loadQuota, loadSessions]);
+  }, [auth, loadModelConfig, loadOrders, loadQuota, loadSessions]);
 
   useEffect(() => {
     loadWorkspaceHistory(activeWorkspace).catch(() => {});
@@ -2075,9 +2088,18 @@ function BearDoctorAcademicApp() {
   };
 
   const handleSaveModelConfig = (nextConfig) => {
-    setModelConfig(saveModelConfig(nextConfig));
-    setModelConfigOpen(false);
-    setToast("模型配置已保存");
+    saveModelConfig(nextConfig)
+      .then((res) => {
+        if (!apiSucceeded(res)) {
+          throw new Error(normalizeUserMessage(res.info || res.message, "模型配置保存失败"));
+        }
+        setModelConfig({ ...getModelConfig(), ...(res.data || {}), apiKey: "" });
+        setModelConfigOpen(false);
+        setToast("模型配置已保存");
+      })
+      .catch((error) => {
+        setConnectionError(normalizeUserMessage(error.message, "模型配置保存失败"));
+      });
   };
 
   const handleSaveKnowledgeAdminAuth = () => {
@@ -2534,14 +2556,6 @@ function BearDoctorAcademicApp() {
                 <Settings size={15} />
                 <span>模型</span>
               </button>
-              <button className={`account-btn ${mcpPanelOpen ? "active" : ""}`} onClick={toggleMcpPanel}>
-                <Globe2 size={15} />
-                <span>MCP</span>
-              </button>
-              <button className={`account-btn ${agentAdminPanelOpen ? "active" : ""}`} onClick={toggleAgentAdminPanel}>
-                <Settings size={15} />
-                <span>Agent 配置</span>
-              </button>
               <button className="quota-chip" onClick={openRecharge}>
                 <Wallet size={15} />
                 <span>{Number(quota?.quotaBalance || 0).toFixed(2)} 点</span>
@@ -2561,50 +2575,6 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="messages-container" ref={messagesContainer}>
-            {agentAdminPanelOpen && (
-              <AgentAdminPanel
-                adminForm={adminForm}
-                setAdminForm={setAdminForm}
-                onSaveAdminAuth={handleSaveAdminAuth}
-                onCapabilitiesRefresh={loadAgentCapabilities}
-              />
-            )}
-            {mcpPanelOpen && (
-              <McpManagementPanelV2
-                adminForm={adminForm}
-                setAdminForm={setAdminForm}
-                serverForm={mcpServerForm}
-                setServerForm={setMcpServerForm}
-                servers={mcpServers}
-                tools={mcpTools}
-                loading={mcpLoading}
-                actionKey={mcpActionKey}
-                error={mcpError}
-                health={mcpHealth}
-                exportPayload={mcpExportPayload}
-                importPayload={mcpImportPayload}
-                setImportPayload={setMcpImportPayload}
-                toolCallName={mcpToolCallName}
-                setToolCallName={setMcpToolCallName}
-                toolCallPayload={mcpToolCallPayload}
-                setToolCallPayload={setMcpToolCallPayload}
-                toolCallResult={mcpToolCallResult}
-                cacheServerId={mcpCacheServerId}
-                setCacheServerId={setMcpCacheServerId}
-                toolPayload={mcpToolPayload}
-                setToolPayload={setMcpToolPayload}
-                onSaveAdminAuth={handleSaveMcpAdminAuth}
-                onRefresh={loadMcpState}
-                onRegister={handleRegisterMcpServer}
-                onToggleServer={handleToggleMcpServer}
-                onDiscoverTools={handleDiscoverMcpTools}
-                onCacheTools={handleCacheMcpTools}
-                onCheckHealth={handleCheckMcpHealth}
-                onExportState={handleExportMcpState}
-                onImportState={handleImportMcpState}
-                onCallTool={handleCallMcpTool}
-              />
-            )}
             {currentWorkspacePage.supportsHistory && (
               <WorkspaceHistoryPanel
                 workspace={currentWorkspace}
@@ -2747,89 +2717,6 @@ function BearDoctorAcademicApp() {
               </label>
             </div>
 
-            {(capabilitySummary.length > 0 || agentCapabilitiesError) && (
-              <div className="agent-capability-strip">
-                {capabilitySummary.map((item) => (
-                  <span key={item.key} className={`agent-capability-pill ${item.active ? "active" : ""}`}>
-                    <span>{item.label}</span>
-                    <b>{item.value}</b>
-                  </span>
-                ))}
-                <AgentPlatformReadinessPanel capabilities={agentCapabilities} />
-                {visibleAcademicTools.length > 0 && (
-                  <div className="agent-tool-preview">
-                    {visibleToolGroups.map((group) => (
-                      <span key={`group-${group.key}`} className="tool-group-chip">
-                        {group.key} <b>{group.count}</b>
-                      </span>
-                    ))}
-                    {visibleAcademicTools.map((tool) => (
-                      <span key={tool.name}>{TOOL_LABELS[tool.name] || tool.name}</span>
-                    ))}
-                    {Number(agentCapabilities?.academicToolCount || 0) > visibleAcademicTools.length && (
-                      <span>+{Number(agentCapabilities.academicToolCount || 0) - visibleAcademicTools.length}</span>
-                    )}
-                  </div>
-                )}
-                {(visibleToolFamilies.length > 0 || visibleToolReadiness.length > 0) && (
-                  <div className="agent-tool-readiness">
-                    {visibleToolFamilies.map((family) => (
-                      <span
-                        key={`family-${family.key}`}
-                        className={`tool-family ${family.status}`}
-                        title={[
-                          family.action,
-                          family.missingTools.length ? `缺口 ${family.missingTools.map((toolName) => TOOL_LABELS[toolName] || toolName).join("、")}` : "",
-                          family.workspaces.length ? `工作区 ${compactToolList(family.workspaces, 4)}` : "",
-                          family.outputKinds.length ? `输出 ${compactToolList(family.outputKinds, 4)}` : ""
-                        ].filter(Boolean).join("\n")}
-                      >
-                        <b>{family.label}</b>
-                        <em>{family.readyCount}/{family.totalCount}</em>
-                        {family.missingTools.length > 0 && (
-                          <small>{family.missingTools.slice(0, 2).map((toolName) => TOOL_LABELS[toolName] || toolName).join("、")}</small>
-                        )}
-                      </span>
-                    ))}
-                    {visibleToolReadiness.map((tool) => {
-                      const meta = toolReadinessMeta(tool);
-                      return (
-                        <span
-                          key={tool.name}
-                          className={tool.status === "ready" ? "ready" : "missing"}
-                          title={[tool.hint || tool.message || "", meta].filter(Boolean).join("\n")}
-                        >
-                          <b>{TOOL_LABELS[tool.name] || tool.name}</b>
-                          <em>{tool.status}</em>
-                          {meta && <small>{meta}</small>}
-                          {tool.status !== "ready" && tool.hint && <small className="tool-runtime-hint">{tool.hint}</small>}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                {mcpRuntimeLoaded && (
-                  <div className={`agent-mcp-runtime-overview ${mcpRuntimeSummary.status}`}>
-                    <div className="agent-mcp-runtime-head">
-                      <b>MCP</b>
-                      <em>{mcpRuntimeSummary.statusLabel}</em>
-                    </div>
-                    {mcpRuntimeSummary.metrics.slice(0, 4).map((metric) => (
-                      <span key={metric.key} className={metric.tone || ""}>
-                        <b>{metric.label}</b>
-                        {metric.value}
-                      </span>
-                    ))}
-                    <button type="button" onClick={toggleMcpPanel}>
-                      {mcpRuntimeSummary.actions[0] || "查看 MCP 管理"}
-                    </button>
-                  </div>
-                )}
-                <CapabilityMatrixPanel items={visibleCapabilityMatrix} executionModes={visibleExecutionModes} />
-                {agentCapabilitiesError && <span className="agent-capability-error">{agentCapabilitiesError}</span>}
-              </div>
-            )}
-
             {selectedFile && (
               <div className="file-preview">
                 <div className="file-preview-item">
@@ -2917,6 +2804,8 @@ function BearDoctorAcademicApp() {
       {rechargeOpen && (
         <RechargeDialog
           quota={quota}
+          membership={membership}
+          billingPolicy={billingPolicy}
           flows={quotaFlows}
           orders={orders}
           ordersLoading={ordersLoading}
@@ -2928,15 +2817,12 @@ function BearDoctorAcademicApp() {
           groupMarketConfig={groupMarketConfig}
           groupTeamsLoading={groupTeamsLoading}
           currentUserId={auth?.userId || quota?.userId}
-          adminForm={adminForm}
-          setAdminForm={setAdminForm}
           onBuy={buyPackage}
           onOpenGroupPreview={openGroupPreview}
           onBackToPackages={() => {
             setGroupPreviewPackage(null);
             setGroupMarketConfig(null);
           }}
-          onSaveAdminAuth={handleSaveAdminAuth}
           onRefresh={refreshRecharge}
           onPayOrder={payExistingOrder}
           onClose={() => {
@@ -4631,9 +4517,10 @@ function ModelConfigDialog({ config, onSave, onClose }) {
             value={draft.apiKey || ""}
             onChange={(event) => update("apiKey", event.target.value)}
             type="password"
-            placeholder="sk-..."
+            placeholder={draft.keyMasked ? "留空则继续使用已保存密钥" : "sk-..."}
             disabled={!draft.enabled}
           />
+          {draft.keyMasked && <em className="model-config-key-mask">已保存：{draft.keyMasked}</em>}
         </label>
         <label>
           <span>模型名称</span>
@@ -4655,6 +4542,8 @@ function ModelConfigDialog({ config, onSave, onClose }) {
 
 function RechargeDialog({
   quota,
+  membership,
+  billingPolicy,
   flows,
   orders,
   ordersLoading,
@@ -4666,12 +4555,9 @@ function RechargeDialog({
   groupMarketConfig,
   groupTeamsLoading,
   currentUserId,
-  adminForm,
-  setAdminForm,
   onBuy,
   onOpenGroupPreview,
   onBackToPackages,
-  onSaveAdminAuth,
   onRefresh,
   onPayOrder,
   onClose
@@ -4739,6 +4625,12 @@ function RechargeDialog({
     originPrice: marketGoods.originalPrice || groupPreviewPackage.originPrice,
     groupPrice: marketGoods.payPrice || groupPreviewPackage.groupPrice
   } : null;
+  const memberActive = Boolean(membership?.active);
+  const memberRemaining = Number(membership?.remainingMonthlyQuota || 0).toFixed(2);
+  const memberTotal = Number(membership?.monthlyQuota || 0).toFixed(2);
+  const promptCost = Number(billingPolicy?.platformPromptCostPer1k || 0).toFixed(2);
+  const completionCost = Number(billingPolicy?.platformCompletionCostPer1k || 0).toFixed(2);
+  const customRate = Math.round(Number(billingPolicy?.customModelServiceRate || 0) * 100);
 
   if (groupPreviewPackage) {
     return (
@@ -4831,6 +4723,16 @@ function RechargeDialog({
             <b>{Number(quota?.frozenQuota || 0).toFixed(2)}</b>
           </div>
         </div>
+        <div className="membership-card">
+          <div>
+            <span>{memberActive ? "会员额度" : "会员"}</span>
+            <strong>{memberActive ? `${memberRemaining} / ${memberTotal} 点` : "未开通"}</strong>
+          </div>
+          <p>
+            平台模型按输入 {promptCost} 点/千 token、输出 {completionCost} 点/千 token 扣费；
+            自定义模型会员免费，非会员按平台费用 {customRate || 10}% 收取服务费。
+          </p>
+        </div>
         <div className="recharge-tabs">
           <button type="button" className={activeTab === "packages" ? "active" : ""} onClick={() => setActiveTab("packages")}>
             <Wallet size={15} /> 额度包
@@ -4907,15 +4809,6 @@ function RechargeDialog({
             })}
           </section>
         )}
-        <div className="admin-auth-box">
-          <div>
-            <strong>模拟支付授权</strong>
-            <span>本地演示支付回调时使用</span>
-          </div>
-          <input value={adminForm.username} onChange={(event) => setAdminForm({ ...adminForm, username: event.target.value })} placeholder="运营账号" />
-          <input value={adminForm.password} onChange={(event) => setAdminForm({ ...adminForm, password: event.target.value })} type="password" placeholder="运营密码" />
-          <button onClick={onSaveAdminAuth}><CreditCard size={15} /> 保存</button>
-        </div>
       </div>
     </div>
   );

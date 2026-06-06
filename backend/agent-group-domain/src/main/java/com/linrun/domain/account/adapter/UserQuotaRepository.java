@@ -1,6 +1,8 @@
 package com.linrun.domain.account.adapter;
 
 import com.linrun.domain.account.model.ModelUsageRecord;
+import com.linrun.domain.account.model.UserMembershipAccount;
+import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.domain.account.model.UserQuotaFlow;
 
@@ -23,4 +25,11 @@ public interface UserQuotaRepository {
     List<UserQuotaFlow> queryRecentFlows(String userId, int limit);
 
     void saveUsage(ModelUsageRecord usageRecord);
+
+    Optional<UserMembershipAccount> queryMembership(String userId);
+    void upsertMembership(UserMembershipAccount membership);
+    int decreaseMembershipQuota(String userId, BigDecimal amount);
+
+    Optional<UserModelConfig> queryModelConfig(String userId);
+    void upsertModelConfig(UserModelConfig modelConfig);
 }

@@ -5,7 +5,7 @@ import { INTERNAL_WORKSPACE_ROUTES, WORKSPACE_ROUTES, isAdminRoute } from "./rou
 describe("app routes", () => {
   it("detects admin routes", () => {
     expect(isAdminRoute("/admin")).toBe(true);
-    expect(isAdminRoute("/admin.html")).toBe(true);
+    expect(isAdminRoute("/admin.html")).toBe(false);
     expect(isAdminRoute("/workspace/image")).toBe(false);
   });
 

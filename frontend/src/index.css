@@ -6427,6 +6427,12 @@ body {
   cursor: not-allowed;
 }
 
+.bear-doctor-app .model-config-key-mask {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
 .bear-doctor-app .model-config-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -6586,6 +6592,39 @@ body {
 .bear-doctor-app .quota-card b {
   font-size: 18px;
   color: var(--text-primary);
+}
+
+.bear-doctor-app .membership-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) 2fr;
+  gap: 14px;
+  align-items: center;
+  margin: -4px 0 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(20, 184, 166, 0.26);
+  border-radius: 12px;
+}
+
+.bear-doctor-app .membership-card span,
+.bear-doctor-app .membership-card p {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.bear-doctor-app .membership-card span {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.bear-doctor-app .membership-card strong {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.bear-doctor-app .membership-card p {
+  margin: 0;
+  line-height: 1.55;
 }
 
 .bear-doctor-app .recharge-tabs {
@@ -7223,6 +7262,7 @@ body {
   }
 
   .bear-doctor-app .quota-card,
+  .bear-doctor-app .membership-card,
   .bear-doctor-app .package-grid {
     grid-template-columns: 1fr;
   }
@@ -7556,6 +7596,7 @@ body[data-theme="light"] {
 }
 
 .bear-doctor-app[data-theme] .quota-card div,
+.bear-doctor-app[data-theme] .membership-card,
 .bear-doctor-app[data-theme] .quota-package,
 .bear-doctor-app[data-theme] .admin-auth-box,
 .bear-doctor-app[data-theme] .flow-details,
@@ -7567,6 +7608,7 @@ body[data-theme="light"] {
 }
 
 .bear-doctor-app[data-theme] .quota-card strong,
+.bear-doctor-app[data-theme] .membership-card strong,
 .bear-doctor-app[data-theme] .pkg-amount,
 .bear-doctor-app[data-theme] .order-row em,
 .bear-doctor-app[data-theme] .model-config-head,

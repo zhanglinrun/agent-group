@@ -16,6 +16,7 @@ import {
   generateWorkspaceImage,
   getKnowledgeDocumentFullContent,
   getKnowledgeFragments,
+  getUserModelConfig,
   importAgentAdminState,
   importMcpState,
   queryMcpHealth,
@@ -37,6 +38,7 @@ import {
   runWorkspaceData,
   runWorkspaceMrag,
   saveAdminAuth,
+  saveModelConfig,
   saveUserAuth,
   uploadKnowledgeWebUrl,
   upsertAgentAdminConfig
@@ -289,6 +291,61 @@ describe("mcp admin api client", () => {
         sessionId: "S1001",
         webSearchEnabled: true,
         outputStyle: "report"
+      })
+    }));
+  });
+
+  it("keeps custom model api key out of academic stream requests", async () => {
+    saveUserAuth({ token: "user-token" });
+    fetch.mockResolvedValue(streamResponse());
+
+    requestAcademicStream({
+      sessionId: "S1002",
+      question: "hello",
+      taskType: "chat",
+      modelConfig: {
+        enabled: true,
+        baseUrl: "https://example.com",
+        apiKey: "sk-secret",
+        model: "custom-model",
+        keyMasked: "sk****cret"
+      }
+    });
+
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body).not.toHaveProperty("llmApiKey");
+    expect(body).not.toHaveProperty("llmBaseUrl");
+    expect(body).not.toHaveProperty("llmModel");
+  });
+
+  it("reads and saves user model config with user token", async () => {
+    saveUserAuth({ token: "user-token" });
+
+    await getUserModelConfig();
+    await saveModelConfig({
+      enabled: true,
+      baseUrl: "https://example.com",
+      apiKey: "sk-secret",
+      model: "custom-model"
+    });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/quota/model-config", expect.objectContaining({
+      method: "GET",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token"
+      })
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/quota/model-config", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token",
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify({
+        enabled: true,
+        baseUrl: "https://example.com",
+        apiKey: "sk-secret",
+        model: "custom-model"
       })
     }));
   });

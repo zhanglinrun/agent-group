@@ -308,7 +308,7 @@ public class GuideEvaluationService {
         }
         return agentPlan.getTools().stream().allMatch(tool -> {
             if (AgentToolRegistry.KNOWLEDGE_SEARCH.equals(tool.getName())
-                    || AgentToolRegistry.GUIDE_RECOMMEND.equals(tool.getName())
+                    || AgentToolRegistry.QUOTA_RECOMMEND.equals(tool.getName())
                     || AgentToolRegistry.ORDER_STATUS.equals(tool.getName())) {
                 return StringUtils.hasText(tool.getArguments().get("question"));
             }

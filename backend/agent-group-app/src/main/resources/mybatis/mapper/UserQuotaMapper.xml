@@ -25,6 +25,30 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
+    <resultMap id="UserMembershipAccountMap" type="com.linrun.infrastructure.po.UserMembershipAccountPO">
+        <id column="user_id" property="userId"/>
+        <result column="plan_code" property="planCode"/>
+        <result column="plan_name" property="planName"/>
+        <result column="status" property="status"/>
+        <result column="monthly_quota" property="monthlyQuota"/>
+        <result column="monthly_used_quota" property="monthlyUsedQuota"/>
+        <result column="cycle_start_time" property="cycleStartTime"/>
+        <result column="cycle_end_time" property="cycleEndTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="UserModelConfigMap" type="com.linrun.infrastructure.po.UserModelConfigPO">
+        <id column="user_id" property="userId"/>
+        <result column="enabled" property="enabled"/>
+        <result column="base_url" property="baseUrl"/>
+        <result column="model" property="model"/>
+        <result column="encrypted_api_key" property="encryptedApiKey"/>
+        <result column="key_masked" property="keyMasked"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
     <insert id="createAccountIfAbsent">
         insert into user_quota_account (
           user_id, quota_balance, frozen_quota, used_quota, create_time, update_time
@@ -97,5 +121,65 @@
           #{usageId}, #{userId}, #{sessionId}, #{taskType}, #{model}, #{promptTokens}, #{completionTokens},
           #{totalTokens}, #{quotaCost}, #{latencyMillis}, #{createTime}
         )
+    </insert>
+
+    <select id="queryMembership" resultMap="UserMembershipAccountMap">
+        select user_id, plan_code, plan_name, status, monthly_quota, monthly_used_quota,
+               cycle_start_time, cycle_end_time, create_time, update_time
+        from user_membership_account
+        where user_id = #{userId}
+        limit 1
+    </select>
+
+    <insert id="upsertMembership" parameterType="com.linrun.infrastructure.po.UserMembershipAccountPO">
+        insert into user_membership_account (
+          user_id, plan_code, plan_name, status, monthly_quota, monthly_used_quota,
+          cycle_start_time, cycle_end_time, create_time, update_time
+        ) values (
+          #{userId}, #{planCode}, #{planName}, #{status}, #{monthlyQuota}, #{monthlyUsedQuota},
+          #{cycleStartTime}, #{cycleEndTime}, now(), now()
+        )
+        on duplicate key update
+          plan_code = values(plan_code),
+          plan_name = values(plan_name),
+          status = values(status),
+          monthly_quota = values(monthly_quota),
+          monthly_used_quota = values(monthly_used_quota),
+          cycle_start_time = values(cycle_start_time),
+          cycle_end_time = values(cycle_end_time),
+          update_time = now()
+    </insert>
+
+    <update id="decreaseMembershipQuota">
+        update user_membership_account
+        set monthly_used_quota = monthly_used_quota + #{amount},
+            update_time = now()
+        where user_id = #{userId}
+          and status = 'ACTIVE'
+          and now() &gt;= cycle_start_time
+          and now() &lt; cycle_end_time
+          and monthly_quota - monthly_used_quota &gt;= #{amount}
+    </update>
+
+    <select id="queryModelConfig" resultMap="UserModelConfigMap">
+        select user_id, enabled, base_url, model, encrypted_api_key, key_masked, create_time, update_time
+        from user_model_config
+        where user_id = #{userId}
+        limit 1
+    </select>
+
+    <insert id="upsertModelConfig" parameterType="com.linrun.infrastructure.po.UserModelConfigPO">
+        insert into user_model_config (
+          user_id, enabled, base_url, model, encrypted_api_key, key_masked, create_time, update_time
+        ) values (
+          #{userId}, #{enabled}, #{baseUrl}, #{model}, #{encryptedApiKey}, #{keyMasked}, now(), now()
+        )
+        on duplicate key update
+          enabled = values(enabled),
+          base_url = values(base_url),
+          model = values(model),
+          encrypted_api_key = values(encrypted_api_key),
+          key_masked = values(key_masked),
+          update_time = now()
     </insert>
 </mapper>

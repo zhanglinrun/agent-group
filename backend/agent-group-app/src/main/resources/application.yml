@@ -11,3 +11,7 @@ spring:
     name: agent-group
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:}
+
+agent:
+  user-model:
+    crypto-secret: ${AGENT_USER_MODEL_CRYPTO_SECRET:}

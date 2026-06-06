@@ -35,6 +35,9 @@ public class DynamicConfigService {
     public static final String AGENT_PLAN_EXECUTE_SWITCH = "agentPlanExecuteSwitch";
     public static final String AGENT_CONTEXT_COMPACT_THRESHOLD = "agentContextCompactThreshold";
     public static final String KNOWLEDGE_CONTEXT_EXPANSION_SWITCH = "knowledgeContextExpansionSwitch";
+    public static final String AGENT_BILLING_PROMPT_COST_PER_1K = "agentBillingPromptCostPer1k";
+    public static final String AGENT_BILLING_COMPLETION_COST_PER_1K = "agentBillingCompletionCostPer1k";
+    public static final String AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE = "agentBillingCustomModelServiceRate";
 
     private static final Map<String, String> DEFAULTS = Map.ofEntries(
             Map.entry(DOWNGRADE_SWITCH, "0"),
@@ -53,7 +56,10 @@ public class DynamicConfigService {
             Map.entry(PAYMENT_RISK_CHECK_SWITCH, "1"),
             Map.entry(AGENT_PLAN_EXECUTE_SWITCH, "1"),
             Map.entry(AGENT_CONTEXT_COMPACT_THRESHOLD, "1600"),
-            Map.entry(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1")
+            Map.entry(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1"),
+            Map.entry(AGENT_BILLING_PROMPT_COST_PER_1K, "0.10"),
+            Map.entry(AGENT_BILLING_COMPLETION_COST_PER_1K, "0.30"),
+            Map.entry(AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE, "0.10")
     );
 
     private final DynamicConfigRepository dynamicConfigRepository;

@@ -1,5 +1,32 @@
 use agent_group;
 
+create table if not exists user_membership_account (
+  user_id varchar(64) not null comment 'user id',
+  plan_code varchar(32) not null default 'FREE' comment 'membership plan',
+  plan_name varchar(64) not null default 'Free' comment 'membership name',
+  status varchar(32) not null default 'INACTIVE' comment 'membership status',
+  monthly_quota decimal(12, 2) not null default 0.00 comment 'monthly quota',
+  monthly_used_quota decimal(12, 2) not null default 0.00 comment 'monthly used quota',
+  cycle_start_time datetime not null comment 'cycle start time',
+  cycle_end_time datetime not null comment 'cycle end time',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (user_id),
+  key idx_status_cycle (status, cycle_end_time)
+) engine=InnoDB default charset=utf8mb4 comment='user membership account';
+
+create table if not exists user_model_config (
+  user_id varchar(64) not null comment 'user id',
+  enabled tinyint not null default 0 comment 'custom model enabled',
+  base_url varchar(256) not null default '' comment 'api base url',
+  model varchar(128) not null default '' comment 'model name',
+  encrypted_api_key text null comment 'encrypted api key',
+  key_masked varchar(64) not null default '' comment 'masked api key',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (user_id)
+) engine=InnoDB default charset=utf8mb4 comment='user model config';
+
 create table if not exists academic_agent_run (
   id bigint unsigned not null auto_increment comment '自增主键',
   run_id varchar(40) not null comment '运行编号',
@@ -696,7 +723,10 @@ insert into dynamic_config (
 ('groupSettlementNotifyMQ', 'agent.group.notify.group-settlement', 'group settlement notify mq'),
 ('groupRefundNotifyType', 'HTTP', 'group refund notify type'),
 ('groupRefundNotifyUrl', '', 'group refund notify url'),
-('groupRefundNotifyMQ', 'agent.group.notify.group-refund', 'group refund notify mq')
+('groupRefundNotifyMQ', 'agent.group.notify.group-refund', 'group refund notify mq'),
+('agentBillingPromptCostPer1k', '0.10', 'platform prompt quota cost per 1k tokens'),
+('agentBillingCompletionCostPer1k', '0.30', 'platform completion quota cost per 1k tokens'),
+('agentBillingCustomModelServiceRate', '0.10', 'custom model service fee rate')
 on duplicate key update
   config_value = values(config_value),
   remark = values(remark);

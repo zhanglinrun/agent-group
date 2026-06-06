@@ -64,7 +64,7 @@ class AgentPlannerServiceTest {
 
         assertEquals(GuideIntentType.GROUP_RULE, plan.getIntent());
         assertEquals(
-                java.util.List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL),
+                java.util.List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.QUOTA_RECOMMEND, AgentToolRegistry.GROUP_TRIAL),
                 plan.toolNames());
     }
 
@@ -100,13 +100,13 @@ class AgentPlannerServiceTest {
         List<GuideEvaluationCase> cases = List.of(
                 evaluationCase("EV-SAMPLE-001", "拼团支付成功以后订单就算已成团了吗？",
                         GuideIntentType.GROUP_RULE,
-                        List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND, AgentToolRegistry.GROUP_TRIAL)),
+                        List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.QUOTA_RECOMMEND, AgentToolRegistry.GROUP_TRIAL)),
                 evaluationCase("EV-SAMPLE-002", "查一下订单 O10001 的支付状态。",
                         GuideIntentType.ORDER_QUERY,
                         List.of(AgentToolRegistry.ORDER_STATUS)),
                 evaluationCase("EV-SAMPLE-003", "基础额度包适合长期深度研究吗？",
                         GuideIntentType.PRODUCT_RECOMMEND,
-                        List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.GUIDE_RECOMMEND))
+                        List.of(AgentToolRegistry.KNOWLEDGE_SEARCH, AgentToolRegistry.QUOTA_RECOMMEND))
         );
 
         for (GuideEvaluationCase evaluationCase : cases) {
