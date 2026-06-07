@@ -79,6 +79,11 @@ public class AcademicAgentController {
         return Response.success(status, RequestTraceContext.getRequestId());
     }
 
+    @GetMapping("/capabilities")
+    public Response<Map<String, Object>> capabilities() {
+        return Response.success(academicBearDoctorAgentHandler.capabilities(), RequestTraceContext.getRequestId());
+    }
+
     private Flux<String> startStream(String token, AcademicAgentStreamRequest request) {
         AcademicAgentStreamRequest safeRequest = request == null ? new AcademicAgentStreamRequest() : request;
         String sessionId = StringUtils.hasText(safeRequest.getSessionId())

@@ -546,10 +546,6 @@ export async function runWorkspaceData(payload = {}) {
       includeTableRag: payload.includeTableRag !== false,
       includeNl2Sql: payload.includeNl2Sql !== false,
       includeAnalysis: payload.includeAnalysis !== false,
-      includeTradeAudit: Boolean(payload.includeTradeAudit),
-      auditOrderId: payload.auditOrderId || "",
-      auditTeamId: payload.auditTeamId || "",
-      auditKeyword: payload.auditKeyword || "",
       metadata: payload.metadata || {}
     })
   });
@@ -608,7 +604,7 @@ export async function queryWorkspaceMragHistory({ sessionId = "", limit = 20 } =
 }
 
 export async function queryAgentCapabilities() {
-  return request("/agent/capabilities", {
+  return request("/api/v1/academic/capabilities", {
     userAuth: true,
     method: "GET"
   });

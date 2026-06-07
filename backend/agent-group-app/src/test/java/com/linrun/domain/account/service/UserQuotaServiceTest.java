@@ -50,16 +50,6 @@ class UserQuotaServiceTest {
     }
 
     @Test
-    void tradeAuditPreCheckUsesTradeTaskCost() {
-        UserQuotaService service = new UserQuotaService(
-                new InMemoryQuotaRepository(BigDecimal.TEN),
-                mock(GuideDataRepository.class),
-                mock(TradeOrderRepository.class));
-
-        assertEquals(new BigDecimal("0.20"), service.estimatePreCheckCost("trade-audit"));
-    }
-
-    @Test
     void consumeForSameExplicitBizIdIsIdempotent() {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
         UserQuotaService service = new UserQuotaService(

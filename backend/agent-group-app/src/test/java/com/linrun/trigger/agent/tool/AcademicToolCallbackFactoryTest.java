@@ -61,7 +61,7 @@ class AcademicToolCallbackFactoryTest {
     @Test
     void shouldPreviewToolDefinitionsWithoutCallingTools() {
         AcademicToolCallbackFactory factory = new AcademicToolCallbackFactory(
-                objectMapper, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                objectMapper, null, null, null, null, null, null, null, null, null, null, null, null);
 
         List<Map<String, Object>> offlineTools = factory.preview("capabilities", false);
         List<String> offlineToolNames = offlineTools.stream()
@@ -108,7 +108,7 @@ class AcademicToolCallbackFactoryTest {
 
         AcademicToolCallbackFactory factory = new AcademicToolCallbackFactory(
                 objectMapper, null, null, null, null, null, null, null, null, null, null, null,
-                null, provider(mcpAdminHandler));
+                provider(mcpAdminHandler));
 
         List<Map<String, Object>> tools = factory.preview("capabilities", false);
         assertTrue(tools.stream().anyMatch(tool -> "mcp_data_source__render_chart".equals(tool.get("name"))));

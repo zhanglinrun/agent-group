@@ -52,8 +52,7 @@ const REQUIRED_RUNTIME_TOOLS = [
   "file_tool",
   "script_runner",
   "table_rag",
-  "nl2sql",
-  "trade_audit"
+  "nl2sql"
 ];
 
 function asObject(value: unknown): UnknownMap {

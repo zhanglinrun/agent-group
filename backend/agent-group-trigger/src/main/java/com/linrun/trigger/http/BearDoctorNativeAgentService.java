@@ -215,9 +215,6 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case "mrag" -> withMemory(initWorkspaceReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
                             searchTools, webSearchEnabled, "mrag", memoryPrompt), internalConversationId)
                     .stream(internalConversationId, workspaceQuery("mrag", query), fileId);
-            case "trade-audit" -> withMemory(initWorkspaceReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
-                            searchTools, webSearchEnabled, "trade", memoryPrompt), internalConversationId)
-                    .stream(internalConversationId, workspaceQuery("trade", query), fileId);
             case "skills" -> withMemory(initSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
                             searchTools, webSearchEnabled, memoryPrompt), internalConversationId)
                     .stream(internalConversationId, query, fileId);
@@ -373,7 +370,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         result.put("manualSkillsAvailable", manualSkillCount > 0);
         result.put("manualSkillCount", manualSkillCount);
         result.put("manualSkills", manualSkillSummaries(skillManager));
-        result.put("manualSkillsEndpoint", "/agent/skills/manual/stream");
+        result.put("manualSkillsEndpoint", "/api/v1/academic/stream");
+        result.put("manualSkillsTaskType", "manual-skills");
         result.put("agentAdmin", agentAdminStatistics);
         result.put("agentAdminConfigCount", agentAdminStatistics.getOrDefault("configCount", 0));
         result.put("agentAdminEnabledCount", agentAdminStatistics.getOrDefault("enabledCount", 0));
@@ -465,7 +463,6 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 agentExecutionMode("image", "图像生成", "react", "ReAct", "图像生成、图生图和多模态参考图处理"),
                 agentExecutionMode("data", "数据问答", "react", "ReAct", "数据分析、表格检索和自然语言转 SQL"),
                 agentExecutionMode("mrag", "MRAG 知识问答", "react", "ReAct", "多模态检索、知识库证据和资料交叉验证"),
-                agentExecutionMode("trade-audit", "交易审计", "flow", "Trade Flow", "按支付、成团、额度到账和退款回滚流程核查交易闭环"),
                 agentExecutionMode("skills", "技能助手", "skill-sop", "Skill + SOP", "自动选择技能并执行标准流程"),
                 agentExecutionMode("manual-skills", "手动技能", "skill-sop", "Skill + SOP", "读取技能文件、检索技能目录和运行技能脚本")
         );
@@ -588,9 +585,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "/api/v1/academic/workspace/mrag/run",
                         "/api/v1/academic/workspace/mrag/history",
                         toolNames),
-                workspaceProfile("trade", "/workspace/trade", "trade-audit", "none",
-                        List.of("trade_audit", "planning", "data_analysis", "table_rag", "nl2sql", "report_tool"),
-                        List.of("order", "quota", "status", "audit-report"),
+                workspaceProfile("trade", "/workspace/trade", "data", "none",
+                        List.of("planning", "data_analysis", "table_rag", "nl2sql", "report_tool"),
+                        List.of("order", "quota", "status", "report"),
                         "/api/v1/academic/stream", "/api/v1/trade/order/my", toolNames)
         );
     }
@@ -721,7 +718,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "MCP 管理",
                         mcpReady ? "ready" : "degraded",
                         "支持服务注册、启停、工具发现、缓存、后台配置导入和主 Agent 工具桥接。",
-                        List.of("管理接口: /agent/mcp/admin/**",
+                        List.of("管理接口: /api/v1/mcp/admin/**",
                                 "后台配置: agent.group.mcp.servers",
                                 "状态文件: agent.group.mcp.admin-state-file",
                                 "AcademicMcpCacheStatus 区分 empty/fresh/unbounded/expired/disabled",
@@ -1113,7 +1110,6 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case AcademicToolOutputNames.SCRIPT_RUNNER -> List.of("scriptName", "runtime", "arguments");
             case AcademicToolOutputNames.TABLE_RAG -> List.of("query", "modelCodeList");
             case AcademicToolOutputNames.NL2SQL -> List.of("query", "schemaInfo");
-            case AcademicToolOutputNames.TRADE_AUDIT -> List.of("question", "orderId", "userId");
             default -> List.of();
         };
     }
@@ -1132,7 +1128,6 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case AcademicToolOutputNames.SCRIPT_RUNNER -> List.of("script", "artifact");
             case AcademicToolOutputNames.TABLE_RAG -> List.of("schema", "evidence");
             case AcademicToolOutputNames.NL2SQL -> List.of("sql", "table");
-            case AcademicToolOutputNames.TRADE_AUDIT -> List.of("order", "quota", "audit");
             default -> List.of("result");
         };
     }
@@ -1152,7 +1147,6 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private String toolRuntimeHint(String toolName) {
         String base = "启动 tools/reactor-tool/start.ps1，并设置 AGENT_GROUP_REACTOR_TOOL_ENABLED=true、AGENT_GROUP_REACTOR_TOOL_BASE_URL=http://127.0.0.1:1601。";
         return switch (toolName) {
-            case AcademicToolOutputNames.TRADE_AUDIT -> "确认后端交易、拼团、额度仓储 Bean 已加载，trade_audit 会读取真实订单、支付、成团、退款和额度流水。";
             case AcademicToolOutputNames.IMAGE_GENERATION -> base + " 图像生成还需要在 reactor-tool 的 .env 中配置图像模型。";
             case AcademicToolOutputNames.DATA_ANALYSIS,
                  AcademicToolOutputNames.TABLE_RAG,
@@ -1173,7 +1167,6 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case AcademicToolOutputNames.DATA_ANALYSIS,
                  AcademicToolOutputNames.TABLE_RAG,
                  AcademicToolOutputNames.NL2SQL -> "data";
-            case AcademicToolOutputNames.TRADE_AUDIT -> "trade";
             case AcademicToolOutputNames.REPORT_TOOL -> "report";
             case AcademicToolOutputNames.PLANNING -> "planning";
             case AcademicToolOutputNames.CODE_INTERPRETER -> "code";
@@ -1679,11 +1672,11 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         }
         if ("trade".equals(workspace)) {
             return ("""
-                    ## 拼团交易审计工作区
-                    - 用户提供订单号、队伍号、支付、退款、额度或成团问题时，优先调用 trade_audit 读取后端交易事实，再生成审计结论。
-                    - 按 Flow 流程处理：识别交易对象 -> 核对订单状态 -> 核对支付状态 -> 核对拼团成团状态 -> 核对额度流水 -> 核对退款/回滚 -> 输出审计结论。
-                    - 可以结合 planning、data_analysis、table_rag、nl2sql 和 report_tool；涉及实时订单、额度余额、支付结果时，以后端交易系统数据为准。
-                    - 拼团支付成功不等于额度到账；只有成团结算或交易完成后才能发放额度。发现状态不一致时，要说明缺失证据和排查顺序。
+                    ## 拼团交易数据工作区
+                    - 优先使用 data_analysis、table_rag 或 nl2sql 分析交易表、额度流水和拼团状态数据。
+                    - 用户对话 Agent 只解释已有数据和规则，不替代后台查账；实时订单、额度余额、支付结果以后端交易系统为准。
+                    - 拼团支付成功不等于额度到账；只有成团结算或交易完成后才能发放额度。
+                    - 如果缺少真实数据源，要说明缺少的数据表、字段和后台核查步骤。
                     """ + base).trim();
         }
         return base;
@@ -1717,7 +1710,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         }
         if ("trade".equals(workspace)) {
             return """
-                    请按拼团交易审计 Flow 处理下面需求。优先调用 trade_audit 核对后端交易事实；必须区分订单状态、支付状态、拼团成团状态、额度流水、退款回滚和 Agent 消耗流水；不要把支付成功直接判断为额度已到账。
+                    请按拼团交易数据分析工作区处理下面需求。优先使用 data_analysis、table_rag 或 nl2sql 分析已有数据；必须区分订单状态、支付状态、拼团成团状态、额度流水、退款回滚和 Agent 消耗流水；不要把支付成功直接判断为额度已到账。
 
                     需求：
                     %s
@@ -1804,10 +1797,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private String workspaceForAgentType(String agentType) {
-        return switch (normalizeAgentType(agentType)) {
-            case "trade-audit" -> "trade";
-            default -> normalizeAgentType(agentType);
-        };
+        return normalizeAgentType(agentType);
     }
 
     private String limitPromptContent(Object value) {
@@ -2086,9 +2076,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
             case "image", "image-generation", "workspace-image" -> "image";
-            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag",
+                 "trade", "trade-flow", "group-trade", "workspace-trade" -> "data";
             case "mrag", "multi-modal-rag", "multimodal-rag", "workspace-mrag" -> "mrag";
-            case "trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade" -> "trade-audit";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";

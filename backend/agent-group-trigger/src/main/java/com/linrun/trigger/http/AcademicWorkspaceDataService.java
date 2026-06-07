@@ -15,7 +15,6 @@ import com.linrun.domain.academic.runtime.tool.AcademicToolCallCommand;
 import com.linrun.domain.academic.runtime.tool.common.AcademicDataAnalysisToolRuntime;
 import com.linrun.domain.academic.runtime.tool.common.AcademicNl2SqlToolRuntime;
 import com.linrun.domain.academic.runtime.tool.common.AcademicTableRagToolRuntime;
-import com.linrun.domain.academic.runtime.tool.common.AcademicTradeAuditToolRuntime;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputProjector;
@@ -23,7 +22,6 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutp
 import com.linrun.domain.academic.runtime.tool.port.AcademicDataAnalysisPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTradeAuditPort;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
@@ -52,7 +50,6 @@ public class AcademicWorkspaceDataService {
     private final ObjectProvider<AcademicDataAnalysisPort> dataAnalysisPort;
     private final ObjectProvider<AcademicTableRagPort> tableRagPort;
     private final ObjectProvider<AcademicNl2SqlPort> nl2SqlPort;
-    private final ObjectProvider<AcademicTradeAuditPort> tradeAuditPort;
     private final UserAccountService userAccountService;
     private final UserQuotaService userQuotaService;
     private final AcademicAgentRepository academicAgentRepository;
@@ -66,25 +63,10 @@ public class AcademicWorkspaceDataService {
                                         UserQuotaService userQuotaService,
                                         AcademicAgentRepository academicAgentRepository,
                                         AcademicExecutionLedgerService ledgerService) {
-        this(objectMapper, dataAnalysisPort, tableRagPort, nl2SqlPort, null,
-                userAccountService, userQuotaService, academicAgentRepository, ledgerService);
-    }
-
-    @Autowired
-    public AcademicWorkspaceDataService(ObjectMapper objectMapper,
-                                        ObjectProvider<AcademicDataAnalysisPort> dataAnalysisPort,
-                                        ObjectProvider<AcademicTableRagPort> tableRagPort,
-                                        ObjectProvider<AcademicNl2SqlPort> nl2SqlPort,
-                                        ObjectProvider<AcademicTradeAuditPort> tradeAuditPort,
-                                        UserAccountService userAccountService,
-                                        UserQuotaService userQuotaService,
-                                        AcademicAgentRepository academicAgentRepository,
-                                        AcademicExecutionLedgerService ledgerService) {
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.dataAnalysisPort = dataAnalysisPort;
         this.tableRagPort = tableRagPort;
         this.nl2SqlPort = nl2SqlPort;
-        this.tradeAuditPort = tradeAuditPort;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
         this.academicAgentRepository = academicAgentRepository;
@@ -125,15 +107,6 @@ public class AcademicWorkspaceDataService {
                         new AcademicNl2SqlToolRuntime(sqlPort)::call));
             } else if (enabled(safeRequest.getIncludeNl2Sql())) {
                 missingTools.add(AcademicToolOutputNames.NL2SQL);
-            }
-
-            AcademicTradeAuditPort auditPort = provider(tradeAuditPort);
-            if (enabled(safeRequest.getIncludeTradeAudit()) && auditPort != null) {
-                results.add(callTool(context, AcademicToolOutputNames.TRADE_AUDIT,
-                        tradeAuditArguments(safeRequest, question),
-                        new AcademicTradeAuditToolRuntime(auditPort)::call));
-            } else if (enabled(safeRequest.getIncludeTradeAudit())) {
-                missingTools.add(AcademicToolOutputNames.TRADE_AUDIT);
             }
 
             if (enabled(safeRequest.getIncludeAnalysis()) || results.isEmpty()) {
@@ -311,17 +284,6 @@ public class AcademicWorkspaceDataService {
         return arguments;
     }
 
-    private Map<String, Object> tradeAuditArguments(AcademicWorkspaceDataRunRequest request, String question) {
-        Map<String, Object> arguments = new LinkedHashMap<>();
-        arguments.put("orderId", firstText(request.getAuditOrderId(), metadataText(request, "orderId")));
-        arguments.put("teamId", firstText(request.getAuditTeamId(), metadataText(request, "teamId")));
-        arguments.put("keyword", firstText(request.getAuditKeyword(), question));
-        arguments.put("recentOrderLimit", 8);
-        arguments.put("recentFlowLimit", 20);
-        arguments.put("includeRecentFlows", true);
-        return arguments;
-    }
-
     private Map<String, Object> analysisArguments(AcademicWorkspaceDataRunRequest request, String question) {
         Map<String, Object> arguments = new LinkedHashMap<>();
         arguments.put("task", question);
@@ -391,8 +353,6 @@ public class AcademicWorkspaceDataService {
         metadata.put("rowCount", request.getRows() == null ? 0 : request.getRows().size());
         metadata.put("columnCount", request.getColumns() == null ? 0 : request.getColumns().size());
         metadata.put("executedToolCount", results.size());
-        metadata.put("includeTradeAudit", enabled(request.getIncludeTradeAudit()));
-        metadata.put("auditOrderId", firstText(request.getAuditOrderId(), metadataText(request, "orderId")));
         response.setMetadata(metadata);
         return response;
     }

@@ -62,7 +62,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/weixin/portal", "/api/v1/weixin/login/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/profile").hasRole("USER")
-                        .requestMatchers("/agent/**", "/file/**", "/session/**").hasRole("USER")
                         .requestMatchers("/api/v1/quota/**", "/api/v1/academic/**").hasRole("USER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").hasRole("USER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/create").hasRole("USER")

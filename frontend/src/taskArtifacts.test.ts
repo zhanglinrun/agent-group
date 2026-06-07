@@ -68,10 +68,10 @@ describe("task artifact projection", () => {
           artifactRefs: [
             {
               artifactId: "artifact-1",
-              fileName: "audit.md",
-              downloadUrl: "/files/audit.md",
-              toolName: "trade_audit",
-              toolInvocationId: "audit-tool"
+              fileName: "check.md",
+              downloadUrl: "/files/check.md",
+              toolName: "data_analysis",
+              toolInvocationId: "data-tool"
             }
           ]
         }
@@ -79,9 +79,9 @@ describe("task artifact projection", () => {
     });
 
     expect(artifact).toMatchObject({
-      toolName: "trade_audit",
-      toolInvocationId: "audit-tool",
-      fileName: "audit.md"
+      toolName: "data_analysis",
+      toolInvocationId: "data-tool",
+      fileName: "check.md"
     });
   });
 
@@ -365,7 +365,7 @@ describe("task artifact projection", () => {
           result: {
             summary: "report generated",
             fileRefs: [
-              { artifactId: "A1001", fileName: "trade-audit.md", downloadUrl: "/files/trade-audit.md" }
+              { artifactId: "A1001", fileName: "summary.md", downloadUrl: "/files/summary.md" }
             ]
           }
         })
@@ -373,36 +373,7 @@ describe("task artifact projection", () => {
     });
 
     expect(panel.kind).toBe("file");
-    expect(panel.fileRefs[0].fileName).toBe("trade-audit.md");
-  });
-
-  it("projects trade audit findings into audit panels", () => {
-    const [panel] = toolResultPanels({
-      event: "tool_result",
-      data: {
-        invocationId: "audit-1",
-        toolName: "trade_audit",
-        structuredOutput: {
-          title: "O1001",
-          summary: "trade facts checked",
-          content: "# Trade Audit Report",
-          metadata: {
-            findings: [
-              {
-                severity: "INFO",
-                code: "PAID_WAITING_GROUP_SETTLEMENT",
-                message: "Payment succeeded, but group settlement has not completed."
-              }
-            ]
-          }
-        }
-      }
-    });
-
-    expect(panel.kind).toBe("audit");
-    expect(panel.title).toBe("O1001");
-    expect(panel.content).toContain("Trade Audit Report");
-    expect(panel.findings[0].code).toBe("PAID_WAITING_GROUP_SETTLEMENT");
+    expect(panel.fileRefs[0].fileName).toBe("summary.md");
   });
 
   it("projects quota usage snapshots into quota panels", () => {
@@ -415,7 +386,7 @@ describe("task artifact projection", () => {
           title: "额度对账快照",
           summary: "recorded quota usage",
           metadata: {
-            taskType: "trade-audit",
+            taskType: "data",
             model: "test-model",
             estimatedConsumedQuota: 2,
             remainingQuota: 98,
@@ -478,17 +449,6 @@ describe("task artifact projection", () => {
     const panels = runDetailToResultPanels({
       toolInvocations: [
         {
-          invocationId: "audit-1",
-          toolName: "trade_audit",
-          resultSummary: "checked",
-          structuredOutput: {
-            title: "Order O1001",
-            metadata: {
-              findings: [{ severity: "WARN", code: "WAITING_GROUP", message: "waiting group settlement" }]
-            }
-          }
-        },
-        {
           invocationId: "report-1",
           toolName: "report_tool",
           resultJson: JSON.stringify({
@@ -497,7 +457,7 @@ describe("task artifact projection", () => {
             }
           }),
           artifactRefs: [
-            { artifactId: "artifact-1", fileName: "audit-report.md", downloadUrl: "/files/audit-report.md" }
+            { artifactId: "artifact-1", fileName: "summary-report.md", downloadUrl: "/files/summary-report.md" }
           ]
         },
         {
@@ -515,16 +475,16 @@ describe("task artifact projection", () => {
       artifacts: [
         {
           artifactId: "artifact-1",
-          fileName: "audit-report.md",
-          downloadUrl: "/files/audit-report.md",
+          fileName: "summary-report.md",
+          downloadUrl: "/files/summary-report.md",
           toolInvocationId: "report-1"
         }
       ]
     });
 
-    expect(panels.map((panel) => panel.kind)).toEqual(["audit", "file", "sql"]);
-    expect(panels[1].fileRefs[0].fileName).toBe("audit-report.md");
-    expect(panels[2].rows[0].status).toBe("PAY_SUCCESS");
+    expect(panels.map((panel) => panel.kind)).toEqual(["file", "sql"]);
+    expect(panels[0].fileRefs[0].fileName).toBe("summary-report.md");
+    expect(panels[1].rows[0].status).toBe("PAY_SUCCESS");
   });
 
   it("projects code and script execution outputs into code panels", () => {

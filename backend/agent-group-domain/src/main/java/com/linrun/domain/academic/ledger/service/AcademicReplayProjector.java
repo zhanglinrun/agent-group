@@ -271,9 +271,6 @@ public class AcademicReplayProjector {
 
     private String toolResultKind(String toolName, AcademicToolOutputView outputView) {
         String normalized = safe(toolName).toLowerCase();
-        if (normalized.contains(AcademicToolOutputNames.TRADE_AUDIT)) {
-            return "audit";
-        }
         if (normalized.contains(AcademicToolOutputNames.CODE_INTERPRETER)
                 || normalized.contains(AcademicToolOutputNames.SCRIPT_RUNNER)) {
             return "code";

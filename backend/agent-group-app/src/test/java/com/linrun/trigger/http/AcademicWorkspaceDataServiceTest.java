@@ -13,7 +13,6 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.port.AcademicDataAnalysisPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTradeAuditPort;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
@@ -113,51 +112,6 @@ class AcademicWorkspaceDataServiceTest {
                 anyString(), eq(""), eq(""), anyLong());
         verify(repository).saveSessionIfAbsent(any(AcademicSession.class));
         verify(repository).updateSession(any(AcademicSession.class));
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    void shouldRunTradeAuditWhenDataWorkspaceEnablesAudit() {
-        UserAccountService userAccountService = mock(UserAccountService.class);
-        UserQuotaService userQuotaService = mock(UserQuotaService.class);
-        AcademicAgentRepository repository = mock(AcademicAgentRepository.class);
-        AcademicExecutionLedgerService ledgerService = mock(AcademicExecutionLedgerService.class);
-        ObjectProvider<AcademicTradeAuditPort> auditProvider = mock(ObjectProvider.class);
-        UserAccount user = user("U1001");
-        AcademicAgentRun run = run("RUN2001");
-        AcademicTradeAuditPort auditPort = request -> new AcademicTradeAuditPort.AcademicTradeAuditResult(
-                true,
-                "trade facts checked, no blocking risk",
-                Map.of("userId", request.userId(), "orderId", request.orderId()),
-                List.of(Map.of("severity", "INFO", "code", "NO_BLOCKING_RISK", "message", "ok")),
-                Map.of("highestSeverity", "INFO"),
-                "");
-        when(userAccountService.requireUserByToken("Bearer token")).thenReturn(user);
-        when(userQuotaService.estimatePreCheckCost("workspace-data")).thenReturn(BigDecimal.valueOf(3));
-        when(auditProvider.getIfAvailable()).thenReturn(auditPort);
-        when(ledgerService.startRun(eq("U1001"), eq("D2001"), eq(""), anyString(), eq("workspace-data"),
-                eq("audit order"), eq("workspace-data-tools"))).thenReturn(run);
-        when(ledgerService.recordToolStart(any(), anyString(), anyString(), eq("workspace/data/run"), anyString()))
-                .thenReturn("TOOL_AUDIT");
-        AcademicWorkspaceDataService service = new AcademicWorkspaceDataService(
-                new ObjectMapper(), null, null, null, auditProvider,
-                userAccountService, userQuotaService, repository, ledgerService);
-        AcademicWorkspaceDataRunRequest request = new AcademicWorkspaceDataRunRequest();
-        request.setSessionId("D2001");
-        request.setQuestion("audit order");
-        request.setIncludeTableRag(false);
-        request.setIncludeNl2Sql(false);
-        request.setIncludeAnalysis(false);
-        request.setIncludeTradeAudit(true);
-        request.setAuditOrderId("T1001");
-
-        AcademicWorkspaceDataRunResponse response = service.run("Bearer token", request);
-
-        assertEquals(1, response.getToolResults().size());
-        assertEquals(AcademicToolOutputNames.TRADE_AUDIT, response.getToolResults().getFirst().getToolName());
-        assertEquals("trade facts checked, no blocking risk", response.getToolResults().getFirst().getSummary());
-        assertEquals(true, response.getMetadata().get("includeTradeAudit"));
-        assertEquals("T1001", response.getMetadata().get("auditOrderId"));
     }
 
     @Test

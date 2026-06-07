@@ -62,9 +62,9 @@ describe("workspace navigation view model", () => {
       workspaceProfiles: [
         {
           id: "trade",
-          availableTools: ["trade_audit"],
-          missingTools: ["data_analysis"],
-          runEndpoint: "/api/v1/academic/stream",
+          availableTools: [],
+          missingTools: [],
+          runEndpoint: "",
           historyEndpoint: "/api/v1/trade/order/my"
         }
       ]
@@ -77,9 +77,9 @@ describe("workspace navigation view model", () => {
 
     expect(trade).toMatchObject({
       id: "trade",
-      pageStatus: "partial",
-      primaryActionLabel: "核查交易链路",
-      inputKinds: ["prompt", "quota"],
+      pageStatus: "pending",
+      primaryActionLabel: "",
+      inputKinds: ["quota"],
       dedicatedRun: false
     });
     expect(data).toMatchObject({
@@ -93,7 +93,7 @@ describe("workspace navigation view model", () => {
     expect(resolveWorkspaceNavigationTarget("trade")).toEqual({
       workspaceId: "trade",
       path: "/workspace/trade",
-      agentId: "trade-audit"
+      agentId: "data"
     });
     expect(resolveWorkspaceNavigationTarget("unknown")).toEqual({
       workspaceId: "agent",

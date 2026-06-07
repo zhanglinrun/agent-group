@@ -21,14 +21,6 @@ export type TradeWorkspaceSummary = {
   consistencyHints: string[];
 };
 
-export type TradeHistoryAuditItem = {
-  id?: unknown;
-  title?: unknown;
-  status?: unknown;
-  summary?: unknown;
-  source?: Record<string, unknown> | null;
-};
-
 export type TradeSettlementHint = {
   key: string;
   label: string;
@@ -49,10 +41,6 @@ function numberValue(value: unknown): number {
 
 function textValue(value: unknown): string {
   return String(value || "").trim();
-}
-
-function recordValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function orderStatus(order: Record<string, unknown>): string {
@@ -138,39 +126,6 @@ export function tradeSettlementHint(order: Record<string, unknown>): TradeSettle
     tone: "neutral",
     quotaGrantAllowed: false
   };
-}
-
-export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
-  const orderId = textValue(order.orderId || order.outTradeNo || order.payOrderId);
-  const teamId = textValue(order.teamId || order.groupTeamId || order.activityId);
-  const status = textValue(order.orderStatus || order.status || order.payStatus);
-  const product = textValue(order.productName || order.goodsName || order.productId);
-  const amount = textValue(order.payAmount || order.totalAmount || order.amount || order.lockAmount);
-  const marketType = isGroupOrder(order) ? "拼团订单" : "直接购买订单";
-  const settlement = tradeSettlementHint(order);
-  return [
-    "请按拼团交易审计 Flow 核查这笔订单。",
-    orderId ? `订单号：${orderId}` : "",
-    teamId ? `拼团队伍或活动：${teamId}` : "",
-    product ? `商品：${product}` : "",
-    amount ? `金额：${amount}` : "",
-    status ? `当前状态：${status}` : "",
-    `订单类型：${marketType}`,
-    `结算判断：${settlement.label}。${settlement.detail}`,
-    "请优先调用 trade_audit 读取后端事实，区分支付成功、成团、额度到账、退款回滚和 Agent 消耗流水，并给出结论和下一步处理建议。"
-  ].filter(Boolean).join("\n");
-}
-
-export function buildTradeHistoryAuditPrompt(item: TradeHistoryAuditItem | null | undefined): string {
-  const historyItem = recordValue(item);
-  const source = recordValue(historyItem.source);
-  return buildTradeAuditPrompt({
-    ...source,
-    orderId: source.orderId || historyItem.id,
-    productName: source.productName || historyItem.title,
-    orderStatus: source.orderStatus || source.status || historyItem.status,
-    marketType: source.marketType ?? (textValue(historyItem.summary).includes("\u62fc\u56e2") ? 1 : 0)
-  });
 }
 
 export function summarizeTradeWorkspace(input: TradeWorkspaceInput): TradeWorkspaceSummary {

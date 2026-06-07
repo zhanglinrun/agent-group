@@ -18,7 +18,7 @@ class AcademicAgentFallbackReplanStrategyTest {
         completed.setStatus(AcademicPlanLifecycleService.STATUS_COMPLETED);
         AcademicPlanStep failed = step("S2", "query settlement", 2, "S1");
         AcademicPlanStep downstream = step("S3", "write report", 3, "S2");
-        AcademicAgentPlan plan = new AcademicAgentPlan("trade audit", List.of(completed, failed, downstream));
+        AcademicAgentPlan plan = new AcademicAgentPlan("trade data", List.of(completed, failed, downstream));
 
         List<AcademicPlanStep> replanned = strategy.replan(new AcademicAgentFlowReplanRequest(
                 plan,
@@ -39,7 +39,7 @@ class AcademicAgentFallbackReplanStrategyTest {
         completed.setStatus(AcademicPlanLifecycleService.STATUS_COMPLETED);
         AcademicPlanStep failed = step("S2", "query settlement", 2, "S1");
         AcademicPlanStep existingRecoveryId = step("R1", "write report", 3, "S2");
-        AcademicAgentPlan plan = new AcademicAgentPlan("trade audit", List.of(completed, failed, existingRecoveryId));
+        AcademicAgentPlan plan = new AcademicAgentPlan("trade data", List.of(completed, failed, existingRecoveryId));
 
         List<AcademicPlanStep> replanned = strategy.replan(new AcademicAgentFlowReplanRequest(
                 plan,

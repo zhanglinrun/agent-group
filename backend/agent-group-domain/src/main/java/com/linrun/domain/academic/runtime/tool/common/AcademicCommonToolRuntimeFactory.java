@@ -11,7 +11,6 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTradeAuditPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
 
 public class AcademicCommonToolRuntimeFactory {
@@ -27,7 +26,6 @@ public class AcademicCommonToolRuntimeFactory {
     private final AcademicScriptRunnerPort scriptRunnerPort;
     private final AcademicTableRagPort tableRagPort;
     private final AcademicNl2SqlPort nl2SqlPort;
-    private final AcademicTradeAuditPort tradeAuditPort;
 
     private AcademicCommonToolRuntimeFactory(Builder builder) {
         this.codeInterpreterPort = builder.codeInterpreterPort;
@@ -41,7 +39,6 @@ public class AcademicCommonToolRuntimeFactory {
         this.scriptRunnerPort = builder.scriptRunnerPort;
         this.tableRagPort = builder.tableRagPort;
         this.nl2SqlPort = builder.nl2SqlPort;
-        this.tradeAuditPort = builder.tradeAuditPort;
     }
 
     public static Builder builder() {
@@ -88,10 +85,6 @@ public class AcademicCommonToolRuntimeFactory {
         if (nl2SqlPort != null) {
             target.registerStructured(AcademicNl2SqlToolRuntime.definition(), new AcademicNl2SqlToolRuntime(nl2SqlPort)::call);
         }
-        if (tradeAuditPort != null) {
-            target.registerStructured(AcademicTradeAuditToolRuntime.definition(),
-                    new AcademicTradeAuditToolRuntime(tradeAuditPort, reportPort)::call);
-        }
         return target;
     }
 
@@ -108,7 +101,6 @@ public class AcademicCommonToolRuntimeFactory {
         private AcademicScriptRunnerPort scriptRunnerPort;
         private AcademicTableRagPort tableRagPort;
         private AcademicNl2SqlPort nl2SqlPort;
-        private AcademicTradeAuditPort tradeAuditPort;
 
         private Builder() {
         }
@@ -165,11 +157,6 @@ public class AcademicCommonToolRuntimeFactory {
 
         public Builder nl2SqlPort(AcademicNl2SqlPort nl2SqlPort) {
             this.nl2SqlPort = nl2SqlPort;
-            return this;
-        }
-
-        public Builder tradeAuditPort(AcademicTradeAuditPort tradeAuditPort) {
-            this.tradeAuditPort = tradeAuditPort;
             return this;
         }
 

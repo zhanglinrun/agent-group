@@ -84,10 +84,10 @@ export default function AgentAdminPanel({
     replace: false,
     configs: [
       {
-        configId: "trade-audit-system-prompt",
+        configId: "general-agent-system-prompt",
         category: "system_prompt",
-        name: "Trade audit system prompt",
-        content: "Use backend transaction facts for quota, order, payment, group settlement and refund decisions.",
+        name: "General agent system prompt",
+        content: "Use backend facts for account, quota and task state. Keep user-facing answers focused on the active conversation.",
         enabled: true
       }
     ]

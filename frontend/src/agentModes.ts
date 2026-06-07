@@ -19,7 +19,7 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "💬",
     executionMode: "ReAct",
     executionFamily: "react",
-    summary: "通用问答、交易解释和轻量工具调用"
+    summary: "通用问答、文件理解和轻量工具调用"
   },
   {
     id: "file",
@@ -72,15 +72,6 @@ export const AGENT_MODES: AgentModeOption[] = [
     executionMode: "ReAct",
     executionFamily: "react",
     summary: "多模态检索、知识库证据和资料交叉验证",
-    userVisible: false
-  },
-  {
-    id: "trade-audit",
-    name: "交易审计",
-    icon: "🧾",
-    executionMode: "Trade Flow",
-    executionFamily: "flow",
-    summary: "按支付、成团、额度到账和退款回滚流程核查交易闭环",
     userVisible: false
   },
   {

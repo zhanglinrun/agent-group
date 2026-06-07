@@ -19,7 +19,6 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTradeAuditPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
 import com.linrun.trigger.http.McpAdminHandler;
 import com.linrun.types.exception.AppException;
@@ -51,7 +50,6 @@ public class AcademicToolCallbackFactory {
     private final ObjectProvider<AcademicScriptRunnerPort> scriptRunnerPort;
     private final ObjectProvider<AcademicTableRagPort> tableRagPort;
     private final ObjectProvider<AcademicNl2SqlPort> nl2SqlPort;
-    private final ObjectProvider<AcademicTradeAuditPort> tradeAuditPort;
     private final ObjectProvider<McpAdminHandler> mcpAdminHandler;
 
     public AcademicToolCallbackFactory(ObjectMapper objectMapper,
@@ -66,7 +64,6 @@ public class AcademicToolCallbackFactory {
                                        ObjectProvider<AcademicScriptRunnerPort> scriptRunnerPort,
                                        ObjectProvider<AcademicTableRagPort> tableRagPort,
                                        ObjectProvider<AcademicNl2SqlPort> nl2SqlPort,
-                                       ObjectProvider<AcademicTradeAuditPort> tradeAuditPort,
                                        ObjectProvider<McpAdminHandler> mcpAdminHandler) {
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.codeInterpreterPort = codeInterpreterPort;
@@ -80,7 +77,6 @@ public class AcademicToolCallbackFactory {
         this.scriptRunnerPort = scriptRunnerPort;
         this.tableRagPort = tableRagPort;
         this.nl2SqlPort = nl2SqlPort;
-        this.tradeAuditPort = tradeAuditPort;
         this.mcpAdminHandler = mcpAdminHandler;
     }
 
@@ -111,7 +107,6 @@ public class AcademicToolCallbackFactory {
                 .scriptRunnerPort(available(scriptRunnerPort))
                 .tableRagPort(available(tableRagPort))
                 .nl2SqlPort(available(nl2SqlPort))
-                .tradeAuditPort(available(tradeAuditPort))
                 .build()
                 .buildRegistry();
         registerMcpTools(registry);

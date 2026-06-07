@@ -21,7 +21,7 @@ describe("agent timeline projection", () => {
   it("marks run start as running and exposes a readable label", () => {
     const item = streamEventToTimelineItem({
       event: "run_start",
-      data: { taskType: "trade_audit", model: "qwen-plus" }
+      data: { taskType: "data", model: "qwen-plus" }
     });
 
     expect(item).toMatchObject({

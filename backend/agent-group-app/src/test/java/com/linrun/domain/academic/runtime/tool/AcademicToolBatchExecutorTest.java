@@ -34,8 +34,8 @@ class AcademicToolBatchExecutorTest {
                 "summary", "report generated",
                 "fileRefs", List.of(Map.of(
                         "artifactId", "A1001",
-                        "fileName", "trade-audit.md",
-                        "downloadUrl", "/files/trade-audit.md"))));
+                        "fileName", "report.md",
+                        "downloadUrl", "/files/report.md"))));
         registry.register(definition("unstable_tool"), command -> {
             throw new IllegalStateException("boom");
         });

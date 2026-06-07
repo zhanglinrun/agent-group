@@ -19,12 +19,12 @@ class AcademicReActExecutionServiceTest {
 
         AcademicReActExecutionResult result = service.execute(
                 "RUN1001",
-                "audit order O1001",
+                "check order O1001",
                 context -> {
                     if (context.previousTurns().isEmpty()) {
                         return AcademicReActDecision.action(
-                                "Need backend trade facts before answering.",
-                                "trade_audit",
+                                "Need backend order status before answering.",
+                                "order_status",
                                 Map.of("orderId", "O1001"));
                     }
                     AcademicReActTurn lastTurn = context.previousTurns().getLast();
@@ -35,7 +35,7 @@ class AcademicReActExecutionServiceTest {
                 },
                 (decision, context) -> {
                     actionCount.incrementAndGet();
-                    assertEquals("trade_audit", decision.actionName());
+                    assertEquals("order_status", decision.actionName());
                     assertEquals("O1001", decision.actionArguments().get("orderId"));
                     return AcademicReActObservation.success(
                             "PAY_SUCCESS waiting group settlement",

@@ -32,10 +32,9 @@ describe("workspace service profiles", () => {
     expect(workspaceServiceProfile("data").runEndpoint).toBe("/api/v1/academic/workspace/data/run");
     expect(workspaceServiceProfile("mrag").primaryTools).toContain("multimodal_agent");
     expect(workspaceServiceProfile("mrag").runEndpoint).toBe("/api/v1/academic/workspace/mrag/run");
-    expect(workspaceServiceProfile("trade").taskType).toBe("trade-audit");
-    expect(workspaceServiceProfile("trade").primaryTools).toContain("trade_audit");
-    expect(workspaceServiceProfile("trade").primaryTools).toContain("nl2sql");
-    expect(workspaceServiceProfile("trade").runEndpoint).toBe("/api/v1/academic/stream");
+    expect(workspaceServiceProfile("trade").taskType).toBe("data");
+    expect(workspaceServiceProfile("trade").primaryTools).toEqual([]);
+    expect(workspaceServiceProfile("trade").runEndpoint).toBe("");
     expect(workspaceServiceProfile("missing").id).toBe("agent");
   });
 
@@ -91,40 +90,40 @@ describe("workspace service profiles", () => {
   });
 
   it("summarizes workspace tool readiness from backend workspace profile", () => {
-    expect(workspaceToolReadiness("trade", {
+    expect(workspaceToolReadiness("data", {
       workspaceProfiles: [
         {
-          id: "trade",
-          primaryTools: ["trade_audit", "data_analysis", "report_tool"],
-          availableTools: ["trade_audit", "data_analysis"],
+          id: "data",
+          primaryTools: ["data_analysis", "report_tool"],
+          availableTools: ["data_analysis"],
           missingTools: ["report_tool"],
-          outputKinds: ["order", "quota", "audit-report"]
+          outputKinds: ["order", "quota", "report"]
         }
       ],
       toolRuntimeReadiness: [
         {
-          name: "trade_audit",
+          name: "data_analysis",
           status: "ready",
           inputFields: ["question", "orderId"],
           outputKinds: ["order", "quota"],
-          workspaces: ["trade"]
+          workspaces: ["data"]
         },
         {
           name: "report_tool",
           status: "missing",
           inputFields: ["title", "content"],
           outputKinds: ["report"],
-          workspaces: ["trade"]
+          workspaces: ["data"]
         }
       ]
     })).toMatchObject({
       status: "partial",
       statusLabel: "部分就绪",
-      readyTools: ["trade_audit", "data_analysis"],
+      readyTools: ["data_analysis"],
       missingTools: ["report_tool"],
-      requiredTools: ["trade_audit", "data_analysis", "report_tool"],
+      requiredTools: ["data_analysis", "report_tool"],
       inputFields: ["question", "orderId", "title", "content"],
-      outputKinds: ["order", "quota", "audit-report", "report"],
+      outputKinds: ["order", "quota", "report"],
       actions: [
         "补齐 report_tool 工具运行时",
         "检查后端能力接口的 workspaceProfiles 配置"
@@ -154,7 +153,7 @@ describe("workspace service profiles", () => {
       imageUrl: "",
       imageName: ""
     });
-    expect(buildWorkspaceStreamDraft({ workspaceId: "trade" }).taskType).toBe("trade-audit");
+    expect(buildWorkspaceStreamDraft({ workspaceId: "trade" }).taskType).toBe("data");
     expect(buildWorkspaceStreamDraft({
       workspaceId: "image",
       agentId: "chat",
@@ -223,22 +222,6 @@ describe("workspace service profiles", () => {
       question: "count paid orders",
       rowsJson: "{\"bad\":true}"
     })).toThrow("表格行 必须是 JSON 数组");
-  });
-
-  it("adds optional trade audit parameters to data workspace payload", () => {
-    expect(buildWorkspaceDataRunPayload({
-      sessionId: "D2",
-      question: "audit order",
-      includeTradeAudit: true,
-      auditOrderId: "T1001",
-      auditTeamId: "TEAM1001",
-      auditKeyword: "支付成功但未成团"
-    })).toMatchObject({
-      includeTradeAudit: true,
-      auditOrderId: "T1001",
-      auditTeamId: "TEAM1001",
-      auditKeyword: "支付成功但未成团"
-    });
   });
 
   it("builds image workspace payload with bounded batch size", () => {
@@ -705,25 +688,6 @@ describe("workspace service profiles", () => {
       createdAt: "2026-06-05T11:20:30",
       artifactUrl: "/artifact/preview/ART2",
       artifactName: "poster-1.png"
-    });
-
-    const tradeAuditHistory = normalizeWorkspaceHistoryItems("trade", [
-      {
-        sessionId: "AS1001",
-        taskType: "trade-audit",
-        title: "\u6838\u67e5\u62fc\u56e2\u8ba2\u5355",
-        lastMessage: "\u652f\u4ed8\u6210\u529f\u4f46\u7b49\u5f85\u6210\u56e2",
-        updateTime: "2026-06-05T12:30:30"
-      }
-    ]);
-    expect(tradeAuditHistory[0]).toMatchObject({
-      id: "AS1001",
-      workspaceId: "trade",
-      sessionId: "AS1001",
-      title: "\u6838\u67e5\u62fc\u56e2\u8ba2\u5355",
-      summary: "\u652f\u4ed8\u6210\u529f\u4f46\u7b49\u5f85\u6210\u56e2",
-      status: "AGENT_AUDIT",
-      createdAt: "2026-06-05T12:30:30"
     });
 
     expect(normalizeWorkspaceHistoryItems("trade", [

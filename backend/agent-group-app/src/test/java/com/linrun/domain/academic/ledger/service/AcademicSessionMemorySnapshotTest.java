@@ -77,8 +77,8 @@ class AcademicSessionMemorySnapshotTest {
                 "report_tool",
                 Map.of("fileRefs", List.of(Map.of(
                         "artifactId", "A1001",
-                        "fileName", "trade-audit.md",
-                        "downloadUrl", "/files/trade-audit.md"))));
+                        "fileName", "report.md",
+                        "downloadUrl", "/files/report.md"))));
 
         assertEquals(1, repository.artifacts.size());
         AcademicArtifact artifact = repository.artifacts.getFirst();

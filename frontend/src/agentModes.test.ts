@@ -10,7 +10,6 @@ describe("agent mode model", () => {
     expect(agentModeById("deep").replanEnabled).toBe(true);
     expect(agentModeById("deep").replanLabel).toBe("重规划");
     expect(agentModeById("ppt").executionFamily).toBe("flow");
-    expect(agentModeById("trade-audit").executionFamily).toBe("flow");
     expect(agentModeById("manual-skills").executionFamily).toBe("skill-sop");
     expect(agentModeById("manual-skills").name).toBe("Skill");
   });
@@ -20,7 +19,7 @@ describe("agent mode model", () => {
   });
 
   it("keeps every selector option displayable", () => {
-    expect(AGENT_MODES.length).toBeGreaterThanOrEqual(9);
+    expect(AGENT_MODES.length).toBeGreaterThanOrEqual(8);
     for (const agent of AGENT_MODES) {
       expect(agent.id).toBeTruthy();
       expect(agent.name).toBeTruthy();

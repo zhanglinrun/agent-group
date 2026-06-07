@@ -44,7 +44,6 @@ public class AcademicToolOutputReader {
         if (!structuredOutput.containsKey("toolName") && StringUtils.hasText(invocation.getToolName())) {
             structuredOutput.put("toolName", invocation.getToolName());
         }
-        enrichTradeAuditOutput(invocation, structuredOutput);
         if (!structuredOutput.containsKey("artifactCount")) {
             structuredOutput.put("artifactCount", artifactRefs.size());
         }
@@ -238,57 +237,6 @@ public class AcademicToolOutputReader {
         return null;
     }
 
-    private void enrichTradeAuditOutput(AcademicToolInvocation invocation, Map<String, Object> structuredOutput) {
-        String toolName = firstText(invocation.getToolName(), text(structuredOutput.get("toolName")));
-        if (!AcademicToolOutputNames.TRADE_AUDIT.equals(toolName)) {
-            return;
-        }
-        Map<String, Object> metadata = objectMap(structuredOutput.get("metadata"));
-        structuredOutput.putIfAbsent("auditKind", "trade");
-        structuredOutput.putIfAbsent("title", "Trade Audit");
-
-        Object findings = firstValue(structuredOutput.get("findings"), metadata.get("findings"));
-        if (findings instanceof List<?> list && !list.isEmpty()) {
-            structuredOutput.putIfAbsent("findings", new ArrayList<>(list));
-        }
-        Object snapshot = firstValue(structuredOutput.get("snapshot"), metadata.get("snapshot"));
-        if (snapshot instanceof Map<?, ?> map && !map.isEmpty()) {
-            structuredOutput.putIfAbsent("snapshot", objectMap(map));
-        }
-        Map<String, Object> snapshotMap = objectMap(snapshot);
-        Object conclusion = firstValue(structuredOutput.get("auditConclusion"),
-                metadata.get("auditConclusion"),
-                snapshotMap.get("auditConclusion"));
-        if (conclusion instanceof Map<?, ?> map && !map.isEmpty()) {
-            Map<String, Object> conclusionMap = objectMap(map);
-            structuredOutput.putIfAbsent("auditConclusion", conclusionMap);
-            putIfAbsentPresent(structuredOutput, "conclusionCode", conclusionMap.get("code"));
-            putIfAbsentPresent(structuredOutput, "quotaGrantAllowed", conclusionMap.get("quotaGrantAllowed"));
-            putIfAbsentPresent(structuredOutput, "quotaRollbackRequired", conclusionMap.get("quotaRollbackRequired"));
-            putIfAbsentPresent(structuredOutput, "suggestedAction", conclusionMap.get("suggestedAction"));
-        }
-        putIfAbsentPresent(structuredOutput, "highestSeverity", metadata.get("highestSeverity"));
-        putIfAbsentPresent(structuredOutput, "conclusionCode", metadata.get("conclusionCode"));
-        putIfAbsentPresent(structuredOutput, "quotaGrantAllowed", metadata.get("quotaGrantAllowed"));
-        putIfAbsentPresent(structuredOutput, "quotaRollbackRequired", metadata.get("quotaRollbackRequired"));
-        putIfAbsentPresent(structuredOutput, "suggestedAction", metadata.get("suggestedAction"));
-        putIfAbsentPresent(structuredOutput, "reportFormat", metadata.get("reportFormat"));
-        putIfAbsentPresent(structuredOutput, "reportMaterialized", metadata.get("reportMaterialized"));
-        putIfAbsentPresent(structuredOutput, "reportMaterializeReason", metadata.get("reportMaterializeReason"));
-        putIfAbsentPresent(structuredOutput, "reportProvider", metadata.get("reportProvider"));
-        putIfAbsentPresent(structuredOutput, "reportSummary", metadata.get("reportSummary"));
-        if (!structuredOutput.containsKey("findingCount")) {
-            Object metadataCount = metadata.get("findingCount");
-            if (metadataCount != null) {
-                structuredOutput.put("findingCount", metadataCount);
-            } else if (findings instanceof List<?> list) {
-                structuredOutput.put("findingCount", list.size());
-            } else {
-                structuredOutput.put("findingCount", 0);
-            }
-        }
-    }
-
     private String fileName(AcademicArtifact artifact) {
         String content = safe(artifact.getContent());
         int slash = Math.max(content.lastIndexOf('/'), content.lastIndexOf('\\'));
@@ -300,21 +248,6 @@ public class AcademicToolOutputReader {
 
     private boolean same(String left, String right) {
         return StringUtils.hasText(left) && left.equals(right);
-    }
-
-    private Object firstValue(Object... values) {
-        for (Object value : values) {
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
-    }
-
-    private void putIfAbsentPresent(Map<String, Object> map, String key, Object value) {
-        if (!map.containsKey(key) && value != null) {
-            map.put(key, value);
-        }
     }
 
     private String firstObjectText(Object... values) {
@@ -334,18 +267,6 @@ public class AcademicToolOutputReader {
             }
         }
         return "";
-    }
-
-    private Map<String, Object> objectMap(Object value) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        if (value instanceof Map<?, ?> map) {
-            map.forEach((key, item) -> {
-                if (key != null) {
-                    result.put(String.valueOf(key), item);
-                }
-            });
-        }
-        return result;
     }
 
     private String text(Object value) {

@@ -17,7 +17,7 @@ export type UiArtifact = {
 
 export type UiResultPanel = {
   id: string;
-  kind: "data" | "sql" | "schema" | "summary" | "search" | "web" | "file" | "audit" | "code" | "image" | "multimodal" | "quota";
+  kind: "data" | "sql" | "schema" | "summary" | "search" | "web" | "file" | "code" | "image" | "multimodal" | "quota";
   toolName: string;
   title: string;
   summary: string;
@@ -32,7 +32,6 @@ export type UiResultPanel = {
   matches: UnknownMap[];
   sources: UiResultSource[];
   fileRefs: UiArtifact[];
-  findings: UnknownMap[];
 };
 
 export type UiResultSource = {
@@ -51,7 +50,6 @@ export const RESULT_KIND_LABELS: Record<UiResultPanel["kind"], string> = {
   search: "搜索",
   web: "网页",
   file: "文件",
-  audit: "审计",
   code: "代码",
   image: "图像",
   multimodal: "多模态",
@@ -312,7 +310,6 @@ function explicitResultKind(kind: string): UiResultPanel["kind"] | "" {
     "search",
     "web",
     "file",
-    "audit",
     "code",
     "image",
     "multimodal",
@@ -324,7 +321,7 @@ function explicitResultKind(kind: string): UiResultPanel["kind"] | "" {
 
 function resultPanelKind(
   toolName: string,
-  panel: Pick<UiResultPanel, "rows" | "numericStats" | "candidates" | "matches" | "sources" | "fileRefs" | "url" | "content" | "findings" | "metadata">,
+  panel: Pick<UiResultPanel, "rows" | "numericStats" | "candidates" | "matches" | "sources" | "fileRefs" | "url" | "content" | "metadata">,
   resultKind = ""
 ): UiResultPanel["kind"] {
   const explicit = explicitResultKind(resultKind);
@@ -334,9 +331,6 @@ function resultPanelKind(
   const normalized = toolName.toLowerCase();
   if (normalized.includes("quota_usage")) {
     return "quota";
-  }
-  if (normalized.includes("trade_audit") || panel.findings.length) {
-    return "audit";
   }
   if (normalized.includes("code_interpreter") || normalized.includes("script_runner")) {
     return "code";
@@ -420,7 +414,6 @@ function hasPanelContent(panel: UiResultPanel): boolean {
       || panel.matches.length
       || panel.sources.length
       || panel.fileRefs.length
-      || panel.findings.length
       || panel.url
       || panel.content
       || panel.summary
@@ -490,7 +483,6 @@ export function toolResultPanels(event: unknown): UiResultPanel[] {
   const columns = stringArray(firstArray(metadata.columns, structuredOutput.columns));
   const candidates = objectArray(firstArray(metadata.candidates, structuredOutput.candidates));
   const matches = objectArray(firstArray(metadata.matches, structuredOutput.matches));
-  const findings = objectArray(firstArray(metadata.findings, structuredOutput.findings));
   const sources = sourceArray(
     metadata.documents,
     metadata.sources,
@@ -524,8 +516,7 @@ export function toolResultPanels(event: unknown): UiResultPanel[] {
     candidates,
     matches,
     sources,
-    fileRefs,
-    findings
+    fileRefs
   };
   panel.kind = resultPanelKind(toolName, panel, resultKind);
   return hasPanelContent(panel) && panel.kind !== "summary" ? [panel] : [];

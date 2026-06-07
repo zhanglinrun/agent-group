@@ -60,10 +60,6 @@ export interface WorkspaceDataRunPayload {
   modelCodeList: string[];
   schemaInfo: unknown[];
   businessKnowledge: string;
-  includeTradeAudit?: boolean;
-  auditOrderId?: string;
-  auditTeamId?: string;
-  auditKeyword?: string;
 }
 
 export interface WorkspaceDataCatalogColumn {
@@ -265,13 +261,13 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
   },
   trade: {
     id: "trade",
-    taskType: "trade-audit",
+    taskType: "data",
     title: "拼团交易工作区",
-    summary: "围绕额度购买、拼团成团、支付退款和额度流水做闭环核查。",
-    primaryTools: ["trade_audit", "planning", "data_analysis", "table_rag", "nl2sql", "report_tool"],
+    summary: "展示额度购买、拼团订单、支付退款和额度流水状态。",
+    primaryTools: [],
     attachmentMode: "none",
-    outputKinds: ["order", "quota", "status", "audit-report"],
-    runEndpoint: "/api/v1/academic/stream",
+    outputKinds: ["order", "quota", "status"],
+    runEndpoint: "",
     historyEndpoint: "/api/v1/trade/order/my"
   }
 };
@@ -609,19 +605,6 @@ function tradeHistorySummary(record: Record<string, unknown>): string {
   ].filter(Boolean).join(" · ");
 }
 
-function normalizeTaskType(value: unknown): string {
-  const taskType = String(value || "").trim().toLowerCase();
-  if (["trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade"].includes(taskType)) {
-    return "trade-audit";
-  }
-  return taskType;
-}
-
-function isTradeAuditSession(record: Record<string, unknown>): boolean {
-  return normalizeTaskType(record.taskType || record.agentType) === "trade-audit"
-    || (Boolean(textValue(record, "sessionId")) && !textValue(record, "orderId", "outTradeNo", "payOrderId"));
-}
-
 export function knowledgeBaseCatalogKey(value: unknown): string {
   const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const documentType = textValue(record, "documentType") || "默认知识库";
@@ -674,23 +657,6 @@ export function normalizeWorkspaceHistoryItems(
     .map((item, index) => {
       const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
       if (workspaceId === "trade") {
-        if (isTradeAuditSession(record)) {
-          const sessionId = textValue(record, "sessionId");
-          return {
-            id: sessionId || textValue(record, "id", "runId") || `trade-agent-${index}`,
-            workspaceId,
-            sessionId,
-            runId: textValue(record, "runId"),
-            title: textValue(record, "question", "title") || workspaceServiceProfile(workspaceId).title,
-            summary: textValue(record, "lastMessage", "summary", "finalSummary"),
-            status: textValue(record, "status") || "AGENT_AUDIT",
-            createdAt: textValue(record, "updateTime", "finishedAt", "startedAt", "createTime", "createdAt"),
-            durationMillis: numberValue(record, "durationMillis"),
-            artifactUrl: "",
-            artifactName: "",
-            source: record
-          };
-        }
         const orderId = textValue(record, "orderId", "outTradeNo", "payOrderId");
         const productName = textValue(record, "productName", "goodsName", "productId");
         return {
@@ -943,14 +909,7 @@ export function buildWorkspaceDataRunPayload(input: {
   modelCodeText?: string;
   schemaInfoJson?: string;
   businessKnowledge?: string;
-  includeTradeAudit?: boolean;
-  auditOrderId?: string;
-  auditTeamId?: string;
-  auditKeyword?: string;
 }): WorkspaceDataRunPayload {
-  const auditOrderId = String(input.auditOrderId || "").trim();
-  const auditTeamId = String(input.auditTeamId || "").trim();
-  const auditKeyword = String(input.auditKeyword || "").trim();
   return {
     sessionId: String(input.sessionId || ""),
     question: String(input.question || "").trim(),
@@ -958,11 +917,7 @@ export function buildWorkspaceDataRunPayload(input: {
     columns: splitTextList(input.columnsText),
     modelCodeList: splitTextList(input.modelCodeText),
     schemaInfo: parseJsonArray(input.schemaInfoJson, "表结构"),
-    businessKnowledge: String(input.businessKnowledge || "").trim(),
-    ...(input.includeTradeAudit ? { includeTradeAudit: true } : {}),
-    ...(auditOrderId ? { auditOrderId } : {}),
-    ...(auditTeamId ? { auditTeamId } : {}),
-    ...(auditKeyword ? { auditKeyword } : {})
+    businessKnowledge: String(input.businessKnowledge || "").trim()
   };
 }
 

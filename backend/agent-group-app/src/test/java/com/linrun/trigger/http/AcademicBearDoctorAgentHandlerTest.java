@@ -35,19 +35,19 @@ class AcademicBearDoctorAgentHandlerTest {
         assertEquals("manual-skills", ReflectionTestUtils.invokeMethod(handler, "toFrontendTaskType", "manual-skills"));
         assertEquals("image", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "workspace-image"));
         assertEquals("data", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "table-rag"));
-        assertEquals("trade-audit", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "trade-flow"));
-        assertEquals("trade-audit", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "workspace-trade"));
+        assertEquals("data", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "trade-flow"));
+        assertEquals("data", ReflectionTestUtils.invokeMethod(handler, "normalizeTaskType", "workspace-trade"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void shouldStartWorkspaceTradeWithTradeAuditPlan() throws Exception {
+    void shouldStartWorkspaceTradeWithDataPlan() throws Exception {
         AcademicBearDoctorAgentHandler handler = new AcademicBearDoctorAgentHandler(
                 null, null, null, null, null, null, null, null, new ObjectMapper());
         AcademicAgentRun run = new AcademicAgentRun();
         run.setRunId("RUN1000");
-        run.setTaskType("trade-audit");
-        run.setQuestion("audit group trade order");
+        run.setTaskType("data");
+        run.setQuestion("analyze group trade order");
         run.setModelName("test-model");
         run.setStatus(AcademicAgentRun.STATUS_RUNNING);
         AcademicAgentPlan plan = new AcademicAgentRunPlanFactory().build("workspace-trade", false);
@@ -61,8 +61,9 @@ class AcademicBearDoctorAgentHandlerTest {
         List<Map<String, Object>> structuredSteps = (List<Map<String, Object>>) planData.get("structuredSteps");
         List<Map<String, Object>> flowStages = (List<Map<String, Object>>) planData.get("flowStages");
 
-        assertEquals(6, structuredSteps.size());
-        assertTrue(flowStages.stream().anyMatch(stage -> List.of("S2", "S3").equals(stage.get("stepIds"))));
+        assertEquals("数据问答", planData.get("title"));
+        assertEquals(5, structuredSteps.size());
+        assertTrue(flowStages.stream().anyMatch(stage -> List.of("S4").equals(stage.get("stepIds"))));
     }
 
     @Test
@@ -105,14 +106,13 @@ class AcademicBearDoctorAgentHandlerTest {
         AcademicBearDoctorAgentHandler handler = new AcademicBearDoctorAgentHandler(
                 null, null, null, null, null, null, null, null, new ObjectMapper());
 
-        String auditPrompt = ReflectionTestUtils.invokeMethod(handler, "outputStylePrompt", "trade-audit");
+        String reportPrompt = ReflectionTestUtils.invokeMethod(handler, "outputStylePrompt", "report");
         String unknownPrompt = ReflectionTestUtils.invokeMethod(handler, "outputStylePrompt", "unknown");
 
-        assertTrue(auditPrompt.contains("quota"));
-        assertTrue(auditPrompt.contains("group-buy"));
+        assertTrue(reportPrompt.contains("structured report"));
         assertEquals("", unknownPrompt);
-        assertEquals("trade-audit", ReflectionTestUtils.invokeMethod(handler,
-                "effectiveOutputStyle", "trade-audit", ""));
+        assertEquals("", ReflectionTestUtils.invokeMethod(handler,
+                "effectiveOutputStyle", "data", ""));
     }
 
     @Test
@@ -127,12 +127,12 @@ class AcademicBearDoctorAgentHandlerTest {
         quota.setFrozenQuota(BigDecimal.ZERO);
 
         Map<String, Object> output = ReflectionTestUtils.invokeMethod(handler,
-                "quotaUsageStructuredOutput", quota, new BigDecimal("2"), "trade-audit", "test-model");
+                "quotaUsageStructuredOutput", quota, new BigDecimal("2"), "data", "test-model");
         Map<String, Object> metadata = (Map<String, Object>) output.get("metadata");
 
         assertEquals(AcademicToolOutputNames.QUOTA_USAGE, output.get("toolName"));
         assertEquals("额度对账快照", output.get("title"));
-        assertEquals("trade-audit", metadata.get("taskType"));
+        assertEquals("data", metadata.get("taskType"));
         assertEquals("test-model", metadata.get("model"));
         assertEquals(new BigDecimal("2"), metadata.get("estimatedConsumedQuota"));
         assertEquals(new BigDecimal("98"), metadata.get("remainingQuota"));

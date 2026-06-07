@@ -131,7 +131,7 @@ describe("mcp admin api client", () => {
 
     await queryAgentCapabilities();
 
-    expect(fetch).toHaveBeenCalledWith("/agent/capabilities", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/api/v1/academic/capabilities", expect.objectContaining({
       method: "GET",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token"
@@ -262,7 +262,7 @@ describe("mcp admin api client", () => {
     await exportAgentAdminState();
     await importAgentAdminState({
       replace: false,
-      configs: [{ configId: "trade-prompt", category: "system_prompt" }]
+      configs: [{ configId: "general-prompt", category: "system_prompt" }]
     });
     await queryAgentAdminStatistics();
     await queryAgentAdminRuntimeSnapshot();
@@ -310,7 +310,7 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({
         replace: false,
-        configs: [{ configId: "trade-prompt", category: "system_prompt" }]
+        configs: [{ configId: "general-prompt", category: "system_prompt" }]
       })
     }));
     expect(fetch).toHaveBeenNthCalledWith(7, "/api/v1/agent/admin/statistics", expect.objectContaining({
@@ -533,10 +533,6 @@ describe("mcp admin api client", () => {
         includeTableRag: true,
         includeNl2Sql: true,
         includeAnalysis: true,
-        includeTradeAudit: false,
-        auditOrderId: "",
-        auditTeamId: "",
-        auditKeyword: "",
         metadata: {}
       })
     }));

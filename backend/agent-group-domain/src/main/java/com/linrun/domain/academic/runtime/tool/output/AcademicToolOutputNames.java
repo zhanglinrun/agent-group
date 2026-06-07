@@ -17,7 +17,6 @@ public final class AcademicToolOutputNames {
     public static final String PLANNING = "planning";
     public static final String TABLE_RAG = "table_rag";
     public static final String NL2SQL = "nl2sql";
-    public static final String TRADE_AUDIT = "trade_audit";
     public static final String QUOTA_USAGE = "quota_usage";
 
     public static final Set<String> RICH_TOOL_NAMES = Set.of(
@@ -32,8 +31,7 @@ public final class AcademicToolOutputNames {
             SCRIPT_RUNNER,
             PLANNING,
             TABLE_RAG,
-            NL2SQL,
-            TRADE_AUDIT
+            NL2SQL
     );
 
     private AcademicToolOutputNames() {
@@ -56,8 +54,7 @@ public final class AcademicToolOutputNames {
                 FILE_TOOL,
                 SCRIPT_RUNNER,
                 TABLE_RAG,
-                NL2SQL,
-                TRADE_AUDIT
+                NL2SQL
         );
     }
 }

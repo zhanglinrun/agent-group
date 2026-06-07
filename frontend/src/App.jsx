@@ -1276,25 +1276,13 @@ function BearDoctorAcademicApp() {
     setWorkspaceRunDetailError("");
     try {
       if (targetWorkspaceId === "trade") {
-        const [ordersRes, sessionsRes] = await Promise.all([
-          queryUserOrderList({ pageSize: 8 }),
-          queryAcademicSessions(30).catch(() => null)
-        ]);
+        const ordersRes = await queryUserOrderList({ pageSize: 8 });
         if (!apiSucceeded(ordersRes)) {
           throw new Error(normalizeUserMessage(ordersRes?.info || ordersRes?.message, "工作区历史读取失败"));
         }
-        const auditSessions = apiSucceeded(sessionsRes) && Array.isArray(sessionsRes?.data)
-          ? sessionsRes.data.filter((item) => (
-            ["trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade"]
-              .includes(String(item?.taskType || item?.agentType || "").trim().toLowerCase())
-          ))
-          : [];
         setWorkspaceHistory({
           workspaceId: targetWorkspaceId,
-          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, [
-            ...auditSessions,
-            ...(ordersRes.data?.orderList || [])
-          ], 8)
+          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, ordersRes.data?.orderList || [], 8)
         });
         return;
       }
@@ -1837,17 +1825,6 @@ function BearDoctorAcademicApp() {
 
   const quickPrompt = (prompt) => {
     setInputMessage(prompt);
-  };
-
-  const auditTradeOrder = (order) => {
-    if (!auth?.token) {
-      setLoginOpen(true);
-      return;
-    }
-    setRechargeTab("orders");
-    setRechargeOpen(true);
-    loadOrders().catch(() => {});
-    setConnectionError("");
   };
 
   const openRecharge = () => {
@@ -3046,7 +3023,6 @@ function BearDoctorAcademicApp() {
                 loading={ordersLoading}
                 onRefresh={() => loadOrders().catch(() => {})}
                 onOpenRecharge={openRecharge}
-                onAuditOrder={auditTradeOrder}
               />
             )}
             {(!currentChat || currentChat.messages.length === 0) ? (
@@ -3891,7 +3867,7 @@ function tradeOrderAmount(order = {}) {
   return formatTradeNumber(order.payAmount || order.totalAmount || order.amount || order.lockAmount);
 }
 
-function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAuditOrder }) {
+function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge }) {
   const stats = [
     { label: "当前余额", value: `${formatTradeNumber(summary.quotaBalance)} 点` },
     { label: "已用额度", value: `${formatTradeNumber(summary.usedQuota)} 点` },
@@ -3952,10 +3928,6 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAu
                   {settlementHint.label}
                 </small>
                 <span>￥{tradeOrderAmount(order)}</span>
-                <button type="button" className="trade-order-audit" onClick={() => onAuditOrder?.(order)}>
-                  <Eye size={14} />
-                  <span>记录</span>
-                </button>
               </article>
             );
           })}
@@ -4386,23 +4358,6 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
               <span>{resultPanelKindLabel(panel.kind)}</span>
             </div>
           </div>
-
-          {panel.kind === "audit" && (
-            <div className="result-audit-panel">
-              {(panel.findings || []).length > 0 && (
-                <div className="result-audit-findings">
-                  {panel.findings.slice(0, 6).map((finding, index) => (
-                    <div className={`result-audit-finding result-audit-${String(finding.severity || "info").toLowerCase()}`} key={`${panel.id}-finding-${index}`}>
-                      <strong>{formatPanelValue(finding.code || "FINDING")}</strong>
-                      <span>{formatPanelValue(finding.severity || "INFO")}</span>
-                      {finding.message && <p>{formatPanelValue(finding.message)}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {panel.content && <pre className="result-panel-content">{panel.content}</pre>}
-            </div>
-          )}
 
           {panel.kind === "data" && (
             <>

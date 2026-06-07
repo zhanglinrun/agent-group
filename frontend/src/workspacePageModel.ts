@@ -99,6 +99,9 @@ function pageStatus(
 }
 
 function inputKinds(workspaceId: WorkspaceId, acceptsFiles: boolean): WorkspacePageInputKind[] {
+  if (workspaceId === "trade") {
+    return ["quota"];
+  }
   const kinds: WorkspacePageInputKind[] = ["prompt"];
   if (acceptsFiles) {
     kinds.push("file");
@@ -112,9 +115,6 @@ function inputKinds(workspaceId: WorkspaceId, acceptsFiles: boolean): WorkspaceP
   if (workspaceId === "mrag") {
     kinds.push("knowledge-base");
   }
-  if (workspaceId === "trade") {
-    kinds.push("quota");
-  }
   return kinds;
 }
 
@@ -123,14 +123,16 @@ function pageActions(
   profile: WorkspaceServiceProfile,
   supportsHistory: boolean
 ): WorkspacePageAction[] {
-  const actions: WorkspacePageAction[] = [
-    {
-      key: "run",
-      label: runLabel(workspaceId),
-      enabled: Boolean(profile.runEndpoint),
-      endpoint: profile.runEndpoint || ""
-    }
-  ];
+  const actions: WorkspacePageAction[] = workspaceId === "trade"
+    ? []
+    : [
+        {
+          key: "run",
+          label: runLabel(workspaceId),
+          enabled: Boolean(profile.runEndpoint),
+          endpoint: profile.runEndpoint || ""
+        }
+      ];
   if (supportsHistory) {
     actions.push({
       key: "history",
@@ -154,7 +156,6 @@ function runLabel(workspaceId: WorkspaceId): string {
   if (workspaceId === "image") return "生成图像";
   if (workspaceId === "data") return "运行数据问答";
   if (workspaceId === "mrag") return "运行知识问答";
-  if (workspaceId === "trade") return "核查交易链路";
   return "开始对话";
 }
 

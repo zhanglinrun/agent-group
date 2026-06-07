@@ -60,15 +60,15 @@ describe("workspace page model", () => {
       workspaceProfiles: [
         {
           id: "trade",
-          availableTools: ["trade_audit"],
-          missingTools: ["data_analysis", "table_rag"]
+          availableTools: [],
+          missingTools: []
         }
       ]
     });
 
     expect(trade.acceptsFiles).toBe(false);
-    expect(trade.inputKinds).toEqual(["prompt", "quota"]);
-    expect(trade.actions.map((action) => action.key)).toEqual(["run", "history", "recharge"]);
+    expect(trade.inputKinds).toEqual(["quota"]);
+    expect(trade.actions.map((action) => action.key)).toEqual(["history", "recharge"]);
     expect(trade.actions.find((action) => action.key === "recharge")).toMatchObject({
       label: "额度购买",
       enabled: true

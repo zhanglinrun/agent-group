@@ -119,6 +119,10 @@ public class AcademicBearDoctorAgentHandler {
                 .switchIfEmpty(Flux.just(event("done", sessionId, requestId, new AtomicInteger(1), "done")));
     }
 
+    public Map<String, Object> capabilities() {
+        return bearDoctorNativeAgentService.capabilities();
+    }
+
     public Flux<GuideStreamEvent<?>> streamEventFlux(String token,
                                                      AcademicAgentStreamRequest request,
                                                      String sessionId,
@@ -1096,8 +1100,8 @@ public class AcademicBearDoctorAgentHandler {
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
             case "image", "image-generation", "workspace-image" -> "image";
-            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
-            case "trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade" -> "trade-audit";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag",
+                 "trade", "trade-flow", "group-trade", "workspace-trade" -> "data";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";
@@ -1135,10 +1139,6 @@ public class AcademicBearDoctorAgentHandler {
                     ## Output style
                     Explain the answer as an interview project highlight. Emphasize architecture, trade-offs, failure handling, observability and business value.
                     """;
-            case "trade-audit" -> """
-                    ## Output style
-                    Treat quota, order, payment and group-buy state as backend system facts. Do not infer balances or settlement from the model. Clearly separate paid, waiting-for-group-settlement, credited and refunded states.
-                    """;
             case "html" -> """
                     ## Output style
                     When a deliverable is needed, prefer an HTML-style report structure with title, summary, sections, tables and a final conclusion.
@@ -1151,13 +1151,13 @@ public class AcademicBearDoctorAgentHandler {
         if (StringUtils.hasText(outputStyle)) {
             return outputStyle;
         }
-        return "trade-audit".equals(normalizeTaskType(taskType)) ? "trade-audit" : "";
+        return "";
     }
 
     private String normalizeOutputStyle(String outputStyle) {
         String style = nullToBlank(outputStyle).trim().toLowerCase();
         return switch (style) {
-            case "brief", "report", "interview", "trade-audit", "html" -> style;
+            case "brief", "report", "interview", "html" -> style;
             default -> "";
         };
     }
@@ -1264,7 +1264,6 @@ public class AcademicBearDoctorAgentHandler {
             case "deep" -> "深度研究";
             case "image" -> "图像生成";
             case "data" -> "数据问答";
-            case "trade-audit" -> "交易审计";
             case "skills" -> "技能助手";
             case "manual-skills" -> "手动技能";
             default -> "新对话";

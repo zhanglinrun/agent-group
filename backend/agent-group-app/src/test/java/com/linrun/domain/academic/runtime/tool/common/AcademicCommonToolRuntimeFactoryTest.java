@@ -11,7 +11,6 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicMultimodalAnalysisPo
 import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTradeAuditPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +45,6 @@ class AcademicCommonToolRuntimeFactoryTest {
                 .scriptRunnerPort(scriptPort())
                 .tableRagPort(tableRagPort())
                 .nl2SqlPort(nl2SqlPort())
-                .tradeAuditPort(tradeAuditPort())
                 .build()
                 .buildRegistry();
 
@@ -108,16 +106,6 @@ class AcademicCommonToolRuntimeFactoryTest {
                 "think",
                 "done",
                 List.of(new AcademicNl2SqlPort.AcademicSqlCandidate(request.query(), "select 1")),
-                Map.of(),
-                "");
-    }
-
-    private AcademicTradeAuditPort tradeAuditPort() {
-        return request -> new AcademicTradeAuditPort.AcademicTradeAuditResult(
-                true,
-                "trade facts checked",
-                Map.of("orderId", request.orderId()),
-                List.of(Map.of("severity", "INFO", "code", "NO_BLOCKING_RISK")),
                 Map.of(),
                 "");
     }

@@ -12,7 +12,6 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTradeAuditPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
 import com.linrun.trigger.agent.tool.AcademicToolCallbackFactory;
 import org.junit.jupiter.api.Test;
@@ -35,7 +34,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
     void shouldExposeAgentCapabilityMatrix() {
         ObjectMapper objectMapper = new ObjectMapper();
         AcademicToolCallbackFactory toolCallbackFactory = new AcademicToolCallbackFactory(
-                objectMapper, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                objectMapper, null, null, null, null, null, null, null, null, null, null, null, null);
         BearDoctorNativeAgentService service = service(toolCallbackFactory);
 
         Map<String, Object> capabilities = service.capabilities();
@@ -72,10 +71,6 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 "ppt".equals(item.get("agentId"))
                         && "flow".equals(item.get("family"))
                         && "Flow".equals(item.get("executionMode"))));
-        assertTrue(agentExecutionModes.stream().anyMatch(item ->
-                "trade-audit".equals(item.get("agentId"))
-                        && "flow".equals(item.get("family"))
-                        && "Trade Flow".equals(item.get("executionMode"))));
         assertTrue(agentExecutionModes.stream().anyMatch(item ->
                 "chat".equals(item.get("agentId"))
                         && "react".equals(item.get("family"))));
@@ -234,9 +229,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 .filter(item -> "trade".equals(item.get("id")))
                 .findFirst()
                 .orElseThrow();
-        assertEquals("trade-audit", tradeWorkspace.get("taskType"));
+        assertEquals("data", tradeWorkspace.get("taskType"));
         assertEquals("/api/v1/academic/stream", tradeWorkspace.get("runEndpoint"));
-        assertTrue(((List<?>) tradeWorkspace.get("primaryTools")).contains("trade_audit"));
         assertTrue(((List<?>) tradeWorkspace.get("primaryTools")).contains("nl2sql"));
 
         assertNotNull(capabilities.get("toolCatalog"));
@@ -282,7 +276,6 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 provider(scriptPort()),
                 provider(tableRagPort()),
                 provider(nl2SqlPort()),
-                provider(tradeAuditPort()),
                 null);
         BearDoctorNativeAgentService service = service(toolCallbackFactory);
 
@@ -347,7 +340,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
 
         Map<String, Object> tradeWorkspace = workspace(workspaceProfiles, "trade");
         assertEquals("ready", tradeWorkspace.get("status"));
-        assertTrue(((List<?>) tradeWorkspace.get("availableTools")).contains("trade_audit"));
+        assertTrue(((List<?>) tradeWorkspace.get("availableTools")).contains("nl2sql"));
     }
 
     @Test
@@ -375,7 +368,6 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 provider(scriptPort()),
                 provider(tableRagPort()),
                 provider(nl2SqlPort()),
-                provider(tradeAuditPort()),
                 provider(mcpAdminHandler));
         BearDoctorNativeAgentService service = service(toolCallbackFactory,
                 new AgentAdminConfigHandler((Path) null), mcpAdminHandler);
@@ -405,8 +397,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         BearDoctorNativeAgentService service = new BearDoctorNativeAgentService(
                 provider(null), null, null, null, null, null, null, null, null, null, null,
                 new AcademicToolCallbackFactory(
-                        new ObjectMapper(), null, null, null, null, null, null, null, null, null, null, null, null,
-                        null),
+                        new ObjectMapper(), null, null, null, null, null, null, null, null, null, null, null, null),
                 new AgentAdminConfigHandler((Path) null), provider(null));
 
         Map<String, Object> capabilities = service.capabilities();
@@ -424,8 +415,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 "configId", "custom-trade-guard",
                 "category", "system_prompt",
                 "name", "Custom trade guard",
-                "content", "Always audit quota settlement from backend facts.",
-                "metadata", Map.of("workspace", "trade")));
+                "content", "Always explain quota settlement from backend facts.",
+                "metadata", Map.of("workspace", "data")));
         adminConfigHandler.upsertConfig(Map.of(
                 "configId", "disabled-advisor",
                 "category", "advisor",
@@ -434,17 +425,16 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 "enabled", false));
 
         BearDoctorNativeAgentService service = service(new AcademicToolCallbackFactory(
-                new ObjectMapper(), null, null, null, null, null, null, null, null, null, null, null, null, null),
+                new ObjectMapper(), null, null, null, null, null, null, null, null, null, null, null, null),
                 adminConfigHandler);
 
-        String tradePrompt = service.agentAdminRuntimePrompt("trade-audit");
+        String tradePrompt = service.agentAdminRuntimePrompt("data");
         String imagePrompt = service.agentAdminRuntimePrompt("image");
 
         assertTrue(tradePrompt.contains("Agent 后台启用配置"));
-        assertTrue(tradePrompt.contains("Always audit quota settlement from backend facts."));
-        assertTrue(tradePrompt.contains("Use backend transaction data"));
+        assertTrue(tradePrompt.contains("Always explain quota settlement from backend facts."));
         assertTrue(!tradePrompt.contains("DO_NOT_INCLUDE"));
-        assertTrue(!imagePrompt.contains("Always audit quota settlement from backend facts."));
+        assertTrue(!imagePrompt.contains("Always explain quota settlement from backend facts."));
     }
 
     private static BearDoctorNativeAgentService service(AcademicToolCallbackFactory toolCallbackFactory) {
@@ -558,16 +548,6 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 "think",
                 "done",
                 List.of(new AcademicNl2SqlPort.AcademicSqlCandidate(request.query(), "select 1")),
-                Map.of(),
-                "");
-    }
-
-    private static AcademicTradeAuditPort tradeAuditPort() {
-        return request -> new AcademicTradeAuditPort.AcademicTradeAuditResult(
-                true,
-                "trade facts checked",
-                Map.of("orderId", request.orderId()),
-                List.of(Map.of("severity", "INFO", "code", "NO_BLOCKING_RISK")),
                 Map.of(),
                 "");
     }
