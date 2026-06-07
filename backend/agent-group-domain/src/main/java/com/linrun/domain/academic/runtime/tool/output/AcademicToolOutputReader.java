@@ -255,7 +255,23 @@ public class AcademicToolOutputReader {
         if (snapshot instanceof Map<?, ?> map && !map.isEmpty()) {
             structuredOutput.putIfAbsent("snapshot", objectMap(map));
         }
+        Map<String, Object> snapshotMap = objectMap(snapshot);
+        Object conclusion = firstValue(structuredOutput.get("auditConclusion"),
+                metadata.get("auditConclusion"),
+                snapshotMap.get("auditConclusion"));
+        if (conclusion instanceof Map<?, ?> map && !map.isEmpty()) {
+            Map<String, Object> conclusionMap = objectMap(map);
+            structuredOutput.putIfAbsent("auditConclusion", conclusionMap);
+            putIfAbsentPresent(structuredOutput, "conclusionCode", conclusionMap.get("code"));
+            putIfAbsentPresent(structuredOutput, "quotaGrantAllowed", conclusionMap.get("quotaGrantAllowed"));
+            putIfAbsentPresent(structuredOutput, "quotaRollbackRequired", conclusionMap.get("quotaRollbackRequired"));
+            putIfAbsentPresent(structuredOutput, "suggestedAction", conclusionMap.get("suggestedAction"));
+        }
         putIfAbsentPresent(structuredOutput, "highestSeverity", metadata.get("highestSeverity"));
+        putIfAbsentPresent(structuredOutput, "conclusionCode", metadata.get("conclusionCode"));
+        putIfAbsentPresent(structuredOutput, "quotaGrantAllowed", metadata.get("quotaGrantAllowed"));
+        putIfAbsentPresent(structuredOutput, "quotaRollbackRequired", metadata.get("quotaRollbackRequired"));
+        putIfAbsentPresent(structuredOutput, "suggestedAction", metadata.get("suggestedAction"));
         putIfAbsentPresent(structuredOutput, "reportFormat", metadata.get("reportFormat"));
         putIfAbsentPresent(structuredOutput, "reportMaterialized", metadata.get("reportMaterialized"));
         putIfAbsentPresent(structuredOutput, "reportMaterializeReason", metadata.get("reportMaterializeReason"));

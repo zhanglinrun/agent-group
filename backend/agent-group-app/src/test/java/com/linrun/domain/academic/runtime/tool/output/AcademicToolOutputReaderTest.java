@@ -85,7 +85,16 @@ class AcademicToolOutputReaderTest {
                   "title": "O1001",
                   "summary": "trade facts checked",
                   "metadata": {
-                    "snapshot": {"orderId": "O1001", "orderStatus": "PAY_SUCCESS"},
+                    "snapshot": {
+                      "orderId": "O1001",
+                      "orderStatus": "PAY_SUCCESS",
+                      "auditConclusion": {
+                        "code": "WAIT_GROUP_SETTLEMENT",
+                        "quotaGrantAllowed": false,
+                        "quotaRollbackRequired": false,
+                        "suggestedAction": "wait group settlement"
+                      }
+                    },
                     "findings": [
                       {
                         "severity": "WARN",
@@ -113,12 +122,18 @@ class AcademicToolOutputReaderTest {
         Map<String, Object> output = view.getStructuredOutput();
         List<Map<String, Object>> findings = (List<Map<String, Object>>) output.get("findings");
         Map<String, Object> snapshot = (Map<String, Object>) output.get("snapshot");
+        Map<String, Object> conclusion = (Map<String, Object>) output.get("auditConclusion");
 
         assertEquals("trade", output.get("auditKind"));
         assertEquals("WARN", output.get("highestSeverity"));
         assertEquals(1, output.get("findingCount"));
         assertEquals(Boolean.TRUE, output.get("reportMaterialized"));
         assertEquals("O1001", snapshot.get("orderId"));
+        assertEquals("WAIT_GROUP_SETTLEMENT", conclusion.get("code"));
+        assertEquals("WAIT_GROUP_SETTLEMENT", output.get("conclusionCode"));
+        assertEquals(false, output.get("quotaGrantAllowed"));
+        assertEquals(false, output.get("quotaRollbackRequired"));
+        assertEquals("wait group settlement", output.get("suggestedAction"));
         assertEquals("WAITING_GROUP_SETTLEMENT", findings.getFirst().get("code"));
         assertEquals("/artifacts/A2001", view.getFileRefs().getFirst().getDownloadUrl());
     }

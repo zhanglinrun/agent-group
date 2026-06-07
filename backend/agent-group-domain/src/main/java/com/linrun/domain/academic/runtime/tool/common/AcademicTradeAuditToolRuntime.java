@@ -77,10 +77,19 @@ public class AcademicTradeAuditToolRuntime {
         }
 
         Map<String, Object> metadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
-        metadata.put("snapshot", result.snapshot() == null ? Map.of() : result.snapshot());
+        Map<String, Object> snapshot = result.snapshot() == null ? Map.of() : result.snapshot();
+        metadata.put("snapshot", snapshot);
         metadata.put("findings", result.findings() == null ? List.of() : result.findings());
         metadata.put("findingCount", result.findings() == null ? 0 : result.findings().size());
         metadata.put("reportFormat", "markdown");
+        Object auditConclusion = snapshot.get("auditConclusion");
+        if (auditConclusion instanceof Map<?, ?> conclusion) {
+            metadata.putIfAbsent("auditConclusion", new LinkedHashMap<>(conclusion));
+            metadata.putIfAbsent("conclusionCode", text(conclusion.get("code")));
+            metadata.putIfAbsent("quotaGrantAllowed", conclusion.get("quotaGrantAllowed"));
+            metadata.putIfAbsent("quotaRollbackRequired", conclusion.get("quotaRollbackRequired"));
+            metadata.putIfAbsent("suggestedAction", conclusion.get("suggestedAction"));
+        }
         String reportContent = markdownReport(request, result);
         List<AcademicToolFileRef> fileRefs = materializeReport(command, request, result, reportContent, metadata);
 
@@ -153,6 +162,7 @@ public class AcademicTradeAuditToolRuntime {
             report.append("- Team id: ").append(request.teamId()).append('\n');
         }
         report.append('\n');
+        appendFactSection(report, "Conclusion", snapshot.get("auditConclusion"));
         appendFactSection(report, "Trade order", snapshot.get("tradeOrder"));
         appendFactSection(report, "Payment order", snapshot.get("payOrder"));
         appendFactSection(report, "Group buy", groupBuyFacts(snapshot));

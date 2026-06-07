@@ -68,7 +68,10 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -255,44 +258,64 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 true,
                 true,
                 "mock://pay",
+                "",
+                "",
                 Map.of("localMock", true),
                 "local mock payment is ready");
+        Map<String, Boolean> alipayItems = new LinkedHashMap<>();
+        alipayItems.put("gatewayUrl", StringUtils.hasText(alipayGatewayUrl));
+        alipayItems.put("appId", StringUtils.hasText(alipayAppId));
+        alipayItems.put("privateKey", StringUtils.hasText(alipayPrivateKey));
+        alipayItems.put("publicKey", StringUtils.hasText(alipayPublicKey));
+        alipayItems.put("notifyUrl", StringUtils.hasText(alipayNotifyUrl));
+        alipayItems.put("publicNotifyUrl", isPublicCallbackUrl(alipayNotifyUrl));
         PaymentGatewayStatusResponse.ChannelStatus alipay = channelStatus(
                 PaymentChannel.ALIPAY.name(),
                 alipayMode(),
                 alipayReady(),
                 alipaySandboxMode(),
                 alipayGatewayUrl,
-                Map.of(
-                        "gatewayUrl", StringUtils.hasText(alipayGatewayUrl),
-                        "appId", StringUtils.hasText(alipayAppId),
-                        "privateKey", StringUtils.hasText(alipayPrivateKey),
-                        "publicKey", StringUtils.hasText(alipayPublicKey)
-                ),
+                alipayNotifyUrl,
+                alipayReturnUrl,
+                alipayItems,
                 alipayReady()
-                        ? alipaySandboxMode() ? "alipay sandbox gateway is configured" : "alipay official gateway is configured"
+                        ? alipaySandboxMode()
+                        ? sandboxCallbackMessage()
+                        : "alipay official gateway is configured"
                         : "alipay gateway config is incomplete");
+        Map<String, Boolean> wechatItems = new LinkedHashMap<>();
+        wechatItems.put("appId", StringUtils.hasText(wechatAppId));
+        wechatItems.put("merchantId", StringUtils.hasText(wechatMerchantId));
+        wechatItems.put("privateKeyPath", StringUtils.hasText(wechatPrivateKeyPath));
+        wechatItems.put("merchantSerialNo", StringUtils.hasText(wechatMerchantSerialNo));
+        wechatItems.put("apiV3Key", StringUtils.hasText(wechatApiV3Key));
         PaymentGatewayStatusResponse.ChannelStatus wechat = channelStatus(
                 PaymentChannel.WECHAT_PAY.name(),
                 wechatReady() ? "OFFICIAL" : "MISSING",
                 wechatReady(),
                 false,
                 "",
-                Map.of(
-                        "appId", StringUtils.hasText(wechatAppId),
-                        "merchantId", StringUtils.hasText(wechatMerchantId),
-                        "privateKeyPath", StringUtils.hasText(wechatPrivateKeyPath),
-                        "merchantSerialNo", StringUtils.hasText(wechatMerchantSerialNo),
-                        "apiV3Key", StringUtils.hasText(wechatApiV3Key)
-                ),
+                "",
+                "",
+                wechatItems,
                 wechatReady()
                         ? "wechat pay config is complete; sandbox depends on platform merchant setup"
                         : "wechat pay config is incomplete");
 
+        List<String> sandboxMissingItems = missingOfficialSandboxItems(alipay);
+        boolean alipaySandboxReady = alipay.isConfigured()
+                && alipay.isSandboxMode()
+                && sandboxMissingItems.isEmpty();
         response.setMockReady(true);
         response.setOfficialGatewayReady(alipayReady() || wechatReady());
-        response.setOfficialSandboxReady(alipay.isSandboxMode());
-        response.setChannels(java.util.List.of(mock, alipay, wechat));
+        response.setOfficialSandboxReady(alipaySandboxReady);
+        response.setAlipaySandboxReady(alipaySandboxReady);
+        response.setRecommendedChannel(alipaySandboxReady ? PaymentChannel.ALIPAY.name() : PaymentChannel.MOCK_PAY.name());
+        response.setSandboxEvidence(alipaySandboxReady
+                ? "alipay sandbox config and public callback are ready"
+                : "alipay sandbox still misses: " + String.join(", ", sandboxMissingItems));
+        response.setOfficialSandboxMissingItems(sandboxMissingItems);
+        response.setChannels(List.of(mock, alipay, wechat));
         response.setMessage(response.isOfficialSandboxReady()
                 ? "official payment sandbox is ready"
                 : "official payment sandbox is not ready; local mock payment remains available");
@@ -969,11 +992,60 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         return normalized.contains("sandbox") || normalized.contains("alipaydev");
     }
 
+    private boolean isPublicCallbackUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return false;
+        }
+        String normalized = url.trim().toLowerCase(Locale.ROOT);
+        return (normalized.startsWith("http://") || normalized.startsWith("https://"))
+                && !normalized.contains("localhost")
+                && !normalized.contains("127.0.0.1")
+                && !normalized.contains("0.0.0.0")
+                && !normalized.contains("192.168.")
+                && !normalized.matches(".*://10\\..*")
+                && !normalized.matches(".*://172\\.(1[6-9]|2\\d|3[0-1])\\..*");
+    }
+
+    private String sandboxCallbackMessage() {
+        if (isPublicCallbackUrl(alipayNotifyUrl)) {
+            return "alipay sandbox gateway is configured with public callback";
+        }
+        return "alipay sandbox keys are configured, but notify url is not public";
+    }
+
+    private List<String> missingOfficialSandboxItems(PaymentGatewayStatusResponse.ChannelStatus alipay) {
+        Map<String, Boolean> items = alipay.getRequiredItems() == null ? Map.of() : alipay.getRequiredItems();
+        List<String> missing = new ArrayList<>();
+        if (!Boolean.TRUE.equals(items.get("gatewayUrl"))) {
+            missing.add("AGENT_GROUP_ALIPAY_GATEWAY_URL");
+        }
+        if (!Boolean.TRUE.equals(items.get("appId"))) {
+            missing.add("AGENT_GROUP_ALIPAY_APP_ID");
+        }
+        if (!Boolean.TRUE.equals(items.get("privateKey"))) {
+            missing.add("AGENT_GROUP_ALIPAY_PRIVATE_KEY");
+        }
+        if (!Boolean.TRUE.equals(items.get("publicKey"))) {
+            missing.add("AGENT_GROUP_ALIPAY_PUBLIC_KEY");
+        }
+        if (!Boolean.TRUE.equals(items.get("notifyUrl"))) {
+            missing.add("AGENT_GROUP_ALIPAY_NOTIFY_URL");
+        } else if (!Boolean.TRUE.equals(items.get("publicNotifyUrl"))) {
+            missing.add("PUBLIC_AGENT_GROUP_ALIPAY_NOTIFY_URL");
+        }
+        if (!alipay.isSandboxMode()) {
+            missing.add("ALIPAY_SANDBOX_GATEWAY");
+        }
+        return missing;
+    }
+
     private PaymentGatewayStatusResponse.ChannelStatus channelStatus(String payChannel,
                                                                      String mode,
                                                                      boolean configured,
                                                                      boolean sandboxMode,
                                                                      String gatewayUrl,
+                                                                     String notifyUrl,
+                                                                     String returnUrl,
                                                                      Map<String, Boolean> requiredItems,
                                                                      String message) {
         PaymentGatewayStatusResponse.ChannelStatus status = new PaymentGatewayStatusResponse.ChannelStatus();
@@ -982,7 +1054,18 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         status.setConfigured(configured);
         status.setSandboxMode(sandboxMode);
         status.setGatewayUrl(gatewayUrl);
-        status.setRequiredItems(new java.util.LinkedHashMap<>(requiredItems));
+        status.setNotifyUrl(notifyUrl);
+        status.setReturnUrl(returnUrl);
+        Map<String, Boolean> safeItems = new LinkedHashMap<>(requiredItems == null ? Map.of() : requiredItems);
+        status.setRequiredItems(safeItems);
+        status.setRequiredItemCount(safeItems.size());
+        status.setReadyItemCount((int) safeItems.values().stream().filter(Boolean.TRUE::equals).count());
+        List<String> missingItems = safeItems.entrySet().stream()
+                .filter(entry -> !Boolean.TRUE.equals(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        status.setMissingItems(missingItems);
+        status.setLastError(missingItems.isEmpty() ? "" : "missing required items: " + String.join(", ", missingItems));
         status.setMessage(message);
         return status;
     }

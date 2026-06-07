@@ -24,6 +24,30 @@ if ($RequireOfficialSandbox) {
     $passed = $passed -and [bool]$data.officialSandboxReady
 }
 
+$missingItems = @()
+if ($null -ne $data -and $null -ne $data.officialSandboxMissingItems) {
+    $missingItems = @($data.officialSandboxMissingItems)
+}
+$missingText = if ($missingItems.Count -gt 0) { $missingItems -join ", " } else { "-" }
+
+$channelLines = @()
+if ($null -ne $data -and $null -ne $data.channels) {
+    foreach ($channel in @($data.channels)) {
+        $channelMissingItems = @()
+        if ($null -ne $channel.missingItems) {
+            $channelMissingItems = @($channel.missingItems)
+        }
+        $channelMissingText = if ($channelMissingItems.Count -gt 0) { $channelMissingItems -join ", " } else { "-" }
+        $notifyText = if ([string]::IsNullOrWhiteSpace([string]$channel.notifyUrl)) { "-" } else { [string]$channel.notifyUrl }
+        $lastErrorText = if ([string]::IsNullOrWhiteSpace([string]$channel.lastError)) { "-" } else { [string]$channel.lastError }
+        $channelLines += "- $($channel.payChannel): configured=$($channel.configured), sandboxMode=$($channel.sandboxMode), readyItems=$($channel.readyItemCount)/$($channel.requiredItemCount), notifyUrl=$notifyText, missingItems=$channelMissingText, lastError=$lastErrorText"
+    }
+}
+if ($channelLines.Count -eq 0) {
+    $channelLines += "- no channel status returned"
+}
+$channelMarkdown = $channelLines -join [Environment]::NewLine
+
 $evidence = [ordered]@{
     case = "payment-sandbox-check"
     result = $(if ($passed) { "PASS" } else { "FAIL" })
@@ -41,11 +65,18 @@ Result: {0}
 - mockReady: {1}
 - officialGatewayReady: {2}
 - officialSandboxReady: {3}
-- message: {4}
+- recommendedChannel: {4}
+- sandboxEvidence: {5}
+- officialSandboxMissingItems: {6}
+- message: {7}
 
-CreatedAt: {5}
+## Channels
+{8}
+
+CreatedAt: {9}
 "@ -f $evidence['result'], $data.mockReady, $data.officialGatewayReady,
-    $data.officialSandboxReady, $data.message, $evidence['createdAt']
+    $data.officialSandboxReady, $data.recommendedChannel, $data.sandboxEvidence,
+    $missingText, $data.message, $channelMarkdown, $evidence['createdAt']
 
 $name = "payment-sandbox-$runId"
 $paths = Write-EvidenceFiles -ReportDir $reportDirPath -Name $name -Evidence $evidence -Markdown $markdown

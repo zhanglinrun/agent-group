@@ -40,7 +40,7 @@ class TradeAuditPortAdapterTest {
                 tradeOrderRepository, groupBuyOrderLockRepository, userQuotaRepository, tradeStatusFlowRepository);
 
         TradeOrderEntity order = groupOrder();
-        PayOrderEntity payOrder = payOrder();
+        PayOrderEntity payOrder = payOrder("O1001", "P1001", BigDecimal.valueOf(59));
         GroupBuyOrderLock lock = lock();
         GroupBuyTeam team = team();
         UserQuotaAccount account = account();
@@ -65,6 +65,44 @@ class TradeAuditPortAdapterTest {
         Map<?, ?> flags = (Map<?, ?>) result.snapshot().get("auditFlags");
         assertEquals(false, flags.get("quotaGrantable"));
         assertEquals(false, flags.get("quotaGranted"));
+        Map<?, ?> conclusion = (Map<?, ?>) result.snapshot().get("auditConclusion");
+        assertEquals("WAIT_GROUP_SETTLEMENT", conclusion.get("code"));
+        assertEquals(false, conclusion.get("quotaGrantAllowed"));
+        assertEquals("WAIT_GROUP_SETTLEMENT", result.metadata().get("conclusionCode"));
+    }
+
+    @Test
+    void shouldSuggestQuotaGrantWhenDirectPaidOrderHasNoGrantFlow() {
+        TradeOrderRepository tradeOrderRepository = mock(TradeOrderRepository.class);
+        GroupBuyOrderLockRepository groupBuyOrderLockRepository = mock(GroupBuyOrderLockRepository.class);
+        UserQuotaRepository userQuotaRepository = mock(UserQuotaRepository.class);
+        TradeStatusFlowRepository tradeStatusFlowRepository = mock(TradeStatusFlowRepository.class);
+        TradeAuditPortAdapter adapter = new TradeAuditPortAdapter(
+                tradeOrderRepository, groupBuyOrderLockRepository, userQuotaRepository, tradeStatusFlowRepository);
+
+        TradeOrderEntity order = directPaidOrder();
+        PayOrderEntity payOrder = payOrder("O2001", "P2001", BigDecimal.valueOf(99));
+        UserQuotaAccount account = account();
+
+        when(tradeOrderRepository.queryTradeOrderByOrderId("O2001")).thenReturn(Optional.of(order));
+        when(tradeOrderRepository.queryPayOrderByOrderId("O2001")).thenReturn(Optional.of(payOrder));
+        when(tradeOrderRepository.queryRefundOrderByOrderId("O2001")).thenReturn(Optional.empty());
+        when(groupBuyOrderLockRepository.queryLockByOrderId("O2001")).thenReturn(Optional.empty());
+        when(userQuotaRepository.queryAccount("U1001")).thenReturn(Optional.of(account));
+        when(userQuotaRepository.queryFlow("U1001", "ORDER_GRANT", "O2001")).thenReturn(Optional.empty());
+        when(userQuotaRepository.queryFlow("U1001", "REFUND_ROLLBACK", "O2001")).thenReturn(Optional.empty());
+        when(tradeStatusFlowRepository.queryByOrderId("O2001")).thenReturn(List.of());
+
+        AcademicTradeAuditPort.AcademicTradeAuditResult result = adapter.audit(
+                new AcademicTradeAuditPort.AcademicTradeAuditRequest(
+                        "U1001", "O2001", "", "", 8, 20, false));
+
+        assertTrue(result.findings().stream()
+                .anyMatch(finding -> "QUOTA_GRANT_MISSING".equals(finding.get("code"))));
+        Map<?, ?> conclusion = (Map<?, ?>) result.snapshot().get("auditConclusion");
+        assertEquals("QUOTA_GRANT_REQUIRED", conclusion.get("code"));
+        assertEquals(true, conclusion.get("quotaGrantAllowed"));
+        assertEquals(false, conclusion.get("quotaRollbackRequired"));
     }
 
     private TradeOrderEntity groupOrder() {
@@ -84,16 +122,32 @@ class TradeAuditPortAdapterTest {
         return order;
     }
 
-    private PayOrderEntity payOrder() {
+    private PayOrderEntity payOrder(String orderId, String payOrderId, BigDecimal payAmount) {
         PayOrderEntity payOrder = new PayOrderEntity();
-        payOrder.setPayOrderId("P1001");
-        payOrder.setOrderId("O1001");
+        payOrder.setPayOrderId(payOrderId);
+        payOrder.setOrderId(orderId);
         payOrder.setPayChannel("mock");
-        payOrder.setPayAmount(BigDecimal.valueOf(59));
+        payOrder.setPayAmount(payAmount);
         payOrder.setPayStatus(PayStatusEnumVO.SUCCESS);
         payOrder.setCreateTime(LocalDateTime.now());
         payOrder.setPayTime(LocalDateTime.now());
         return payOrder;
+    }
+
+    private TradeOrderEntity directPaidOrder() {
+        TradeOrderEntity order = new TradeOrderEntity();
+        order.setId(2L);
+        order.setOrderId("O2001");
+        order.setUserId("U1001");
+        order.setGoodsId("G1002");
+        order.setGoodsName("direct quota pack");
+        order.setBuyType(TradeBuyTypeEnumVO.DIRECT);
+        order.setOriginAmount(BigDecimal.valueOf(99));
+        order.setPayAmount(BigDecimal.valueOf(99));
+        order.setOrderStatus(TradeOrderStatusEnumVO.PAY_SUCCESS);
+        order.setCreateTime(LocalDateTime.now());
+        order.setPayTime(LocalDateTime.now());
+        return order;
     }
 
     private GroupBuyOrderLock lock() {

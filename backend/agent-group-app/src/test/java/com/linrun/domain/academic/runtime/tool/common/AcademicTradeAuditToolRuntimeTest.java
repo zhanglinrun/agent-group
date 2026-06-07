@@ -24,7 +24,15 @@ class AcademicTradeAuditToolRuntimeTest {
                 new AcademicTradeAuditPort.AcademicTradeAuditResult(
                         true,
                         "trade facts checked, highestSeverity=INFO, riskCount=0",
-                        Map.of("orderId", request.orderId(), "userId", request.userId()),
+                        Map.of(
+                                "orderId", request.orderId(),
+                                "userId", request.userId(),
+                                "auditConclusion", Map.of(
+                                        "code", "WAIT_GROUP_SETTLEMENT",
+                                        "label", "等待拼团成团",
+                                        "quotaGrantAllowed", false,
+                                        "quotaRollbackRequired", false,
+                                        "suggestedAction", "不发放额度，等待队伍成团后再处理。")),
                         List.of(Map.of(
                                 "severity", "INFO",
                                 "code", "PAID_WAITING_GROUP_SETTLEMENT",
@@ -40,10 +48,15 @@ class AcademicTradeAuditToolRuntimeTest {
         assertEquals(AcademicToolOutputNames.TRADE_AUDIT, output.getToolName());
         assertEquals("O1001", output.getTitle());
         assertTrue(output.getContent().contains("# Trade Audit Report"));
+        assertTrue(output.getContent().contains("## Conclusion"));
         assertTrue(output.getContent().contains("PAID_WAITING_GROUP_SETTLEMENT"));
         Map<String, Object> metadata = output.getMetadata();
         assertEquals(1, metadata.get("findingCount"));
         assertEquals("markdown", metadata.get("reportFormat"));
+        assertEquals("WAIT_GROUP_SETTLEMENT", metadata.get("conclusionCode"));
+        assertEquals(false, metadata.get("quotaGrantAllowed"));
+        assertEquals(false, metadata.get("quotaRollbackRequired"));
+        assertEquals("不发放额度，等待队伍成团后再处理。", metadata.get("suggestedAction"));
         assertTrue(String.valueOf(metadata.get("snapshot")).contains("U1001"));
         assertTrue(String.valueOf(metadata.get("findings")).contains("PAID_WAITING_GROUP_SETTLEMENT"));
     }

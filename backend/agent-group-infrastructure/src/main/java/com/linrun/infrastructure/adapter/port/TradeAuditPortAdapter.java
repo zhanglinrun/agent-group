@@ -86,6 +86,11 @@ public class TradeAuditPortAdapter implements AcademicTradeAuditPort {
                     .map(this::quotaFlow)
                     .toList());
         }
+        Map<String, Object> conclusion = objectMap(snapshot.get("auditConclusion"));
+        if (conclusion.isEmpty()) {
+            conclusion = conclusionFromFindings(findings);
+            snapshot.put("auditConclusion", conclusion);
+        }
 
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("orderScoped", StringUtils.hasText(orderId));
@@ -93,6 +98,11 @@ public class TradeAuditPortAdapter implements AcademicTradeAuditPort {
         metadata.put("recentFlowLimit", flowLimit);
         metadata.put("includeRecentFlows", includeRecentFlows);
         metadata.put("highestSeverity", highestSeverity(findings));
+        metadata.put("auditConclusion", conclusion);
+        metadata.put("conclusionCode", conclusion.get("code"));
+        metadata.put("quotaGrantAllowed", conclusion.get("quotaGrantAllowed"));
+        metadata.put("quotaRollbackRequired", conclusion.get("quotaRollbackRequired"));
+        metadata.put("suggestedAction", conclusion.get("suggestedAction"));
 
         return new AcademicTradeAuditResult(true, summary(findings), snapshot, findings, metadata, "");
     }
@@ -137,6 +147,7 @@ public class TradeAuditPortAdapter implements AcademicTradeAuditPort {
         snapshot.put("auditFlags", auditFlags(order, payOrder, refundOrder, team, grantFlow, rollbackFlow));
 
         collectFindings(order, payOrder, refundOrder, orderLock, team, grantFlow, rollbackFlow, findings);
+        snapshot.put("auditConclusion", auditConclusion(order, payOrder, refundOrder, team, grantFlow, rollbackFlow, findings));
     }
 
     private void collectFindings(TradeOrderEntity order,
@@ -187,6 +198,106 @@ public class TradeAuditPortAdapter implements AcademicTradeAuditPort {
         if (findings.isEmpty()) {
             findings.add(finding("INFO", "NO_BLOCKING_RISK", "No blocking risk was found from backend trade facts."));
         }
+    }
+
+    private Map<String, Object> auditConclusion(TradeOrderEntity order,
+                                                PayOrderEntity payOrder,
+                                                RefundOrderEntity refundOrder,
+                                                GroupBuyTeam team,
+                                                UserQuotaFlow grantFlow,
+                                                UserQuotaFlow rollbackFlow,
+                                                List<Map<String, Object>> findings) {
+        boolean groupBuy = TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType());
+        boolean grantable = isGrantable(order);
+        boolean granted = grantFlow != null;
+        boolean refunded = refundOrder != null || isStatus(order.getOrderStatus(), TradeOrderStatusEnumVO.REFUNDED);
+        boolean rollbackRequired = refunded && granted && rollbackFlow == null;
+        String code;
+        String label;
+        String suggestedAction;
+        boolean quotaGrantAllowed = false;
+
+        if (rollbackRequired) {
+            code = "REFUND_ROLLBACK_REQUIRED";
+            label = "退款后需要回滚额度";
+            suggestedAction = "执行或排查退款额度回滚补偿，确认存在 REFUND_ROLLBACK 流水。";
+        } else if (groupBuy && isPaidSuccess(payOrder) && isStatus(order.getOrderStatus(), TradeOrderStatusEnumVO.PAY_SUCCESS) && !granted) {
+            code = "WAIT_GROUP_SETTLEMENT";
+            label = "等待拼团成团";
+            suggestedAction = "不发放额度，等待队伍进入 GROUP_SETTLED 或 DEAL_DONE 后再发放。";
+        } else if (!grantable && granted && !refunded) {
+            code = "QUOTA_GRANT_BLOCKED_RISK";
+            label = "存在疑似误发额度";
+            suggestedAction = "冻结该订单后排查发放入口，必要时生成额度回滚流水。";
+        } else if (grantable && !granted) {
+            code = "QUOTA_GRANT_REQUIRED";
+            label = "满足到账条件但未到账";
+            suggestedAction = "触发订单到账补偿，写入 ORDER_GRANT 流水并推进交易完成。";
+            quotaGrantAllowed = true;
+        } else if (grantable) {
+            code = "QUOTA_GRANTED_CONSISTENT";
+            label = "额度到账状态一致";
+            suggestedAction = "保持当前状态，可继续核对后续 Agent 消耗流水。";
+            quotaGrantAllowed = true;
+        } else {
+            code = "PENDING_PAYMENT_OR_REVIEW";
+            label = "等待支付或人工核查";
+            suggestedAction = "继续读取支付、拼团和状态流水事实，不允许直接发放额度。";
+        }
+
+        Map<String, Object> conclusion = new LinkedHashMap<>();
+        conclusion.put("code", code);
+        conclusion.put("label", label);
+        conclusion.put("quotaGrantAllowed", quotaGrantAllowed);
+        conclusion.put("quotaRollbackRequired", rollbackRequired);
+        conclusion.put("suggestedAction", suggestedAction);
+        conclusion.put("highestSeverity", highestSeverity(findings));
+        conclusion.put("evidenceKeys", evidenceKeys(order, payOrder, refundOrder, team, grantFlow, rollbackFlow));
+        return conclusion;
+    }
+
+    private List<String> evidenceKeys(TradeOrderEntity order,
+                                      PayOrderEntity payOrder,
+                                      RefundOrderEntity refundOrder,
+                                      GroupBuyTeam team,
+                                      UserQuotaFlow grantFlow,
+                                      UserQuotaFlow rollbackFlow) {
+        List<String> keys = new ArrayList<>();
+        if (order != null) {
+            keys.add("tradeOrder");
+        }
+        if (payOrder != null) {
+            keys.add("payOrder");
+        }
+        if (team != null) {
+            keys.add("groupTeam");
+        }
+        if (refundOrder != null) {
+            keys.add("refundOrder");
+        }
+        if (grantFlow != null) {
+            keys.add("orderGrantFlow");
+        }
+        if (rollbackFlow != null) {
+            keys.add("refundRollbackFlow");
+        }
+        return keys;
+    }
+
+    private boolean isPaidSuccess(PayOrderEntity payOrder) {
+        return payOrder != null && "SUCCESS".equals(statusName(payOrder.getPayStatus()));
+    }
+
+    private Map<String, Object> conclusionFromFindings(List<Map<String, Object>> findings) {
+        Map<String, Object> conclusion = new LinkedHashMap<>();
+        conclusion.put("code", hasSeverity(findings, "ERROR") ? "BLOCKING_RISK_FOUND" : "RECENT_FACTS_CHECKED");
+        conclusion.put("label", hasSeverity(findings, "ERROR") ? "存在阻断风险" : "已读取近期交易事实");
+        conclusion.put("quotaGrantAllowed", false);
+        conclusion.put("quotaRollbackRequired", false);
+        conclusion.put("suggestedAction", "请指定订单号后读取订单、支付、拼团、退款和额度流水事实。");
+        conclusion.put("highestSeverity", highestSeverity(findings));
+        conclusion.put("evidenceKeys", List.of("recentOrders", "recentQuotaFlows"));
+        return conclusion;
     }
 
     private Map<String, Object> auditFlags(TradeOrderEntity order,
@@ -388,6 +499,14 @@ public class TradeAuditPortAdapter implements AcademicTradeAuditPort {
 
     private AcademicTradeAuditResult failure(String message) {
         return new AcademicTradeAuditResult(false, "", Map.of(), List.of(), Map.of(), message);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> objectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        return new LinkedHashMap<>();
     }
 
     private String statusName(Object value) {
