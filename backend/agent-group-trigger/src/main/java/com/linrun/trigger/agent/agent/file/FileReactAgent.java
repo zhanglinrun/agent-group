@@ -297,7 +297,7 @@ public class FileReactAgent extends BaseAgent {
                 // 构建图片消息
                 ByteArrayResource imageResource = new ByteArrayResource(fileBytes);
                 List<Media> mediaList = Collections.singletonList(
-                        new Media(MimeTypeUtils.IMAGE_PNG, imageResource)
+                        new Media(resolveImageMimeType(fileType), imageResource)
                 );
 
                 return UserMessage.builder()
@@ -333,7 +333,22 @@ public class FileReactAgent extends BaseAgent {
                 "jpeg".equalsIgnoreCase(fileType) ||
                 "png".equalsIgnoreCase(fileType) ||
                 "gif".equalsIgnoreCase(fileType) ||
-                "bmp".equalsIgnoreCase(fileType));
+                "bmp".equalsIgnoreCase(fileType) ||
+                "webp".equalsIgnoreCase(fileType));
+    }
+
+    private org.springframework.util.MimeType resolveImageMimeType(String fileType) {
+        String lowerType = StringUtils.hasText(fileType) ? fileType.toLowerCase(Locale.ROOT) : "";
+        if ("jpg".equals(lowerType) || "jpeg".equals(lowerType)) {
+            return MimeTypeUtils.IMAGE_JPEG;
+        }
+        if ("gif".equals(lowerType)) {
+            return MimeTypeUtils.IMAGE_GIF;
+        }
+        if ("webp".equals(lowerType)) {
+            return MimeTypeUtils.parseMimeType("image/webp");
+        }
+        return MimeTypeUtils.IMAGE_PNG;
     }
 
     private void scheduleRound(List<Message> messages, Sinks.Many<String> sink,

@@ -257,7 +257,7 @@ create table if not exists pay_order (
   pay_channel varchar(32) not null comment '支付渠道',
   pay_amount decimal(10, 2) not null comment '支付金额',
   pay_status varchar(32) not null comment '支付状态',
-  pay_url varchar(512) not null default '' comment '支付链接',
+  pay_url mediumtext null comment '支付链接或页面支付表单',
   out_trade_no varchar(64) default null comment '外部交易单号',
   pay_time datetime default null comment '支付时间',
   create_time datetime not null default current_timestamp comment '创建时间',
@@ -976,7 +976,9 @@ insert into group_activity (
 ('A10003', 'G10003', 59.90, 3, 'PPT 创作额度包拼团', 'D10002', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
 ('A10004', 'G10004', 33.90, 4, '图表重建额度包拼团', 'D10002', 0, 1, 4, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
 ('A10005', 'G10005', 84.90, 2, '深度研究额度包拼团', 'D10001', 0, 2, 2, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 10 day), null, null, 1),
-('A10006', 'G10006', 109.90, 3, '团队拼团额度包拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1)
+('A10006', 'G10006', 109.90, 3, '团队拼团额度包拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
+('A10007', 'MEMBER_PLUS_MONTH', 32.90, 3, 'Plus 会员拼团', 'D10001', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
+('A10008', 'MEMBER_PRO_MONTH', 84.90, 3, 'Pro 会员拼团', 'D10001', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1)
 on duplicate key update
   goods_id = values(goods_id),
   group_price = values(group_price),
@@ -1017,7 +1019,9 @@ insert into sku (
 ('s01', 'c01', 'G10003', 'PPT 创作额度包', 69.90),
 ('s01', 'c01', 'G10004', '图表重建额度包', 39.90),
 ('s01', 'c01', 'G10005', '深度研究额度包', 99.90),
-('s01', 'c01', 'G10006', '团队拼团额度包', 129.90)
+('s01', 'c01', 'G10006', '团队拼团额度包', 129.90),
+('s01', 'c01', 'MEMBER_PLUS_MONTH', 'Plus 会员', 39.90),
+('s01', 'c01', 'MEMBER_PRO_MONTH', 'Pro 会员', 99.90)
 on duplicate key update
   source = values(source),
   channel = values(channel),
@@ -1032,7 +1036,9 @@ insert into sc_sku_activity (
 ('s01', 'c01', 'A10003', 'G10003'),
 ('s01', 'c01', 'A10004', 'G10004'),
 ('s01', 'c01', 'A10005', 'G10005'),
-('s01', 'c01', 'A10006', 'G10006')
+('s01', 'c01', 'A10006', 'G10006'),
+('s01', 'c01', 'A10007', 'MEMBER_PLUS_MONTH'),
+('s01', 'c01', 'A10008', 'MEMBER_PRO_MONTH')
 on duplicate key update
   activity_id = values(activity_id);
 
@@ -1044,7 +1050,9 @@ insert into group_buy_stock (
 ('A10003', 'G10003', 80, 80, 0, 0),
 ('A10004', 'G10004', 60, 60, 0, 0),
 ('A10005', 'G10005', 120, 120, 0, 0),
-('A10006', 'G10006', 100, 100, 0, 0)
+('A10006', 'G10006', 100, 100, 0, 0),
+('A10007', 'MEMBER_PLUS_MONTH', 100, 100, 0, 0),
+('A10008', 'MEMBER_PRO_MONTH', 100, 100, 0, 0)
 on duplicate key update
   goods_id = values(goods_id),
   total_stock = values(total_stock),

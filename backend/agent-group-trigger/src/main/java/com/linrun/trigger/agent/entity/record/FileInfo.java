@@ -107,7 +107,8 @@ public class FileInfo {
                 || "jpg".equalsIgnoreCase(fileType)
                 || "jpeg".equalsIgnoreCase(fileType)
                 || "gif".equalsIgnoreCase(fileType)
-                || "bmp".equalsIgnoreCase(fileType));
+                || "bmp".equalsIgnoreCase(fileType)
+                || "webp".equalsIgnoreCase(fileType));
     }
 
     /**

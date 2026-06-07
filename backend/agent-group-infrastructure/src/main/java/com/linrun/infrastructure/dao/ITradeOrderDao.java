@@ -20,6 +20,8 @@ public interface ITradeOrderDao {
 
     int updatePayOrderSuccess(PayOrderPO payOrder);
 
+    int updatePayOrderGatewayInfo(PayOrderPO payOrder);
+
     int updateGroupSettledByOrderIds(@Param("orderIds") List<String> orderIds);
 
     int updateTradeOrderClosed(TradeOrderPO tradeOrder);

@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class QuotaPackageCatalogServiceTest {
 
@@ -32,7 +31,9 @@ class QuotaPackageCatalogServiceTest {
         assertEquals(3, packages.get(0).getTeamSize());
         assertEquals("MEMBER_PLUS_MONTH", packages.get(2).getGoodsId());
         assertEquals("MEMBERSHIP_PLAN", packages.get(2).getProductType());
-        assertNull(packages.get(2).getActivityId());
+        assertEquals("A10001", packages.get(2).getActivityId());
+        assertEquals(new BigDecimal("19.90"), packages.get(2).getGroupPrice());
+        assertEquals(3, packages.get(2).getTeamSize());
     }
 
     @Test
@@ -58,6 +59,8 @@ class QuotaPackageCatalogServiceTest {
         assertEquals("MEMBER_PLUS_MONTH", product.getGoodsId());
         assertEquals("Plus 会员", product.getGoodsName());
         assertEquals("MEMBERSHIP_PLAN", product.getProductType());
+        assertEquals("A10001", product.getActivityId());
+        assertEquals(3, product.getTeamSize());
     }
 
     private static class FakeGuideDataRepository implements GuideDataRepository {

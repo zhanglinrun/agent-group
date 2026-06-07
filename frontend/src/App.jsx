@@ -156,8 +156,6 @@ import { USER_AGENT_MODES } from "./agentModes";
 import { buildAgentExecutionSummary } from "./agentExecutionSummary";
 import { buildAgentPlatformReadiness } from "./agentPlatformReadiness";
 import {
-  buildTradeAuditPrompt,
-  buildTradeHistoryAuditPrompt,
   summarizeTradeWorkspace,
   tradeSettlementHint,
   tradeOrderStatusLabel
@@ -179,6 +177,24 @@ const COMPOSER_AGENT_LABELS = {
   image: "图像",
   "manual-skills": "Skill"
 };
+
+const PPT_IMAGE2_SKILL_NAME = "ppt-image2-editable-rebuild";
+const PPT_IMAGE2_SKILL_INSTRUCTION = [
+  `请优先使用 ${PPT_IMAGE2_SKILL_NAME} 技能逻辑制作 PPT。`,
+  "用户可能会输入主题、页数、受众、文档素材、图片素材或本地文件路径。",
+  "先理解用户要做的汇报目标，再整理大纲、页面结构和每页重点。",
+  "生成 PPT 时，标题、正文、表格、卡片、箭头和结论条尽量保持可编辑；复杂图片、复杂图表和难以稳定复刻的局部视觉可以作为图片元素保留。",
+  "不要把整页参考图直接作为最终 PPT 页面。"
+].join("\n");
+const DEEP_RESEARCH_STYLE_INSTRUCTION = [
+  "本轮使用研究模式，适合综述、技术调研、竞品对比、方案选型和复杂问题拆解。",
+  "先把用户问题拆成研究计划，再按计划检索、整理和对比证据，最后输出结构化报告。",
+  "回答中区分确定事实、推断结论和仍需补充验证的信息；引用来源时说明证据用途。"
+].join("\n");
+const WEB_SEARCH_STYLE_INSTRUCTION = [
+  "本轮已开启联网搜索，请围绕用户问题生成合适关键词，必要时检索公开网页。",
+  "基于网页来源回答，并区分搜索得到的事实、自己的归纳和仍需进一步确认的信息。"
+].join("\n");
 
 const COMPOSER_AGENT_ICONS = {
   chat: MessageCircle,
@@ -339,6 +355,10 @@ function submitPaymentForm(payHtml = "", targetWindow = null) {
   return true;
 }
 
+function isPaymentFormHtml(value = "") {
+  return /<form[\s>]/i.test(String(value || ""));
+}
+
 function openGatewayPayment(payment = {}, targetWindow = null) {
   const payFormHtml = payment.payFormHtml || (payment.paymentType === "PAGE_FORM" ? payment.payUrl : "");
   if (payFormHtml && submitPaymentForm(payFormHtml, targetWindow)) {
@@ -359,6 +379,26 @@ function isImageArtifact(artifact = {}) {
   const type = String(artifact.contentType || artifact.type || "").toLowerCase();
   const name = String(artifact.fileName || artifact.title || artifact.previewUrl || artifact.downloadUrl || "").toLowerCase();
   return type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/.test(name);
+}
+
+function isImageUpload(file = {}) {
+  return isImageArtifact({
+    contentType: file.type || file.contentType || file.fileType || "",
+    fileName: file.name || file.fileName || ""
+  });
+}
+
+function createLocalPreviewUrl(file) {
+  if (!isImageUpload(file) || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
+    return "";
+  }
+  return URL.createObjectURL(file);
+}
+
+function revokeLocalPreviewUrl(url = "") {
+  if (String(url || "").startsWith("blob:") && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function workspaceImageArtifacts(data = {}) {
@@ -778,6 +818,25 @@ function BearDoctorAcademicApp() {
   const fileInputRef = useRef(null);
   const knowledgeFileInputRef = useRef(null);
   const streamControllersRef = useRef({});
+  const selectedFilePreviewUrlRef = useRef("");
+
+  const replaceSelectedFile = useCallback((nextFile) => {
+    const nextPreviewUrl = nextFile?.localPreviewUrl || "";
+    if (selectedFilePreviewUrlRef.current && selectedFilePreviewUrlRef.current !== nextPreviewUrl) {
+      revokeLocalPreviewUrl(selectedFilePreviewUrlRef.current);
+    }
+    selectedFilePreviewUrlRef.current = nextPreviewUrl;
+    setSelectedFile(nextFile);
+  }, []);
+
+  const clearSelectedFile = useCallback(() => {
+    replaceSelectedFile(null);
+  }, [replaceSelectedFile]);
+
+  useEffect(() => () => {
+    revokeLocalPreviewUrl(selectedFilePreviewUrlRef.current);
+    selectedFilePreviewUrlRef.current = "";
+  }, []);
 
   const currentChat = useMemo(() => chatList.find((item) => item.id === currentChatId), [chatList, currentChatId]);
   const visibleConnectionError = useMemo(() => (
@@ -886,7 +945,7 @@ function BearDoctorAcademicApp() {
     if (nextWorkspace.agentId) {
       setSelectedAgent(nextWorkspace.agentId);
       if (nextWorkspace.agentId !== "file" && nextWorkspace.agentId !== "data" && nextWorkspace.agentId !== "mrag" && nextWorkspace.agentId !== "skills" && nextWorkspace.agentId !== "manual-skills") {
-        setSelectedFile(null);
+        clearSelectedFile();
       }
     }
     const path = workspacePath(nextWorkspace.id);
@@ -1506,8 +1565,6 @@ function BearDoctorAcademicApp() {
   const openWorkspaceHistoryItem = useCallback(async (item) => {
     const sessionId = item?.sessionId;
     if (item?.workspaceId === "trade" && !sessionId) {
-      setSelectedAgent("trade-audit");
-      setInputMessage(buildTradeHistoryAuditPrompt(item));
       setConnectionError("");
       return;
     }
@@ -1571,11 +1628,16 @@ function BearDoctorAcademicApp() {
   }, [loadPackages]);
 
   useEffect(() => {
+    if (!auth?.token) {
+      setAgentCapabilities(null);
+      setAgentCapabilitiesError("");
+      return;
+    }
     loadAgentCapabilities().catch((error) => {
       console.warn("Agent 能力读取失败", error);
       setAgentCapabilitiesError("能力状态读取失败");
     });
-  }, [loadAgentCapabilities]);
+  }, [auth?.token, loadAgentCapabilities]);
 
   useEffect(() => {
     if (!auth?.token) return;
@@ -1614,7 +1676,7 @@ function BearDoctorAcademicApp() {
     const id = createRuntimeId("AS");
     localStorage.setItem("agentGroupSessionId", id);
     setCurrentChatId(id);
-    setSelectedFile(null);
+    clearSelectedFile();
     setChatList((prev) => [{ id, title: "新对话", messages: EMPTY_MESSAGES, isNew: true }, ...prev]);
   };
 
@@ -1690,8 +1752,13 @@ function BearDoctorAcademicApp() {
   };
 
   const auditTradeOrder = (order) => {
-    setSelectedAgent("trade-audit");
-    setInputMessage(buildTradeAuditPrompt(order || {}));
+    if (!auth?.token) {
+      setLoginOpen(true);
+      return;
+    }
+    setRechargeTab("orders");
+    setRechargeOpen(true);
+    loadOrders().catch(() => {});
     setConnectionError("");
   };
 
@@ -1767,7 +1834,18 @@ function BearDoctorAcademicApp() {
       setLoginOpen(true);
       return;
     }
-    setSelectedFile({ name: file.name, size: file.size, status: "uploading" });
+    const imageFile = isImageUpload(file);
+    const localPreviewUrl = createLocalPreviewUrl(file);
+    replaceSelectedFile({
+      name: file.name,
+      fileType: file.type || "",
+      contentType: file.type || "",
+      size: file.size,
+      status: "uploading",
+      isImage: imageFile,
+      previewUrl: localPreviewUrl,
+      localPreviewUrl
+    });
     setIsUploading(true);
     try {
       const res = await uploadAcademicFile(file, currentChatId);
@@ -1776,11 +1854,18 @@ function BearDoctorAcademicApp() {
           fileId: res.data.fileId,
           name: res.data.fileName,
           fileType: res.data.fileType,
+          contentType: file.type || "",
           size: res.data.fileSize,
           summary: res.data.summary,
-          status: "parsed"
+          status: "parsed",
+          isImage: imageFile,
+          previewUrl: localPreviewUrl,
+          localPreviewUrl
         };
-        setSelectedFile(parsedFile);
+        replaceSelectedFile(parsedFile);
+        if (imageFile) {
+          setInputMessage((prev) => (prev.trim() ? prev : "这个图上是什么内容呢"));
+        }
         const project = activeAcademicProject || await createDefaultAcademicProject();
         if (project?.projectId) {
           const bindRes = await bindAcademicProjectFile(project.projectId, {
@@ -1799,11 +1884,11 @@ function BearDoctorAcademicApp() {
         setToast("文件解析完成");
       } else {
         setConnectionError(normalizeUserMessage(res.info, "文件上传失败"));
-        setSelectedFile(null);
+        clearSelectedFile();
       }
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "文件上传失败"));
-      setSelectedFile(null);
+      clearSelectedFile();
     } finally {
       setIsUploading(false);
     }
@@ -1823,14 +1908,19 @@ function BearDoctorAcademicApp() {
       setModelConfigOpen(true);
       return;
     }
-    const displayQuestion = text || (file ? "请分析这个文件" : "");
+    const fileIsImage = file?.isImage || isImageArtifact({ fileName: file?.name, contentType: file?.contentType || file?.fileType, previewUrl: file?.previewUrl });
+    const displayQuestion = text || (file ? (fileIsImage ? "这个图上是什么内容呢" : "请分析这个文件") : "");
     const skillInstruction = selectedAgent === "manual-skills" && selectedSkillName
       ? `请使用 ${selectedSkillName} 技能`
       : "";
+    const pptInstruction = selectedAgent === "ppt" ? PPT_IMAGE2_SKILL_INSTRUCTION : "";
+    const deepResearchInstruction = selectedAgent === "deep" ? DEEP_RESEARCH_STYLE_INSTRUCTION : "";
+    const webSearchInstruction = webSearchEnabled ? WEB_SEARCH_STYLE_INSTRUCTION : "";
+    const instructionPrefix = [skillInstruction, pptInstruction, deepResearchInstruction, webSearchInstruction].filter(Boolean).join("\n\n");
     const streamDraft = buildWorkspaceStreamDraft({
       workspaceId: currentWorkspace.id,
       agentId: selectedAgent,
-      question: skillInstruction ? `${skillInstruction}\n\n${displayQuestion}` : displayQuestion,
+      question: instructionPrefix ? `${instructionPrefix}\n\n${displayQuestion}` : displayQuestion,
       fileId: file?.fileId || "",
       imageUrl: file?.imageUrl || "",
       imageName: file?.name || ""
@@ -2624,6 +2714,11 @@ function BearDoctorAcademicApp() {
         teamSize: data.teamSize || product.teamSize || groupMarketConfig?.discount?.target,
         quotaAmount: product.quotaAmount,
         productType: product.productType,
+        payUrl: data.payUrl || "",
+        payFormHtml: data.payFormHtml || (data.paymentType === "PAGE_FORM" ? data.payUrl : ""),
+        paymentType: data.paymentType || (isPaymentFormHtml(data.payUrl) ? "PAGE_FORM" : ""),
+        payChannel: data.payChannel || "ALIPAY",
+        gatewayTradeNo: data.gatewayTradeNo || "",
         source: "new"
       });
       setRechargeTab("orders");
@@ -2638,12 +2733,17 @@ function BearDoctorAcademicApp() {
 
   const payExistingOrder = async (order) => {
     if (!order?.orderId) return;
+    const payUrl = order.payUrl || "";
     setPaymentDialog({
       orderId: order.orderId,
       productName: order.productName || order.productId || "额度订单",
       amount: order.payAmount || order.totalAmount,
       marketType: order.marketType,
       quotaAmount: 0,
+      payUrl,
+      payFormHtml: isPaymentFormHtml(payUrl) ? payUrl : "",
+      paymentType: isPaymentFormHtml(payUrl) ? "PAGE_FORM" : "",
+      payChannel: order.payChannel || "ALIPAY",
       source: "existing"
     });
   };
@@ -2658,6 +2758,16 @@ function BearDoctorAcademicApp() {
       payWindow.document.close();
     }
     try {
+      const preparedPayment = {
+        ...paymentDialog,
+        payFormHtml: paymentDialog.payFormHtml || (isPaymentFormHtml(paymentDialog.payUrl) ? paymentDialog.payUrl : "")
+      };
+      if (openGatewayPayment(preparedPayment, payWindow)) {
+        setPaymentDialog(null);
+        setToast("已打开支付宝支付页，支付完成后订单会通过回调更新");
+        await loadOrders().catch(() => {});
+        return;
+      }
       const payRes = await createPayment(paymentDialog.orderId, {
         payChannel: "ALIPAY",
         returnUrl: paymentReturnUrl(paymentDialog.orderId)
@@ -2856,6 +2966,30 @@ function BearDoctorAcademicApp() {
           <div className="input-area">
             {selectedFile && (
               <div className="file-preview">
+                {selectedFile.isImage || isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.contentType || selectedFile.fileType, previewUrl: selectedFile.previewUrl }) ? (
+                  <div className="image-preview-item">
+                    <div className="image-preview-thumb">
+                      {selectedFile.previewUrl ? (
+                        <img src={selectedFile.previewUrl} alt={selectedFile.name || "上传图片"} />
+                      ) : (
+                        <div className="image-preview-empty"><ImagePlus size={24} /></div>
+                      )}
+                      {isUploading && (
+                        <div className="image-upload-mask">
+                          <Loader2 size={17} className="spin" />
+                          <span>解析中</span>
+                        </div>
+                      )}
+                      <button type="button" className="image-preview-remove" onClick={clearSelectedFile} aria-label="移除图片">
+                        <X size={15} />
+                      </button>
+                    </div>
+                    <div className="image-preview-meta">
+                      <div className="image-preview-name">{selectedFile.name}</div>
+                      <div className="image-preview-size">{formatFileSize(selectedFile.size)}</div>
+                    </div>
+                  </div>
+                ) : (
                 <div className="file-preview-item">
                   <div className="file-icon-wrapper"><FileText size={22} /></div>
                   <div className="file-info">
@@ -2863,8 +2997,9 @@ function BearDoctorAcademicApp() {
                     <div className="file-size">{formatFileSize(selectedFile.size)}</div>
                     {isUploading && <div className="upload-parsing"><Loader2 size={14} className="spin" /><span>解析中...</span></div>}
                   </div>
-                  <button className="remove-file" onClick={() => setSelectedFile(null)}><Trash2 size={16} /></button>
+                  <button type="button" className="remove-file" onClick={clearSelectedFile} aria-label="移除文件"><Trash2 size={16} /></button>
                 </div>
+                )}
               </div>
             )}
 
@@ -2941,12 +3076,48 @@ function BearDoctorAcademicApp() {
                 </div>
               </div>
             </div>
+            {selectedAgent === "ppt" && (
+              <div className="composer-ppt-skill-note">
+                <div>
+                  <FileText size={15} />
+                  <strong>PPT 生成 / 图片重建</strong>
+                </div>
+                <span>
+                  直接写清楚主题、页数、受众、风格和重点；也可以上传文档或图片素材。系统会先整理大纲，再生成可编辑 PPT，复杂图片会作为图片元素保留。
+                </span>
+              </div>
+            )}
+            {selectedAgent === "deep" && (
+              <div className="composer-research-style-note">
+                <div>
+                  <Search size={15} />
+                  <strong>研究报告</strong>
+                </div>
+                <span>
+                  适合综述、技术调研、竞品对比和方案选型。输入研究问题、范围和希望重点关注的角度，系统会先拆解计划，再整理来源、对比证据并输出报告。
+                </span>
+              </div>
+            )}
+            {webSearchEnabled && (
+              <div className="composer-web-search-note">
+                <div>
+                  <Globe2 size={15} />
+                  <strong>联网搜索对话</strong>
+                </div>
+                <span>
+                  适合查最新资料、公开网页和需要来源的问题。输入要查证的内容，系统会先搜索网页，再结合来源回答并说明不确定点。
+                </span>
+              </div>
+            )}
             {selectedAgent === "manual-skills" && (
               <div className="composer-skill-settings">
                 <div className="composer-skill-settings-head">
                   <strong>Skill</strong>
                   <span>{selectedSkillName || "自动"}</span>
                 </div>
+                <p className="composer-skill-help">
+                  适合指定某个固定流程处理任务。选择一个 Skill 后，输入目标、素材路径和约束；选择“自动”时，系统会根据任务内容匹配合适的 Skill。
+                </p>
                 <div className="skill-picker composer-skill-picker" aria-label="选择 Skill">
                   <button
                     type="button"
@@ -2994,7 +3165,9 @@ function BearDoctorAcademicApp() {
         <div className="toast">
           <Check size={16} />
           <span>{toast}</span>
-          <button onClick={() => setToast("")}>脳</button>
+          <button type="button" className="toast-close" aria-label="关闭提示" onClick={() => setToast("")}>
+            <X size={16} />
+          </button>
         </div>
       )}
 
@@ -3661,8 +3834,8 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAu
                 </small>
                 <span>￥{tradeOrderAmount(order)}</span>
                 <button type="button" className="trade-order-audit" onClick={() => onAuditOrder?.(order)}>
-                  <ShieldCheck size={14} />
-                  <span>审计</span>
+                  <Eye size={14} />
+                  <span>记录</span>
                 </button>
               </article>
             );
@@ -4880,6 +5053,16 @@ function RechargeDialog({
 }) {
   const [now, setNow] = useState(() => Date.now());
   const formatMoney = (value) => Number(value || 0).toFixed(2);
+  const groupTeamSizeLabel = (product = {}) => {
+    const rawSize = Number(product.teamSize || 0);
+    if (rawSize === 3 || rawSize === 5) return rawSize;
+    const text = `${product.goodsId || ""} ${product.goodsName || ""}`.toUpperCase();
+    if (text.includes("G10002") || text.includes("G10005") || text.includes("论文阅读") || text.includes("深度研究")) {
+      return 5;
+    }
+    return 3;
+  };
+  const groupPriceLabel = (product = {}) => formatMoney(product.groupPrice || product.originPrice);
   const statusLabel = (status) => ({
     CREATE: "已创建",
     PAY_WAIT: "待支付",
@@ -4931,7 +5114,11 @@ function RechargeDialog({
   };
   const marketGoods = groupMarketConfig?.goods || {};
   const teamList = groupMarketConfig?.teamList || [];
-  const teamSize = Number(groupPreviewPackage?.teamSize || teamList[0]?.targetCount || 2);
+  const teamSize = groupTeamSizeLabel({
+    ...groupPreviewPackage,
+    teamSize: groupMarketConfig?.discount?.target || groupPreviewPackage?.teamSize || teamList[0]?.targetCount
+  });
+  const isMembershipPreview = groupPreviewPackage?.productType === "MEMBERSHIP_PLAN";
   const quotaAmount = Number(groupPreviewPackage?.quotaAmount || 0).toFixed(0);
   const isGroupBuying = Boolean(groupPreviewPackage && buyingKey.startsWith(`${groupPreviewPackage.goodsId}-group`));
   const isDirectBuying = Boolean(groupPreviewPackage && buyingKey === `${groupPreviewPackage.goodsId}-direct`);
@@ -4966,6 +5153,14 @@ function RechargeDialog({
     specSummary: "适合轻量体验，按平台模型和额度包规则使用。"
   };
   const memberPlanCards = [freePlan, ...membershipPlans];
+  const membershipPlanToneClass = (plan, current) => {
+    if (!current) return "";
+    if (plan.productType === "FREE_PLAN") return "current current-free";
+    const text = `${plan.goodsId || ""} ${plan.goodsName || ""}`.toUpperCase();
+    if (text.includes("PRO")) return "current current-pro";
+    if (text.includes("PLUS")) return "current current-plus";
+    return "current current-paid";
+  };
   const memberPlanFeatures = (plan) => {
     if (plan.productType === "FREE_PLAN") {
       return ["基础对话体验", "平台模型按量扣费", "可单独购买额度包"];
@@ -4988,7 +5183,7 @@ function RechargeDialog({
             <button type="button" className="group-back" onClick={onBackToPackages}>
               <ArrowLeft size={16} />
             </button>
-            <strong>额度包详情</strong>
+            <strong>{isMembershipPreview ? "会员拼团详情" : "额度包详情"}</strong>
           </div>
 
           <div className="group-detail-main">
@@ -5038,7 +5233,9 @@ function RechargeDialog({
                 <UserPlus size={16} /> {isGroupBuying ? "处理中" : `自己开团 ￥${formatMoney(previewProduct.groupPrice)}`}
               </button>
             </div>
-            <div className="group-detail-tip">{teamSize} 人成团，支付成功后需等待成团，成团后额度到账。</div>
+            <div className="group-detail-tip">
+              {teamSize} 人成团，支付成功后需等待成团，成团后{isMembershipPreview ? "会员权益生效" : "额度到账"}。
+            </div>
           </div>
         </div>
       </div>
@@ -5127,12 +5324,13 @@ function RechargeDialog({
                 <span>{memberActive ? `当前 ${membership?.planName || "会员"}，有效期至 ${formatCycleEnd(membership?.cycleEndTime) || "-"}` : "开通后获得会员月额度和自定义模型权益"}</span>
               </div>
               <div className="membership-plan-grid">
-                {memberPlanCards.map((plan, index) => {
+                {memberPlanCards.map((plan) => {
                   const isFree = plan.productType === "FREE_PLAN";
                   const isCurrent = plan.goodsId === currentPlanCode || (!memberActive && isFree);
                   const planPrice = Number(plan.originPrice || 0);
                   const isLowerPlan = memberActive && !isFree && currentPlanPrice > 0 && planPrice < currentPlanPrice;
                   const disabled = Boolean(buyingKey) || isCurrent || isFree || isLowerPlan;
+                  const canGroupBuy = !isFree;
                   const planName = plan.goodsName || "会员套餐";
                   const actionText = isCurrent
                     ? "当前套餐"
@@ -5142,7 +5340,7 @@ function RechargeDialog({
                         ? "处理中"
                         : `升级至 ${planName.replace("会员", "").trim() || planName}`;
                   return (
-                    <article className={`membership-plan-card ${index === memberPlanCards.length - 1 ? "featured" : ""}`} key={plan.goodsId}>
+                    <article className={`membership-plan-card ${membershipPlanToneClass(plan, isCurrent)}`} key={plan.goodsId}>
                       <div className="membership-plan-name">
                         <h4>{planName}</h4>
                         {isCurrent && <span>当前</span>}
@@ -5153,9 +5351,16 @@ function RechargeDialog({
                         <em>/ 月</em>
                       </div>
                       <p>{plan.specSummary}</p>
-                      <button type="button" onClick={() => onBuy(plan, "direct")} disabled={disabled}>
-                        {actionText}
-                      </button>
+                      <div className="membership-plan-actions">
+                        <button type="button" onClick={() => onBuy(plan, "direct")} disabled={disabled}>
+                          {actionText}
+                        </button>
+                        {canGroupBuy && (
+                          <button type="button" onClick={() => onOpenGroupPreview(plan)} disabled={Boolean(buyingKey) || isCurrent || isLowerPlan}>
+                            {buyingKey === `${plan.goodsId}-group` ? "处理中" : `${groupTeamSizeLabel(plan)} 人拼团 ¥${groupPriceLabel(plan)}`}
+                          </button>
+                        )}
+                      </div>
                       <ul className="plan-features">
                         {memberPlanFeatures(plan).map((feature) => (
                           <li key={feature}><Check size={14} /> {feature}</li>
@@ -5175,24 +5380,24 @@ function RechargeDialog({
               </div>
               <div className="package-grid upgrade-plan-grid">
                 {quotaPackages.map((pkg) => (
-                  <article className="quota-package upgrade-plan-card" key={pkg.goodsId}>
-                    <h4>{pkg.goodsName}</h4>
-                    <p>{pkg.specSummary}</p>
-                    <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
-                    <ul className="plan-features">
-                      <li><Check size={14} /> 对话、文件问答和 Skill 调用</li>
-                      <li><Check size={14} /> 生成 PPT、图像和深度研究</li>
-                      <li><Check size={14} /> 支付后自动记录额度流水</li>
-                    </ul>
-                    <div className="pkg-actions">
-                      <button onClick={() => onBuy(pkg, "direct")} disabled={Boolean(buyingKey)}>
-                        ￥{Number(pkg.originPrice || 0).toFixed(2)}
-                      </button>
-                      <button className="group" onClick={() => onOpenGroupPreview(pkg)} disabled={Boolean(buyingKey)}>
-                        {buyingKey === `${pkg.goodsId}-group` ? "处理中" : `${pkg.teamSize || 2} 人团 ￥${Number(pkg.groupPrice || 0).toFixed(2)}`}
-                      </button>
-                    </div>
-                  </article>
+                    <article className="quota-package upgrade-plan-card" key={pkg.goodsId}>
+                      <h4>{pkg.goodsName}</h4>
+                      <p>{pkg.specSummary}</p>
+                      <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
+                      <ul className="plan-features">
+                        <li><Check size={14} /> 对话、文件问答和 Skill 调用</li>
+                        <li><Check size={14} /> 生成 PPT、图像和深度研究</li>
+                        <li><Check size={14} /> 支付后自动记录额度流水</li>
+                      </ul>
+                      <div className="pkg-actions">
+                        <button onClick={() => onBuy(pkg, "direct")} disabled={Boolean(buyingKey)}>
+                          ￥{Number(pkg.originPrice || 0).toFixed(2)}
+                        </button>
+                        <button className="group" onClick={() => onOpenGroupPreview(pkg)} disabled={Boolean(buyingKey)}>
+                          {buyingKey === `${pkg.goodsId}-group` ? "处理中" : `${groupTeamSizeLabel(pkg)} 人团 ￥${groupPriceLabel(pkg)}`}
+                        </button>
+                      </div>
+                    </article>
                 ))}
                 {quotaPackages.length === 0 && <div className="empty-package">暂无可购买额度包</div>}
               </div>

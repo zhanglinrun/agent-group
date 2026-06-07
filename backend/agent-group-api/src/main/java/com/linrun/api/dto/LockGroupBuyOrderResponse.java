@@ -28,4 +28,8 @@ public class LockGroupBuyOrderResponse implements Serializable {
     private String orderStatus;
     private String payStatus;
     private String payUrl;
+    private String payFormHtml;
+    private String paymentType;
+    private String payChannel;
+    private String gatewayTradeNo;
 }

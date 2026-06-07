@@ -58,7 +58,7 @@ public class QuotaPackageCatalogService {
     }
 
     private GuideProduct enrichGroupBuy(GuideProduct product) {
-        if (product == null || !isQuotaPackage(product) || !StringUtils.hasText(product.getGoodsId()) || groupBuyActivityService == null) {
+        if (product == null || !isUpgradeProduct(product) || !StringUtils.hasText(product.getGoodsId()) || groupBuyActivityService == null) {
             return product;
         }
         try {

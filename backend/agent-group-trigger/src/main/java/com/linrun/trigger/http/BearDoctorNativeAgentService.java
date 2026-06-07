@@ -1337,7 +1337,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                                 String executionMemoryPrompt) {
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 searchTools,
-                academicToolCallbacks("ppt", userId, conversationId, webSearchEnabled)
+                academicToolCallbacks("ppt", userId, conversationId, webSearchEnabled),
+                skillsToolCallbacks()
         );
         return new PPTBuilderAgent(chatModel, Arrays.asList(tools), executionMemoryPrompt, sessionService, taskManager);
     }
@@ -1504,17 +1505,28 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         String configured = StringUtils.hasText(skillsDirectory) ? skillsDirectory.trim() : "skills";
         Path cwd = Path.of("").toAbsolutePath().normalize();
         List<Path> candidates = new ArrayList<>();
-        candidates.add(Path.of(configured));
-        candidates.add(cwd.resolve(configured).normalize());
-        candidates.add(cwd.resolve("skills").normalize());
-        candidates.add(cwd.resolve("..").resolve("skills").normalize());
-        candidates.add(cwd.resolve("..").resolve("..").resolve("skills").normalize());
+        addSkillsDirectoryCandidate(candidates, Path.of(configured));
+        addSkillsDirectoryCandidate(candidates, cwd.resolve(configured));
+        for (Path cursor = cwd; cursor != null; cursor = cursor.getParent()) {
+            addSkillsDirectoryCandidate(candidates, cursor.resolve(configured));
+            addSkillsDirectoryCandidate(candidates, cursor.resolve("skills"));
+        }
         for (Path candidate : candidates) {
             if (Files.isDirectory(candidate)) {
                 return candidate.toAbsolutePath().normalize().toString();
             }
         }
         return configured;
+    }
+
+    private void addSkillsDirectoryCandidate(List<Path> candidates, Path candidate) {
+        if (candidate == null) {
+            return;
+        }
+        Path normalized = candidate.toAbsolutePath().normalize();
+        if (!candidates.contains(normalized)) {
+            candidates.add(normalized);
+        }
     }
 
     private String resolvedSkillsOutputDirectory() {

@@ -167,7 +167,7 @@ agent:
       webhook:
         replay-window-seconds: ${AGENT_GROUP_PAYMENT_WEBHOOK_REPLAY_WINDOW_SECONDS:300}
       alipay:
-        gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:https://openapi.alipay.com/gateway.do}
+        gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
         app-id: ${AGENT_GROUP_ALIPAY_APP_ID:}
         private-key: ${AGENT_GROUP_ALIPAY_PRIVATE_KEY:}
         public-key: ${AGENT_GROUP_ALIPAY_PUBLIC_KEY:}

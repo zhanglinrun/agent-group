@@ -116,6 +116,9 @@ public class PaymentService {
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         validateOrderOwner(tradeOrder, userId);
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
+        if (!PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
+            return toExistingCreateResponse(payOrder, "payment already " + payOrder.getPayStatus());
+        }
         String payChannel = resolvePayChannel(request.getPayChannel(), payOrder);
         if (PaymentChannel.MOCK_PAY.name().equals(payChannel)) {
             PaymentAccessChecker.assertAllowed();
@@ -126,6 +129,8 @@ public class PaymentService {
                 payChannel,
                 request.getNotifyUrl(),
                 request.getReturnUrl()));
+        applyGatewayPaymentResult(payOrder, result);
+        tradeOrderRepository.updatePaymentGatewayInfo(payOrder);
 
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
@@ -415,6 +420,23 @@ public class PaymentService {
         return command;
     }
 
+    private void applyGatewayPaymentResult(PayOrderEntity payOrder, PaymentCreateResult result) {
+        if (result == null) {
+            throw new AppException("PAY_0003", "payment gateway create result is empty");
+        }
+        payOrder.markGatewayCreated(
+                result.getPayChannel(),
+                resolveGatewayPayUrl(result),
+                result.getGatewayTradeNo());
+    }
+
+    private String resolveGatewayPayUrl(PaymentCreateResult result) {
+        if (StringUtils.hasText(result.getPayFormHtml())) {
+            return result.getPayFormHtml();
+        }
+        return result.getPayUrl();
+    }
+
     private PaymentWebhookCommand toWebhookCommand(PaymentWebhookRequest request) {
         PaymentWebhookCommand command = new PaymentWebhookCommand();
         command.setPayChannel(resolvePayChannel(request.getPayChannel(), null));
@@ -571,6 +593,29 @@ public class PaymentService {
         response.setCreated(result.isCreated());
         response.setMessage(result.getMessage());
         return response;
+    }
+
+    private CreatePaymentResponse toExistingCreateResponse(PayOrderEntity payOrder, String message) {
+        CreatePaymentResponse response = new CreatePaymentResponse();
+        response.setOrderId(payOrder.getOrderId());
+        response.setPayOrderId(payOrder.getPayOrderId());
+        response.setPayChannel(payOrder.getPayChannel());
+        response.setPayUrl(payOrder.getPayUrl());
+        if (looksLikePaymentForm(payOrder.getPayUrl())) {
+            response.setPayFormHtml(payOrder.getPayUrl());
+            response.setPaymentType("PAGE_FORM");
+        } else {
+            response.setPaymentType("URL");
+        }
+        response.setGatewayTradeNo(payOrder.getOutTradeNo());
+        response.setPayAmount(payOrder.getPayAmount());
+        response.setCreated(false);
+        response.setMessage(message);
+        return response;
+    }
+
+    private boolean looksLikePaymentForm(String value) {
+        return StringUtils.hasText(value) && value.toLowerCase(Locale.ROOT).contains("<form");
     }
 
     private DownloadPaymentBillResponse toBillDownloadResponse(PaymentBillDownloadResult result) {

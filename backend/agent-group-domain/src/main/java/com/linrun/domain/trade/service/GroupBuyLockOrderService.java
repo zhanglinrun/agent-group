@@ -2,6 +2,8 @@ package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.LockGroupBuyOrderRequest;
 import com.linrun.api.dto.LockGroupBuyOrderResponse;
+import com.linrun.api.dto.CreatePaymentRequest;
+import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.domain.activity.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.activity.adapter.repository.GroupBuyOrderLockRepository;
 import com.linrun.domain.activity.adapter.repository.GroupBuyStockRepository;
@@ -17,10 +19,12 @@ import com.linrun.domain.agent.conversation.service.GuideDecisionSnapshotValidat
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.CreateTradeOrderCommandEntity;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
+import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.domain.trade.service.groupbuy.lock.GroupBuyLockContext;
 import com.linrun.domain.trade.service.groupbuy.lock.GroupBuyLockRuleChain;
@@ -53,6 +57,7 @@ public class GroupBuyLockOrderService {
     private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
     private final AgentObservabilityMetrics metrics;
     private final GroupBuyLockRuleChain groupBuyLockRuleChain;
+    private final PaymentService paymentService;
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
@@ -101,7 +106,7 @@ public class GroupBuyLockOrderService {
                                     GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
         this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository));
+                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository), AgentObservabilityMetrics.noop(), null);
     }
 
     public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
@@ -115,7 +120,37 @@ public class GroupBuyLockOrderService {
                                     GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
         this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                guideDecisionSnapshotValidator, AgentObservabilityMetrics.noop());
+                guideDecisionSnapshotValidator, AgentObservabilityMetrics.noop(), null);
+    }
+
+    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+                                    GroupBuyActivityRepository groupBuyActivityRepository,
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    GroupBuyStockRepository groupBuyStockRepository,
+                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
+                                    TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    TradeStatusFlowService tradeStatusFlowService,
+                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                    AgentObservabilityMetrics metrics) {
+        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                guideDecisionSnapshotValidator, metrics, null);
+    }
+
+    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+                                    GroupBuyActivityRepository groupBuyActivityRepository,
+                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                    GroupBuyStockRepository groupBuyStockRepository,
+                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
+                                    TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    TradeStatusFlowService tradeStatusFlowService,
+                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                    PaymentService paymentService) {
+        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                guideDecisionSnapshotValidator, AgentObservabilityMetrics.noop(), paymentService);
     }
 
     @Autowired
@@ -128,7 +163,8 @@ public class GroupBuyLockOrderService {
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
                                     GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
-                                    AgentObservabilityMetrics metrics) {
+                                    AgentObservabilityMetrics metrics,
+                                    PaymentService paymentService) {
         this.guideDataRepository = guideDataRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
@@ -139,6 +175,7 @@ public class GroupBuyLockOrderService {
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
+        this.paymentService = paymentService;
         this.groupBuyLockRuleChain = new GroupBuyLockRuleChain(
                 groupBuyOrderLockRepository,
                 groupBuyTeamStockRepository,
@@ -172,7 +209,14 @@ public class GroupBuyLockOrderService {
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
                     .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
             TradePayOrderAggregate tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
-            return toResponse(new GroupBuyLockResult(repeatedLock, team, true), tradePayOrder, request.getDecisionId());
+            CreatePaymentResponse payment = createGatewayPayment(
+                    tradePayOrder.getTradeOrder(),
+                    tradePayOrder.getPayOrder(),
+                    request);
+            return toResponse(new GroupBuyLockResult(repeatedLock, team, true),
+                    tradePayOrder,
+                    request.getDecisionId(),
+                    payment);
         }
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
@@ -204,7 +248,11 @@ public class GroupBuyLockOrderService {
             GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockNewTeam(team, orderLock);
             tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
             recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
-            return toResponse(lockResult, tradePayOrder, request.getDecisionId());
+            CreatePaymentResponse payment = createGatewayPayment(
+                    tradePayOrder.getTradeOrder(),
+                    tradePayOrder.getPayOrder(),
+                    request);
+            return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
         }
 
         GroupBuyTeam team = lockContext.getTeam();
@@ -217,7 +265,11 @@ public class GroupBuyLockOrderService {
             GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockExistingTeam(orderLock);
             tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
             recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
-            return toResponse(lockResult, tradePayOrder, request.getDecisionId());
+            CreatePaymentResponse payment = createGatewayPayment(
+                    tradePayOrder.getTradeOrder(),
+                    tradePayOrder.getPayOrder(),
+                    request);
+            return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
         } catch (RuntimeException e) {
             if (lockContext.isTeamStockOccupied()) {
                 groupBuyTeamStockRepository.recoverTeamStock(
@@ -326,9 +378,25 @@ public class GroupBuyLockOrderService {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
     }
 
+    private CreatePaymentResponse createGatewayPayment(TradeOrderEntity tradeOrder,
+                                                       PayOrderEntity payOrder,
+                                                       LockGroupBuyOrderRequest request) {
+        if (paymentService == null || payOrder == null || !PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
+            return null;
+        }
+        if (StringUtils.hasText(payOrder.getPayUrl()) && !payOrder.getPayUrl().startsWith("mock://")) {
+            return null;
+        }
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
+        paymentRequest.setOrderId(tradeOrder.getOrderId());
+        paymentRequest.setPayChannel(resolvePayChannel(request));
+        return paymentService.createPayment(paymentRequest, tradeOrder.getUserId());
+    }
+
     private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result,
                                                  TradePayOrderAggregate tradePayOrder,
-                                                 String decisionId) {
+                                                 String decisionId,
+                                                 CreatePaymentResponse payment) {
         GroupBuyOrderLock orderLock = result.getOrderLock();
         GroupBuyTeam team = result.getTeam();
         TradeOrderEntity tradeOrder = tradePayOrder.getTradeOrder();
@@ -353,8 +421,24 @@ public class GroupBuyLockOrderService {
         response.setPayOrderId(payOrder.getPayOrderId());
         response.setOrderStatus(tradeOrder.getOrderStatus().name());
         response.setPayStatus(payOrder.getPayStatus().name());
-        response.setPayUrl(payOrder.getPayUrl());
+        response.setPayUrl(payment == null ? payOrder.getPayUrl() : payment.getPayUrl());
+        response.setPayFormHtml(payment == null ? resolvePayFormHtml(payOrder.getPayUrl()) : payment.getPayFormHtml());
+        response.setPaymentType(payment == null ? resolvePaymentType(payOrder.getPayUrl()) : payment.getPaymentType());
+        response.setPayChannel(payment == null ? payOrder.getPayChannel() : payment.getPayChannel());
+        response.setGatewayTradeNo(payment == null ? payOrder.getOutTradeNo() : payment.getGatewayTradeNo());
         return response;
+    }
+
+    private String resolvePayFormHtml(String payUrl) {
+        return looksLikePaymentForm(payUrl) ? payUrl : null;
+    }
+
+    private String resolvePaymentType(String payUrl) {
+        return looksLikePaymentForm(payUrl) ? "PAGE_FORM" : "URL";
+    }
+
+    private boolean looksLikePaymentForm(String value) {
+        return StringUtils.hasText(value) && value.toLowerCase().contains("<form");
     }
 
     private String nextNo(String prefix) {

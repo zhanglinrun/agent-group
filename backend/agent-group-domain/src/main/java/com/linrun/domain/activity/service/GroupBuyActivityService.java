@@ -35,7 +35,7 @@ public class GroupBuyActivityService {
         result.setGoodsId(activity.getGoodsId());
         result.setActivityId(activity.getActivityId());
         result.setGroupPrice(activity.getGroupPrice());
-        result.setTeamSize(activity.getTeamSize());
+        result.setTeamSize(activity.resolveTeamSize());
         result.setRemainingSeconds(activity.remainingSeconds(now));
         result.setStatus(status);
         result.setAvailable(GroupBuyActivityStatus.ACTIVE.equals(status));

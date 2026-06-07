@@ -15,6 +15,9 @@ public interface TradeOrderRepository {
 
     void updatePaySuccess(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);
 
+    default void updatePaymentGatewayInfo(PayOrderEntity payOrder) {
+    }
+
     void updateGroupSettledByOrderIds(List<String> orderIds);
 
     void updateCloseUnpaid(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);

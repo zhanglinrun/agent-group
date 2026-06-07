@@ -2,6 +2,8 @@ package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.CreateDirectOrderRequest;
 import com.linrun.api.dto.CreateDirectOrderResponse;
+import com.linrun.api.dto.CreatePaymentRequest;
+import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotRepository;
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
@@ -9,10 +11,12 @@ import com.linrun.domain.agent.conversation.service.GuideDecisionSnapshotValidat
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.CreateTradeOrderCommandEntity;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
+import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,13 +35,14 @@ public class DirectBuyOrderService {
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
+    private final PaymentService paymentService;
 
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService) {
         this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new GuideDecisionSnapshotValidator(GuideDecisionSnapshotRepository.noop()));
+                new GuideDecisionSnapshotValidator(GuideDecisionSnapshotRepository.noop()), null);
     }
 
     public DirectBuyOrderService(GuideDataRepository guideDataRepository,
@@ -46,7 +51,16 @@ public class DirectBuyOrderService {
                                  TradeStatusFlowService tradeStatusFlowService,
                                  GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
         this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository));
+                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository), null);
+    }
+
+    public DirectBuyOrderService(GuideDataRepository guideDataRepository,
+                                 TradeOrderRepository tradeOrderRepository,
+                                 TradeOrderService tradeOrderService,
+                                 TradeStatusFlowService tradeStatusFlowService,
+                                 GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
+        this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                guideDecisionSnapshotValidator, null);
     }
 
     @Autowired
@@ -54,12 +68,14 @@ public class DirectBuyOrderService {
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
+                                 GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                 PaymentService paymentService) {
         this.guideDataRepository = guideDataRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
+        this.paymentService = paymentService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -82,7 +98,8 @@ public class DirectBuyOrderService {
             validateExistingOrder(existed, request);
             PayOrderEntity existingPayOrder = tradeOrderRepository.queryPayOrderByOrderId(existed.getOrderId())
                     .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
-            return toResponse(existed, existingPayOrder, request.getDecisionId());
+            CreatePaymentResponse payment = createGatewayPayment(existed, existingPayOrder, request);
+            return toResponse(existed, existingPayOrder, request.getDecisionId(), payment);
         }
 
         GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
@@ -110,7 +127,11 @@ public class DirectBuyOrderService {
         tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
         recordCreateFlow(tradePayOrder);
 
-        return toResponse(tradePayOrder, request.getDecisionId());
+        CreatePaymentResponse payment = createGatewayPayment(
+                tradePayOrder.getTradeOrder(),
+                tradePayOrder.getPayOrder(),
+                request);
+        return toResponse(tradePayOrder, request.getDecisionId(), payment);
     }
 
     private void validateExistingOrder(TradeOrderEntity existed, CreateDirectOrderRequest request) {
@@ -146,11 +167,31 @@ public class DirectBuyOrderService {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
     }
 
-    private CreateDirectOrderResponse toResponse(TradePayOrderAggregate tradePayOrder, String decisionId) {
-        return toResponse(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder(), decisionId);
+    private CreatePaymentResponse createGatewayPayment(TradeOrderEntity tradeOrder,
+                                                       PayOrderEntity payOrder,
+                                                       CreateDirectOrderRequest request) {
+        if (paymentService == null || payOrder == null || !PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
+            return null;
+        }
+        if (StringUtils.hasText(payOrder.getPayUrl()) && !payOrder.getPayUrl().startsWith("mock://")) {
+            return null;
+        }
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
+        paymentRequest.setOrderId(tradeOrder.getOrderId());
+        paymentRequest.setPayChannel(resolvePayChannel(request));
+        return paymentService.createPayment(paymentRequest, tradeOrder.getUserId());
     }
 
-    private CreateDirectOrderResponse toResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder, String decisionId) {
+    private CreateDirectOrderResponse toResponse(TradePayOrderAggregate tradePayOrder,
+                                                 String decisionId,
+                                                 CreatePaymentResponse payment) {
+        return toResponse(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder(), decisionId, payment);
+    }
+
+    private CreateDirectOrderResponse toResponse(TradeOrderEntity tradeOrder,
+                                                 PayOrderEntity payOrder,
+                                                 String decisionId,
+                                                 CreatePaymentResponse payment) {
         CreateDirectOrderResponse response = new CreateDirectOrderResponse();
         response.setOrderId(tradeOrder.getOrderId());
         response.setPayOrderId(payOrder.getPayOrderId());
@@ -164,8 +205,24 @@ public class DirectBuyOrderService {
         response.setPayStatus(payOrder.getPayStatus().name());
         response.setOriginAmount(tradeOrder.getOriginAmount());
         response.setPayAmount(payOrder.getPayAmount());
-        response.setPayUrl(payOrder.getPayUrl());
+        response.setPayUrl(payment == null ? payOrder.getPayUrl() : payment.getPayUrl());
+        response.setPayFormHtml(payment == null ? resolvePayFormHtml(payOrder.getPayUrl()) : payment.getPayFormHtml());
+        response.setPaymentType(payment == null ? resolvePaymentType(payOrder.getPayUrl()) : payment.getPaymentType());
+        response.setPayChannel(payment == null ? payOrder.getPayChannel() : payment.getPayChannel());
+        response.setGatewayTradeNo(payment == null ? payOrder.getOutTradeNo() : payment.getGatewayTradeNo());
         response.setCreateTime(tradeOrder.getCreateTime());
         return response;
+    }
+
+    private String resolvePayFormHtml(String payUrl) {
+        return looksLikePaymentForm(payUrl) ? payUrl : null;
+    }
+
+    private String resolvePaymentType(String payUrl) {
+        return looksLikePaymentForm(payUrl) ? "PAGE_FORM" : "URL";
+    }
+
+    private boolean looksLikePaymentForm(String value) {
+        return StringUtils.hasText(value) && value.toLowerCase().contains("<form");
     }
 }

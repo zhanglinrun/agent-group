@@ -22,5 +22,9 @@ public class CreateDirectOrderResponse implements Serializable {
     private BigDecimal originAmount;
     private BigDecimal payAmount;
     private String payUrl;
+    private String payFormHtml;
+    private String paymentType;
+    private String payChannel;
+    private String gatewayTradeNo;
     private LocalDateTime createTime;
 }

@@ -43,6 +43,21 @@ public class PayOrderEntity {
         this.payStatus = PayStatusEnumVO.SUCCESS;
     }
 
+    public void markGatewayCreated(String payChannel, String payUrl, String gatewayTradeNo) {
+        if (!PayStatusEnumVO.WAIT_PAY.equals(payStatus)) {
+            return;
+        }
+        if (hasText(payChannel)) {
+            this.payChannel = payChannel;
+        }
+        if (hasText(payUrl)) {
+            this.payUrl = payUrl;
+        }
+        if (hasText(gatewayTradeNo)) {
+            this.outTradeNo = gatewayTradeNo;
+        }
+    }
+
     public void close() {
         if (PayStatusEnumVO.SUCCESS.equals(payStatus)) {
             throw new AppException("TRADE_0004", "支付成功的支付单不能关闭");
@@ -133,5 +148,9 @@ public class PayOrderEntity {
 
     public void setPayTime(LocalDateTime payTime) {
         this.payTime = payTime;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

@@ -119,6 +119,15 @@
           and pay_status = 'WAIT_PAY'
     </update>
 
+    <update id="updatePayOrderGatewayInfo" parameterType="com.linrun.infrastructure.po.PayOrderPO">
+        update pay_order
+        set pay_channel = #{payChannel},
+            pay_url = #{payUrl},
+            out_trade_no = #{outTradeNo}
+        where order_id = #{orderId}
+          and pay_status = 'WAIT_PAY'
+    </update>
+
     <update id="updateGroupSettledByOrderIds">
         update trade_order
         set order_status = 'GROUP_SETTLED'

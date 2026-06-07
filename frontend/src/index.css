@@ -6395,6 +6395,8 @@ body {
 
 .bear-doctor-app .file-preview {
   padding: 14px 0;
+  display: flex;
+  align-items: flex-start;
 }
 
 .bear-doctor-app .file-preview-item {
@@ -6405,6 +6407,100 @@ body {
   background: var(--bg-light);
   border-radius: 12px;
   border: 1px solid var(--border-color);
+}
+
+.bear-doctor-app .image-preview-item {
+  width: 148px;
+  padding: 8px;
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+}
+
+.bear-doctor-app .image-preview-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: visible;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.bear-doctor-app .image-preview-thumb img,
+.bear-doctor-app .image-preview-empty {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+
+.bear-doctor-app .image-preview-thumb img {
+  display: block;
+  object-fit: cover;
+}
+
+.bear-doctor-app .image-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.bear-doctor-app .image-upload-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.58);
+  border-radius: 10px;
+}
+
+.bear-doctor-app .image-preview-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+}
+
+.bear-doctor-app .image-preview-remove:hover {
+  background: #ef4444;
+}
+
+.bear-doctor-app .image-preview-meta {
+  padding: 8px 2px 0;
+}
+
+.bear-doctor-app .image-preview-name {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bear-doctor-app .image-preview-size {
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: 11px;
 }
 
 .bear-doctor-app .file-icon-wrapper {
@@ -6680,6 +6776,99 @@ body {
   padding-left: 2px;
 }
 
+.bear-doctor-app .composer-ppt-skill-note {
+  width: min(860px, 100%);
+  margin: 10px auto 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 6px;
+}
+
+.bear-doctor-app .composer-ppt-skill-note > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1d4ed8;
+}
+
+.bear-doctor-app .composer-ppt-skill-note strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.bear-doctor-app .composer-ppt-skill-note span {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .composer-research-style-note {
+  width: min(860px, 100%);
+  margin: 10px auto 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 6px;
+}
+
+.bear-doctor-app .composer-research-style-note > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+}
+
+.bear-doctor-app .composer-research-style-note strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.bear-doctor-app .composer-research-style-note span {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .composer-web-search-note {
+  width: min(860px, 100%);
+  margin: 10px auto 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 6px;
+}
+
+.bear-doctor-app .composer-web-search-note > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+}
+
+.bear-doctor-app .composer-web-search-note strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.bear-doctor-app .composer-web-search-note span {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 .bear-doctor-app .composer-skill-settings {
   width: min(860px, 100%);
   margin: 10px auto 0;
@@ -6706,6 +6895,7 @@ body {
 
 .bear-doctor-app .composer-skill-settings-head span {
   min-width: 0;
+  max-width: 260px;
   padding: 4px 8px;
   border-radius: 999px;
   background: #f8fafc;
@@ -6714,6 +6904,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bear-doctor-app .composer-skill-help {
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .bear-doctor-app .composer-skill-settings .composer-skill-picker {
@@ -6804,6 +7001,15 @@ body {
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
+}
+
+.bear-doctor-app .toast .toast-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .bear-doctor-app .glow-effect {
@@ -7241,9 +7447,28 @@ body {
   color: #111827;
 }
 
-.bear-doctor-app .membership-plan-card.featured {
+.bear-doctor-app .membership-plan-card.current {
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16);
+}
+
+.bear-doctor-app .membership-plan-card.current-free {
+  background: #e7f3ff;
+  border-color: rgba(37, 99, 235, 0.48);
+}
+
+.bear-doctor-app .membership-plan-card.current-plus {
+  background: #ecfdf5;
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.bear-doctor-app .membership-plan-card.current-pro {
   background: #f4f3ff;
-  border-color: rgba(99, 102, 241, 0.34);
+  border-color: rgba(99, 102, 241, 0.42);
+}
+
+.bear-doctor-app .membership-plan-card.current-paid {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.22);
 }
 
 .bear-doctor-app .membership-plan-name {
@@ -7301,9 +7526,15 @@ body {
   line-height: 1.65;
 }
 
+.bear-doctor-app .membership-plan-actions {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
 .bear-doctor-app .membership-plan-card button {
   min-height: 42px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   border-radius: 999px;
   border: 1px solid rgba(15, 23, 42, 0.16);
   background: #ffffff;
@@ -7311,7 +7542,33 @@ body {
   font-weight: 650;
 }
 
-.bear-doctor-app .membership-plan-card.featured button:not(:disabled) {
+.bear-doctor-app .membership-plan-card.current button:disabled {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #64748b;
+}
+
+.bear-doctor-app .membership-plan-card.current-free .membership-plan-name span {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.bear-doctor-app .membership-plan-card.current-plus .membership-plan-name span {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.bear-doctor-app .membership-plan-card.current-pro .membership-plan-name span {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+}
+
+.bear-doctor-app .membership-plan-card.current-paid .membership-plan-name span {
+  background: rgba(15, 23, 42, 0.08);
+  color: #334155;
+}
+
+.bear-doctor-app .upgrade-plan-card .pkg-actions .group {
   background: #5b5ce2;
   border-color: #5b5ce2;
   color: #ffffff;
@@ -8480,11 +8737,29 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .reference-section,
 .bear-doctor-app[data-theme] .artifact-card,
 .bear-doctor-app[data-theme] .reference-link,
+.bear-doctor-app[data-theme] .image-preview-item,
 .bear-doctor-app[data-theme] .file-preview-item,
 .bear-doctor-app[data-theme] .input-container {
   background: var(--app-surface);
   border-color: var(--app-border);
   box-shadow: none;
+}
+
+.bear-doctor-app[data-theme] .image-preview-thumb {
+  background: var(--app-surface-2);
+}
+
+.bear-doctor-app[data-theme] .image-preview-empty {
+  background: var(--app-surface-2);
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .image-preview-name {
+  color: var(--app-text);
+}
+
+.bear-doctor-app[data-theme] .image-preview-size {
+  color: var(--app-muted);
 }
 
 .bear-doctor-app[data-theme] .timeline-header,
@@ -8581,6 +8856,48 @@ body[data-theme="light"] {
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
 }
 
+.bear-doctor-app[data-theme] .composer-ppt-skill-note {
+  background: var(--app-surface);
+  border-color: color-mix(in srgb, var(--app-primary) 22%, var(--app-border));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.bear-doctor-app[data-theme] .composer-ppt-skill-note > div {
+  color: var(--app-primary);
+}
+
+.bear-doctor-app[data-theme] .composer-ppt-skill-note span {
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .composer-research-style-note {
+  background: var(--app-surface);
+  border-color: color-mix(in srgb, var(--app-primary) 22%, var(--app-border));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.bear-doctor-app[data-theme] .composer-research-style-note > div {
+  color: var(--app-primary);
+}
+
+.bear-doctor-app[data-theme] .composer-research-style-note span {
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .composer-web-search-note {
+  background: var(--app-surface);
+  border-color: color-mix(in srgb, var(--app-primary) 22%, var(--app-border));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+.bear-doctor-app[data-theme] .composer-web-search-note > div {
+  color: var(--app-primary);
+}
+
+.bear-doctor-app[data-theme] .composer-web-search-note span {
+  color: var(--app-muted);
+}
+
 .bear-doctor-app[data-theme] .composer-skill-settings {
   background: var(--app-surface);
   border-color: var(--app-border);
@@ -8593,6 +8910,10 @@ body[data-theme="light"] {
 
 .bear-doctor-app[data-theme] .composer-skill-settings-head span {
   background: var(--app-hover);
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .composer-skill-help {
   color: var(--app-muted);
 }
 
@@ -8754,10 +9075,33 @@ body[data-theme="light"] {
   color: #64748b;
 }
 
-.bear-doctor-app[data-theme] .membership-plan-card.featured,
 .bear-doctor-app[data-theme] .upgrade-plan-card:nth-child(3n) {
   background: #f4f3ff;
   border-color: rgba(99, 102, 241, 0.34);
+}
+
+.bear-doctor-app[data-theme] .membership-plan-card.current {
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16);
+}
+
+.bear-doctor-app[data-theme] .membership-plan-card.current-free {
+  background: #e7f3ff;
+  border-color: rgba(37, 99, 235, 0.48);
+}
+
+.bear-doctor-app[data-theme] .membership-plan-card.current-plus {
+  background: #ecfdf5;
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.bear-doctor-app[data-theme] .membership-plan-card.current-pro {
+  background: #f4f3ff;
+  border-color: rgba(99, 102, 241, 0.42);
+}
+
+.bear-doctor-app[data-theme] .membership-plan-card.current-paid {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.22);
 }
 
 .bear-doctor-app[data-theme] .membership-plan-card button,
@@ -8767,12 +9111,17 @@ body[data-theme="light"] {
   color: #111827;
 }
 
-.bear-doctor-app[data-theme] .membership-plan-card.featured button:not(:disabled),
 .bear-doctor-app[data-theme] .upgrade-plan-card .pkg-actions .group,
 .bear-doctor-app[data-theme] .upgrade-refresh {
   background: #5b5ce2;
   border-color: #5b5ce2;
   color: #ffffff;
+}
+
+.bear-doctor-app[data-theme] .membership-plan-card.current button:disabled {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #64748b;
 }
 
 .bear-doctor-app[data-theme] .membership-plan-card button:disabled {

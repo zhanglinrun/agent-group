@@ -96,7 +96,7 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     private final String wechatApiV3Key;
 
     public OfficialPaymentGatewayClient(
-            @Value("${agent.group.payment.alipay.gateway-url:https://openapi.alipay.com/gateway.do}") String alipayGatewayUrl,
+            @Value("${agent.group.payment.alipay.gateway-url:https://openapi-sandbox.dl.alipaydev.com/gateway.do}") String alipayGatewayUrl,
             @Value("${agent.group.payment.alipay.app-id:}") String alipayAppId,
             @Value("${agent.group.payment.alipay.private-key:}") String alipayPrivateKey,
             @Value("${agent.group.payment.alipay.public-key:}") String alipayPublicKey,

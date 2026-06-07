@@ -41,6 +41,12 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    public void updatePaymentGatewayInfo(PayOrderEntity payOrder) {
+        assertUpdated(tradeOrderDao.updatePayOrderGatewayInfo(TradePOConverter.toPO(payOrder)),
+                "PAY_0017", "pay order status changed before gateway payment update");
+    }
+
+    @Override
     public void updateGroupSettledByOrderIds(List<String> orderIds) {
         if (orderIds == null || orderIds.isEmpty()) {
             return;

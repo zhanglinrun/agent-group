@@ -274,6 +274,20 @@ execute stmt;
 deallocate prepare stmt;
 
 set @sql = (
+  select if(count(*) = 1,
+    'alter table pay_order modify column pay_url mediumtext null comment ''payment url or page form html''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'pay_order'
+    and column_name = 'pay_url'
+    and data_type <> 'mediumtext'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
   select if(count(*) = 0,
     'alter table trade_order add unique key uk_idempotent_key (idempotent_key)',
     'select 1')
