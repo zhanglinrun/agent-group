@@ -91,7 +91,6 @@ import {
   cacheMcpTools,
   callMcpTool,
   applyAcademicProjectPatch,
-  bindAcademicProjectFile,
   createPayment,
   createDirectOrder,
   createAcademicProject,
@@ -216,6 +215,14 @@ const PROMPT_ICONS = {
 const EMPTY_MESSAGES = [];
 
 const normalizeUserMessage = normalizeApiMessage;
+
+const DEFAULT_IMAGE_QUESTION = "这个图上是什么内容呢";
+const DEFAULT_MANUAL_SKILL_HELP = "适合指定某个固定流程处理任务。选择一个 Skill 后，输入目标、素材路径和约束；选择“自动”时，系统会根据任务内容匹配合适的 Skill。";
+
+function manualSkillHelpText(skill = {}, fallback = DEFAULT_MANUAL_SKILL_HELP) {
+  const text = String(skill?.descriptionZh || skill?.description || "").replace(/\s+/g, " ").trim();
+  return text || fallback;
+}
 
 const DEFAULT_MCP_TOOLS_TEXT = JSON.stringify({
   tools: [
@@ -386,6 +393,42 @@ function isImageUpload(file = {}) {
     contentType: file.type || file.contentType || file.fileType || "",
     fileName: file.name || file.fileName || ""
   });
+}
+
+function imageExtensionFromType(type = "") {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
+  if (normalized.includes("webp")) return "webp";
+  if (normalized.includes("gif")) return "gif";
+  return "png";
+}
+
+function namedClipboardImage(file) {
+  if (!file || !isImageUpload(file)) return null;
+  if (file.name) return file;
+  return new File(
+    [file],
+    `pasted-image-${Date.now()}.${imageExtensionFromType(file.type)}`,
+    { type: file.type || "image/png", lastModified: Date.now() }
+  );
+}
+
+function clipboardImageFiles(clipboardData) {
+  const images = [];
+  const items = Array.from(clipboardData?.items || []);
+  for (const item of items) {
+    if (item.kind !== "file") continue;
+    const image = namedClipboardImage(item.getAsFile());
+    if (image) images.push(image);
+  }
+  const files = Array.from(clipboardData?.files || []);
+  for (const file of files) {
+    const image = namedClipboardImage(file);
+    if (image && !images.some((item) => item.name === image.name && item.size === image.size)) {
+      images.push(image);
+    }
+  }
+  return images;
 }
 
 function createLocalPreviewUrl(file) {
@@ -781,7 +824,7 @@ function BearDoctorAcademicApp() {
   const [selectedAgent, setSelectedAgent] = useState(() => workspaceAgentMode(routeWorkspace));
   const [selectedSkillName, setSelectedSkillName] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [runningChatIds, setRunningChatIds] = useState({});
   const [connectionError, setConnectionError] = useState("");
@@ -818,27 +861,64 @@ function BearDoctorAcademicApp() {
   const fileInputRef = useRef(null);
   const knowledgeFileInputRef = useRef(null);
   const streamControllersRef = useRef({});
-  const selectedFilePreviewUrlRef = useRef("");
+  const selectedFilePreviewUrlsRef = useRef([]);
+  const uploadCountRef = useRef(0);
 
-  const replaceSelectedFile = useCallback((nextFile) => {
-    const nextPreviewUrl = nextFile?.localPreviewUrl || "";
-    if (selectedFilePreviewUrlRef.current && selectedFilePreviewUrlRef.current !== nextPreviewUrl) {
-      revokeLocalPreviewUrl(selectedFilePreviewUrlRef.current);
-    }
-    selectedFilePreviewUrlRef.current = nextPreviewUrl;
-    setSelectedFile(nextFile);
+  const syncSelectedFiles = useCallback((nextFiles) => {
+    const nextList = Array.isArray(nextFiles) ? nextFiles.filter(Boolean) : [];
+    const nextUrls = new Set(nextList.map((file) => file.localPreviewUrl).filter(Boolean));
+    selectedFilePreviewUrlsRef.current.forEach((url) => {
+      if (!nextUrls.has(url)) {
+        revokeLocalPreviewUrl(url);
+      }
+    });
+    selectedFilePreviewUrlsRef.current = Array.from(nextUrls);
+    setSelectedFiles(nextList);
   }, []);
 
   const clearSelectedFile = useCallback(() => {
-    replaceSelectedFile(null);
-  }, [replaceSelectedFile]);
+    syncSelectedFiles([]);
+  }, [syncSelectedFiles]);
+
+  const removeSelectedFile = useCallback((clientId) => {
+    setSelectedFiles((prev) => {
+      const nextList = prev.filter((file) => file.clientId !== clientId);
+      const nextUrls = new Set(nextList.map((file) => file.localPreviewUrl).filter(Boolean));
+      selectedFilePreviewUrlsRef.current.forEach((url) => {
+        if (!nextUrls.has(url)) {
+          revokeLocalPreviewUrl(url);
+        }
+      });
+      selectedFilePreviewUrlsRef.current = Array.from(nextUrls);
+      return nextList;
+    });
+  }, []);
+
+  const upsertSelectedFile = useCallback((nextFile) => {
+    if (!nextFile) return;
+    setSelectedFiles((prev) => {
+      const nextList = prev.some((file) => file.clientId === nextFile.clientId)
+        ? prev.map((file) => (file.clientId === nextFile.clientId ? nextFile : file))
+        : [...prev, nextFile];
+      const nextUrls = new Set(nextList.map((file) => file.localPreviewUrl).filter(Boolean));
+      selectedFilePreviewUrlsRef.current.forEach((url) => {
+        if (!nextUrls.has(url)) {
+          revokeLocalPreviewUrl(url);
+        }
+      });
+      selectedFilePreviewUrlsRef.current = Array.from(nextUrls);
+      return nextList;
+    });
+  }, []);
 
   useEffect(() => () => {
-    revokeLocalPreviewUrl(selectedFilePreviewUrlRef.current);
-    selectedFilePreviewUrlRef.current = "";
+    selectedFilePreviewUrlsRef.current.forEach(revokeLocalPreviewUrl);
+    selectedFilePreviewUrlsRef.current = [];
   }, []);
 
   const currentChat = useMemo(() => chatList.find((item) => item.id === currentChatId), [chatList, currentChatId]);
+  const selectedFile = selectedFiles[0] || null;
+  const readySelectedFiles = selectedFiles.filter((file) => file?.fileId && file.status !== "uploading");
   const visibleConnectionError = useMemo(() => (
     isOperatorAuthText(connectionError) ? "" : connectionError
   ), [connectionError]);
@@ -861,9 +941,17 @@ function BearDoctorAcademicApp() {
   const isSending = Boolean(runningChatIds[currentChatId]);
   const canResumeCurrentChat = Boolean((currentTaskStatus.stopped || currentChat?.stopped) && !isSending);
   const canUseFile = workspaceAcceptsFile(currentWorkspace.id, selectedAgent);
+  const showAcademicProjectPanel = currentWorkspace.id === "mrag" && (academicProjects.length > 0 || activeAcademicProject);
+  const activeConversationProjectId = showAcademicProjectPanel ? activeAcademicProject?.projectId || "" : "";
   const manualSkills = useMemo(() => (
     Array.isArray(agentCapabilities?.manualSkills) ? agentCapabilities.manualSkills : []
   ), [agentCapabilities]);
+  const selectedManualSkill = useMemo(() => (
+    manualSkills.find((skill) => skill.name === selectedSkillName) || null
+  ), [manualSkills, selectedSkillName]);
+  const selectedManualSkillHelp = useMemo(() => (
+    selectedSkillName ? manualSkillHelpText(selectedManualSkill) : DEFAULT_MANUAL_SKILL_HELP
+  ), [selectedManualSkill, selectedSkillName]);
   const capabilitySummary = useMemo(() => {
     if (!agentCapabilities) return [];
     const toolCount = Number(agentCapabilities.academicToolCount || 0);
@@ -1826,17 +1914,21 @@ function BearDoctorAcademicApp() {
     setToast("已退出登录");
   };
 
-  const handleFileSelect = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const uploadSelectedFile = async (file) => {
     if (!file) return;
     if (!auth?.token) {
       setLoginOpen(true);
       return;
     }
+    if (!canUseFile) {
+      setConnectionError("当前模式不支持上传附件");
+      return;
+    }
     const imageFile = isImageUpload(file);
     const localPreviewUrl = createLocalPreviewUrl(file);
-    replaceSelectedFile({
+    const clientId = `${createRuntimeId("F")}-${Math.random().toString(16).slice(2)}`;
+    upsertSelectedFile({
+      clientId,
       name: file.name,
       fileType: file.type || "",
       contentType: file.type || "",
@@ -1846,11 +1938,13 @@ function BearDoctorAcademicApp() {
       previewUrl: localPreviewUrl,
       localPreviewUrl
     });
+    uploadCountRef.current += 1;
     setIsUploading(true);
     try {
       const res = await uploadAcademicFile(file, currentChatId);
       if (res.code === "0000") {
         const parsedFile = {
+          clientId,
           fileId: res.data.fileId,
           name: res.data.fileName,
           fileType: res.data.fileType,
@@ -1862,43 +1956,54 @@ function BearDoctorAcademicApp() {
           previewUrl: localPreviewUrl,
           localPreviewUrl
         };
-        replaceSelectedFile(parsedFile);
+        upsertSelectedFile(parsedFile);
         if (imageFile) {
-          setInputMessage((prev) => (prev.trim() ? prev : "这个图上是什么内容呢"));
-        }
-        const project = activeAcademicProject || await createDefaultAcademicProject();
-        if (project?.projectId) {
-          const bindRes = await bindAcademicProjectFile(project.projectId, {
-            fileId: parsedFile.fileId,
-            fileName: parsedFile.name,
-            fileType: parsedFile.fileType,
-            folderType: selectedAgent === "file" ? "draftManuscripts" : "coreReferences",
-            summary: parsedFile.summary,
-            contentPreview: parsedFile.summary
-          });
-          if (apiSucceeded(bindRes)) {
-            setAcademicProjects((prev) => [bindRes.data, ...prev.filter((item) => item.projectId !== bindRes.data.projectId)]);
-            setActiveAcademicProjectId(bindRes.data.projectId);
-          }
+          setInputMessage((prev) => (prev.trim() ? prev : DEFAULT_IMAGE_QUESTION));
         }
         setToast("文件解析完成");
       } else {
         setConnectionError(normalizeUserMessage(res.info, "文件上传失败"));
-        clearSelectedFile();
+        removeSelectedFile(clientId);
       }
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "文件上传失败"));
-      clearSelectedFile();
+      removeSelectedFile(clientId);
     } finally {
-      setIsUploading(false);
+      uploadCountRef.current = Math.max(0, uploadCountRef.current - 1);
+      setIsUploading(uploadCountRef.current > 0);
+    }
+  };
+
+  const handleFileSelect = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    for (const file of files) {
+      await uploadSelectedFile(file);
+    }
+  };
+
+  const handleComposerPaste = async (event) => {
+    if (!canUseFile) return;
+    const imageFiles = clipboardImageFiles(event.clipboardData);
+    if (!imageFiles.length) return;
+    event.preventDefault();
+    for (const imageFile of imageFiles) {
+      await uploadSelectedFile(imageFile);
     }
   };
 
   const sendMessage = () => {
     const text = inputMessage.trim();
     const sessionId = currentChatId;
-    const file = selectedFile;
-    if (runningChatIds[sessionId] || isUploading || (!text && !file)) return;
+    const files = readySelectedFiles;
+    const file = files[0] || null;
+    const hasPendingUploads = uploadCountRef.current > 0 || selectedFiles.some((item) => item.status === "uploading");
+    if (runningChatIds[sessionId]) return;
+    if (hasPendingUploads) {
+      setConnectionError("图片还在解析中，请稍等完成后再发送");
+      return;
+    }
+    if (!text && files.length === 0) return;
     if (!auth?.token) {
       setLoginOpen(true);
       return;
@@ -1908,10 +2013,13 @@ function BearDoctorAcademicApp() {
       setModelConfigOpen(true);
       return;
     }
-    const fileIsImage = file?.isImage || isImageArtifact({ fileName: file?.name, contentType: file?.contentType || file?.fileType, previewUrl: file?.previewUrl });
-    const displayQuestion = text || (file ? (fileIsImage ? "这个图上是什么内容呢" : "请分析这个文件") : "");
+    const fileIds = files.map((item) => item.fileId).filter(Boolean);
+    const allFilesAreImages = files.length > 0 && files.every((item) => (
+      item?.isImage || isImageArtifact({ fileName: item?.name, contentType: item?.contentType || item?.fileType, previewUrl: item?.previewUrl })
+    ));
+    const displayQuestion = text || (files.length ? (allFilesAreImages ? DEFAULT_IMAGE_QUESTION : "请分析这些文件") : "");
     const skillInstruction = selectedAgent === "manual-skills" && selectedSkillName
-      ? `请使用 ${selectedSkillName} 技能`
+      ? `请使用 ${selectedSkillName} 技能。除非缺少必要参数、素材或权限，否则不要停下来询问是否继续，也不要只输出执行计划、当前进度、预计耗时或下一步说明；请按技能要求连续调用工具，直到最终产物已经生成。`
       : "";
     const pptInstruction = selectedAgent === "ppt" ? PPT_IMAGE2_SKILL_INSTRUCTION : "";
     const deepResearchInstruction = selectedAgent === "deep" ? DEEP_RESEARCH_STYLE_INSTRUCTION : "";
@@ -1921,12 +2029,12 @@ function BearDoctorAcademicApp() {
       workspaceId: currentWorkspace.id,
       agentId: selectedAgent,
       question: instructionPrefix ? `${instructionPrefix}\n\n${displayQuestion}` : displayQuestion,
-      fileId: file?.fileId || "",
+      fileId: fileIds[0] || "",
       imageUrl: file?.imageUrl || "",
-      imageName: file?.name || ""
+      imageName: files.map((item) => item.name).filter(Boolean).join("，")
     });
     let dataWorkspacePayload = null;
-    if (currentWorkspace.id === "data" && !file) {
+    if (currentWorkspace.id === "data" && files.length === 0) {
       try {
         dataWorkspacePayload = buildWorkspaceDataRunPayload({
           sessionId,
@@ -1940,9 +2048,9 @@ function BearDoctorAcademicApp() {
     }
     let imageWorkspacePayload = null;
     if (currentWorkspace.id === "image") {
-      const sourceFileIds = file?.fileId && isImageArtifact({ fileName: file.name, contentType: file.fileType })
-        ? [file.fileId]
-        : [];
+      const sourceFileIds = files
+        .filter((item) => item.fileId && isImageArtifact({ fileName: item.name, contentType: item.fileType || item.contentType, previewUrl: item.previewUrl }))
+        .map((item) => item.fileId);
       const sourceImageUrls = streamDraft.imageUrl ? [streamDraft.imageUrl] : [];
       try {
         imageWorkspacePayload = buildWorkspaceImageGeneratePayload({
@@ -1963,8 +2071,15 @@ function BearDoctorAcademicApp() {
       id: createRuntimeId("U"),
       role: "user",
       content: displayQuestion,
-      file: Boolean(file),
-      fileName: file?.name || ""
+      file: files.length > 0,
+      fileName: files.map((item) => item.name).filter(Boolean).join("，"),
+      files: files.map((item) => ({
+        fileId: item.fileId,
+        name: item.name,
+        fileType: item.fileType,
+        isImage: item.isImage,
+        size: item.size
+      }))
     };
     const assistantId = createRuntimeId("A");
     const assistantMsg = {
@@ -1989,6 +2104,7 @@ function BearDoctorAcademicApp() {
     }));
     setChatRunning(sessionId, true, { stopped: false });
     setInputMessage("");
+    clearSelectedFile();
     setConnectionError("");
 
     if (currentWorkspace.id === "image") {
@@ -2058,7 +2174,7 @@ function BearDoctorAcademicApp() {
       return;
     }
 
-    if (currentWorkspace.id === "data" && !file) {
+    if (currentWorkspace.id === "data" && files.length === 0) {
       const controller = {
         aborted: false,
         abort() {
@@ -2144,7 +2260,7 @@ function BearDoctorAcademicApp() {
       return;
     }
 
-    if (currentWorkspace.id === "mrag" && !file) {
+    if (currentWorkspace.id === "mrag" && files.length === 0) {
       const controller = {
         aborted: false,
         abort() {
@@ -2237,13 +2353,13 @@ function BearDoctorAcademicApp() {
     streamControllersRef.current[sessionId] = requestAcademicStream(
       {
         sessionId,
-        projectId: activeAcademicProject?.projectId || "",
+        projectId: activeConversationProjectId,
         threadId: sessionId,
         question: streamDraft.question,
         taskType: streamDraft.taskType,
         taskMode: selectedAgent,
         fileId: streamDraft.fileId,
-        selectedFileIds: streamDraft.fileId ? [streamDraft.fileId] : [],
+        selectedFileIds: fileIds,
         imageUrl: streamDraft.imageUrl,
         imageName: streamDraft.imageName,
         webSearchEnabled,
@@ -2856,7 +2972,7 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="messages-container" ref={messagesContainer}>
-            {(academicProjects.length > 0 || activeAcademicProject) && (
+            {showAcademicProjectPanel && (
               <AcademicProjectPanel
                 projects={academicProjects}
                 model={academicProjectWorkspace}
@@ -2964,42 +3080,44 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="input-area">
-            {selectedFile && (
+            {selectedFiles.length > 0 && (
               <div className="file-preview">
-                {selectedFile.isImage || isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.contentType || selectedFile.fileType, previewUrl: selectedFile.previewUrl }) ? (
-                  <div className="image-preview-item">
-                    <div className="image-preview-thumb">
-                      {selectedFile.previewUrl ? (
-                        <img src={selectedFile.previewUrl} alt={selectedFile.name || "上传图片"} />
-                      ) : (
-                        <div className="image-preview-empty"><ImagePlus size={24} /></div>
-                      )}
-                      {isUploading && (
-                        <div className="image-upload-mask">
-                          <Loader2 size={17} className="spin" />
-                          <span>解析中</span>
-                        </div>
-                      )}
-                      <button type="button" className="image-preview-remove" onClick={clearSelectedFile} aria-label="移除图片">
-                        <X size={15} />
-                      </button>
+                {selectedFiles.map((attachment) => (
+                  attachment.isImage || isImageArtifact({ fileName: attachment.name, contentType: attachment.contentType || attachment.fileType, previewUrl: attachment.previewUrl }) ? (
+                    <div className="image-preview-item" key={attachment.clientId || attachment.fileId || attachment.name}>
+                      <div className="image-preview-thumb">
+                        {attachment.previewUrl ? (
+                          <img src={attachment.previewUrl} alt={attachment.name || "上传图片"} />
+                        ) : (
+                          <div className="image-preview-empty"><ImagePlus size={24} /></div>
+                        )}
+                        {attachment.status === "uploading" && (
+                          <div className="image-upload-mask">
+                            <Loader2 size={17} className="spin" />
+                            <span>解析中</span>
+                          </div>
+                        )}
+                        <button type="button" className="image-preview-remove" onClick={() => removeSelectedFile(attachment.clientId)} aria-label="移除图片">
+                          <X size={15} />
+                        </button>
+                      </div>
+                      <div className="image-preview-meta">
+                        <div className="image-preview-name">{attachment.name}</div>
+                        <div className="image-preview-size">{formatFileSize(attachment.size)}</div>
+                      </div>
                     </div>
-                    <div className="image-preview-meta">
-                      <div className="image-preview-name">{selectedFile.name}</div>
-                      <div className="image-preview-size">{formatFileSize(selectedFile.size)}</div>
+                  ) : (
+                    <div className="file-preview-item" key={attachment.clientId || attachment.fileId || attachment.name}>
+                      <div className="file-icon-wrapper"><FileText size={22} /></div>
+                      <div className="file-info">
+                        <div className="file-name">{attachment.name}</div>
+                        <div className="file-size">{formatFileSize(attachment.size)}</div>
+                        {attachment.status === "uploading" && <div className="upload-parsing"><Loader2 size={14} className="spin" /><span>解析中...</span></div>}
+                      </div>
+                      <button type="button" className="remove-file" onClick={() => removeSelectedFile(attachment.clientId)} aria-label="移除文件"><Trash2 size={16} /></button>
                     </div>
-                  </div>
-                ) : (
-                <div className="file-preview-item">
-                  <div className="file-icon-wrapper"><FileText size={22} /></div>
-                  <div className="file-info">
-                    <div className="file-name">{selectedFile.name}</div>
-                    <div className="file-size">{formatFileSize(selectedFile.size)}</div>
-                    {isUploading && <div className="upload-parsing"><Loader2 size={14} className="spin" /><span>解析中...</span></div>}
-                  </div>
-                  <button type="button" className="remove-file" onClick={clearSelectedFile} aria-label="移除文件"><Trash2 size={16} /></button>
-                </div>
-                )}
+                  )
+                ))}
               </div>
             )}
 
@@ -3017,6 +3135,7 @@ function BearDoctorAcademicApp() {
               <textarea
                 value={inputMessage}
                 onChange={(event) => setInputMessage(event.target.value)}
+                onPaste={handleComposerPaste}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
@@ -3026,10 +3145,10 @@ function BearDoctorAcademicApp() {
                 placeholder={webSearchEnabled ? "搜索网页" : selectedAgent === "image" ? "描述或编辑图片" : selectedAgent === "deep" ? "获取详细报告" : "问点什么"}
                 rows={1}
               />
-              <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
+              <input ref={fileInputRef} type="file" multiple accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
               <div className="composer-toolbar">
                 <div className="composer-tool-left">
-                  {canUseFile && !selectedFile && (
+                  {canUseFile && (
                     <button className="file-btn composer-icon-btn" disabled={isUploading} onClick={() => fileInputRef.current?.click()} title="上传文件">
                       <Plus size={19} />
                     </button>
@@ -3066,10 +3185,10 @@ function BearDoctorAcademicApp() {
                     <ChevronDown size={14} />
                   </button>
                   <button
-                    className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (!inputMessage.trim() && !selectedFile) ? "disabled" : ""}`}
+                    className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (isUploading || (!inputMessage.trim() && readySelectedFiles.length === 0)) ? "disabled" : ""}`}
                     onClick={isSending ? stopMessage : sendMessage}
-                    disabled={!isSending && (!inputMessage.trim() && !selectedFile)}
-                    title={isSending ? "停止生成" : "发送"}
+                    disabled={!isSending && (isUploading || (!inputMessage.trim() && readySelectedFiles.length === 0))}
+                    title={isSending ? "停止生成" : isUploading ? "图片解析中" : "发送"}
                   >
                     {isSending ? <Square size={17} /> : <ArrowUp size={18} />}
                   </button>
@@ -3116,7 +3235,7 @@ function BearDoctorAcademicApp() {
                   <span>{selectedSkillName || "自动"}</span>
                 </div>
                 <p className="composer-skill-help">
-                  适合指定某个固定流程处理任务。选择一个 Skill 后，输入目标、素材路径和约束；选择“自动”时，系统会根据任务内容匹配合适的 Skill。
+                  {selectedManualSkillHelp}
                 </p>
                 <div className="skill-picker composer-skill-picker" aria-label="选择 Skill">
                   <button
@@ -3132,7 +3251,7 @@ function BearDoctorAcademicApp() {
                       key={skill.name || skill.description}
                       className={selectedSkillName === skill.name ? "active" : ""}
                       onClick={() => setSelectedSkillName(skill.name || "")}
-                      title={skill.description || skill.name || ""}
+                      title={manualSkillHelpText(skill, skill.name || "")}
                     >
                       {skill.name || "技能"}
                     </button>
@@ -3146,7 +3265,7 @@ function BearDoctorAcademicApp() {
                 compact
                 draft={imageWorkspaceDraft}
                 onChange={setImageWorkspaceDraft}
-                hasReference={Boolean(selectedFile?.fileId && isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.fileType }))}
+                hasReference={readySelectedFiles.some((file) => file.fileId && isImageArtifact({ fileName: file.name, contentType: file.fileType || file.contentType }))}
               />
             )}
           </div>
@@ -4709,7 +4828,7 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
         {isUser ? (
           <>
             <div className="user-message">
-              {msg.file && <span className="file-attachment"><Paperclip size={14} />{msg.fileName}</span>}
+              {msg.file && <span className="file-attachment"><Paperclip size={14} />{msg.fileName || `${(msg.files || []).length} 个附件`}</span>}
               <div>{msg.content}</div>
             </div>
             <button className="copy-btn copy-btn-user" onClick={() => onCopy(msg)}>

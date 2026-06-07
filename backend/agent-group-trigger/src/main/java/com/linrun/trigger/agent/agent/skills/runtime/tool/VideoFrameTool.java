@@ -21,15 +21,25 @@ public class VideoFrameTool {
     private static final int MAX_OUTPUT_CHARS = 12000;
     private static final Pattern SAFE_NAME = Pattern.compile("[^A-Za-z0-9._-]+");
 
+    private final Path projectRoot;
     private final Path sessionRoot;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public VideoFrameTool(String sessionOutputDirectory) {
+        this(Path.of("").toAbsolutePath().normalize().toString(), sessionOutputDirectory);
+    }
+
+    public VideoFrameTool(String projectRoot, String sessionOutputDirectory) {
+        this.projectRoot = RestrictedToolSupport.normalizeRoot(projectRoot);
         this.sessionRoot = RestrictedToolSupport.normalizeRoot(sessionOutputDirectory);
     }
 
     public static ToolCallback[] create(String sessionOutputDirectory) {
         return ToolCallbacks.from(new VideoFrameTool(sessionOutputDirectory));
+    }
+
+    public static ToolCallback[] create(String projectRoot, String sessionOutputDirectory) {
+        return ToolCallbacks.from(new VideoFrameTool(projectRoot, sessionOutputDirectory));
     }
 
     @Tool(name = "extract_video_frames", description = """
@@ -60,8 +70,9 @@ public class VideoFrameTool {
                 return json(Map.of("ok", false, "error", "invalid frame output path"));
             }
             String fps = "fps=1/" + trimDouble(interval);
+            String ffmpeg = resolveFfmpegCommand();
             RestrictedToolSupport.CommandResult result = RestrictedToolSupport.runCommand(
-                    List.of("ffmpeg", "-y", "-ss", trimDouble(start), "-i", video.toString(),
+                    List.of(ffmpeg, "-y", "-ss", trimDouble(start), "-i", video.toString(),
                             "-t", trimDouble(duration), "-vf", fps, outputPattern.toString()),
                     sessionRoot,
                     Duration.ofMinutes(5),
@@ -98,6 +109,22 @@ public class VideoFrameTool {
             return Long.toString((long) value);
         }
         return String.format(java.util.Locale.ROOT, "%.3f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+
+    String resolveFfmpegCommand() {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+        List<Path> candidates = windows
+                ? List.of(
+                projectRoot.resolve("tools").resolve("runtime-bin").resolve("ffmpeg.cmd"),
+                projectRoot.resolve("tools").resolve("runtime-bin").resolve("ffmpeg.exe"))
+                : List.of(projectRoot.resolve("tools").resolve("runtime-bin").resolve("ffmpeg"));
+        for (Path candidate : candidates) {
+            Path normalized = candidate.toAbsolutePath().normalize();
+            if (Files.isRegularFile(normalized)) {
+                return normalized.toString();
+            }
+        }
+        return "ffmpeg";
     }
 
     private String json(Map<String, ?> payload) {

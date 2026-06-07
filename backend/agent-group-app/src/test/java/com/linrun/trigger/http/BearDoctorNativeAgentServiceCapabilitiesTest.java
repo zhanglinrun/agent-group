@@ -254,6 +254,11 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(manualSkills.size() >= 14);
         assertTrue(manualSkills.stream().anyMatch(skill -> "chart-visualization".equals(skill.get("name"))));
         assertTrue(manualSkills.stream().anyMatch(skill -> "data-analysis".equals(skill.get("name"))));
+        Map<String, Object> bilibiliRenderSkill = manualSkills.stream()
+                .filter(skill -> "bilibili-render-pdf".equals(skill.get("name")))
+                .findFirst()
+                .orElseThrow();
+        assertTrue(String.valueOf(bilibiliRenderSkill.get("descriptionZh")).contains("Bilibili 讲座"));
         Map<String, Object> huchenfengSkill = manualSkills.stream()
                 .filter(skill -> "huchenfeng-perspective".equals(skill.get("name")))
                 .findFirst()

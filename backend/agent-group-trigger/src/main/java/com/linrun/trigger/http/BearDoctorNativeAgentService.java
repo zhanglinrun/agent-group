@@ -224,9 +224,15 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case "manual-skills" -> withMemory(initManualSkillsReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
                             searchTools, webSearchEnabled, memoryPrompt), internalConversationId)
                     .stream(internalConversationId, query, fileId);
-            default -> withMemory(initWebSearchAgent(internalConversationId, runtimeChatModel,
-                            searchTools, webSearchEnabled, memoryPrompt), internalConversationId)
-                    .stream(internalConversationId, query);
+            default -> {
+                if (StringUtils.hasText(fileId)) {
+                    yield withMemory(initFileReactAgent(user.getUserId(), internalConversationId, runtimeChatModel, memoryPrompt), internalConversationId)
+                            .stream(internalConversationId, query, fileId);
+                }
+                yield withMemory(initWebSearchAgent(internalConversationId, runtimeChatModel,
+                                searchTools, webSearchEnabled, memoryPrompt), internalConversationId)
+                        .stream(internalConversationId, query);
+            }
         };
 
         AtomicBoolean consumed = new AtomicBoolean(false);
@@ -507,11 +513,55 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("name", skill.name());
         summary.put("description", skill.description());
+        summary.put("descriptionZh", manualSkillDescriptionZh(skill));
         summary.put("source", skill.source() == null ? "" : skill.source().name());
         summary.put("allowedTools", skill.allowedTools() == null ? List.of() : skill.allowedTools());
         summary.put("scriptCount", skill.scripts() == null ? 0 : skill.scripts().size());
         summary.put("scripts", skill.buildScriptSummaries());
         return summary;
+    }
+
+    private String manualSkillDescriptionZh(SkillMetadata skill) {
+        String description = compactSkillDescription(skill.description());
+        return switch (skill.name()) {
+            case "bilibili-recall-review" ->
+                    "用于对照原始字幕或转录文件，检查已经生成的 Bilibili 课程笔记、LaTeX 或 PDF 是否遗漏了重要、细节化、有教学价值的内容；只输出审查反馈，不直接修改笔记。";
+            case "bilibili-render-pdf" ->
+                    "用于把 Bilibili 讲座、教程或技术分享生成专业、详细、配图丰富的中文 LaTeX 课程笔记和最终 PDF。会结合标题、章节、图表、公式、代码、字幕解释和视频封面，并在缺少中文字幕时回退到 Whisper 语音转写。";
+            case "chart-visualization" ->
+                    "用于数据可视化任务。会从 26 种图表类型中选择合适方案，按规格提取参数，并通过 JavaScript 脚本生成图表图片。";
+            case "csdn-blog-publisher" ->
+                    "用于撰写 CSDN 技术博客，也可以执行发布流程。单篇文章走完整的撰写和发布流程，系列或批量文章默认只生成本地 Markdown，便于后续手动发布。";
+            case "data-analysis" ->
+                    "用于分析 Excel 或 CSV 数据文件，生成统计结果、摘要、透视表、SQL 查询或结构化数据探索结果；支持多工作表、聚合、过滤、关联和导出 CSV、JSON、Markdown。";
+            case "frontend-design" ->
+                    "用于创建有设计质量的前端界面，包括网页组件、页面、海报、应用、仪表盘、React 组件和 HTML/CSS 布局；适合需要美化或重新设计 Web UI 的任务。";
+            case "github-deep-research" ->
+                    "用于围绕 GitHub 仓库或开源项目做多轮深度研究，输出结构化 Markdown 报告，包含摘要、时间线、指标分析和 Mermaid 图。";
+            case "gpt-image-2-style-library" ->
+                    "用于从 GPT-Image2 风格库中选择视觉风格和工业化提示词模板，帮助创建、改写、分类或优化图像生成提示词。";
+            case "huchenfeng-perspective" -> description;
+            case "markdown-to-word-mathtype" ->
+                    "用于把 Markdown 文件转换为带样式的 Word 文档，并通过 Microsoft Word 自动化把 TeX 公式转换为 MathType 公式对象；适合中文报告、论文和带公式的文档导出。";
+            case "ppt-agent" ->
+                    "用于完整的 AI PPT 生成流程，按需求调研、大纲规划、资料检索、策划稿和 SVG 设计生成 5 个步骤制作演示文稿。";
+            case "ppt-generation" ->
+                    "用于生成 PPT 或 PPTX 演示文稿。会为每页生成视觉内容，再组合成 PowerPoint 文件。";
+            case "ppt-image2-editable-rebuild" ->
+                    "用于根据 image2 或图像生成参考图重建可编辑 PowerPoint 页面。适合先生成每页 PNG 参考图，再把标题、正文、表格、卡片、箭头、标签和结论条等元素重建为可编辑 PPT。";
+            case "tech-report" ->
+                    "用于把项目代码与实验结果整理成结构严谨、公式完备的中文技术报告，强调先定义再展开、公式与文字配合解释，并用定量数据支撑结论。";
+            case "vercel-deploy-claimable" ->
+                    "用于把应用或网站部署到 Vercel，生成预览地址和可认领的部署链接，适合部署上线、创建预览部署或获取演示链接。";
+            default -> description;
+        };
+    }
+
+    private String compactSkillDescription(String description) {
+        if (!StringUtils.hasText(description)) {
+            return "";
+        }
+        return description.replaceAll("\\s+", " ").trim();
     }
 
     private List<Map<String, Object>> workspaceProfiles(List<Map<String, Object>> academicTools) {
@@ -1590,6 +1640,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 - 文件工具只允许访问当前会话输出目录；读取和写入时优先使用相对路径。
                 %s
                 - 普通用户环境没有 bash 和 grep 工具；需要抓取 Bilibili、抽帧或编译 LaTeX 时，使用 bilibili_fetch、extract_video_frames、compile_latex 这些专用工具。
+                - 选择了具体技能后，默认连续执行到技能要求的最终产物；不要在中途询问用户是否需要继续、是否需要概览，除非缺少必要参数、素材、登录权限或外部服务不可用。
+                - 禁止把“正在处理”“当前正在解析”“预计几分钟”“下一步将执行”这类进度播报当作最终回答；如果技能要求 PDF、图片、文档或其他文件产物，必须继续调用工具直到产物生成成功或明确失败。
+                - compile_latex 成功后会默认清理 source.mp4、audio.wav、video.m4s、audio.m4s 这类临时媒体文件；最终只应保留 PDF、LaTeX、字幕、封面和选中的截图等可交付文件。
                 - 不要把文件生成到项目根目录、后端 app 目录、用户目录或系统临时目录。
                 - 最终回答中不要暴露服务器本地绝对路径，例如 Windows 盘符路径或 Linux 绝对路径。
                 - 只需要说明文件已经生成，PDF、LaTeX、字幕等文件会由前端下载按钮提供给用户。
@@ -1921,8 +1974,24 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         if (!StringUtils.hasText(fileId)) {
             return;
         }
-        FileInfo fileInfo = fileManageService.getFileInfo(fileId);
-        assertOwnedFile(userId, fileInfo);
+        for (String currentFileId : splitFileIds(fileId)) {
+            FileInfo fileInfo = fileManageService.getFileInfo(currentFileId);
+            assertOwnedFile(userId, fileInfo);
+        }
+    }
+
+    private List<String> splitFileIds(String fileIds) {
+        if (!StringUtils.hasText(fileIds)) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String fileId : fileIds.split("[,，\\s]+")) {
+            String trimmed = fileId == null ? "" : fileId.trim();
+            if (StringUtils.hasText(trimmed) && !result.contains(trimmed)) {
+                result.add(trimmed);
+            }
+        }
+        return result;
     }
 
     private void assertOwnedFile(String userId, FileInfo fileInfo) {

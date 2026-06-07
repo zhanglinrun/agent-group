@@ -57,6 +57,11 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
   if (lower.includes("data_inspection_failed") || lower.includes("inappropriate content")) {
     return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试。";
   }
+  if (lower.includes("model_config_0003")
+    || lower.includes("自定义模型密钥加密密钥")
+    || lower.includes("模型配置服务暂不可用")) {
+    return "模型配置服务暂不可用，请联系管理员处理";
+  }
   if ((lower.includes("401 unauthorized") || lower.includes("unauthorized"))
     && (lower.includes("dashscope") || lower.includes("chat/completions") || lower.includes("openai") || lower.includes("api key"))) {
     if (!lower.includes("dashscope")) {

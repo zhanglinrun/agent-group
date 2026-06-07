@@ -46,6 +46,16 @@ public class FileContentService {
             return "文件ID不能为空";
         }
 
+        List<String> fileIds = splitFileIds(fileId);
+        if (fileIds.size() > 1) {
+            StringBuilder result = new StringBuilder("已读取多个附件：\n");
+            for (int i = 0; i < fileIds.size(); i++) {
+                result.append("\n--- 附件 ").append(i + 1).append(" ---\n");
+                result.append(loadContent(fileIds.get(i), question)).append("\n");
+            }
+            return result.toString();
+        }
+
         try {
             // 查询文件信息
             var fileInfo = fileManageService.getFileInfo(fileId);
@@ -74,6 +84,20 @@ public class FileContentService {
             log.error("加载文件内容失败: fileId={}, question={}", fileId, question, e);
             return "加载文件内容失败: " + e.getMessage();
         }
+    }
+
+    private List<String> splitFileIds(String fileIds) {
+        if (fileIds == null || fileIds.trim().isEmpty()) {
+            return List.of();
+        }
+        List<String> result = new java.util.ArrayList<>();
+        for (String fileId : fileIds.split("[,，\\s]+")) {
+            String trimmed = fileId == null ? "" : fileId.trim();
+            if (!trimmed.isEmpty() && !result.contains(trimmed)) {
+                result.add(trimmed);
+            }
+        }
+        return result;
     }
 
     /**

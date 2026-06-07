@@ -680,7 +680,7 @@ public class UserQuotaService {
 
     private String encryptApiKey(String apiKey) {
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
+            throw new AppException("MODEL_CONFIG_0003", "模型配置服务暂不可用，请联系管理员处理");
         }
         try {
             byte[] iv = new byte[12];
@@ -700,7 +700,7 @@ public class UserQuotaService {
             return "";
         }
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
+            throw new AppException("MODEL_CONFIG_0003", "模型配置服务暂不可用，请联系管理员处理");
         }
         String[] parts = encryptedApiKey.split(":", 3);
         if (parts.length != 3 || !"v1".equals(parts[0])) {

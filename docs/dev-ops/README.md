@@ -23,6 +23,8 @@ docker compose -f docker-compose-environment.yml up -d
 
 如果需要按完整应用方式启动，可以先打包后端并启动应用容器：
 
+启动应用前需要配置 `AGENT_USER_MODEL_CRYPTO_SECRET`（自定义模型密钥加密密钥）。它用于加密用户保存的自定义模型 `API Key`（接口密钥），部署后必须保持稳定，不要每次重启都更换。
+
 ```powershell
 .\start.ps1
 ```

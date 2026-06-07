@@ -128,7 +128,7 @@ public class AcademicBearDoctorAgentHandler {
             AcademicAgentStreamRequest safeRequest = request == null ? new AcademicAgentStreamRequest() : request;
             String taskType = normalizeTaskType(safeRequest.getTaskType());
             String query = normalizeQuery(safeRequest, taskType);
-            String fileId = nullToBlank(safeRequest.getFileId());
+            String fileId = effectiveFileIds(safeRequest);
             String projectId = nullToBlank(safeRequest.getProjectId());
             boolean webSearchEnabled = Boolean.TRUE.equals(safeRequest.getWebSearchEnabled());
             long startedAt = System.currentTimeMillis();
@@ -1451,5 +1451,25 @@ public class AcademicBearDoctorAgentHandler {
 
     private String nullToBlank(String value) {
         return value == null ? "" : value;
+    }
+
+    private String effectiveFileIds(AcademicAgentStreamRequest request) {
+        if (request == null) {
+            return "";
+        }
+        List<String> selectedFileIds = request.getSelectedFileIds();
+        if (selectedFileIds != null && !selectedFileIds.isEmpty()) {
+            List<String> result = new ArrayList<>();
+            for (String selectedFileId : selectedFileIds) {
+                String fileId = nullToBlank(selectedFileId).trim();
+                if (StringUtils.hasText(fileId) && !result.contains(fileId)) {
+                    result.add(fileId);
+                }
+            }
+            if (!result.isEmpty()) {
+                return String.join(",", result);
+            }
+        }
+        return nullToBlank(request.getFileId()).trim();
     }
 }

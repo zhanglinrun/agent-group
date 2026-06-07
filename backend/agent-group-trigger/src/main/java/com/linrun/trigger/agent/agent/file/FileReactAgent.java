@@ -13,6 +13,7 @@ import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.service.FileManageService;
 import com.linrun.trigger.agent.service.MinioService;
+import com.linrun.trigger.agent.tool.FileContentService;
 import com.linrun.trigger.agent.utils.AppContextClient;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
@@ -164,8 +165,12 @@ public class FileReactAgent extends BaseAgent {
         // if (userMessage != null && StringUtils.hasText(userMessage.getText()))
         //     messages.add(userMessage);;
 
+        String attachmentContext = buildAttachmentContext(question);
+        if (StringUtils.hasText(attachmentContext)) {
+            messages.add(new UserMessage(attachmentContext));
+        }
         messages.add(new UserMessage("<question>" + question + "</question>"));
-        messages.add(new UserMessage("<fileid>" + currentFileId + "</fileid>"));
+        messages.add(new UserMessage("<fileids>" + currentFileId + "</fileids>"));
         currentQuestion = question;
 
         // 添加记忆并保存到数据库
@@ -251,6 +256,41 @@ public class FileReactAgent extends BaseAgent {
             sessionService.updateAnswer(request);
             log.info("结果已保存到会话: sessionId={}", conversationId);
         }
+    }
+
+    private String buildAttachmentContext(String question) {
+        List<String> fileIds = currentFileIds();
+        if (fileIds.isEmpty()) {
+            return "";
+        }
+        try {
+            FileContentService fileContentService = AppContextClient.getBean(FileContentService.class);
+            StringBuilder context = new StringBuilder("以下是系统已经读取到的本轮附件内容，请优先基于这些附件回答用户问题；不要在最终回答中透露文件ID。\n");
+            for (int i = 0; i < fileIds.size(); i++) {
+                String fileId = fileIds.get(i);
+                String content = fileContentService.loadContent(fileId, question);
+                context.append("\n--- 附件 ").append(i + 1).append(" ---\n");
+                context.append(content == null ? "" : content.trim()).append("\n");
+            }
+            return context.toString();
+        } catch (Exception e) {
+            log.warn("加载附件上下文失败: {}", e.getClass().getSimpleName());
+            return "";
+        }
+    }
+
+    private List<String> currentFileIds() {
+        if (!StringUtils.hasText(currentFileId)) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (String fileId : currentFileId.split("[,，\\s]+")) {
+            String trimmed = fileId == null ? "" : fileId.trim();
+            if (StringUtils.hasText(trimmed) && !result.contains(trimmed)) {
+                result.add(trimmed);
+            }
+        }
+        return result;
     }
 
     /**

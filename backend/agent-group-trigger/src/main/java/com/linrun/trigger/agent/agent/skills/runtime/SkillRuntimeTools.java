@@ -29,7 +29,7 @@ public final class SkillRuntimeTools {
         return ToolMergeUtils.mergeTools(
                 commonTools,
                 BilibiliFetchTool.create(projectRoot, sessionOutputDirectory),
-                VideoFrameTool.create(sessionOutputDirectory),
+                VideoFrameTool.create(projectRoot, sessionOutputDirectory),
                 LatexCompileTool.create(sessionOutputDirectory)
         );
     }
