@@ -333,6 +333,54 @@ export async function uploadAcademicFile(file, sessionId = getSessionId()) {
   });
 }
 
+export async function createAcademicProject(payload) {
+  return request("/api/v1/academic/projects", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function queryAcademicProjects(limit = 20) {
+  return request(`/api/v1/academic/projects?limit=${encodeURIComponent(limit)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function queryAcademicProject(projectId) {
+  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function bindAcademicProjectFile(projectId, payload) {
+  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}/files`, {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function proposeAcademicProjectPatch(projectId, payload) {
+  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}/patches`, {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export async function applyAcademicProjectPatch(projectId, patchId) {
+  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}/patches/${encodeURIComponent(patchId)}/apply`, {
+    userAuth: true,
+    method: "POST"
+  });
+}
+
 export async function queryAcademicSessions(limit = 20) {
   return request(`/api/v1/academic/sessions?limit=${encodeURIComponent(limit)}`, {
     userAuth: true,
@@ -556,6 +604,7 @@ export async function queryWorkspaceMragHistory({ sessionId = "", limit = 20 } =
 
 export async function queryAgentCapabilities() {
   return request("/agent/capabilities", {
+    userAuth: true,
     method: "GET"
   });
 }
@@ -710,25 +759,40 @@ export async function queryAgentAdminRuntimeSnapshot() {
   });
 }
 
-export function requestAcademicStream({ question, taskType, fileId, imageUrl, imageName, sessionId = getSessionId(), modelConfig, webSearchEnabled = false, outputStyle = "" }, onEvent, onDone, onError) {
+export function requestAcademicStream({
+  question,
+  taskType,
+  taskMode = "",
+  projectId = "",
+  threadId = "",
+  selectedFileIds = [],
+  fileId,
+  imageUrl,
+  imageName,
+  sessionId = getSessionId(),
+  modelConfig,
+  webSearchEnabled = false
+}, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/stream", {
     sessionId,
+    projectId,
+    threadId,
     question,
     taskType,
+    taskMode,
     fileId: fileId || "",
+    selectedFileIds: Array.isArray(selectedFileIds) ? selectedFileIds : [],
     imageUrl: imageUrl || "",
     imageName: imageName || "",
     webSearchEnabled: Boolean(webSearchEnabled),
-    outputStyle: outputStyle || "",
     ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, webSearchEnabled = false, outputStyle = "", onEvent, onDone, onError) {
+export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, webSearchEnabled = false, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/resume", {
     sessionId,
     webSearchEnabled: Boolean(webSearchEnabled),
-    outputStyle: outputStyle || "",
     ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
@@ -833,7 +897,7 @@ export async function createDirectOrder(product, userId) {
       userId,
       goodsId: product.id || product.goodsId,
       idempotentKey: `IDEMP_${Date.now()}`,
-      payChannel: "MOCK_PAY"
+      payChannel: "ALIPAY"
     })
   });
 }
@@ -866,6 +930,7 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
       source: "s01",
       channel: "c01",
       outTradeNo,
+      payChannel: "ALIPAY",
       notifyConfigVO: {
         notifyType: "MQ"
       }
@@ -882,6 +947,22 @@ export async function mockPaySuccess(orderId) {
       orderId,
       outTradeNo: `MOCK_${orderId}_${Date.now()}`,
       payChannel: "MOCK_PAY"
+    })
+  });
+}
+
+export async function createPayment(orderId, options = {}) {
+  const origin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : "http://localhost:5174";
+  const returnUrl = options.returnUrl || `${origin}/?paymentReturn=1&orderId=${encodeURIComponent(orderId || "")}`;
+  return request("/api/v1/payment/create", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      orderId,
+      payChannel: options.payChannel || "ALIPAY",
+      notifyUrl: options.notifyUrl || "",
+      returnUrl
     })
   });
 }

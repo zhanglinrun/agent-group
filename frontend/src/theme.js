@@ -4,9 +4,9 @@ const THEMES = new Set(["dark", "light"]);
 export function getStoredTheme() {
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    return THEMES.has(saved) ? saved : "dark";
+    return THEMES.has(saved) ? saved : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 

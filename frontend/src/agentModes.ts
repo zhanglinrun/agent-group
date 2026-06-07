@@ -27,7 +27,8 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "📁",
     executionMode: "ReAct",
     executionFamily: "react",
-    summary: "文件理解、引用回答和上下文追问"
+    summary: "文件理解、引用回答和上下文追问",
+    userVisible: false
   },
   {
     id: "ppt",
@@ -53,7 +54,7 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "🖼",
     executionMode: "ReAct",
     executionFamily: "react",
-    summary: "图像生成、图生图和多模态参考图处理"
+    summary: "图像生成、图生图和多模态参考图处理",
   },
   {
     id: "data",
@@ -88,15 +89,16 @@ export const AGENT_MODES: AgentModeOption[] = [
     icon: "🛠",
     executionMode: "Skill",
     executionFamily: "skill-sop",
-    summary: "自动选择技能并执行标准流程"
+    summary: "自动选择技能并执行标准流程",
+    userVisible: false
   },
   {
     id: "manual-skills",
-    name: "手动技能",
-    icon: "🧩",
+    name: "Skill",
+    icon: "🛠",
     executionMode: "Skill",
     executionFamily: "skill-sop",
-    summary: "读取技能文件、检索技能目录和运行技能脚本"
+    summary: "选择一个技能并执行对应流程"
   }
 ];
 

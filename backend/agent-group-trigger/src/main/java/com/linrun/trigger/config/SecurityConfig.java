@@ -24,6 +24,9 @@ import org.springframework.util.StringUtils;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final String USER_AUTH_INFO = "请先登录后再访问该接口";
+    private static final String OPERATOR_AUTH_INFO = "请使用运营账号访问该接口";
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    MockPaymentAccessChecker mockPaymentAccessChecker,
@@ -37,7 +40,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"code\":\"AUTH_0001\",\"info\":\"请使用运营账号访问该接口\"}");
+                            response.getWriter().write("{\"code\":\"AUTH_0001\",\"info\":\""
+                                    + authenticationInfo(request.getRequestURI()) + "\"}");
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -51,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/health", "/actuator/health", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/webhook", "/api/v1/payment/webhook/**",
+                                "/api/v1/payment/alipay/notify",
                                 "/api/v1/payment/refund/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/quota/packages").permitAll()
@@ -81,6 +86,30 @@ public class SecurityConfig {
                                 "/api/v1/payment/error-map", "/api/v1/payment/gateway/status").hasRole("ADMIN")
                         .anyRequest().authenticated());
         return http.build();
+    }
+
+    static String authenticationInfo(String requestUri) {
+        return requiresOperatorAuth(requestUri) ? OPERATOR_AUTH_INFO : USER_AUTH_INFO;
+    }
+
+    private static boolean requiresOperatorAuth(String requestUri) {
+        String path = StringUtils.hasText(requestUri) ? requestUri : "";
+        return path.startsWith("/api/v1/mcp")
+                || path.startsWith("/api/v1/agent/admin/")
+                || path.startsWith("/api/v1/knowledge/")
+                || path.startsWith("/api/v1/evaluate/")
+                || path.startsWith("/api/v1/ops/")
+                || path.startsWith("/api/v1/weixin/template/")
+                || path.startsWith("/api/v1/trade/order/admin")
+                || path.startsWith("/api/v1/trade/order/status-flow")
+                || path.startsWith("/api/v1/group/trade/close-unpaid")
+                || path.startsWith("/api/v1/group/trade/refund")
+                || path.startsWith("/api/v1/payment/refund")
+                || path.startsWith("/api/v1/payment/reconcile")
+                || path.startsWith("/api/v1/payment/bill/download")
+                || path.startsWith("/api/v1/payment/certificate/refresh")
+                || path.startsWith("/api/v1/payment/error-map")
+                || path.startsWith("/api/v1/payment/gateway/status");
     }
 
     @Bean

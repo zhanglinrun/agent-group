@@ -174,6 +174,26 @@ describe("agent timeline projection", () => {
     });
   });
 
+  it("projects academic project context into timeline", () => {
+    const item = streamEventToTimelineItem({
+      event: "project_context",
+      data: {
+        title: "AMR Paper",
+        researchQuestion: "Open-set recognition",
+        targetVenue: "TWC",
+        fileCount: 2,
+        pendingPatchCount: 1
+      }
+    });
+
+    expect(item).toMatchObject({
+      type: "project",
+      status: "completed",
+      title: "AMR Paper",
+      content: "研究问题：Open-set recognition 路 目标：TWC 路 材料 2 份 路 待确认补丁 1 个"
+    });
+  });
+
   it("projects quota and usage events into timeline items", () => {
     expect(streamEventToTimelineItem({
       event: "quota_delta",

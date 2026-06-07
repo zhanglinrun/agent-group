@@ -80,6 +80,22 @@ public class PaymentController {
         return Response.success(paymentService.handleWebhook(request), RequestTraceContext.getRequestId());
     }
 
+    @PostMapping(value = "/alipay/notify", consumes = MediaType.ALL_VALUE)
+    public String alipayNotify(@RequestBody(required = false) String requestBody,
+                               @RequestHeader Map<String, String> headers,
+                               @RequestParam(required = false) Map<String, String> params) {
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setHeaders(headers);
+        request.setRequestBody(StringUtils.hasText(requestBody) ? requestBody : formBody(params));
+        try {
+            paymentService.handleWebhook(request);
+            return "success";
+        } catch (RuntimeException ignored) {
+            return "false";
+        }
+    }
+
     @PostMapping("/refund")
     public Response<RefundPaymentResponse> refund(@RequestBody RefundPaymentRequest request) {
         return Response.success(tradeRefundService.refund(request), RequestTraceContext.getRequestId());

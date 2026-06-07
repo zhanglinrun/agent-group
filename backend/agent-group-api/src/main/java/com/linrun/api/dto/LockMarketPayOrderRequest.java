@@ -15,6 +15,7 @@ public class LockMarketPayOrderRequest implements Serializable {
     private String source;
     private String channel;
     private String outTradeNo;
+    private String payChannel;
     private String hitlApprovalId;
     private NotifyConfig notifyConfigVO;
 

@@ -12,6 +12,8 @@ public class CreatePaymentResponse implements Serializable {
     private String payOrderId;
     private String payChannel;
     private String payUrl;
+    private String payFormHtml;
+    private String paymentType;
     private String gatewayTradeNo;
     private BigDecimal payAmount;
     private boolean created;

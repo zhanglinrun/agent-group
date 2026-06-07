@@ -56,6 +56,7 @@ public class UserQuotaService {
     private static final BigDecimal DEFAULT_CUSTOM_MODEL_SERVICE_RATE = new BigDecimal("0.10");
     private static final String DEFAULT_CUSTOM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode";
     private static final String DEFAULT_CUSTOM_MODEL = "qwen3.6-plus";
+    private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
     private final UserQuotaRepository userQuotaRepository;
     private final GuideDataRepository guideDataRepository;
@@ -266,6 +267,9 @@ public class UserQuotaService {
         String safeTaskConsumeBizId = StringUtils.hasText(taskConsumeBizId)
                 ? taskConsumeBizId.trim()
                 : buildTaskConsumeBizId(sessionId);
+        if (userQuotaRepository.queryFlow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId).isPresent()) {
+            return toAccountResponse(queryAccount(userId));
+        }
         UserMembershipAccount membership = activeMembership(userId).orElse(null);
         boolean memberActive = membership != null;
         BigDecimal quotaCost = estimateTaskCost(tokenUsage, customModelUsed, memberActive);
@@ -291,8 +295,12 @@ public class UserQuotaService {
             userQuotaRepository.saveUsage(usage(userId, sessionId, taskType, tokenUsage, model, quotaCost, latencyMillis));
             return toAccountResponse(after);
         }
+        UserQuotaAccount after = queryAccount(userId);
+        userQuotaRepository.saveFlow(flow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId,
+                BigDecimal.ZERO, before.getQuotaBalance(), after.getQuotaBalance(),
+                consumeRemark(taskType, quotaCost, memberDebit, customModelUsed)));
         userQuotaRepository.saveUsage(usage(userId, sessionId, taskType, tokenUsage, model, quotaCost, latencyMillis));
-        return toAccountResponse(queryAccount(userId));
+        return toAccountResponse(after);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -307,7 +315,12 @@ public class UserQuotaService {
             markDealDoneIfNeeded(tradeOrder);
             return;
         }
-        BigDecimal quotaAmount = resolveOrderQuota(tradeOrder);
+        GuideProduct product = resolveOrderProduct(tradeOrder);
+        if (isMembershipPlan(product)) {
+            grantMembershipForPaidOrder(tradeOrder, product);
+            return;
+        }
+        BigDecimal quotaAmount = resolveOrderQuota(tradeOrder, product);
         if (quotaAmount.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
@@ -323,6 +336,23 @@ public class UserQuotaService {
                 before.getQuotaBalance(),
                 after.getQuotaBalance(),
                 grantRemark(tradeOrder, quotaAmount)));
+        markDealDoneIfNeeded(tradeOrder);
+    }
+
+    private void grantMembershipForPaidOrder(TradeOrderEntity tradeOrder, GuideProduct product) {
+        userQuotaRepository.createAccountIfAbsent(tradeOrder.getUserId());
+        UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
+        UserMembershipAccount membership = buildMembership(tradeOrder.getUserId(), product);
+        userQuotaRepository.upsertMembership(membership);
+        UserQuotaAccount after = queryAccount(tradeOrder.getUserId());
+        userQuotaRepository.saveFlow(flow(
+                tradeOrder.getUserId(),
+                FLOW_ORDER_GRANT,
+                tradeOrder.getOrderId(),
+                BigDecimal.ZERO,
+                before.getQuotaBalance(),
+                after.getQuotaBalance(),
+                membershipGrantRemark(tradeOrder, membership)));
         markDealDoneIfNeeded(tradeOrder);
     }
 
@@ -446,8 +476,18 @@ public class UserQuotaService {
         tradeOrderRepository.updateDealDone(tradeOrder);
     }
 
+    private GuideProduct resolveOrderProduct(TradeOrderEntity tradeOrder) {
+        if (tradeOrder == null || !StringUtils.hasText(tradeOrder.getGoodsId())) {
+            return null;
+        }
+        return guideDataRepository.queryProductByGoodsId(tradeOrder.getGoodsId()).orElse(null);
+    }
+
     private BigDecimal resolveOrderQuota(TradeOrderEntity tradeOrder) {
-        GuideProduct product = guideDataRepository.queryProductByGoodsId(tradeOrder.getGoodsId()).orElse(null);
+        return resolveOrderQuota(tradeOrder, resolveOrderProduct(tradeOrder));
+    }
+
+    private BigDecimal resolveOrderQuota(TradeOrderEntity tradeOrder, GuideProduct product) {
         if (product != null && product.getQuotaAmount() != null && product.getQuotaAmount().compareTo(BigDecimal.ZERO) > 0) {
             return product.getQuotaAmount();
         }
@@ -455,9 +495,45 @@ public class UserQuotaService {
         return payAmount.multiply(BigDecimal.valueOf(20)).setScale(2, RoundingMode.HALF_UP);
     }
 
+    private boolean isMembershipPlan(GuideProduct product) {
+        return product != null && MEMBERSHIP_PLAN.equals(product.getProductType());
+    }
+
+    private UserMembershipAccount buildMembership(String userId, GuideProduct product) {
+        LocalDateTime now = LocalDateTime.now();
+        UserMembershipAccount existing = userQuotaRepository.queryMembership(userId).orElse(null);
+        LocalDateTime cycleStart = now;
+        LocalDateTime cycleEnd = now.plusMonths(1);
+        BigDecimal monthlyUsedQuota = BigDecimal.ZERO;
+        if (existing != null
+                && existing.isActive(now)
+                && existing.getCycleEndTime() != null
+                && product.getGoodsId().equals(existing.getPlanCode())) {
+            cycleStart = existing.getCycleStartTime() == null ? now : existing.getCycleStartTime();
+            cycleEnd = existing.getCycleEndTime().plusMonths(1);
+            monthlyUsedQuota = existing.getMonthlyUsedQuota();
+        }
+        UserMembershipAccount membership = new UserMembershipAccount();
+        membership.setUserId(userId);
+        membership.setPlanCode(product.getGoodsId());
+        membership.setPlanName(firstText(product.getGoodsName(), "会员套餐"));
+        membership.setStatus("ACTIVE");
+        membership.setMonthlyQuota(normalizeAmount(product.getQuotaAmount()));
+        membership.setMonthlyUsedQuota(monthlyUsedQuota);
+        membership.setCycleStartTime(cycleStart);
+        membership.setCycleEndTime(cycleEnd);
+        return membership;
+    }
+
     private String grantRemark(TradeOrderEntity tradeOrder, BigDecimal quotaAmount) {
         String type = TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType()) ? "拼团购买" : "直接购买";
         return type + "额度包到账：" + quotaAmount.stripTrailingZeros().toPlainString();
+    }
+
+    private String membershipGrantRemark(TradeOrderEntity tradeOrder, UserMembershipAccount membership) {
+        String type = TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType()) ? "拼团购买" : "直接购买";
+        return type + "会员开通：" + firstText(membership.getPlanName(), "会员套餐")
+                + "，月额度 " + membership.getMonthlyQuota().stripTrailingZeros().toPlainString();
     }
 
     private String consumeRemark(String taskType, BigDecimal quotaCost, BigDecimal memberDebit, boolean customModelUsed) {

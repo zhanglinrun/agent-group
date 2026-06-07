@@ -205,12 +205,21 @@ public class PaymentService {
 
     @Transactional(rollbackFor = Exception.class)
     public RefundPaymentResponse refund(RefundPaymentRequest request) {
+        return refund(request, false);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public RefundPaymentResponse refundFromSystem(RefundPaymentRequest request) {
+        return refund(request, true);
+    }
+
+    private RefundPaymentResponse refund(RefundPaymentRequest request, boolean systemRequest) {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
-        if (PaymentChannel.MOCK_PAY.name().equals(resolvePayChannel(payOrder.getPayChannel(), payOrder))) {
+        if (!systemRequest && PaymentChannel.MOCK_PAY.name().equals(resolvePayChannel(payOrder.getPayChannel(), payOrder))) {
             PaymentAccessChecker.assertAllowed();
         }
         RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
@@ -555,6 +564,8 @@ public class PaymentService {
         response.setPayOrderId(result.getPayOrderId());
         response.setPayChannel(result.getPayChannel());
         response.setPayUrl(result.getPayUrl());
+        response.setPayFormHtml(result.getPayFormHtml());
+        response.setPaymentType(result.getPaymentType());
         response.setGatewayTradeNo(result.getGatewayTradeNo());
         response.setPayAmount(payOrder.getPayAmount());
         response.setCreated(result.isCreated());

@@ -31,6 +31,7 @@ create table if not exists academic_agent_run (
   id bigint unsigned not null auto_increment comment '自增主键',
   run_id varchar(40) not null comment '运行编号',
   session_id varchar(64) not null comment '会话编号',
+  project_id varchar(40) not null default '' comment 'academic project id',
   request_id varchar(64) not null comment '请求编号',
   user_id varchar(64) not null comment '用户编号',
   task_type varchar(32) not null default '' comment '任务类型',
@@ -48,6 +49,7 @@ create table if not exists academic_agent_run (
   primary key (id),
   unique key uk_run_id (run_id),
   key idx_request_id (request_id),
+  key idx_user_project_time (user_id, project_id, started_at),
   key idx_user_session_time (user_id, session_id, started_at)
 ) engine=InnoDB default charset=utf8mb4 comment='学术智能体执行运行表';
 
@@ -99,6 +101,85 @@ create table if not exists academic_tool_invocation (
   key idx_run_time (run_id, started_at),
   key idx_tool_name_time (tool_name, started_at)
 ) engine=InnoDB default charset=utf8mb4 comment='学术智能体工具调用表';
+
+create table if not exists academic_project (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  project_id varchar(40) not null comment 'academic project id',
+  user_id varchar(64) not null comment 'user id',
+  title varchar(120) not null default '' comment 'project title',
+  research_question varchar(500) not null default '' comment 'research question',
+  target_venue varchar(120) not null default '' comment 'target venue',
+  writing_status varchar(40) not null default 'DRAFTING' comment 'writing status',
+  progress_note varchar(500) not null default '' comment 'progress note',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_project_id (project_id),
+  key idx_user_time (user_id, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='academic project';
+
+create table if not exists academic_project_file (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  project_id varchar(40) not null comment 'academic project id',
+  user_id varchar(64) not null comment 'user id',
+  file_id varchar(64) not null comment 'file id',
+  file_name varchar(160) not null default '' comment 'file name',
+  file_type varchar(80) not null default '' comment 'file type',
+  folder_type varchar(40) not null default 'draftManuscripts' comment 'folder type',
+  summary varchar(800) not null default '' comment 'summary',
+  content_preview mediumtext null comment 'content preview',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_project_file (project_id, file_id),
+  key idx_user_project (user_id, project_id)
+) engine=InnoDB default charset=utf8mb4 comment='academic project file';
+
+create table if not exists academic_project_patch (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  project_id varchar(40) not null comment 'academic project id',
+  user_id varchar(64) not null comment 'user id',
+  patch_id varchar(64) not null comment 'patch id',
+  file_id varchar(64) not null comment 'file id',
+  title varchar(160) not null default '' comment 'patch title',
+  reason varchar(1000) not null default '' comment 'patch reason',
+  before_text mediumtext null comment 'before text',
+  after_text mediumtext null comment 'after text',
+  status varchar(32) not null default 'PENDING' comment 'patch status',
+  create_time datetime not null default current_timestamp comment 'create time',
+  apply_time datetime null comment 'apply time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_patch_id (patch_id),
+  key idx_project_status (project_id, status),
+  key idx_user_project (user_id, project_id)
+) engine=InnoDB default charset=utf8mb4 comment='academic project patch';
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_run add column project_id varchar(40) not null default '''' comment ''academic project id'' after session_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'academic_agent_run'
+    and column_name = 'project_id'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table academic_agent_run add index idx_user_project_time (user_id, project_id, started_at)',
+    'select 1')
+  from information_schema.statistics
+  where table_schema = database()
+    and table_name = 'academic_agent_run'
+    and index_name = 'idx_user_project_time'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
 
 set @sql = (
   select if(count(*) > 0,

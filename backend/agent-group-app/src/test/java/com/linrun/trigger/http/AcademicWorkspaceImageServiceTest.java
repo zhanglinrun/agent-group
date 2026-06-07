@@ -76,7 +76,7 @@ class AcademicWorkspaceImageServiceTest {
         when(userQuotaService.estimatePreCheckCost("workspace-image")).thenReturn(BigDecimal.valueOf(4));
         when(provider.getIfAvailable()).thenReturn(port);
         when(repository.queryFile("U1001", "AF1001")).thenReturn(Optional.of(sourceFile));
-        when(ledgerService.startRun(eq("U1001"), eq("S1001"), anyString(), eq("workspace-image"),
+        when(ledgerService.startRun(eq("U1001"), eq("S1001"), eq(""), anyString(), eq("workspace-image"),
                 eq("生成拼团活动主图"), eq(AcademicToolOutputNames.IMAGE_GENERATION))).thenReturn(run);
         when(ledgerService.recordToolStart(any(), anyString(), eq(AcademicToolOutputNames.IMAGE_GENERATION),
                 eq("workspace/image/generate"), anyString())).thenReturn("TOOL1001");

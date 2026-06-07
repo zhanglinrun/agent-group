@@ -4,8 +4,12 @@ import { Buffer } from "node:buffer";
 import {
   cacheMcpTools,
   callMcpTool,
+  applyAcademicProjectPatch,
+  bindAcademicProjectFile,
   clearUserAuth,
   clearAdminAuth,
+  createPayment,
+  createAcademicProject,
   deleteAgentAdminConfig,
   deleteKnowledgeDocument,
   discoverMcpTools,
@@ -20,9 +24,12 @@ import {
   importAgentAdminState,
   importMcpState,
   queryMcpHealth,
+  queryAgentCapabilities,
   queryAgentAdminConfigs,
   queryAgentAdminRuntimeSnapshot,
   queryAgentAdminStatistics,
+  queryAcademicProject,
+  queryAcademicProjects,
   queryAcademicRunDetail,
   queryAcademicSessionDetail,
   queryAcademicSessions,
@@ -33,6 +40,7 @@ import {
   queryWorkspaceImageHistory,
   queryWorkspaceMragHistory,
   registerMcpServer,
+  proposeAcademicProjectPatch,
   requestAcademicResumeStream,
   requestAcademicStream,
   runWorkspaceData,
@@ -115,6 +123,66 @@ describe("mcp admin api client", () => {
       headers: expect.objectContaining({
         Authorization: "Basic b3BzOnNlY3JldA=="
       })
+    }));
+  });
+
+  it("adds user auth when querying agent capabilities", async () => {
+    saveUserAuth({ token: "user-token" });
+
+    await queryAgentCapabilities();
+
+    expect(fetch).toHaveBeenCalledWith("/agent/capabilities", expect.objectContaining({
+      method: "GET",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token"
+      })
+    }));
+  });
+
+  it("wires academic project APIs with user auth", async () => {
+    saveUserAuth({ token: "user-token" });
+
+    await createAcademicProject({ title: "AMR Paper" });
+    await queryAcademicProjects(10);
+    await queryAcademicProject("AP1001");
+    await bindAcademicProjectFile("AP1001", { fileId: "FILE1001", folderType: "draftManuscripts" });
+    await proposeAcademicProjectPatch("AP1001", { fileId: "FILE1001", afterText: "new intro" });
+    await applyAcademicProjectPatch("AP1001", "PATCH1001");
+
+    const userAuthMatcher = expect.objectContaining({ Authorization: "Bearer user-token" });
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/projects", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token",
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify({ title: "AMR Paper" })
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/academic/projects?limit=10", expect.objectContaining({
+      method: "GET",
+      headers: userAuthMatcher
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/academic/projects/AP1001", expect.objectContaining({
+      method: "GET",
+      headers: userAuthMatcher
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/academic/projects/AP1001/files", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token",
+        "Content-Type": "application/json"
+      })
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/academic/projects/AP1001/patches", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token",
+        "Content-Type": "application/json"
+      })
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(6, "/api/v1/academic/projects/AP1001/patches/PATCH1001/apply", expect.objectContaining({
+      method: "POST",
+      headers: userAuthMatcher
     }));
   });
 
@@ -255,7 +323,7 @@ describe("mcp admin api client", () => {
     }));
   });
 
-  it("sends output style with academic stream requests", async () => {
+  it("sends web search flag with academic stream requests", async () => {
     saveUserAuth({ token: "user-token" });
     fetch.mockResolvedValue(streamResponse());
 
@@ -263,10 +331,9 @@ describe("mcp admin api client", () => {
       sessionId: "S1001",
       question: "讲一下项目亮点",
       taskType: "deep",
-      webSearchEnabled: true,
-      outputStyle: "interview"
+      webSearchEnabled: true
     });
-    requestAcademicResumeStream("S1001", {}, true, "report");
+    requestAcademicResumeStream("S1001", {}, true);
 
     expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/stream", expect.objectContaining({
       method: "POST",
@@ -276,21 +343,23 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({
         sessionId: "S1001",
+        projectId: "",
+        threadId: "",
         question: "讲一下项目亮点",
         taskType: "deep",
+        taskMode: "",
         fileId: "",
+        selectedFileIds: [],
         imageUrl: "",
         imageName: "",
-        webSearchEnabled: true,
-        outputStyle: "interview"
+        webSearchEnabled: true
       })
     }));
     expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/academic/resume", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({
         sessionId: "S1001",
-        webSearchEnabled: true,
-        outputStyle: "report"
+        webSearchEnabled: true
       })
     }));
   });
@@ -554,6 +623,28 @@ describe("mcp admin api client", () => {
         })
       })
     );
+  });
+
+  it("creates an Alipay payment with user token", async () => {
+    saveUserAuth({ token: "user-token" });
+
+    await createPayment("O10001", {
+      returnUrl: "http://localhost:5174/?paymentReturn=1&orderId=O10001"
+    });
+
+    expect(fetch).toHaveBeenCalledWith("/api/v1/payment/create", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token",
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify({
+        orderId: "O10001",
+        payChannel: "ALIPAY",
+        notifyUrl: "",
+        returnUrl: "http://localhost:5174/?paymentReturn=1&orderId=O10001"
+      })
+    }));
   });
 
   it("wires knowledge web import full content and delete APIs with admin basic auth", async () => {

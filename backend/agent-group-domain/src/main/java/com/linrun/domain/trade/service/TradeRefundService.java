@@ -62,6 +62,14 @@ public class TradeRefundService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    public RefundPaymentResponse refundFromSystem(RefundPaymentRequest request) {
+        RefundPaymentResponse response = paymentService.refundFromSystem(request);
+        rollbackQuotaIfAvailable(response.getOrderId());
+        releaseGroupBuyIfNeeded(response.getOrderId(), request == null ? null : request.getRefundReason());
+        return response;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public GroupBuyCompensationResponse refundGroupBuy(RefundGroupBuyOrderRequest request) {
         GroupBuyCompensationResponse response = groupBuyRefundRuleChain.refund(request);
         rollbackQuotaIfAvailable(request == null ? null : request.getOrderId());

@@ -396,6 +396,23 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
     }
 
     @Test
+    void shouldDiscoverManualSkillsFromDefaultDirectory() {
+        BearDoctorNativeAgentService service = new BearDoctorNativeAgentService(
+                provider(null), null, null, null, null, null, null, null, null, null, null,
+                new AcademicToolCallbackFactory(
+                        new ObjectMapper(), null, null, null, null, null, null, null, null, null, null, null, null,
+                        null),
+                new AgentAdminConfigHandler((Path) null), provider(null));
+
+        Map<String, Object> capabilities = service.capabilities();
+
+        assertEquals(true, capabilities.get("manualSkillsAvailable"));
+        assertTrue((Integer) capabilities.get("manualSkillCount") >= 14);
+        List<Map<String, Object>> manualSkills = (List<Map<String, Object>>) capabilities.get("manualSkills");
+        assertTrue(manualSkills.stream().anyMatch(skill -> "chart-visualization".equals(skill.get("name"))));
+    }
+
+    @Test
     void shouldInjectEnabledAgentAdminConfigsIntoRuntimePrompt() {
         AgentAdminConfigHandler adminConfigHandler = new AgentAdminConfigHandler((Path) null);
         adminConfigHandler.upsertConfig(Map.of(

@@ -164,6 +164,21 @@ export function streamEventToTimelineItem(
       flowStages: Array.isArray(data.flowStages) ? data.flowStages : []
     };
   }
+  if (eventName === "project_context") {
+    const fileCount = Number(data.fileCount || 0);
+    const pendingPatchCount = Number(data.pendingPatchCount || 0);
+    return {
+      type: "project",
+      status: "completed",
+      title: text(data.title) || "学术项目上下文",
+      content: [
+        text(data.researchQuestion) ? `研究问题：${text(data.researchQuestion)}` : "",
+        text(data.targetVenue) ? `目标：${text(data.targetVenue)}` : "",
+        fileCount ? `材料 ${fileCount} 份` : "",
+        pendingPatchCount ? `待确认补丁 ${pendingPatchCount} 个` : ""
+      ].filter(Boolean).join(" 路 ")
+    };
+  }
   if (eventName === "flow_delta") {
     return {
       type: "flow",

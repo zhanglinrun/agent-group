@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IAcademicProjectDao">
+
+    <resultMap id="AcademicProjectMap" type="com.linrun.infrastructure.po.AcademicProjectPO">
+        <id column="project_id" property="projectId"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="research_question" property="researchQuestion"/>
+        <result column="target_venue" property="targetVenue"/>
+        <result column="writing_status" property="writingStatus"/>
+        <result column="progress_note" property="progressNote"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicProjectFileMap" type="com.linrun.infrastructure.po.AcademicProjectFilePO">
+        <id column="file_id" property="fileId"/>
+        <result column="project_id" property="projectId"/>
+        <result column="user_id" property="userId"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_type" property="fileType"/>
+        <result column="folder_type" property="folderType"/>
+        <result column="summary" property="summary"/>
+        <result column="content_preview" property="contentPreview"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <resultMap id="AcademicProjectPatchMap" type="com.linrun.infrastructure.po.AcademicProjectPatchPO">
+        <id column="patch_id" property="patchId"/>
+        <result column="project_id" property="projectId"/>
+        <result column="user_id" property="userId"/>
+        <result column="file_id" property="fileId"/>
+        <result column="title" property="title"/>
+        <result column="reason" property="reason"/>
+        <result column="before_text" property="beforeText"/>
+        <result column="after_text" property="afterText"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="apply_time" property="applyTime"/>
+    </resultMap>
+
+    <insert id="insertProject">
+        insert into academic_project (
+          project_id, user_id, title, research_question, target_venue, writing_status,
+          progress_note, create_time, update_time
+        ) values (
+          #{projectId}, #{userId}, #{title}, #{researchQuestion}, #{targetVenue}, #{writingStatus},
+          #{progressNote}, #{createTime}, #{updateTime}
+        )
+        on duplicate key update
+          title = values(title),
+          research_question = values(research_question),
+          target_venue = values(target_venue),
+          writing_status = values(writing_status),
+          progress_note = values(progress_note),
+          update_time = values(update_time)
+    </insert>
+
+    <select id="queryProjects" resultMap="AcademicProjectMap">
+        select project_id, user_id, title, research_question, target_venue, writing_status,
+               progress_note, create_time, update_time
+        from academic_project
+        where user_id = #{userId}
+        order by update_time desc, id desc
+        limit #{limit}
+    </select>
+
+    <select id="queryProject" resultMap="AcademicProjectMap">
+        select project_id, user_id, title, research_question, target_venue, writing_status,
+               progress_note, create_time, update_time
+        from academic_project
+        where user_id = #{userId}
+          and project_id = #{projectId}
+        limit 1
+    </select>
+
+    <insert id="upsertFile">
+        insert into academic_project_file (
+          project_id, user_id, file_id, file_name, file_type, folder_type,
+          summary, content_preview, create_time
+        ) values (
+          #{projectId}, #{userId}, #{fileId}, #{fileName}, #{fileType}, #{folderType},
+          #{summary}, #{contentPreview}, #{createTime}
+        )
+        on duplicate key update
+          file_name = values(file_name),
+          file_type = values(file_type),
+          folder_type = values(folder_type),
+          summary = values(summary),
+          content_preview = values(content_preview)
+    </insert>
+
+    <select id="queryFiles" resultMap="AcademicProjectFileMap">
+        select project_id, user_id, file_id, file_name, file_type, folder_type,
+               summary, content_preview, create_time
+        from academic_project_file
+        where user_id = #{userId}
+          and project_id = #{projectId}
+        order by create_time asc, id asc
+    </select>
+
+    <insert id="insertPatch">
+        insert into academic_project_patch (
+          project_id, user_id, patch_id, file_id, title, reason,
+          before_text, after_text, status, create_time, apply_time
+        ) values (
+          #{projectId}, #{userId}, #{patchId}, #{fileId}, #{title}, #{reason},
+          #{beforeText}, #{afterText}, #{status}, #{createTime}, #{applyTime}
+        )
+        on duplicate key update patch_id = values(patch_id)
+    </insert>
+
+    <update id="updatePatchApply">
+        update academic_project_patch
+        set status = #{status},
+            apply_time = #{applyTime}
+        where user_id = #{userId}
+          and project_id = #{projectId}
+          and patch_id = #{patchId}
+    </update>
+
+    <select id="queryPatches" resultMap="AcademicProjectPatchMap">
+        select project_id, user_id, patch_id, file_id, title, reason,
+               before_text, after_text, status, create_time, apply_time
+        from academic_project_patch
+        where user_id = #{userId}
+          and project_id = #{projectId}
+        order by create_time desc, id desc
+    </select>
+
+    <update id="updateFilePreview">
+        update academic_project_file
+        set summary = #{summary},
+            content_preview = #{contentPreview}
+        where user_id = #{userId}
+          and project_id = #{projectId}
+          and file_id = #{fileId}
+    </update>
+
+    <update id="touchProject">
+        update academic_project
+        set update_time = #{updateTime}
+        where user_id = #{userId}
+          and project_id = #{projectId}
+    </update>
+</mapper>

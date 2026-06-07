@@ -28,6 +28,7 @@ import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -60,6 +61,7 @@ public class AcademicWorkspaceMragService {
     private final AcademicExecutionLedgerService ledgerService;
     private final Executor toolExecutor;
 
+    @Autowired
     public AcademicWorkspaceMragService(ObjectMapper objectMapper,
                                         ObjectProvider<AcademicMultimodalAnalysisPort> multimodalPort,
                                         ObjectProvider<AcademicTableRagPort> tableRagPort,
@@ -105,7 +107,7 @@ public class AcademicWorkspaceMragService {
         saveSession(userId, sessionId, question);
 
         AcademicAgentRun run = ledgerService.startRun(
-                userId, sessionId, requestId, TASK_TYPE, question, "workspace-mrag-tools");
+                userId, sessionId, "", requestId, TASK_TYPE, question, "workspace-mrag-tools");
         AcademicLedgerContext.Context context = new AcademicLedgerContext.Context(
                 run.getRunId(), requestId, sessionId, userId, TASK_TYPE);
         long startedAt = System.currentTimeMillis();

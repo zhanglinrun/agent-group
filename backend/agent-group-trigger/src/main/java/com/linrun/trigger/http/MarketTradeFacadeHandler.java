@@ -179,7 +179,7 @@ public class MarketTradeFacadeHandler {
         groupRequest.setActivityId(request.getActivityId());
         groupRequest.setTeamId(request.getTeamId());
         groupRequest.setIdempotentKey(resolveIdempotentKey(request));
-        groupRequest.setPayChannel("MOCK_PAY");
+        groupRequest.setPayChannel(StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : "ALIPAY");
         return groupRequest;
     }
 

@@ -6,6 +6,7 @@ public class AcademicAgentRunPO {
 
     private String runId;
     private String sessionId;
+    private String projectId;
     private String requestId;
     private String userId;
     private String taskType;
@@ -35,6 +36,14 @@ public class AcademicAgentRunPO {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
     }
 
     public String getRequestId() {

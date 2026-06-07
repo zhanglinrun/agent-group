@@ -39,6 +39,7 @@ public class AcademicExecutionLedgerService {
 
     public AcademicAgentRun startRun(String userId,
                                      String sessionId,
+                                     String projectId,
                                      String requestId,
                                      String taskType,
                                      String question,
@@ -47,6 +48,7 @@ public class AcademicExecutionLedgerService {
         run.setRunId(nextId("RUN"));
         run.setUserId(safe(userId));
         run.setSessionId(safe(sessionId));
+        run.setProjectId(safe(projectId));
         run.setRequestId(safe(requestId));
         run.setTaskType(safe(taskType));
         run.setQuestion(limit(question, 2048));
@@ -299,6 +301,7 @@ public class AcademicExecutionLedgerService {
         AcademicRunDetailResponse.Run dto = new AcademicRunDetailResponse.Run();
         dto.setRunId(run.getRunId());
         dto.setSessionId(run.getSessionId());
+        dto.setProjectId(run.getProjectId());
         dto.setRequestId(run.getRequestId());
         dto.setTaskType(run.getTaskType());
         dto.setQuestion(run.getQuestion());

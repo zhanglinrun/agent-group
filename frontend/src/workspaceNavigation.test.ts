@@ -9,12 +9,12 @@ import {
 describe("workspace navigation view model", () => {
   it("marks active workspace from id or route path", () => {
     expect(buildWorkspaceNavigation("data", null, { includeInternal: true }).find((item) => item.active)?.id).toBe("data");
-    expect(buildWorkspaceNavigation("/workspace/image/").find((item) => item.active)?.id).toBe("image");
+    expect(buildWorkspaceNavigation("/workspace/image/", null, { includeInternal: true }).find((item) => item.active)?.id).toBe("image");
     expect(activeWorkspaceNavigationItem("/missing").id).toBe("agent");
   });
 
   it("merges backend profile and runtime coverage into navigation items", () => {
-    const navigation = buildWorkspaceNavigation("image", {
+    const capabilities = {
       workspaceProfiles: [
         {
           id: "image",
@@ -38,7 +38,8 @@ describe("workspace navigation view model", () => {
           }
         ]
       }
-    });
+    };
+    const navigation = buildWorkspaceNavigation("image", capabilities, { includeInternal: true });
 
     const image = navigation.find((item) => item.id === "image");
     expect(image).toMatchObject({

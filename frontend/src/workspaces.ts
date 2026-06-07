@@ -18,7 +18,7 @@ export interface WorkspacePrompt {
 }
 
 export const WORKSPACES: WorkspaceDefinition[] = [
-  { id: "agent", name: "Agent 工作台", path: "/", icon: "🤖", agentId: "chat" },
+  { id: "agent", name: "熊博士 Agent", path: "/", icon: "🤖", agentId: "chat" },
   { id: "image", name: "图像生成", path: "/workspace/image", icon: "🖼", agentId: "image" },
   { id: "data", name: "数据问答", path: "/workspace/data", icon: "📈", agentId: "data", userVisible: false },
   { id: "mrag", name: "MRAG 知识问答", path: "/workspace/mrag", icon: "MR", agentId: "mrag", userVisible: false },

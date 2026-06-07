@@ -58,6 +58,16 @@ spring:
       port: ${AGENT_GROUP_REDIS_PORT:16379}
       database: ${AGENT_GROUP_REDIS_DATABASE:0}
       timeout: 5s
+  redis:
+    host: ${AGENT_GROUP_REDIS_HOST:127.0.0.1}
+    port: ${AGENT_GROUP_REDIS_PORT:16379}
+    database: ${AGENT_GROUP_REDIS_DATABASE:0}
+    timeout: 5s
+    redisson:
+      config: |
+        singleServerConfig:
+          address: "redis://${AGENT_GROUP_REDIS_HOST:127.0.0.1}:${AGENT_GROUP_REDIS_PORT:16379}"
+          database: ${AGENT_GROUP_REDIS_DATABASE:0}
   rabbitmq:
     host: ${AGENT_GROUP_RABBITMQ_HOST:127.0.0.1}
     port: ${AGENT_GROUP_RABBITMQ_PORT:5672}
@@ -163,6 +173,8 @@ agent:
         public-key: ${AGENT_GROUP_ALIPAY_PUBLIC_KEY:}
         charset: ${AGENT_GROUP_ALIPAY_CHARSET:UTF-8}
         sign-type: ${AGENT_GROUP_ALIPAY_SIGN_TYPE:RSA2}
+        notify-url: ${AGENT_GROUP_ALIPAY_NOTIFY_URL:http://localhost:8080/api/v1/payment/alipay/notify}
+        return-url: ${AGENT_GROUP_ALIPAY_RETURN_URL:}
       wechat:
         app-id: ${AGENT_GROUP_WECHAT_APP_ID:}
         merchant-id: ${AGENT_GROUP_WECHAT_MERCHANT_ID:}

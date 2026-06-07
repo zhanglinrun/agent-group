@@ -24,10 +24,12 @@ describe("workspace routing model", () => {
     expect(workspaceFromPath("/missing")).toBe("agent");
   });
 
-  it("keeps internal workspaces out of the user-facing product surface", () => {
+  it("keeps only productized workspaces in the user-facing surface", () => {
     expect(USER_WORKSPACES.map((workspace) => workspace.id)).toEqual(["agent", "image"]);
+    expect(isUserWorkspace("image")).toBe(true);
     expect(isUserWorkspace("data")).toBe(false);
     expect(isUserWorkspace("trade")).toBe(false);
+    expect(userWorkspaceFromPath("/workspace/image")).toBe("image");
     expect(userWorkspaceFromPath("/workspace/data")).toBe("agent");
     expect(userWorkspaceFromPath("/workspace/trade")).toBe("agent");
   });

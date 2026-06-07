@@ -7,11 +7,16 @@ import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.domain.account.model.UserQuotaFlow;
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
+import com.linrun.domain.trade.model.entity.TradeOrderEntity;
+import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -20,7 +25,9 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class UserQuotaServiceTest {
 
@@ -50,6 +57,144 @@ class UserQuotaServiceTest {
                 mock(TradeOrderRepository.class));
 
         assertEquals(new BigDecimal("0.20"), service.estimatePreCheckCost("trade-audit"));
+    }
+
+    @Test
+    void consumeForSameExplicitBizIdIsIdempotent() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
+        UserQuotaService service = new UserQuotaService(
+                quotaRepository,
+                mock(GuideDataRepository.class),
+                mock(TradeOrderRepository.class));
+        GuideTokenUsage usage = new GuideTokenUsage(500L, 500L, 1000L, BigDecimal.ZERO);
+
+        service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 100L);
+        service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 120L);
+
+        assertEquals(1, quotaRepository.flows.size());
+        assertEquals(new BigDecimal("-0.20"), quotaRepository.flows.get(0).getQuotaAmount());
+        assertEquals(new BigDecimal("9.80"), quotaRepository.balance);
+        assertEquals(1, quotaRepository.usages.size());
+    }
+
+    @Test
+    void consumeCoveredByMembershipStillWritesIdempotentFlow() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        quotaRepository.upsertMembership(activeMembership("U10001", new BigDecimal("10.00")));
+        UserQuotaService service = new UserQuotaService(
+                quotaRepository,
+                mock(GuideDataRepository.class),
+                mock(TradeOrderRepository.class));
+        GuideTokenUsage usage = new GuideTokenUsage(500L, 500L, 1000L, BigDecimal.ZERO);
+
+        service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 100L);
+        service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 120L);
+
+        assertEquals(1, quotaRepository.flows.size());
+        assertEquals(0, quotaRepository.flows.get(0).getQuotaAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(new BigDecimal("0.20"), quotaRepository.membership.getMonthlyUsedQuota());
+        assertEquals(1, quotaRepository.usages.size());
+    }
+
+    @Test
+    void groupOrderGrantsQuotaOnlyAfterSettlementAndIsIdempotent() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        UserQuotaService service = serviceWithProduct(quotaRepository, quotaProduct("G1001", new BigDecimal("20.00")));
+        TradeOrderEntity order = order("O10001", TradeBuyTypeEnumVO.GROUP_BUY, TradeOrderStatusEnumVO.PAY_SUCCESS);
+
+        service.grantQuotaForPaidOrder(order);
+        assertEquals(0, quotaRepository.flows.size());
+        assertEquals(new BigDecimal("0"), quotaRepository.balance);
+
+        order.setOrderStatus(TradeOrderStatusEnumVO.GROUP_SETTLED);
+        service.grantQuotaForPaidOrder(order);
+        service.grantQuotaForPaidOrder(order);
+
+        assertEquals(1, quotaRepository.flows.size());
+        assertEquals(UserQuotaService.FLOW_ORDER_GRANT, quotaRepository.flows.get(0).getFlowType());
+        assertEquals(new BigDecimal("20.00"), quotaRepository.balance);
+        assertEquals(TradeOrderStatusEnumVO.DEAL_DONE, order.getOrderStatus());
+    }
+
+    @Test
+    void refundRollbackUsesGrantFlowAndIsIdempotent() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        UserQuotaService service = serviceWithProduct(quotaRepository, quotaProduct("G1001", new BigDecimal("20.00")));
+        TradeOrderEntity order = order("O10001", TradeBuyTypeEnumVO.DIRECT, TradeOrderStatusEnumVO.PAY_SUCCESS);
+
+        service.grantQuotaForPaidOrder(order);
+        service.rollbackQuotaForRefundedOrder(order);
+        service.rollbackQuotaForRefundedOrder(order);
+
+        assertEquals(2, quotaRepository.flows.size());
+        assertEquals(UserQuotaService.FLOW_REFUND_ROLLBACK, quotaRepository.flows.get(1).getFlowType());
+        assertEquals(new BigDecimal("-20.00"), quotaRepository.flows.get(1).getQuotaAmount());
+        assertEquals(new BigDecimal("0.00"), quotaRepository.balance);
+    }
+
+    @Test
+    void directMembershipOrderActivatesMembershipAndIsIdempotent() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        UserQuotaService service = serviceWithProduct(quotaRepository,
+                membershipProduct("G1001", "Plus 会员", new BigDecimal("1000.00")));
+        TradeOrderEntity order = order("O10001", TradeBuyTypeEnumVO.DIRECT, TradeOrderStatusEnumVO.PAY_SUCCESS);
+
+        service.grantQuotaForPaidOrder(order);
+        service.grantQuotaForPaidOrder(order);
+
+        assertEquals(1, quotaRepository.flows.size());
+        assertEquals(0, quotaRepository.flows.get(0).getQuotaAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(new BigDecimal("0"), quotaRepository.balance);
+        assertEquals("G1001", quotaRepository.membership.getPlanCode());
+        assertEquals("Plus 会员", quotaRepository.membership.getPlanName());
+        assertEquals(new BigDecimal("1000.00"), quotaRepository.membership.getMonthlyQuota());
+        assertEquals(BigDecimal.ZERO, quotaRepository.membership.getMonthlyUsedQuota());
+        assertTrue(quotaRepository.membership.isActive(LocalDateTime.now()));
+        assertEquals(TradeOrderStatusEnumVO.DEAL_DONE, order.getOrderStatus());
+    }
+
+    private static UserQuotaService serviceWithProduct(InMemoryQuotaRepository quotaRepository, GuideProduct product) {
+        GuideDataRepository guideDataRepository = mock(GuideDataRepository.class);
+        when(guideDataRepository.queryProductByGoodsId(product.getGoodsId())).thenReturn(Optional.of(product));
+        return new UserQuotaService(quotaRepository, guideDataRepository, mock(TradeOrderRepository.class));
+    }
+
+    private static GuideProduct quotaProduct(String goodsId, BigDecimal quotaAmount) {
+        GuideProduct product = new GuideProduct();
+        product.setGoodsId(goodsId);
+        product.setQuotaAmount(quotaAmount);
+        return product;
+    }
+
+    private static GuideProduct membershipProduct(String goodsId, String goodsName, BigDecimal monthlyQuota) {
+        GuideProduct product = quotaProduct(goodsId, monthlyQuota);
+        product.setGoodsName(goodsName);
+        product.setProductType("MEMBERSHIP_PLAN");
+        return product;
+    }
+
+    private static TradeOrderEntity order(String orderId,
+                                          TradeBuyTypeEnumVO buyType,
+                                          TradeOrderStatusEnumVO orderStatus) {
+        TradeOrderEntity order = new TradeOrderEntity();
+        order.setOrderId(orderId);
+        order.setUserId("U10001");
+        order.setGoodsId("G1001");
+        order.setBuyType(buyType);
+        order.setOrderStatus(orderStatus);
+        order.setPayAmount(BigDecimal.ONE);
+        return order;
+    }
+
+    private static UserMembershipAccount activeMembership(String userId, BigDecimal quota) {
+        UserMembershipAccount membership = new UserMembershipAccount();
+        membership.setUserId(userId);
+        membership.setStatus("ACTIVE");
+        membership.setMonthlyQuota(quota);
+        membership.setMonthlyUsedQuota(BigDecimal.ZERO);
+        membership.setCycleStartTime(LocalDateTime.now().minusDays(1));
+        membership.setCycleEndTime(LocalDateTime.now().plusDays(1));
+        return membership;
     }
 
     private static class InMemoryQuotaRepository implements UserQuotaRepository {

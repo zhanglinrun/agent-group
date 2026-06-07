@@ -83,7 +83,7 @@ class AcademicWorkspaceMragServiceTest {
         when(multimodalProvider.getIfAvailable()).thenReturn(multimodalPort);
         when(tableProvider.getIfAvailable()).thenReturn(tablePort);
         when(deepProvider.getIfAvailable()).thenReturn(deepPort);
-        when(ledgerService.startRun(eq("U1001"), eq("M1001"), anyString(), eq("workspace-mrag"),
+        when(ledgerService.startRun(eq("U1001"), eq("M1001"), eq(""), anyString(), eq("workspace-mrag"),
                 eq("cross check paid orders"), eq("workspace-mrag-tools"))).thenReturn(run);
         when(ledgerService.recordToolStart(any(), anyString(), anyString(), eq("workspace/mrag/run"), anyString()))
                 .thenAnswer(invocation -> "TOOL_" + invocation.getArgument(2, String.class));
@@ -151,7 +151,7 @@ class AcademicWorkspaceMragServiceTest {
         when(multimodalProvider.getIfAvailable()).thenReturn(multimodalPort);
         when(tableProvider.getIfAvailable()).thenReturn(tablePort);
         when(deepProvider.getIfAvailable()).thenReturn(deepPort);
-        when(ledgerService.startRun(eq("U1001"), eq("M1001"), anyString(), eq("workspace-mrag"),
+        when(ledgerService.startRun(eq("U1001"), eq("M1001"), eq(""), anyString(), eq("workspace-mrag"),
                 eq("cross check paid orders"), eq("workspace-mrag-tools"))).thenReturn(run);
         when(ledgerService.recordToolStart(any(), anyString(), anyString(), eq("workspace/mrag/run"), anyString()))
                 .thenAnswer(invocation -> "TOOL_" + invocation.getArgument(2, String.class));

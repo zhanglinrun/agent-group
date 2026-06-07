@@ -56,6 +56,7 @@
     <resultMap id="AcademicAgentRunMap" type="com.linrun.infrastructure.po.AcademicAgentRunPO">
         <id column="run_id" property="runId"/>
         <result column="session_id" property="sessionId"/>
+        <result column="project_id" property="projectId"/>
         <result column="request_id" property="requestId"/>
         <result column="user_id" property="userId"/>
         <result column="task_type" property="taskType"/>
@@ -255,10 +256,10 @@
 
     <insert id="insertRun">
         insert into academic_agent_run (
-          run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+          run_id, session_id, project_id, request_id, user_id, task_type, question, status, model_name,
           final_summary, error_code, error_message, started_at, finished_at, duration_millis, create_time, update_time
         ) values (
-          #{runId}, #{sessionId}, #{requestId}, #{userId}, #{taskType}, #{question}, #{status}, #{modelName},
+          #{runId}, #{sessionId}, #{projectId}, #{requestId}, #{userId}, #{taskType}, #{question}, #{status}, #{modelName},
           #{finalSummary}, #{errorCode}, #{errorMessage}, #{startedAt}, #{finishedAt}, #{durationMillis}, now(), now()
         )
         on duplicate key update run_id = values(run_id)
@@ -330,7 +331,7 @@
     </update>
 
     <select id="queryRun" resultMap="AcademicAgentRunMap">
-        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+        select run_id, session_id, project_id, request_id, user_id, task_type, question, status, model_name,
                final_summary, error_code, error_message, started_at, finished_at, duration_millis,
                create_time, update_time
         from academic_agent_run
@@ -340,7 +341,7 @@
     </select>
 
     <select id="queryRunByRequestId" resultMap="AcademicAgentRunMap">
-        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+        select run_id, session_id, project_id, request_id, user_id, task_type, question, status, model_name,
                final_summary, error_code, error_message, started_at, finished_at, duration_millis,
                create_time, update_time
         from academic_agent_run
@@ -350,7 +351,7 @@
     </select>
 
     <select id="queryLatestRun" resultMap="AcademicAgentRunMap">
-        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+        select run_id, session_id, project_id, request_id, user_id, task_type, question, status, model_name,
                final_summary, error_code, error_message, started_at, finished_at, duration_millis,
                create_time, update_time
         from academic_agent_run
@@ -361,7 +362,7 @@
     </select>
 
     <select id="queryRuns" resultMap="AcademicAgentRunMap">
-        select run_id, session_id, request_id, user_id, task_type, question, status, model_name,
+        select run_id, session_id, project_id, request_id, user_id, task_type, question, status, model_name,
                final_summary, error_code, error_message, started_at, finished_at, duration_millis,
                create_time, update_time
         from academic_agent_run

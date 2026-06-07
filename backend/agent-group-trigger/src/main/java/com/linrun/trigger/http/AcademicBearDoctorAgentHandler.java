@@ -18,6 +18,7 @@ import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
+import com.linrun.domain.academic.project.service.AcademicProjectService;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProjector;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowStage;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
@@ -31,6 +32,7 @@ import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -56,11 +58,26 @@ public class AcademicBearDoctorAgentHandler {
     private final AcademicBackgroundStreamService backgroundStreamService;
     private final AcademicArtifactService academicArtifactService;
     private final AcademicExecutionLedgerService academicExecutionLedgerService;
+    private final AcademicProjectService academicProjectService;
     private final ObjectMapper objectMapper;
     private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
     private final AcademicAgentFlowProjector flowProjector = new AcademicAgentFlowProjector();
     private final AcademicAgentFlowProgressProjector flowProgressProjector = new AcademicAgentFlowProgressProjector();
 
+    public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
+                                          UserAccountService userAccountService,
+                                          UserQuotaService userQuotaService,
+                                          AgentTaskManager taskManager,
+                                          AiPptInstService aiPptInstService,
+                                          AcademicBackgroundStreamService backgroundStreamService,
+                                          AcademicArtifactService academicArtifactService,
+                                          AcademicExecutionLedgerService academicExecutionLedgerService,
+                                          ObjectMapper objectMapper) {
+        this(bearDoctorNativeAgentService, userAccountService, userQuotaService, taskManager, aiPptInstService,
+                backgroundStreamService, academicArtifactService, academicExecutionLedgerService, null, objectMapper);
+    }
+
+    @Autowired
     public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
                                     UserAccountService userAccountService,
                                     UserQuotaService userQuotaService,
@@ -69,6 +86,7 @@ public class AcademicBearDoctorAgentHandler {
                                     AcademicBackgroundStreamService backgroundStreamService,
                                     AcademicArtifactService academicArtifactService,
                                     AcademicExecutionLedgerService academicExecutionLedgerService,
+                                    AcademicProjectService academicProjectService,
                                     ObjectMapper objectMapper) {
         this.bearDoctorNativeAgentService = bearDoctorNativeAgentService;
         this.userAccountService = userAccountService;
@@ -78,6 +96,7 @@ public class AcademicBearDoctorAgentHandler {
         this.backgroundStreamService = backgroundStreamService;
         this.academicArtifactService = academicArtifactService;
         this.academicExecutionLedgerService = academicExecutionLedgerService;
+        this.academicProjectService = academicProjectService;
         this.objectMapper = objectMapper;
     }
 
@@ -110,6 +129,7 @@ public class AcademicBearDoctorAgentHandler {
             String taskType = normalizeTaskType(safeRequest.getTaskType());
             String query = normalizeQuery(safeRequest, taskType);
             String fileId = nullToBlank(safeRequest.getFileId());
+            String projectId = nullToBlank(safeRequest.getProjectId());
             boolean webSearchEnabled = Boolean.TRUE.equals(safeRequest.getWebSearchEnabled());
             long startedAt = System.currentTimeMillis();
             AtomicInteger sequence = new AtomicInteger(1);
@@ -117,7 +137,7 @@ public class AcademicBearDoctorAgentHandler {
             boolean customModelConfigured = userQuotaService.hasEnabledModelConfig(user.getUserId())
                     || hasCustomModelConfig(safeRequest);
             AcademicAgentRun run = academicExecutionLedgerService.startRun(
-                    user.getUserId(), sessionId, requestId, taskType, query, modelName);
+                    user.getUserId(), sessionId, projectId, requestId, taskType, query, modelName);
             String executionMemoryPrompt = joinPrompts(
                     outputStylePrompt(effectiveOutputStyle(taskType, safeRequest.getOutputStyle())),
                     executionMemoryPrompt(user.getUserId(), sessionId, requestId)
@@ -127,6 +147,8 @@ public class AcademicBearDoctorAgentHandler {
             AcademicAgentPlan executionPlan = runPlanFactory.build(taskType, webSearchEnabled);
             RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt,
                     webSearchEnabled, executionPlan);
+            runState.projectId = projectId;
+            runState.projectContext = projectContext(user.getUserId(), projectId);
 
             return Flux.concat(
                             Flux.fromIterable(startEvents(runState, sessionId, requestId, sequence)),
@@ -324,6 +346,9 @@ public class AcademicBearDoctorAgentHandler {
                                                   AtomicInteger sequence) {
         List<GuideStreamEvent<?>> events = new ArrayList<>();
         events.add(event("run_start", sessionId, requestId, sequence, runStart(runState.run)));
+        if (!runState.projectContext.isEmpty()) {
+            events.add(event("project_context", sessionId, requestId, sequence, runState.projectContext));
+        }
         events.add(event("plan_delta", sessionId, requestId, sequence, plan(runState)));
         AcademicAgentFlowProgressResult progress = flowProgressProjector.start(runState.executionPlan);
         runState.currentFlowStageIndex = progress.getCurrentStageIndex();
@@ -570,12 +595,24 @@ public class AcademicBearDoctorAgentHandler {
     private Map<String, Object> runStart(AcademicAgentRun run) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("runId", run.getRunId());
+        data.put("projectId", nullToBlank(run.getProjectId()));
         data.put("taskType", run.getTaskType());
         data.put("question", run.getQuestion());
         data.put("model", run.getModelName());
         data.put("status", run.getStatus());
         data.put("startedAt", run.getStartedAt());
         return data;
+    }
+
+    private Map<String, Object> projectContext(String userId, String projectId) {
+        if (!StringUtils.hasText(projectId) || academicProjectService == null) {
+            return Map.of();
+        }
+        try {
+            return academicProjectService.projectContext(userId, projectId);
+        } catch (Exception ignored) {
+            return Map.of();
+        }
     }
 
     private Map<String, Object> plan(RunState runState) {
@@ -1392,6 +1429,8 @@ public class AcademicBearDoctorAgentHandler {
         private final StringBuilder answer = new StringBuilder();
         private final Map<String, String> toolInvocations = new LinkedHashMap<>();
         private int currentFlowStageIndex = -1;
+        private String projectId = "";
+        private Map<String, Object> projectContext = Map.of();
 
         private RunState(AcademicAgentRun run,
                          AcademicLedgerContext.Context ledgerContext,

@@ -40,7 +40,7 @@ export type TradeSettlementHint = {
 const WAITING_GROUP_STATUSES = new Set(["PAY_SUCCESS", "PAY_SUCCEEDED", "PAID", "WAIT_GROUP", "GROUP_WAITING"]);
 const SETTLED_GROUP_STATUSES = new Set(["GROUP_SETTLED", "DEAL_DONE"]);
 const DONE_STATUSES = new Set(["DEAL_DONE", "FINISHED", "COMPLETED"]);
-const REFUND_LIKE_STATUSES = new Set(["REFUND", "REFUNDING", "REFUND_SUCCESS", "REFUNDED", "CLOSED"]);
+const REFUND_LIKE_STATUSES = new Set(["REFUND", "REFUNDING", "WAIT_REFUND", "REFUND_SUCCESS", "REFUNDED", "CLOSED"]);
 
 function numberValue(value: unknown): number {
   const numeric = Number(value || 0);
@@ -67,14 +67,17 @@ export function tradeOrderStatusLabel(status: unknown): string {
   const normalized = textValue(status).toUpperCase();
   const labels: Record<string, string> = {
     CREATE: "已创建",
+    PAY_WAIT: "待支付",
     WAIT_PAY: "待支付",
     PAY_SUCCESS: "已支付",
     WAIT_GROUP: "等待成团",
     GROUP_WAITING: "等待成团",
     GROUP_SETTLED: "已成团",
     DEAL_DONE: "已完成",
+    WAIT_REFUND: "待退款",
     REFUNDING: "退款中",
     REFUND_SUCCESS: "已退款",
+    REFUNDED: "已退款",
     CLOSED: "已关闭"
   };
   return labels[normalized] || normalized || "未知";

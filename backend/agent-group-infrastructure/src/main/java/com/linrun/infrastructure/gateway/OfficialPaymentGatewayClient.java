@@ -7,15 +7,14 @@ import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayDataDataserviceBillDownloadurlQueryRequest;
 import com.alipay.api.request.AlipayTradeFastpayRefundQueryRequest;
-import com.alipay.api.request.AlipayTradePrecreateRequest;
+import com.alipay.api.request.AlipayTradePagePayRequest;
 import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.request.AlipayTradeRefundRequest;
 import com.alipay.api.response.AlipayDataDataserviceBillDownloadurlQueryResponse;
 import com.alipay.api.response.AlipayTradeFastpayRefundQueryResponse;
-import com.alipay.api.response.AlipayTradePrecreateResponse;
+import com.alipay.api.response.AlipayTradePagePayResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.alipay.api.response.AlipayTradeRefundResponse;
-import com.alipay.api.domain.AlipayTradePrecreateModel;
 import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.domain.AlipayTradeRefundModel;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -88,6 +87,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     private final String alipayPublicKey;
     private final String alipayCharset;
     private final String alipaySignType;
+    private final String alipayNotifyUrl;
+    private final String alipayReturnUrl;
     private final String wechatAppId;
     private final String wechatMerchantId;
     private final String wechatPrivateKeyPath;
@@ -101,6 +102,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             @Value("${agent.group.payment.alipay.public-key:}") String alipayPublicKey,
             @Value("${agent.group.payment.alipay.charset:UTF-8}") String alipayCharset,
             @Value("${agent.group.payment.alipay.sign-type:RSA2}") String alipaySignType,
+            @Value("${agent.group.payment.alipay.notify-url:}") String alipayNotifyUrl,
+            @Value("${agent.group.payment.alipay.return-url:}") String alipayReturnUrl,
             @Value("${agent.group.payment.wechat.app-id:}") String wechatAppId,
             @Value("${agent.group.payment.wechat.merchant-id:}") String wechatMerchantId,
             @Value("${agent.group.payment.wechat.private-key-path:}") String wechatPrivateKeyPath,
@@ -112,6 +115,8 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         this.alipayPublicKey = alipayPublicKey;
         this.alipayCharset = alipayCharset;
         this.alipaySignType = alipaySignType;
+        this.alipayNotifyUrl = alipayNotifyUrl;
+        this.alipayReturnUrl = alipayReturnUrl;
         this.wechatAppId = wechatAppId;
         this.wechatMerchantId = wechatMerchantId;
         this.wechatPrivateKeyPath = wechatPrivateKeyPath;
@@ -326,23 +331,31 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     private PaymentCreateResult createAlipayPayment(PaymentCreateCommand command) {
         ensureAlipayReady();
         try {
-            AlipayTradePrecreateRequest request = new AlipayTradePrecreateRequest();
-            AlipayTradePrecreateModel model = new AlipayTradePrecreateModel();
-            model.setOutTradeNo(command.getPayOrderId());
-            model.setSubject(command.getSubject());
-            model.setTotalAmount(amountText(command.getPayAmount()));
-            model.setPassbackParams(command.getOrderId());
-            request.setBizModel(model);
-            request.setNotifyUrl(command.getNotifyUrl());
-            AlipayTradePrecreateResponse response = alipayClient().execute(request);
+            AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
+            String notifyUrl = firstText(command.getNotifyUrl(), alipayNotifyUrl);
+            String returnUrl = firstText(command.getReturnUrl(), alipayReturnUrl);
+            if (StringUtils.hasText(notifyUrl)) {
+                request.setNotifyUrl(notifyUrl);
+            }
+            if (StringUtils.hasText(returnUrl)) {
+                request.setReturnUrl(returnUrl);
+            }
+            request.setBizContent("{"
+                    + "\"out_trade_no\":\"" + jsonEscape(command.getPayOrderId()) + "\","
+                    + "\"total_amount\":\"" + amountText(command.getPayAmount()) + "\","
+                    + "\"subject\":\"" + jsonEscape(command.getSubject()) + "\","
+                    + "\"product_code\":\"FAST_INSTANT_TRADE_PAY\","
+                    + "\"passback_params\":\"" + jsonEscape(command.getOrderId()) + "\""
+                    + "}");
+            AlipayTradePagePayResponse response = alipayClient().pageExecute(request);
             if (!response.isSuccess()) {
                 throw new AppException("PAY_0003", "支付宝创建支付失败：" + response.getSubMsg());
             }
-            return PaymentCreateResult.created(
+            return PaymentCreateResult.pageForm(
                     command.getOrderId(),
                     command.getPayOrderId(),
                     PaymentChannel.ALIPAY.name(),
-                    response.getQrCode(),
+                    response.getBody(),
                     command.getPayOrderId(),
                     "支付宝预下单成功");
         } catch (AlipayApiException e) {

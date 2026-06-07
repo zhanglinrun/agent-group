@@ -40,7 +40,7 @@ import java.util.UUID;
 public class GroupBuyLockOrderService {
 
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-    private static final String DEFAULT_PAY_CHANNEL = "MOCK_PAY";
+    private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
     private final GuideDataRepository guideDataRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;

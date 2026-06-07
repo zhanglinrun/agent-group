@@ -79,7 +79,7 @@ public class AcademicWorkspaceImageService {
         saveSession(userId, sessionId, safeRequest.getPrompt());
 
         AcademicAgentRun run = ledgerService.startRun(
-                userId, sessionId, requestId, TASK_TYPE, safeRequest.getPrompt(), AcademicToolOutputNames.IMAGE_GENERATION);
+                userId, sessionId, "", requestId, TASK_TYPE, safeRequest.getPrompt(), AcademicToolOutputNames.IMAGE_GENERATION);
         AcademicLedgerContext.Context context = new AcademicLedgerContext.Context(
                 run.getRunId(), requestId, sessionId, userId, TASK_TYPE);
         Map<String, Object> arguments = arguments(userId, safeRequest);

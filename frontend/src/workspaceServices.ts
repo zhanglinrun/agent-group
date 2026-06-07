@@ -223,7 +223,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     id: "agent",
     taskType: "chat",
     title: "通用 Agent",
-    summary: "统一承载聊天、文件问答、深度研究、PPT 和技能任务。",
+    summary: "统一承载对话、文件上传后的问答、深度研究、PPT 和 Skill 任务。",
     primaryTools: ["planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["answer", "reference", "artifact"],

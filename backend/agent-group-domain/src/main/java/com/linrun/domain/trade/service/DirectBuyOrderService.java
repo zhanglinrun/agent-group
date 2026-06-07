@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 @Service
 public class DirectBuyOrderService {
 
-    private static final String DEFAULT_PAY_CHANNEL = "MOCK_PAY";
+    private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
     private final GuideDataRepository guideDataRepository;
     private final TradeOrderRepository tradeOrderRepository;

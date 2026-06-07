@@ -104,7 +104,7 @@ public class AcademicWorkspaceDataService {
         saveSession(userId, sessionId, question);
 
         AcademicAgentRun run = ledgerService.startRun(
-                userId, sessionId, requestId, TASK_TYPE, question, "workspace-data-tools");
+                userId, sessionId, "", requestId, TASK_TYPE, question, "workspace-data-tools");
         AcademicLedgerContext.Context context = new AcademicLedgerContext.Context(
                 run.getRunId(), requestId, sessionId, userId, TASK_TYPE);
         long startedAt = System.currentTimeMillis();

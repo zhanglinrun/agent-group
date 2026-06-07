@@ -20,6 +20,7 @@ public class AcademicRunDetailResponse implements Serializable {
     public static class Run implements Serializable {
         private String runId;
         private String sessionId;
+        private String projectId;
         private String requestId;
         private String taskType;
         private String question;

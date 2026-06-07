@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENT_MODES, agentModeById } from "./agentModes";
+import { AGENT_MODES, USER_AGENT_MODES, agentModeById } from "./agentModes";
 
 describe("agent mode model", () => {
   it("keeps core multi-agent execution families visible", () => {
@@ -12,6 +12,11 @@ describe("agent mode model", () => {
     expect(agentModeById("ppt").executionFamily).toBe("flow");
     expect(agentModeById("trade-audit").executionFamily).toBe("flow");
     expect(agentModeById("manual-skills").executionFamily).toBe("skill-sop");
+    expect(agentModeById("manual-skills").name).toBe("Skill");
+  });
+
+  it("keeps the user selector focused on one chat surface", () => {
+    expect(USER_AGENT_MODES.map((agent) => agent.id)).toEqual(["chat", "ppt", "deep", "image", "manual-skills"]);
   });
 
   it("keeps every selector option displayable", () => {

@@ -12,6 +12,10 @@ export default defineConfig({
         target: process.env.VITE_API_TARGET || 'http://localhost:8080',
         changeOrigin: true
       },
+      '/agent': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:8080',
+        changeOrigin: true
+      },
       '/tool': createToolProxyConfig(
         process.env.VITE_REACTOR_TOOL_BASE_URL || process.env.REACTOR_TOOL_BASE_URL
       )

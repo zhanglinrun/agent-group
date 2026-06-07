@@ -6,6 +6,8 @@ public class PaymentCreateResult {
     private String payOrderId;
     private String payChannel;
     private String payUrl;
+    private String payFormHtml;
+    private String paymentType;
     private String gatewayTradeNo;
     private boolean created;
     private String message;
@@ -17,9 +19,18 @@ public class PaymentCreateResult {
         result.setPayOrderId(payOrderId);
         result.setPayChannel(payChannel);
         result.setPayUrl(payUrl);
+        result.setPaymentType("URL");
         result.setGatewayTradeNo(gatewayTradeNo);
         result.setCreated(true);
         result.setMessage(message);
+        return result;
+    }
+
+    public static PaymentCreateResult pageForm(String orderId, String payOrderId, String payChannel,
+                                               String payFormHtml, String gatewayTradeNo, String message) {
+        PaymentCreateResult result = created(orderId, payOrderId, payChannel, payFormHtml, gatewayTradeNo, message);
+        result.setPayFormHtml(payFormHtml);
+        result.setPaymentType("PAGE_FORM");
         return result;
     }
 
@@ -53,6 +64,22 @@ public class PaymentCreateResult {
 
     public void setPayUrl(String payUrl) {
         this.payUrl = payUrl;
+    }
+
+    public String getPayFormHtml() {
+        return payFormHtml;
+    }
+
+    public void setPayFormHtml(String payFormHtml) {
+        this.payFormHtml = payFormHtml;
+    }
+
+    public String getPaymentType() {
+        return paymentType;
+    }
+
+    public void setPaymentType(String paymentType) {
+        this.paymentType = paymentType;
     }
 
     public String getGatewayTradeNo() {

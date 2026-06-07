@@ -109,7 +109,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     @Value("${tavily.mcp-url:}")
     private String tavilyMcpUrl;
 
-    @Value("${skills.directory:}")
+    @Value("${skills.directory:skills}")
     private String skillsDirectory;
 
     @Value("${skills.output-directory:outputs}")
@@ -1501,10 +1501,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private String resolvedSkillsDirectory() {
-        if (!StringUtils.hasText(skillsDirectory)) {
-            return "";
-        }
-        String configured = skillsDirectory.trim();
+        String configured = StringUtils.hasText(skillsDirectory) ? skillsDirectory.trim() : "skills";
         Path cwd = Path.of("").toAbsolutePath().normalize();
         List<Path> candidates = new ArrayList<>();
         candidates.add(Path.of(configured));

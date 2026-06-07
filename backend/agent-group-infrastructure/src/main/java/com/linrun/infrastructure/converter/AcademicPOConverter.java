@@ -144,6 +144,7 @@ public final class AcademicPOConverter {
         BeanUtils.copyProperties(entity, po);
         po.setRunId(blank(po.getRunId()));
         po.setSessionId(blank(po.getSessionId()));
+        po.setProjectId(blank(po.getProjectId()));
         po.setRequestId(blank(po.getRequestId()));
         po.setUserId(blank(po.getUserId()));
         po.setTaskType(blank(po.getTaskType()));

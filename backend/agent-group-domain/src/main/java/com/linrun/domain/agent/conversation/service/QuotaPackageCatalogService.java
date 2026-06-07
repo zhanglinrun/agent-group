@@ -15,6 +15,7 @@ import java.util.List;
 public class QuotaPackageCatalogService {
 
     private static final String QUOTA_PACKAGE = "QUOTA_PACKAGE";
+    private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
     private final GuideDataRepository guideDataRepository;
     private final GroupBuyActivityService groupBuyActivityService;
@@ -29,7 +30,7 @@ public class QuotaPackageCatalogService {
         int safeLimit = limit <= 0 ? 20 : Math.min(limit, 50);
         String query = StringUtils.hasText(keyword) ? keyword : "";
         return guideDataRepository.queryCandidateProducts(query, safeLimit).stream()
-                .filter(this::isQuotaPackage)
+                .filter(this::isUpgradeProduct)
                 .map(this::enrichGroupBuy)
                 .toList();
     }
@@ -39,17 +40,25 @@ public class QuotaPackageCatalogService {
             throw new AppException("0001", "额度包编号不能为空");
         }
         GuideProduct product = guideDataRepository.queryProductByGoodsId(goodsId)
-                .filter(this::isQuotaPackage)
-                .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
+                .filter(this::isUpgradeProduct)
+                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下架"));
         return enrichGroupBuy(product);
+    }
+
+    private boolean isUpgradeProduct(GuideProduct product) {
+        return isQuotaPackage(product) || isMembershipPlan(product);
     }
 
     private boolean isQuotaPackage(GuideProduct product) {
         return product != null && QUOTA_PACKAGE.equals(product.getProductType());
     }
 
+    private boolean isMembershipPlan(GuideProduct product) {
+        return product != null && MEMBERSHIP_PLAN.equals(product.getProductType());
+    }
+
     private GuideProduct enrichGroupBuy(GuideProduct product) {
-        if (product == null || !StringUtils.hasText(product.getGoodsId()) || groupBuyActivityService == null) {
+        if (product == null || !isQuotaPackage(product) || !StringUtils.hasText(product.getGoodsId()) || groupBuyActivityService == null) {
             return product;
         }
         try {

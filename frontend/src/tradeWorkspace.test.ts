@@ -47,8 +47,11 @@ describe("trade workspace summary", () => {
   });
 
   it("formats common trade statuses", () => {
+    expect(tradeOrderStatusLabel("PAY_WAIT")).toBe("待支付");
     expect(tradeOrderStatusLabel("PAY_SUCCESS")).toBe("已支付");
     expect(tradeOrderStatusLabel("GROUP_SETTLED")).toBe("已成团");
+    expect(tradeOrderStatusLabel("WAIT_REFUND")).toBe("待退款");
+    expect(tradeOrderStatusLabel("REFUNDED")).toBe("已退款");
     expect(tradeOrderStatusLabel("missing")).toBe("MISSING");
   });
 
@@ -104,6 +107,16 @@ describe("trade workspace summary", () => {
       orderId: "O1004",
       marketType: 1,
       orderStatus: "REFUND_SUCCESS"
+    })).toMatchObject({
+      key: "refund-check",
+      label: "核对退款",
+      quotaGrantAllowed: false
+    });
+
+    expect(tradeSettlementHint({
+      orderId: "O1005",
+      marketType: 0,
+      orderStatus: "WAIT_REFUND"
     })).toMatchObject({
       key: "refund-check",
       label: "核对退款",

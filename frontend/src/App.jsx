@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowUp,
   ArrowLeft,
   BarChart3,
   BookOpen,
   Check,
+  ChevronDown,
   Copy,
   CreditCard,
   Download,
@@ -16,10 +18,11 @@ import {
   Loader2,
   LogIn,
   LogOut,
+  MessageCircle,
   Paperclip,
   Plus,
   RotateCcw,
-  Send,
+  Search,
   Settings,
   ShieldCheck,
   Square,
@@ -40,7 +43,6 @@ import {
   userWorkspaceFromPath,
   workspacePath
 } from "./workspaces";
-import { buildWorkspaceNavigation } from "./workspaceNavigation";
 import {
   buildKnowledgeBaseCatalog,
   buildWorkspaceDataCatalogDraft,
@@ -85,11 +87,14 @@ import {
 } from "./taskArtifacts";
 import { normalizeFileUrlForBrowser } from "./fileUrl";
 import { buildArtifactPreviewModel } from "./artifactPreview";
-import { OUTPUT_STYLE_OPTIONS, outputStylePayload } from "./outputStyles";
 import {
   cacheMcpTools,
   callMcpTool,
+  applyAcademicProjectPatch,
+  bindAcademicProjectFile,
+  createPayment,
   createDirectOrder,
+  createAcademicProject,
   deleteAcademicSession,
   deleteKnowledgeDocument,
   discoverMcpTools,
@@ -111,11 +116,11 @@ import {
   login,
   logout,
   modelConfigReady,
-  mockPaySuccess,
   normalizeApiMessage,
   queryAgentCapabilities,
   queryAcademicReplay,
   queryAcademicRunDetail,
+  queryAcademicProjects,
   queryAcademicTaskStatus,
   queryAcademicSessionDetail,
   queryAcademicSessions,
@@ -163,8 +168,25 @@ import {
   buildMcpServerPayload
 } from "./mcpServerForm";
 import { buildMcpRuntimeSummary } from "./mcpRuntimeSummary";
+import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
 
 const AGENTS = USER_AGENT_MODES;
+
+const COMPOSER_AGENT_LABELS = {
+  chat: "对话",
+  ppt: "PPT",
+  deep: "研究",
+  image: "图像",
+  "manual-skills": "Skill"
+};
+
+const COMPOSER_AGENT_ICONS = {
+  chat: MessageCircle,
+  ppt: BarChart3,
+  deep: Search,
+  image: ImagePlus,
+  "manual-skills": Settings
+};
 
 const PROMPT_ICONS = {
   book: BookOpen,
@@ -211,14 +233,13 @@ function apiSucceeded(res) {
   return res?.code === "0000" || res?.code === 200 || res?.code === "200";
 }
 
-function createRuntimeId(prefix) {
-  return `${prefix}${Date.now()}`;
+function isOperatorAuthText(value = "") {
+  const text = String(value || "");
+  return text.includes("\u8fd0\u8425\u8d26\u53f7") || text.includes("\u8fd0\u8425\u8d26\u53f7\u8bbf\u95ee\u8be5\u63a5\u53e3");
 }
 
-function workspacePageStatusLabel(status) {
-  if (status === "ready") return "就绪";
-  if (status === "partial") return "部分";
-  return "待接入";
+function createRuntimeId(prefix) {
+  return `${prefix}${Date.now()}`;
 }
 
 function attachReplayTimeline(messages = [], timeline = [], artifacts = [], resultPanels = []) {
@@ -286,6 +307,52 @@ function safeResourceUrl(url = "") {
   if (!value) return "";
   if (value.startsWith("/") && !value.startsWith("//")) return value;
   return safeExternalUrl(value);
+}
+
+function paymentReturnUrl(orderId = "") {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.origin);
+  url.searchParams.set("paymentReturn", "1");
+  if (orderId) url.searchParams.set("orderId", orderId);
+  return url.toString();
+}
+
+function submitPaymentForm(payHtml = "", targetWindow = null) {
+  const html = String(payHtml || "").trim();
+  if (!html) return false;
+  const page = `<!doctype html><html><head><meta charset="UTF-8"><title>支付宝支付</title></head><body>${html}<script>window.opener=null;var form=document.forms[0];if(form){form.submit();}</script></body></html>`;
+  if (targetWindow && !targetWindow.closed) {
+    targetWindow.document.open();
+    targetWindow.document.write(page);
+    targetWindow.document.close();
+    return true;
+  }
+  const container = document.createElement("div");
+  container.hidden = true;
+  container.innerHTML = html;
+  const form = container.querySelector("form");
+  if (!form) return false;
+  form.target = "_blank";
+  document.body.appendChild(container);
+  form.submit();
+  window.setTimeout(() => container.remove(), 1000);
+  return true;
+}
+
+function openGatewayPayment(payment = {}, targetWindow = null) {
+  const payFormHtml = payment.payFormHtml || (payment.paymentType === "PAGE_FORM" ? payment.payUrl : "");
+  if (payFormHtml && submitPaymentForm(payFormHtml, targetWindow)) {
+    return true;
+  }
+  const payUrl = safeExternalUrl(payment.payUrl || "");
+  if (!payUrl) return false;
+  if (targetWindow && !targetWindow.closed) {
+    targetWindow.opener = null;
+    targetWindow.location.href = payUrl;
+  } else {
+    window.open(payUrl, "_blank", "noopener,noreferrer");
+  }
+  return true;
 }
 
 function isImageArtifact(artifact = {}) {
@@ -364,7 +431,7 @@ const ORDERED_LIST_RE = /^\s*\d+\.\s+(.+)$/;
 function splitTrailingUrlPunctuation(url) {
   let href = url || "";
   let suffix = "";
-  while (/[.,;:!?，。；：！？、]$/.test(href)) {
+  while (/[.,;:!?\u3001\u3002\uff0c\uff1b\uff1a\uff01\uff1f]$/.test(href)) {
     suffix = href.slice(-1) + suffix;
     href = href.slice(0, -1);
   }
@@ -632,6 +699,10 @@ function BearDoctorAcademicApp() {
   });
   const [chatList, setChatList] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(() => getSessionId());
+  const [academicProjects, setAcademicProjects] = useState([]);
+  const [activeAcademicProjectId, setActiveAcademicProjectId] = useState("");
+  const [academicProjectLoading, setAcademicProjectLoading] = useState(false);
+  const [academicProjectError, setAcademicProjectError] = useState("");
   const [inputMessage, setInputMessage] = useState("");
   const [activeWorkspace, setActiveWorkspace] = useState(() => routeWorkspace);
   const [workspaceHistory, setWorkspaceHistory] = useState(() => ({ workspaceId: routeWorkspace, items: [] }));
@@ -668,8 +739,8 @@ function BearDoctorAcademicApp() {
   const [knowledgeWebUrl, setKnowledgeWebUrl] = useState("");
   const [knowledgeFullContent, setKnowledgeFullContent] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(() => workspaceAgentMode(routeWorkspace));
+  const [selectedSkillName, setSelectedSkillName] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [outputStyle, setOutputStyle] = useState("auto");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [runningChatIds, setRunningChatIds] = useState({});
@@ -709,6 +780,15 @@ function BearDoctorAcademicApp() {
   const streamControllersRef = useRef({});
 
   const currentChat = useMemo(() => chatList.find((item) => item.id === currentChatId), [chatList, currentChatId]);
+  const visibleConnectionError = useMemo(() => (
+    isOperatorAuthText(connectionError) ? "" : connectionError
+  ), [connectionError]);
+  const activeAcademicProject = useMemo(() => (
+    academicProjects.find((project) => project.projectId === activeAcademicProjectId) || academicProjects[0] || null
+  ), [academicProjects, activeAcademicProjectId]);
+  const academicProjectWorkspace = useMemo(() => (
+    buildAcademicProjectWorkspace(activeAcademicProject)
+  ), [activeAcademicProject]);
   const currentWorkspace = useMemo(() => (
     WORKSPACES.find((workspace) => workspace.id === activeWorkspace) || WORKSPACES[0]
   ), [activeWorkspace]);
@@ -716,14 +796,15 @@ function BearDoctorAcademicApp() {
     buildWorkspacePageModel(currentWorkspace.id, agentCapabilities)
   ), [agentCapabilities, currentWorkspace.id]);
   const currentWorkspaceProfile = currentWorkspacePage.profile;
-  const workspaceNavigation = useMemo(() => (
-    buildWorkspaceNavigation(currentWorkspace.id, agentCapabilities)
-  ), [agentCapabilities, currentWorkspace.id]);
+  const showComposerWorkspaceSettings = currentWorkspace.id === "image";
   const backendText = auth?.token ? `已登录：${auth.nickname || auth.username || auth.userId}` : "未登录";
   const currentTaskStatus = taskStatusByChat[currentChatId] || {};
   const isSending = Boolean(runningChatIds[currentChatId]);
   const canResumeCurrentChat = Boolean((currentTaskStatus.stopped || currentChat?.stopped) && !isSending);
   const canUseFile = workspaceAcceptsFile(currentWorkspace.id, selectedAgent);
+  const manualSkills = useMemo(() => (
+    Array.isArray(agentCapabilities?.manualSkills) ? agentCapabilities.manualSkills : []
+  ), [agentCapabilities]);
   const capabilitySummary = useMemo(() => {
     if (!agentCapabilities) return [];
     const toolCount = Number(agentCapabilities.academicToolCount || 0);
@@ -731,7 +812,7 @@ function BearDoctorAcademicApp() {
     return [
       { key: "model", label: "模型", value: agentCapabilities.chatModelAvailable ? "可用" : "未配置", active: Boolean(agentCapabilities.chatModelAvailable) },
       { key: "tools", label: "工具", value: `${toolCount} 个`, active: toolCount > 0 },
-      { key: "manual", label: "手动技能", value: `${manualSkillCount} 个`, active: manualSkillCount > 0 },
+      { key: "manual", label: "Skill", value: `${manualSkillCount} 个`, active: manualSkillCount > 0 },
       { key: "reactor", label: "参考工具", value: agentCapabilities.reactorToolEnabled ? "已开启" : "未开启", active: Boolean(agentCapabilities.reactorToolEnabled) },
       { key: "web", label: "联网", value: agentCapabilities.webSearchAvailable ? "可用" : "本地", active: Boolean(agentCapabilities.webSearchAvailable) }
     ];
@@ -778,6 +859,13 @@ function BearDoctorAcademicApp() {
       setActiveKnowledgeBaseId("");
     }
   }, [activeKnowledgeBaseId, knowledgeBaseCatalog]);
+
+  useEffect(() => {
+    if (!selectedSkillName) return;
+    if (!manualSkills.some((skill) => skill.name === selectedSkillName)) {
+      setSelectedSkillName("");
+    }
+  }, [manualSkills, selectedSkillName]);
 
   useEffect(() => {
     setActiveWorkspace(routeWorkspace);
@@ -891,6 +979,78 @@ function BearDoctorAcademicApp() {
       return merged;
     });
   }, [currentChatId]);
+
+  const loadAcademicProjects = useCallback(async () => {
+    if (!getUserAuth()?.token) return;
+    setAcademicProjectLoading(true);
+    setAcademicProjectError("");
+    try {
+      const res = await queryAcademicProjects(20);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "学术项目读取失败"));
+      }
+      const projects = res.data || [];
+      setAcademicProjects(projects);
+      setActiveAcademicProjectId((prev) => (
+        projects.some((project) => project.projectId === prev) ? prev : projects[0]?.projectId || ""
+      ));
+    } catch (error) {
+      setAcademicProjectError(normalizeUserMessage(error.message, "学术项目读取失败"));
+    } finally {
+      setAcademicProjectLoading(false);
+    }
+  }, []);
+
+  const createDefaultAcademicProject = async () => {
+    if (!auth?.token) {
+      setLoginOpen(true);
+      return null;
+    }
+    setAcademicProjectLoading(true);
+    setAcademicProjectError("");
+    try {
+      const res = await createAcademicProject({
+        title: "学术研究项目",
+        researchQuestion: "请描述研究问题",
+        targetVenue: "待定",
+        writingStatus: "DRAFTING",
+        progressNote: "已创建项目，可继续上传论文、补充资料并生成阶段性结果"
+      });
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "学术项目创建失败"));
+      }
+      const project = res.data;
+      setAcademicProjects((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
+      setActiveAcademicProjectId(project.projectId);
+      setToast("项目已创建");
+      return project;
+    } catch (error) {
+      setAcademicProjectError(normalizeUserMessage(error.message, "学术项目创建失败"));
+      return null;
+    } finally {
+      setAcademicProjectLoading(false);
+    }
+  };
+
+  const applyPendingAcademicPatch = async (patch) => {
+    if (!activeAcademicProject?.projectId || !patch?.patchId) return;
+    setAcademicProjectLoading(true);
+    setAcademicProjectError("");
+    try {
+      const res = await applyAcademicProjectPatch(activeAcademicProject.projectId, patch.patchId);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "补丁确认失败"));
+      }
+      const project = res.data;
+      setAcademicProjects((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
+      setActiveAcademicProjectId(project.projectId);
+      setToast("补丁已确认并应用");
+    } catch (error) {
+      setAcademicProjectError(normalizeUserMessage(error.message, "补丁确认失败"));
+    } finally {
+      setAcademicProjectLoading(false);
+    }
+  };
 
   const loadPackages = useCallback(async () => {
     const res = await queryQuotaPackages("", 20);
@@ -1214,7 +1374,7 @@ function BearDoctorAcademicApp() {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
-    if (["run_start", "plan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
+    if (["run_start", "project_context", "plan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
       const artifacts = eventArtifacts(event);
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
@@ -1363,7 +1523,7 @@ function BearDoctorAcademicApp() {
       }
       return [{
         id: sessionId,
-        title: item.title || item.artifactName || "工作区任务",
+        title: item.title || item.artifactName || "历史任务",
         lastMessage: item.summary || "",
         messages: EMPTY_MESSAGES,
         isNew: false
@@ -1373,7 +1533,7 @@ function BearDoctorAcademicApp() {
       await refreshSessionDetail(sessionId);
       await loadTaskStatus(sessionId);
     } catch (error) {
-      setConnectionError(normalizeUserMessage(error.message, "工作区历史详情读取失败"));
+      setConnectionError(normalizeUserMessage(error.message, "会话历史读取失败"));
     }
     if (item?.runId) {
       setWorkspaceRunDetailLoading(true);
@@ -1412,7 +1572,7 @@ function BearDoctorAcademicApp() {
 
   useEffect(() => {
     loadAgentCapabilities().catch((error) => {
-      console.warn("Agent 能力状态读取失败", error);
+      console.warn("Agent 能力读取失败", error);
       setAgentCapabilitiesError("能力状态读取失败");
     });
   }, [loadAgentCapabilities]);
@@ -1422,8 +1582,9 @@ function BearDoctorAcademicApp() {
     loadQuota().catch((error) => setConnectionError(normalizeUserMessage(error.message, "额度读取失败")));
     loadModelConfig().catch(() => {});
     loadSessions().catch(() => {});
+    loadAcademicProjects().catch(() => {});
     loadOrders().catch(() => {});
-  }, [auth, loadModelConfig, loadOrders, loadQuota, loadSessions]);
+  }, [auth, loadAcademicProjects, loadModelConfig, loadOrders, loadQuota, loadSessions]);
 
   useEffect(() => {
     loadWorkspaceHistory(activeWorkspace).catch(() => {});
@@ -1522,9 +1683,6 @@ function BearDoctorAcademicApp() {
         navigate("/");
       }
     }
-    if (agentId !== "file" && agentId !== "data" && agentId !== "mrag" && agentId !== "skills" && agentId !== "manual-skills") {
-      setSelectedFile(null);
-    }
   };
 
   const quickPrompt = (prompt) => {
@@ -1595,6 +1753,8 @@ function BearDoctorAcademicApp() {
     setAuth(null);
     setQuota(null);
     setQuotaFlows([]);
+    setAcademicProjects([]);
+    setActiveAcademicProjectId("");
     setLoginOpen(true);
     setToast("已退出登录");
   };
@@ -1612,14 +1772,30 @@ function BearDoctorAcademicApp() {
     try {
       const res = await uploadAcademicFile(file, currentChatId);
       if (res.code === "0000") {
-        setSelectedFile({
+        const parsedFile = {
           fileId: res.data.fileId,
           name: res.data.fileName,
           fileType: res.data.fileType,
           size: res.data.fileSize,
           summary: res.data.summary,
           status: "parsed"
-        });
+        };
+        setSelectedFile(parsedFile);
+        const project = activeAcademicProject || await createDefaultAcademicProject();
+        if (project?.projectId) {
+          const bindRes = await bindAcademicProjectFile(project.projectId, {
+            fileId: parsedFile.fileId,
+            fileName: parsedFile.name,
+            fileType: parsedFile.fileType,
+            folderType: selectedAgent === "file" ? "draftManuscripts" : "coreReferences",
+            summary: parsedFile.summary,
+            contentPreview: parsedFile.summary
+          });
+          if (apiSucceeded(bindRes)) {
+            setAcademicProjects((prev) => [bindRes.data, ...prev.filter((item) => item.projectId !== bindRes.data.projectId)]);
+            setActiveAcademicProjectId(bindRes.data.projectId);
+          }
+        }
         setToast("文件解析完成");
       } else {
         setConnectionError(normalizeUserMessage(res.info, "文件上传失败"));
@@ -1643,14 +1819,18 @@ function BearDoctorAcademicApp() {
       return;
     }
     if (!modelConfigReady(modelConfig)) {
-      setConnectionError("请先补全自定义模型的 API 地址和密钥");
+      setConnectionError("请先配置可用的模型 API");
       setModelConfigOpen(true);
       return;
     }
+    const displayQuestion = text || (file ? "请分析这个文件" : "");
+    const skillInstruction = selectedAgent === "manual-skills" && selectedSkillName
+      ? `请使用 ${selectedSkillName} 技能`
+      : "";
     const streamDraft = buildWorkspaceStreamDraft({
       workspaceId: currentWorkspace.id,
       agentId: selectedAgent,
-      question: text || (file ? "请分析这个文件" : ""),
+      question: skillInstruction ? `${skillInstruction}\n\n${displayQuestion}` : displayQuestion,
       fileId: file?.fileId || "",
       imageUrl: file?.imageUrl || "",
       imageName: file?.name || ""
@@ -1692,7 +1872,7 @@ function BearDoctorAcademicApp() {
     const userMsg = {
       id: createRuntimeId("U"),
       role: "user",
-      content: streamDraft.question,
+      content: displayQuestion,
       file: Boolean(file),
       fileName: file?.name || ""
     };
@@ -1967,13 +2147,16 @@ function BearDoctorAcademicApp() {
     streamControllersRef.current[sessionId] = requestAcademicStream(
       {
         sessionId,
+        projectId: activeAcademicProject?.projectId || "",
+        threadId: sessionId,
         question: streamDraft.question,
         taskType: streamDraft.taskType,
+        taskMode: selectedAgent,
         fileId: streamDraft.fileId,
+        selectedFileIds: streamDraft.fileId ? [streamDraft.fileId] : [],
         imageUrl: streamDraft.imageUrl,
         imageName: streamDraft.imageName,
         webSearchEnabled,
-        outputStyle: outputStylePayload(outputStyle),
         modelConfig
       },
       (event) => processStreamEvent(sessionId, assistantId, event),
@@ -2011,7 +2194,7 @@ function BearDoctorAcademicApp() {
     const sessionId = currentChatId;
     if (runningChatIds[sessionId] || !auth?.token) return;
     if (!modelConfigReady(modelConfig)) {
-      setConnectionError("请先补全自定义模型的 API 地址和密钥");
+      setConnectionError("请先配置可用的模型 API");
       setModelConfigOpen(true);
       return;
     }
@@ -2039,7 +2222,6 @@ function BearDoctorAcademicApp() {
       sessionId,
       modelConfig,
       webSearchEnabled,
-      outputStylePayload(outputStyle),
       (event) => processStreamEvent(sessionId, assistantId, event),
       () => {
         delete streamControllersRef.current[sessionId];
@@ -2076,7 +2258,7 @@ function BearDoctorAcademicApp() {
   const handleArtifactDownload = async (artifact) => {
     try {
       await downloadAcademicArtifact(artifact.downloadUrl, artifact.fileName || artifact.title || "artifact");
-      setToast("文件已开始下载");
+      setToast("文件已下载");
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "文件下载失败"));
     }
@@ -2084,7 +2266,7 @@ function BearDoctorAcademicApp() {
 
   const handleSaveAdminAuth = () => {
     saveAdminAuth(adminForm.username, adminForm.password);
-    setToast("模拟支付授权已保存");
+    setToast("后台权限已保存");
   };
 
   const handleSaveModelConfig = (nextConfig) => {
@@ -2203,11 +2385,11 @@ function BearDoctorAcademicApp() {
   };
 
   const handleRebuildKnowledgeVector = () => {
-    runKnowledgeAction("rebuild", rebuildKnowledgeVector, "向量索引已触发重建").catch(() => {});
+    runKnowledgeAction("rebuild", rebuildKnowledgeVector, "知识向量已重建").catch(() => {});
   };
 
   const handleCompensateKnowledgeVector = () => {
-    runKnowledgeAction("compensate", compensateKnowledgeVector, "失败补偿已触发").catch(() => {});
+    runKnowledgeAction("compensate", compensateKnowledgeVector, "知识向量已补偿").catch(() => {});
   };
 
   const toggleMcpPanel = () => {
@@ -2266,13 +2448,13 @@ function BearDoctorAcademicApp() {
     try {
       const res = await enableMcpServer(server.serverId, nextEnabled);
       if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 服务状态更新失败"));
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 服务切换失败"));
       }
       setToast(nextEnabled ? "MCP 服务已启用" : "MCP 服务已停用");
       await loadMcpState();
       await loadAgentCapabilities().catch(() => {});
     } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 服务状态更新失败"));
+      setMcpError(normalizeUserMessage(error.message, "MCP 服务切换失败"));
     } finally {
       setMcpActionKey("");
     }
@@ -2287,17 +2469,17 @@ function BearDoctorAcademicApp() {
       if (!serverId) throw new Error("请先选择 MCP 服务");
       const payload = JSON.parse(mcpToolPayload || "{}");
       const tools = Array.isArray(payload.tools) ? payload.tools : [];
-      if (tools.length === 0) throw new Error("请填写至少一个工具");
+      if (tools.length === 0) throw new Error("请填写工具列表");
       const res = await cacheMcpTools(serverId, { tools });
       if (!apiSucceeded(res)) {
         throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具缓存失败"));
       }
-      setToast("MCP 工具缓存已更新");
+      setToast("MCP 工具已缓存");
       await loadMcpState();
       await loadAgentCapabilities().catch(() => {});
     } catch (error) {
       setMcpError(error instanceof SyntaxError
-        ? "工具 JSON 格式不正确"
+        ? "请检查 JSON 格式"
         : normalizeUserMessage(error.message, "MCP 工具缓存失败"));
     } finally {
       setMcpActionKey("");
@@ -2316,7 +2498,7 @@ function BearDoctorAcademicApp() {
       }
       setMcpCacheServerId(serverId);
       const toolCount = Number(res.data?.toolCount || 0);
-      setToast(toolCount > 0 ? `MCP 已发现并缓存 ${toolCount} 个工具` : "MCP 未发现可缓存工具");
+      setToast(toolCount > 0 ? `MCP 已发现 ${toolCount} 个工具` : "MCP 未发现可用工具");
       await loadMcpState();
       await loadAgentCapabilities().catch(() => {});
     } catch (error) {
@@ -2371,12 +2553,12 @@ function BearDoctorAcademicApp() {
       if (!apiSucceeded(res)) {
         throw new Error(normalizeUserMessage(res.info || res.message, "MCP 配置导入失败"));
       }
-      setToast(`MCP 配置已导入，服务 ${res.data?.serverCount || 0} 个，工具 ${res.data?.toolCount || 0} 个`);
+      setToast(`MCP 配置已导入 ${res.data?.serverCount || 0} 个服务、${res.data?.toolCount || 0} 个工具`);
       await loadMcpState();
       await loadAgentCapabilities().catch(() => {});
     } catch (error) {
       setMcpError(error instanceof SyntaxError
-        ? "导入 JSON 格式不正确"
+        ? "请检查 JSON 格式"
         : normalizeUserMessage(error.message, "MCP 配置导入失败"));
     } finally {
       setMcpActionKey("");
@@ -2398,10 +2580,10 @@ function BearDoctorAcademicApp() {
         throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具调用失败"));
       }
       setMcpToolCallResult(JSON.stringify(res.data || {}, null, 2));
-      setToast("MCP 工具试调用完成");
+      setToast("MCP 工具调用完成");
     } catch (error) {
       setMcpError(error instanceof SyntaxError
-        ? "调用参数 JSON 格式不正确"
+        ? "请检查 JSON 格式"
         : normalizeUserMessage(error.message, "MCP 工具调用失败"));
     } finally {
       setMcpActionKey("");
@@ -2425,7 +2607,7 @@ function BearDoctorAcademicApp() {
         teamId: options.teamId || ""
       };
       if (buyType === "group" && !product.activityId) {
-        throw new Error("当前额度包暂无可用拼团活动");
+        throw new Error("当前额度包缺少拼团活动信息");
       }
       const userId = auth.userId || quota?.userId;
       const orderRes = buyType === "group"
@@ -2441,10 +2623,11 @@ function BearDoctorAcademicApp() {
         teamId: data.teamId || options.teamId || "",
         teamSize: data.teamSize || product.teamSize || groupMarketConfig?.discount?.target,
         quotaAmount: product.quotaAmount,
+        productType: product.productType,
         source: "new"
       });
       setRechargeTab("orders");
-      setToast("订单已创建，确认支付后继续处理");
+      setToast("订单已创建，请继续支付");
       await loadOrders().catch(() => {});
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "购买失败"));
@@ -2469,16 +2652,28 @@ function BearDoctorAcademicApp() {
     if (!paymentDialog?.orderId) return;
     setBuyingKey(`pay-${paymentDialog.orderId}`);
     setConnectionError("");
+    const payWindow = window.open("", "_blank");
+    if (payWindow && !payWindow.closed) {
+      payWindow.document.write("<!doctype html><html><head><meta charset=\"UTF-8\"><title>支付宝支付</title></head><body>正在进入支付宝...</body></html>");
+      payWindow.document.close();
+    }
     try {
-      const payRes = await mockPaySuccess(paymentDialog.orderId);
-      if (payRes.code !== "0000") throw new Error(normalizeUserMessage(payRes.info, "模拟支付失败"));
-      const groupSettled = payRes.data?.orderStatus === "GROUP_SETTLED" || payRes.data?.orderStatus === "DEAL_DONE";
-      const isGroupOrder = Number(paymentDialog.marketType) === 1;
+      const payRes = await createPayment(paymentDialog.orderId, {
+        payChannel: "ALIPAY",
+        returnUrl: paymentReturnUrl(paymentDialog.orderId)
+      });
+      if (!apiSucceeded(payRes)) {
+        throw new Error(normalizeUserMessage(payRes?.info || payRes?.message, "支付宝支付创建失败"));
+      }
+      if (!openGatewayPayment(payRes.data || {}, payWindow)) {
+        throw new Error("支付宝支付表单为空");
+      }
       setPaymentDialog(null);
-      setToast(isGroupOrder && !groupSettled ? "支付成功，等待成团" : "支付成功，额度已到账");
-      await refreshRecharge();
+      setToast("已打开支付宝支付页，支付完成后订单会通过回调更新");
+      await loadOrders().catch(() => {});
     } catch (error) {
-      setConnectionError(normalizeUserMessage(error.message, "模拟支付失败"));
+      if (payWindow && !payWindow.closed) payWindow.close();
+      setConnectionError(normalizeUserMessage(error.message, "支付宝支付创建失败"));
     } finally {
       setBuyingKey("");
     }
@@ -2492,33 +2687,13 @@ function BearDoctorAcademicApp() {
         <aside className="sidebar">
           <div className="sidebar-header">
             <div className="app-title">
-              <img className="logo-icon" src="/bear-doctor-logo.png" alt="熊博士" />
+              <img className="logo-icon" src="/bear-doctor-logo.png" alt="熊博士Agent" />
               <span className="title-text">熊博士Agent</span>
             </div>
             <button className="new-chat-btn" onClick={createNewChat}>
               <Plus size={16} />
               <span>新对话</span>
             </button>
-          </div>
-
-          <div className="workspace-nav">
-            {workspaceNavigation.map((workspace) => (
-              <button
-                type="button"
-                key={workspace.id}
-                className={`workspace-nav-item ${workspace.active ? "active" : ""}`}
-                onClick={() => openWorkspace(workspace.id)}
-              >
-                <span className="workspace-nav-icon">{workspace.icon}</span>
-                <span className="workspace-nav-copy">
-                  <b>{workspace.name}</b>
-                  <em>{workspace.primaryActionLabel}</em>
-                </span>
-                <span className={`workspace-nav-badge ${workspace.pageStatus}`}>
-                  {workspacePageStatusLabel(workspace.pageStatus)}
-                </span>
-              </button>
-            ))}
           </div>
 
           <div className="chat-list-title">会话</div>
@@ -2546,10 +2721,6 @@ function BearDoctorAcademicApp() {
         <main className="main-content">
           <div className="top-decoration">
             <div className="decoration-line" />
-            <div className="workspace-titlebar">
-              <span>{currentWorkspace.icon}</span>
-              <strong>{currentWorkspace.name}</strong>
-            </div>
             <div className="top-actions">
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
               <button className="account-btn" onClick={() => setModelConfigOpen(true)}>
@@ -2575,7 +2746,20 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="messages-container" ref={messagesContainer}>
-            {currentWorkspacePage.supportsHistory && (
+            {(academicProjects.length > 0 || activeAcademicProject) && (
+              <AcademicProjectPanel
+                projects={academicProjects}
+                model={academicProjectWorkspace}
+                activeProjectId={activeAcademicProject?.projectId || ""}
+                loading={academicProjectLoading}
+                error={academicProjectError}
+                onRefresh={loadAcademicProjects}
+                onCreate={createDefaultAcademicProject}
+                onSelect={setActiveAcademicProjectId}
+                onApplyPatch={applyPendingAcademicPatch}
+              />
+            )}
+            {currentWorkspacePage.supportsHistory && !showComposerWorkspaceSettings && (
               <WorkspaceHistoryPanel
                 workspace={currentWorkspace}
                 items={workspaceHistory.workspaceId === currentWorkspace.id ? workspaceHistory.items : []}
@@ -2588,13 +2772,6 @@ function BearDoctorAcademicApp() {
                 onRefresh={() => loadWorkspaceHistory(currentWorkspace.id)}
                 onOpen={openWorkspaceHistoryItem}
                 onDownloadArtifact={handleArtifactDownload}
-              />
-            )}
-            {currentWorkspace.id === "image" && (
-              <ImageWorkspacePanel
-                draft={imageWorkspaceDraft}
-                onChange={setImageWorkspaceDraft}
-                hasReference={Boolean(selectedFile?.fileId && isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.fileType }))}
               />
             )}
             {currentWorkspace.id === "data" && (
@@ -2677,46 +2854,6 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="input-area">
-            <div className="agent-selector">
-              {AGENTS.map((agent) => (
-                <button
-                  key={agent.id}
-                  className={`agent-item ${selectedAgent === agent.id ? "active" : ""}`}
-                  onClick={() => selectAgent(agent.id)}
-                  title={agent.summary}
-                >
-                  <span className="agent-icon">{agent.icon}</span>
-                  <span className="agent-copy">
-                    <span className="agent-name">{agent.name}</span>
-                    <span className="agent-mode-row">
-                      <span className={`agent-mode agent-mode-${agent.executionFamily}`}>{agent.executionMode}</span>
-                      {agent.replanEnabled && <span className="agent-replan-badge">{agent.replanLabel || "重规划"}</span>}
-                    </span>
-                  </span>
-                  {selectedAgent === agent.id && <Check size={12} className="check-icon" />}
-                </button>
-              ))}
-              <button
-                type="button"
-                className={`web-search-toggle ${webSearchEnabled ? "active" : ""}`}
-                aria-pressed={webSearchEnabled}
-                onClick={() => setWebSearchEnabled((prev) => !prev)}
-                title={webSearchEnabled ? "关闭联网搜索" : "开启联网搜索"}
-              >
-                <Globe2 size={16} />
-                <span>联网搜索</span>
-                <span className="toggle-state">{webSearchEnabled ? "开" : "关"}</span>
-              </button>
-              <label className="output-style-select" title={OUTPUT_STYLE_OPTIONS.find((item) => item.key === outputStyle)?.description || ""}>
-                <span>输出</span>
-                <select value={outputStyle} onChange={(event) => setOutputStyle(event.target.value)}>
-                  {OUTPUT_STYLE_OPTIONS.map((item) => (
-                    <option value={item.key} key={item.key}>{item.label}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
             {selectedFile && (
               <div className="file-preview">
                 <div className="file-preview-item">
@@ -2741,14 +2878,7 @@ function BearDoctorAcademicApp() {
               </div>
             )}
 
-            <div className="input-container">
-              {canUseFile && !selectedFile && (
-                <button className="file-btn" disabled={isUploading} onClick={() => fileInputRef.current?.click()} title="上传文件">
-                  <Paperclip size={20} />
-                </button>
-              )}
-              <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
-              {selectedFile && <div className="input-file-icon"><FileText size={18} /></div>}
+            <div className="input-container composer-panel">
               <textarea
                 value={inputMessage}
                 onChange={(event) => setInputMessage(event.target.value)}
@@ -2758,25 +2888,104 @@ function BearDoctorAcademicApp() {
                     sendMessage();
                   }
                 }}
-                placeholder="输入消息... (Shift+Enter 换行)"
+                placeholder={webSearchEnabled ? "搜索网页" : selectedAgent === "image" ? "描述或编辑图片" : selectedAgent === "deep" ? "获取详细报告" : "问点什么"}
                 rows={1}
               />
-              <button
-                className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (!inputMessage.trim() && !selectedFile) ? "disabled" : ""}`}
-                onClick={isSending ? stopMessage : sendMessage}
-                disabled={!isSending && (!inputMessage.trim() && !selectedFile)}
-              >
-                {isSending ? <Square size={18} /> : <Send size={18} />}
-              </button>
+              <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
+              <div className="composer-toolbar">
+                <div className="composer-tool-left">
+                  {canUseFile && !selectedFile && (
+                    <button className="file-btn composer-icon-btn" disabled={isUploading} onClick={() => fileInputRef.current?.click()} title="上传文件">
+                      <Plus size={19} />
+                    </button>
+                  )}
+                  {AGENTS.map((agent) => {
+                    const Icon = COMPOSER_AGENT_ICONS[agent.id] || MessageCircle;
+                    return (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        className={`composer-tool-pill ${selectedAgent === agent.id ? "active" : ""}`}
+                        onClick={() => selectAgent(agent.id)}
+                        title={agent.summary}
+                      >
+                        <Icon size={16} />
+                        <span>{COMPOSER_AGENT_LABELS[agent.id] || agent.name}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className={`web-search-toggle composer-tool-pill ${webSearchEnabled ? "active" : ""}`}
+                    aria-pressed={webSearchEnabled}
+                    onClick={() => setWebSearchEnabled((prev) => !prev)}
+                    title={webSearchEnabled ? "关闭联网搜索" : "开启联网搜索"}
+                  >
+                    <Globe2 size={16} />
+                    <span>搜索</span>
+                  </button>
+                </div>
+                <div className="composer-tool-right">
+                  <button type="button" className="composer-mode-button" title="当前模式">
+                    <span>{COMPOSER_AGENT_LABELS[selectedAgent] || "对话"}</span>
+                    <ChevronDown size={14} />
+                  </button>
+                  <button
+                    className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (!inputMessage.trim() && !selectedFile) ? "disabled" : ""}`}
+                    onClick={isSending ? stopMessage : sendMessage}
+                    disabled={!isSending && (!inputMessage.trim() && !selectedFile)}
+                    title={isSending ? "停止生成" : "发送"}
+                  >
+                    {isSending ? <Square size={17} /> : <ArrowUp size={18} />}
+                  </button>
+                </div>
+              </div>
             </div>
+            {selectedAgent === "manual-skills" && (
+              <div className="composer-skill-settings">
+                <div className="composer-skill-settings-head">
+                  <strong>Skill</strong>
+                  <span>{selectedSkillName || "自动"}</span>
+                </div>
+                <div className="skill-picker composer-skill-picker" aria-label="选择 Skill">
+                  <button
+                    type="button"
+                    className={!selectedSkillName ? "active" : ""}
+                    onClick={() => setSelectedSkillName("")}
+                  >
+                    自动
+                  </button>
+                  {manualSkills.map((skill) => (
+                    <button
+                      type="button"
+                      key={skill.name || skill.description}
+                      className={selectedSkillName === skill.name ? "active" : ""}
+                      onClick={() => setSelectedSkillName(skill.name || "")}
+                      title={skill.description || skill.name || ""}
+                    >
+                      {skill.name || "技能"}
+                    </button>
+                  ))}
+                  {manualSkills.length === 0 && <em>暂无技能</em>}
+                </div>
+              </div>
+            )}
+            {currentWorkspace.id === "image" && (
+              <ImageWorkspacePanel
+                compact
+                draft={imageWorkspaceDraft}
+                onChange={setImageWorkspaceDraft}
+                hasReference={Boolean(selectedFile?.fileId && isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.fileType }))}
+              />
+            )}
           </div>
         </main>
       </div>
 
-      {connectionError && (
+      {visibleConnectionError && (
         <div className="connection-error">
           <AlertTriangle size={18} />
-          <span>{connectionError}</span>
+          <span>{visibleConnectionError}</span>
           <button className="retry-btn" onClick={() => setConnectionError("")}>关闭</button>
         </div>
       )}
@@ -2785,7 +2994,7 @@ function BearDoctorAcademicApp() {
         <div className="toast">
           <Check size={16} />
           <span>{toast}</span>
-          <button onClick={() => setToast("")}>×</button>
+          <button onClick={() => setToast("")}>脳</button>
         </div>
       )}
 
@@ -2890,7 +3099,7 @@ function AgentPlatformReadinessPanel({ capabilities }) {
   return (
     <div className={`agent-platform-readiness ${status}`}>
       <div className="agent-platform-readiness-head">
-        <b>{readiness.title || "Agent + 拼团交易系统就绪度"}</b>
+        <b>{readiness.title || "Agent + 工具运行状态"}</b>
         <em>{readiness.statusLabel || status}</em>
       </div>
       {metrics.slice(0, 5).map((metric) => (
@@ -2929,7 +3138,7 @@ function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
           <div className="agent-execution-modes">
             {executionModes.map((mode) => {
               const replanEvidence = compactToolList(mode.replanEvidence, 3);
-              const title = [mode.summary || "", replanEvidence ? `重规划证据 ${replanEvidence}` : ""]
+              const title = [mode.summary || "", replanEvidence ? `閲嶈鍒掕瘉鎹?${replanEvidence}` : ""]
                 .filter(Boolean)
                 .join("\n");
               return (
@@ -3130,14 +3339,127 @@ function WorkspaceHistoryPanel({
   );
 }
 
-function ImageWorkspacePanel({ draft, onChange, hasReference }) {
+function AcademicProjectPanel({
+  projects = [],
+  model,
+  activeProjectId = "",
+  loading,
+  error,
+  onRefresh,
+  onCreate,
+  onSelect,
+  onApplyPatch
+}) {
+  const workspace = model || buildAcademicProjectWorkspace(null);
+  const hasProject = Boolean(activeProjectId);
+  const visibleDrafts = workspace.draftFiles.slice(0, 3);
+  const visibleReferences = workspace.referenceFiles.slice(0, 3);
+  const visiblePatches = workspace.pendingPatches.slice(0, 3);
+  return (
+    <section className="academic-project-panel">
+      <div className="academic-project-head">
+        <div>
+          <span className="academic-project-kicker">论文工程</span>
+          <strong>{workspace.title}</strong>
+          <em>{workspace.subtitle || workspace.contextSummary}</em>
+        </div>
+        <div className="academic-project-actions">
+          {projects.length > 0 && (
+            <select
+              value={activeProjectId}
+              onChange={(event) => onSelect?.(event.target.value)}
+              disabled={loading}
+            >
+              {projects.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.title || project.projectId}
+                </option>
+              ))}
+            </select>
+          )}
+          <button type="button" onClick={onRefresh} disabled={loading}>
+            {loading ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+          </button>
+          <button type="button" className="primary" onClick={onCreate} disabled={loading}>
+            <Plus size={14} />
+            <span>新建</span>
+          </button>
+        </div>
+      </div>
+      {error && <div className="academic-project-error"><AlertTriangle size={14} /> <span>{error}</span></div>}
+      <div className="academic-project-metrics">
+        <span><b>{workspace.statusLabel}</b>状态</span>
+        <span><b>{workspace.fileCount}</b>材料</span>
+        <span><b>{workspace.pendingPatchCount}</b>待确认补丁</span>
+      </div>
+      {hasProject ? (
+        <div className="academic-project-grid">
+          <div className="academic-project-column">
+            <div className="academic-project-column-head">
+              <FileText size={14} />
+              <strong>草稿材料</strong>
+            </div>
+            {visibleDrafts.map((file) => (
+              <ProjectFileRow file={file} key={file.fileId || file.fileName} />
+            ))}
+            {visibleDrafts.length === 0 && <div className="academic-project-empty">暂无草稿文件</div>}
+          </div>
+          <div className="academic-project-column">
+            <div className="academic-project-column-head">
+              <BookOpen size={14} />
+              <strong>参考资料</strong>
+            </div>
+            {visibleReferences.map((file) => (
+              <ProjectFileRow file={file} key={file.fileId || file.fileName} />
+            ))}
+            {visibleReferences.length === 0 && <div className="academic-project-empty">暂无参考资料</div>}
+          </div>
+          <div className="academic-project-column">
+            <div className="academic-project-column-head">
+              <ShieldCheck size={14} />
+              <strong>待确认补丁</strong>
+            </div>
+            {visiblePatches.map((patch) => (
+              <article className="academic-patch-row" key={patch.patchId || patch.title}>
+                <div>
+                  <b>{patch.title || patch.patchId}</b>
+                  <span>{patch.reason || patch.fileId || "等待人工确认"}</span>
+                </div>
+                <button type="button" onClick={() => onApplyPatch?.(patch)} disabled={loading}>
+                  确认
+                </button>
+              </article>
+            ))}
+            {visiblePatches.length === 0 && <div className="academic-project-empty">暂无待确认补丁</div>}
+          </div>
+        </div>
+      ) : (
+        <div className="academic-project-empty wide">创建项目后，上传文件会自动进入当前论文工程</div>
+      )}
+    </section>
+  );
+}
+
+function ProjectFileRow({ file = {} }) {
+  return (
+    <article className="academic-project-file-row">
+      <div>
+        <b>{file.fileName || file.fileId || "未命名文件"}</b>
+        <span>{file.summary || file.folderType || "暂无摘要"}</span>
+      </div>
+      <em>{file.fileType || file.folderType || "-"}</em>
+    </article>
+  );
+}
+
+function ImageWorkspacePanel({ draft, onChange, hasReference, compact = false }) {
   const update = (field, value) => onChange({ ...draft, [field]: value });
   return (
-    <section className="image-workspace-panel">
+    <section className={`image-workspace-panel ${compact ? "composer-image-settings" : ""}`}>
       <div className="image-workspace-head">
         <div>
           <strong>图像参数</strong>
-          <span>{draft.mode === "edit" ? "图生图会使用当前上传的参考图" : "文生图会直接使用输入提示词"}</span>
+          <span>{draft.mode === "edit" ? "使用参考图生成变体" : "根据提示词生成图片"}</span>
         </div>
         <span className={hasReference ? "ready" : ""}>{hasReference ? "已有参考图" : "无参考图"}</span>
       </div>
@@ -3245,7 +3567,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <textarea
             value={draft.businessKnowledge}
             onChange={(event) => update("businessKnowledge", event.target.value)}
-            placeholder="拼团支付成功后需等待成团再发放额度"
+            placeholder="补充口径、枚举和业务规则"
           />
         </label>
         <label className="wide">
@@ -3279,10 +3601,10 @@ function tradeOrderAmount(order = {}) {
 
 function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAuditOrder }) {
   const stats = [
-    { label: "可用额度", value: `${formatTradeNumber(summary.quotaBalance)} 点` },
-    { label: "已消耗", value: `${formatTradeNumber(summary.usedQuota)} 点` },
+    { label: "当前余额", value: `${formatTradeNumber(summary.quotaBalance)} 点` },
+    { label: "已用额度", value: `${formatTradeNumber(summary.usedQuota)} 点` },
     { label: "拼团订单", value: `${summary.groupOrders} 单` },
-    { label: "等待成团", value: `${summary.waitingGroupOrders} 单`, danger: summary.waitingGroupOrders > 0 }
+    { label: "待成团", value: `${summary.waitingGroupOrders} 单`, danger: summary.waitingGroupOrders > 0 }
   ];
 
   return (
@@ -3337,7 +3659,7 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAu
                 <small className={`trade-settlement-hint ${settlementHint.tone}`} title={settlementHint.detail}>
                   {settlementHint.label}
                 </small>
-                <span>¥{tradeOrderAmount(order)}</span>
+                <span>￥{tradeOrderAmount(order)}</span>
                 <button type="button" className="trade-order-audit" onClick={() => onAuditOrder?.(order)}>
                   <ShieldCheck size={14} />
                   <span>审计</span>
@@ -3406,7 +3728,7 @@ function MragKnowledgePanel({
         </div>
         <button type="button" onClick={onRefresh} disabled={loading || !hasAdminAuth}>
           {loading ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
-          <span>{loading ? "读取中" : "刷新"}</span>
+          <span>{loading ? "刷新中" : "刷新"}</span>
         </button>
       </div>
 
@@ -3441,7 +3763,7 @@ function MragKnowledgePanel({
           placeholder="https://example.com/article"
         />
         <button type="button" onClick={onWebUrlImport} disabled={!hasAdminAuth || Boolean(actionKey)}>
-          <span>{actionKey === "web-url" ? "导入中" : "加入网页"}</span>
+          <span>{actionKey === "web-url" ? "导入中" : "导入网页"}</span>
         </button>
       </div>
 
@@ -3455,7 +3777,7 @@ function MragKnowledgePanel({
         />
         <button type="button" onClick={onUploadClick} disabled={!hasAdminAuth || Boolean(actionKey)}>
           <Paperclip size={15} />
-          <span>{actionKey === "upload" ? "上传中" : "上传资料"}</span>
+          <span>{actionKey === "upload" ? "上传中" : "上传文档"}</span>
         </button>
         <button type="button" onClick={onRebuild} disabled={!hasAdminAuth || Boolean(actionKey)}>
           <RotateCcw size={15} />
@@ -3463,7 +3785,7 @@ function MragKnowledgePanel({
         </button>
         <button type="button" onClick={onCompensate} disabled={!hasAdminAuth || Boolean(actionKey)}>
           <AlertTriangle size={15} />
-          <span>{actionKey === "compensate" ? "补偿中" : "失败补偿"}</span>
+          <span>{actionKey === "compensate" ? "补偿中" : "补偿向量"}</span>
         </button>
       </div>
 
@@ -3534,7 +3856,7 @@ function MragKnowledgePanel({
         ))}
         {!loading && documents.length === 0 && (
           <div className="mrag-knowledge-empty">
-            {hasAdminAuth ? "暂无知识文档" : "保存后台权限后读取知识文档"}
+            {hasAdminAuth ? "暂无知识文档" : "请先保存后台账号"}
           </div>
         )}
       </div>
@@ -3585,18 +3907,22 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPr
   const isData = workspace.id === "data";
   const isMrag = workspace.id === "mrag";
   const isTrade = workspace.id === "trade";
-  const showWorkspaceRuntime = page.supportsHistory || page.dedicatedRun || isTrade;
+  const isAgent = workspace.id === "agent";
+  const useSimpleEmpty = isAgent || isImage;
+  const showWorkspaceRuntime = !useSimpleEmpty && (page.supportsHistory || page.dedicatedRun || isTrade);
   const manualSkills = Array.isArray(capabilities?.manualSkills)
     ? capabilities.manualSkills.slice(0, 6)
     : [];
   return (
     <div className={`empty-state workspace-empty workspace-empty-${workspace.id}`}>
-      <div className="empty-icon-wrapper">
-        <div className="empty-icon">{workspace.icon}</div>
-        <div className="icon-glow" />
-      </div>
-      <h2>{workspace.name}</h2>
-      <p>{serviceProfile.summary}</p>
+      {!useSimpleEmpty && (
+        <div className="empty-icon-wrapper">
+          <div className="empty-icon">{workspace.icon}</div>
+          <div className="icon-glow" />
+        </div>
+      )}
+      <h2>{useSimpleEmpty ? "今天想研究什么？" : workspace.name}</h2>
+      {!useSimpleEmpty && <p>{serviceProfile.summary}</p>}
       {showWorkspaceRuntime && (
         <div className="workspace-meter">
           {capabilityStatus.map((item) => (
@@ -3607,12 +3933,11 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPr
       {showWorkspaceRuntime && (
         <div className={`workspace-readiness-card ${toolReadiness.status}`}>
           <div className="workspace-readiness-head">
-            <strong>工具准备度</strong>
+            <strong>工具状态</strong>
             <em>{toolReadiness.statusLabel}</em>
           </div>
           <div className="workspace-readiness-metrics">
             <span><b>可用</b>{toolReadiness.readyTools.length}/{toolReadiness.requiredTools.length}</span>
-            <span><b>输出</b>{toolReadiness.outputKinds.map((kind) => OUTPUT_KIND_LABELS[kind] || kind).slice(0, 4).join("、") || "-"}</span>
           </div>
           {toolReadiness.missingTools.length > 0 && (
             <div className="workspace-readiness-missing">
@@ -3639,14 +3964,7 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPr
           ))}
         </div>
       )}
-      {showWorkspaceRuntime && (
-        <div className="workspace-output-strip">
-          {serviceProfile.outputKinds.map((kind) => (
-            <span key={kind}>{OUTPUT_KIND_LABELS[kind] || kind}</span>
-          ))}
-        </div>
-      )}
-      {manualSkills.length > 0 && (
+      {manualSkills.length > 0 && !useSimpleEmpty && (
         <div className="workspace-skill-strip">
           {manualSkills.map((skill) => (
             <span key={skill.name || skill.description}>
@@ -3687,7 +4005,7 @@ function SessionMemoryPanel({ memory }) {
     <section className="session-memory-panel">
       <div className="session-memory-head">
         <strong>会话记忆</strong>
-        <span>{memory.summary || "历史执行结果已进入当前智能体上下文"}</span>
+        <span>{memory.summary || "会话中的关键上下文会显示在这里"}</span>
       </div>
       <div className="session-memory-stats">
         <span>运行 <b>{runs.length}</b></span>
@@ -4086,7 +4404,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
                     <div className="result-file-card" key={`${panel.id}-multimodal-file-${index}`}>
                       <FileText size={15} />
                       <div>
-                        <strong>{file.title || file.fileName || "多模态产物"}</strong>
+                        <strong>{file.title || file.fileName || "文件"}</strong>
                         <span>{artifactMetaLabel(file)}</span>
                       </div>
                       {file.downloadUrl && (
@@ -4213,7 +4531,7 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
   const [previewArtifactKey, setPreviewArtifactKey] = useState("");
   return (
     <div className={`message ${msg.role}`}>
-      <div className="message-avatar">{isUser ? "👤" : "🤖"}</div>
+      <div className="message-avatar">{isUser ? "👤" : "AI"}</div>
       <div className="message-content">
         {isUser ? (
           <>
@@ -4241,11 +4559,9 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                       <strong>{index + 1}. {version.title}</strong>
                       <small>
                         第 {version.revision || index + 1} 版
-                        {version.changeType === "replan" ? "，重规划" : ""}
-                        {"，"}
-                        {version.stageCount > 0 ? `${version.stageCount} 阶段，` : ""}
-                        {version.stepCount} 步
-                        {version.flowUpdates > 0 ? `，${version.flowUpdates} 次推进` : ""}
+                        {"?"}
+                        {version.stageCount > 0 ? `${version.stageCount} 阶段` : ""}
+                        {version.stepCount} 步{version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}
                       </small>
                       {version.replanReason && <em>原因：{version.replanReason}</em>}
                       {version.summary && <em>{version.summary}</em>}
@@ -4257,9 +4573,9 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
             {msg.timeline?.length > 0 && (
               <div className="timeline-section">
                 <button className="timeline-header" onClick={() => onToggleTimeline(msg.id)}>
-                  <span className="timeline-icon-wrapper">⚙️</span>
+                  <span className="timeline-icon-wrapper">⚙</span>
                   <span className="timeline-title">执行过程</span>
-                  <span>{msg.showTimeline ? "⌄" : "›"}</span>
+                  <span>{msg.showTimeline ? "⌃" : "⌄"}</span>
                 </button>
                 {msg.showTimeline && (
                   <div className="timeline-content">
@@ -4354,22 +4670,22 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
             {msg.reference?.length > 0 && (
               <div className="reference-section">
                 <button className="reference-header" onClick={() => onToggleReference(msg.id)}>
-                  <span className="reference-icon-wrapper">📚</span>
-                  <span className="reference-title">参考来源 ({msg.reference.length})</span>
-                  <span>{msg.showReference ? "⌄" : "›"}</span>
+                  <span className="reference-icon-wrapper">📎</span>
+                  <span className="reference-title">参考来源({msg.reference.length})</span>
+                  <span>{msg.showReference ? "⌃" : "⌄"}</span>
                 </button>
                 {msg.showReference && (
                   <div className="reference-content">
                     {msg.reference.map((ref, index) => (
                       <div className="reference-link" key={`${ref.title}-${index}`}>
-                        <div className="ref-icon">↗</div>
+                        <div className="ref-icon">→</div>
                         <div className="ref-info">
                           {safeExternalUrl(ref.url) ? (
                             <a className="ref-title-text" href={safeExternalUrl(ref.url)} target="_blank" rel="noreferrer">
-                              {ref.title || ref.url || "参考资料"}
+                              <strong>{ref.title || ref.url || "来源"}</strong>
                             </a>
                           ) : (
-                            <div className="ref-title-text">{ref.title || "参考资料"}</div>
+                            <div className="ref-title-text">{ref.title || "来源"}</div>
                           )}
                           {ref.url && <div className="ref-url-text">{ref.url}</div>}
                           {ref.text && <div className="ref-snippet-text">{ref.text}</div>}
@@ -4449,7 +4765,7 @@ function AuthDialog({ mode, setMode, form, setForm, error, onSubmit, onClose }) 
     <div className="modal-overlay">
       <form className="auth-dialog" onSubmit={onSubmit}>
         <button type="button" className="modal-close" onClick={onClose}><X size={18} /></button>
-        <img className="auth-logo" src="/bear-doctor-logo.png" alt="熊博士" />
+        <img className="auth-logo" src="/bear-doctor-logo.png" alt="熊博士Agent" />
         <h3>{mode === "login" ? "登录熊博士Agent" : "注册账号"}</h3>
         <div className="auth-switch">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>登录</button>
@@ -4631,6 +4947,37 @@ function RechargeDialog({
   const promptCost = Number(billingPolicy?.platformPromptCostPer1k || 0).toFixed(2);
   const completionCost = Number(billingPolicy?.platformCompletionCostPer1k || 0).toFixed(2);
   const customRate = Math.round(Number(billingPolicy?.customModelServiceRate || 0) * 100);
+  const membershipPlans = (packages || []).filter((pkg) => pkg.productType === "MEMBERSHIP_PLAN");
+  const quotaPackages = (packages || []).filter((pkg) => pkg.productType !== "MEMBERSHIP_PLAN");
+  const currentPlanCode = memberActive ? (membership?.planCode || "FREE") : "FREE";
+  const currentPaidPlan = membershipPlans.find((plan) => plan.goodsId === currentPlanCode);
+  const currentPlanPrice = Number(currentPaidPlan?.originPrice || 0);
+  const formatCycleEnd = (value) => {
+    const time = parseTime(value);
+    if (!Number.isFinite(time)) return "";
+    return new Date(time).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
+  };
+  const freePlan = {
+    goodsId: "FREE",
+    goodsName: "免费版",
+    originPrice: 0,
+    quotaAmount: 0,
+    productType: "FREE_PLAN",
+    specSummary: "适合轻量体验，按平台模型和额度包规则使用。"
+  };
+  const memberPlanCards = [freePlan, ...membershipPlans];
+  const memberPlanFeatures = (plan) => {
+    if (plan.productType === "FREE_PLAN") {
+      return ["基础对话体验", "平台模型按量扣费", "可单独购买额度包"];
+    }
+    const quota = Number(plan.quotaAmount || 0).toFixed(0);
+    const isPro = String(plan.goodsId || "").includes("PRO");
+    return [
+      `每月 ${quota} 点会员额度`,
+      "自定义模型会员免费",
+      isPro ? "适合深度研究、PPT 和图像生成" : "适合论文问答、PPT 和常用 Skill"
+    ];
+  };
 
   if (groupPreviewPackage) {
     return (
@@ -4645,8 +4992,8 @@ function RechargeDialog({
           </div>
 
           <div className="group-detail-main">
-            <div className="group-product-icon">⚙️</div>
-            <h3>{groupPreviewPackage.goodsName || `可调用次数 - ${quotaAmount}次`}</h3>
+            <div className="group-product-icon">⚙</div>
+            <h3>{groupPreviewPackage.goodsName || `可调用次数 - ${quotaAmount} 点`}</h3>
             <p>{groupPreviewPackage.specSummary || `执行任务时按模型消耗扣减，可用额度 ${quotaAmount} 点`}</p>
 
             <div className="group-team-panel">
@@ -4685,13 +5032,13 @@ function RechargeDialog({
 
             <div className="group-detail-actions">
               <button type="button" onClick={() => onBuy(previewProduct, "direct")} disabled={Boolean(buyingKey)}>
-                <CreditCard size={16} /> {isDirectBuying ? "处理中" : `直接购买 ¥${formatMoney(previewProduct.originPrice)}`}
+                <CreditCard size={16} /> {isDirectBuying ? "处理中" : `直接购买 ￥${formatMoney(previewProduct.originPrice)}`}
               </button>
               <button className="primary" type="button" onClick={() => onBuy(previewProduct, "group")} disabled={Boolean(buyingKey)}>
-                <UserPlus size={16} /> {isGroupBuying ? "处理中" : `自己开团 ¥${formatMoney(previewProduct.groupPrice)}`}
+                <UserPlus size={16} /> {isGroupBuying ? "处理中" : `自己开团 ￥${formatMoney(previewProduct.groupPrice)}`}
               </button>
             </div>
-            <div className="group-detail-tip">{teamSize} 人成团，先锁单占位，确认支付后等待成团到账。</div>
+            <div className="group-detail-tip">{teamSize} 人成团，支付成功后需等待成团，成团后额度到账。</div>
           </div>
         </div>
       </div>
@@ -4700,12 +5047,43 @@ function RechargeDialog({
 
   return (
     <div className="modal-overlay">
-      <div className="recharge-dialog">
+      <div className="recharge-dialog recharge-upgrade-dialog">
         <button type="button" className="modal-close" onClick={onClose}><X size={18} /></button>
+        <div className="upgrade-title">
+          <h3>升级套餐</h3>
+          <p>选择额度包后可直接购买，也可以发起拼团；拼团成团后额度到账。</p>
+        </div>
+        <div className="upgrade-account-summary">
+          <div className="upgrade-account-main">
+            <div className="upgrade-avatar">{String(currentUserId || quota?.userId || "U").slice(0, 1).toUpperCase()}</div>
+            <div>
+              <strong>{maskUserId(currentUserId || quota?.userId)}</strong>
+              <span>{memberActive ? `会员额度 ${memberRemaining} / ${memberTotal} 点` : "未开通会员"}</span>
+            </div>
+          </div>
+          <div className="upgrade-account-stats">
+            <div>
+              <span>当前余额</span>
+              <b>{Number(quota?.quotaBalance || 0).toFixed(2)} 点</b>
+            </div>
+            <div>
+              <span>已用</span>
+              <b>{Number(quota?.usedQuota || 0).toFixed(2)}</b>
+            </div>
+            <div>
+              <span>冻结</span>
+              <b>{Number(quota?.frozenQuota || 0).toFixed(2)}</b>
+            </div>
+          </div>
+          <button className="refresh-btn upgrade-refresh" onClick={onRefresh}>刷新</button>
+        </div>
+        <div className="upgrade-billing-note">
+          平台模型：输入 {promptCost} 点/千 token，输出 {completionCost} 点/千 token；自定义模型按 {customRate || 10}% 收取服务费。
+        </div>
         <div className="recharge-head">
           <div>
             <h3>额度中心</h3>
-            <p>购买额度后可用于对话、文件问答、生成 PPT、深度研究和技能调用</p>
+            <p>购买额度后可用于对话、文件上传后的问答、生成 PPT、深度研究和 Skill 调用</p>
           </div>
           <button className="refresh-btn" onClick={onRefresh}>刷新</button>
         </div>
@@ -4726,16 +5104,15 @@ function RechargeDialog({
         <div className="membership-card">
           <div>
             <span>{memberActive ? "会员额度" : "会员"}</span>
-            <strong>{memberActive ? `${memberRemaining} / ${memberTotal} 点` : "未开通"}</strong>
+            <strong>{memberActive ? `${memberRemaining} / ${memberTotal} 次` : "未开通"}</strong>
           </div>
           <p>
-            平台模型按输入 {promptCost} 点/千 token、输出 {completionCost} 点/千 token 扣费；
-            自定义模型会员免费，非会员按平台费用 {customRate || 10}% 收取服务费。
+            当前计费：输入 {promptCost} 点/千 token，输出 {completionCost} 点/千 token，自定义模型按 {customRate || 10}% 计费。
           </p>
         </div>
         <div className="recharge-tabs">
           <button type="button" className={activeTab === "packages" ? "active" : ""} onClick={() => setActiveTab("packages")}>
-            <Wallet size={15} /> 额度包
+            <Wallet size={15} /> 会员/额度包
           </button>
           <button type="button" className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}>
             <CreditCard size={15} /> 订单/拼团
@@ -4744,24 +5121,82 @@ function RechargeDialog({
 
         {activeTab === "packages" && (
           <>
-            <div className="package-grid">
-              {packages.map((pkg) => (
-                <article className="quota-package" key={pkg.goodsId}>
-                  <h4>{pkg.goodsName}</h4>
-                  <p>{pkg.specSummary}</p>
-                  <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
-                  <div className="pkg-actions">
-                    <button onClick={() => onBuy(pkg, "direct")} disabled={Boolean(buyingKey)}>
-                      ¥{Number(pkg.originPrice || 0).toFixed(2)}
-                    </button>
-                    <button className="group" onClick={() => onOpenGroupPreview(pkg)} disabled={Boolean(buyingKey)}>
-                      {buyingKey === `${pkg.goodsId}-group` ? "处理中" : `${pkg.teamSize || 2}人团 ¥${Number(pkg.groupPrice || 0).toFixed(2)}`}
-                    </button>
-                  </div>
-                </article>
-              ))}
-              {packages.length === 0 && <div className="empty-package">后端启动后会显示额度包</div>}
-            </div>
+            <section className="upgrade-section">
+              <div className="upgrade-section-head">
+                <strong>会员</strong>
+                <span>{memberActive ? `当前 ${membership?.planName || "会员"}，有效期至 ${formatCycleEnd(membership?.cycleEndTime) || "-"}` : "开通后获得会员月额度和自定义模型权益"}</span>
+              </div>
+              <div className="membership-plan-grid">
+                {memberPlanCards.map((plan, index) => {
+                  const isFree = plan.productType === "FREE_PLAN";
+                  const isCurrent = plan.goodsId === currentPlanCode || (!memberActive && isFree);
+                  const planPrice = Number(plan.originPrice || 0);
+                  const isLowerPlan = memberActive && !isFree && currentPlanPrice > 0 && planPrice < currentPlanPrice;
+                  const disabled = Boolean(buyingKey) || isCurrent || isFree || isLowerPlan;
+                  const planName = plan.goodsName || "会员套餐";
+                  const actionText = isCurrent
+                    ? "当前套餐"
+                    : isLowerPlan
+                      ? "低于当前套餐"
+                      : buyingKey === `${plan.goodsId}-direct`
+                        ? "处理中"
+                        : `升级至 ${planName.replace("会员", "").trim() || planName}`;
+                  return (
+                    <article className={`membership-plan-card ${index === memberPlanCards.length - 1 ? "featured" : ""}`} key={plan.goodsId}>
+                      <div className="membership-plan-name">
+                        <h4>{planName}</h4>
+                        {isCurrent && <span>当前</span>}
+                      </div>
+                      <div className="membership-plan-price">
+                        <small>￥</small>
+                        <strong>{formatMoney(plan.originPrice)}</strong>
+                        <em>/ 月</em>
+                      </div>
+                      <p>{plan.specSummary}</p>
+                      <button type="button" onClick={() => onBuy(plan, "direct")} disabled={disabled}>
+                        {actionText}
+                      </button>
+                      <ul className="plan-features">
+                        {memberPlanFeatures(plan).map((feature) => (
+                          <li key={feature}><Check size={14} /> {feature}</li>
+                        ))}
+                      </ul>
+                    </article>
+                  );
+                })}
+                {membershipPlans.length === 0 && <div className="empty-package">暂无会员套餐</div>}
+              </div>
+            </section>
+
+            <section className="upgrade-section">
+              <div className="upgrade-section-head">
+                <strong>额度包</strong>
+                <span>直接购买立即到账；拼团支付成功后等待成团到账</span>
+              </div>
+              <div className="package-grid upgrade-plan-grid">
+                {quotaPackages.map((pkg) => (
+                  <article className="quota-package upgrade-plan-card" key={pkg.goodsId}>
+                    <h4>{pkg.goodsName}</h4>
+                    <p>{pkg.specSummary}</p>
+                    <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
+                    <ul className="plan-features">
+                      <li><Check size={14} /> 对话、文件问答和 Skill 调用</li>
+                      <li><Check size={14} /> 生成 PPT、图像和深度研究</li>
+                      <li><Check size={14} /> 支付后自动记录额度流水</li>
+                    </ul>
+                    <div className="pkg-actions">
+                      <button onClick={() => onBuy(pkg, "direct")} disabled={Boolean(buyingKey)}>
+                        ￥{Number(pkg.originPrice || 0).toFixed(2)}
+                      </button>
+                      <button className="group" onClick={() => onOpenGroupPreview(pkg)} disabled={Boolean(buyingKey)}>
+                        {buyingKey === `${pkg.goodsId}-group` ? "处理中" : `${pkg.teamSize || 2} 人团 ￥${Number(pkg.groupPrice || 0).toFixed(2)}`}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                {quotaPackages.length === 0 && <div className="empty-package">暂无可购买额度包</div>}
+              </div>
+            </section>
             <details className="flow-details">
               <summary>最近额度流水</summary>
               {(flows || []).slice(0, 8).map((flow) => (
@@ -4793,7 +5228,7 @@ function RechargeDialog({
                   </div>
                   <div>
                     <b>{order.marketType === 1 ? "拼团" : "直购"}</b>
-                    <span>¥{formatMoney(order.payAmount || order.totalAmount)}</span>
+                    <span>￥{formatMoney(order.payAmount || order.totalAmount)}</span>
                   </div>
                   <div>
                     <em>{order.displayStatus || statusLabel(order.status)}</em>
@@ -4817,6 +5252,7 @@ function RechargeDialog({
 function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
   const amount = Number(payment?.amount || 0).toFixed(2);
   const isGroupOrder = Number(payment?.marketType) === 1;
+  const isMembershipOrder = payment?.productType === "MEMBERSHIP_PLAN";
   const paying = buyingKey === `pay-${payment?.orderId}`;
 
   return (
@@ -4826,8 +5262,8 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
         <div className="payment-icon">
           <CreditCard size={24} />
         </div>
-        <h3>确认支付</h3>
-        <p>{isGroupOrder ? "拼团订单支付成功后，满员成团才会发放额度。" : "直购订单支付成功后，额度会立即到账。"}</p>
+        <h3>进入支付宝支付</h3>
+        <p>{isMembershipOrder ? "支付完成并回调成功后会员会自动生效。" : isGroupOrder ? "支付完成后先等待成团，成团后额度才会到账。" : "支付完成并回调成功后额度会自动到账。"}</p>
         <div className="payment-summary">
           <div>
             <span>订单</span>
@@ -4845,14 +5281,14 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
           )}
           <div>
             <span>金额</span>
-            <b>¥{amount}</b>
+            <b>￥{amount}</b>
           </div>
         </div>
         <div className="payment-confirm-actions">
           <button type="button" onClick={onCancel} disabled={paying}>取消</button>
           <button type="button" className="primary" onClick={onConfirm} disabled={paying}>
             {paying ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />}
-            {paying ? "支付中" : "确认支付"}
+            {paying ? "跳转中" : "去支付宝支付"}
           </button>
         </div>
       </div>

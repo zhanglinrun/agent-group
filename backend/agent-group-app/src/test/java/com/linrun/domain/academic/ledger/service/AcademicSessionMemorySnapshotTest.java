@@ -91,6 +91,20 @@ class AcademicSessionMemorySnapshotTest {
     }
 
     @Test
+    void shouldPersistProjectIdWhenStartingRun() {
+        FakeLedgerRepository repository = new FakeLedgerRepository();
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
+                repository, new AcademicReplayProjector());
+
+        AcademicAgentRun run = service.startRun(
+                "U1", "S1", "AP1001", "REQ1", "chat", "revise introduction", "test-model");
+
+        assertEquals("AP1001", run.getProjectId());
+        assertEquals("AP1001", repository.createdRuns.getFirst().getProjectId());
+    }
+
+
+    @Test
     void shouldPersistToolFileInfoAndPrimaryFileFieldsAsLedgerArtifacts() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
@@ -233,11 +247,13 @@ class AcademicSessionMemorySnapshotTest {
     private static final class FakeLedgerRepository implements AcademicExecutionLedgerRepository {
 
         private final List<AcademicAgentRun> runs = new ArrayList<>();
+        private final List<AcademicAgentRun> createdRuns = new ArrayList<>();
         private final List<AcademicToolInvocation> tools = new ArrayList<>();
         private final List<AcademicArtifact> artifacts = new ArrayList<>();
 
         @Override
         public void createRun(AcademicAgentRun run) {
+            createdRuns.add(run);
         }
 
         @Override

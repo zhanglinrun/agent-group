@@ -448,6 +448,59 @@ create table if not exists academic_agent_file (
   key idx_user_time (user_id, create_time)
 ) engine=InnoDB default charset=utf8mb4 comment='学术智能体文件表';
 
+create table if not exists academic_project (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  project_id varchar(40) not null comment 'academic project id',
+  user_id varchar(64) not null comment 'user id',
+  title varchar(120) not null default '' comment 'project title',
+  research_question varchar(500) not null default '' comment 'research question',
+  target_venue varchar(120) not null default '' comment 'target venue',
+  writing_status varchar(40) not null default 'DRAFTING' comment 'writing status',
+  progress_note varchar(500) not null default '' comment 'progress note',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_project_id (project_id),
+  key idx_user_time (user_id, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='academic project';
+
+create table if not exists academic_project_file (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  project_id varchar(40) not null comment 'academic project id',
+  user_id varchar(64) not null comment 'user id',
+  file_id varchar(64) not null comment 'file id',
+  file_name varchar(160) not null default '' comment 'file name',
+  file_type varchar(80) not null default '' comment 'file type',
+  folder_type varchar(40) not null default 'draftManuscripts' comment 'folder type',
+  summary varchar(800) not null default '' comment 'summary',
+  content_preview mediumtext null comment 'content preview',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_project_file (project_id, file_id),
+  key idx_user_project (user_id, project_id)
+) engine=InnoDB default charset=utf8mb4 comment='academic project file';
+
+create table if not exists academic_project_patch (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  project_id varchar(40) not null comment 'academic project id',
+  user_id varchar(64) not null comment 'user id',
+  patch_id varchar(64) not null comment 'patch id',
+  file_id varchar(64) not null comment 'file id',
+  title varchar(160) not null default '' comment 'patch title',
+  reason varchar(1000) not null default '' comment 'patch reason',
+  before_text mediumtext null comment 'before text',
+  after_text mediumtext null comment 'after text',
+  status varchar(32) not null default 'PENDING' comment 'patch status',
+  create_time datetime not null default current_timestamp comment 'create time',
+  apply_time datetime null comment 'apply time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_patch_id (patch_id),
+  key idx_project_status (project_id, status),
+  key idx_user_project (user_id, project_id)
+) engine=InnoDB default charset=utf8mb4 comment='academic project patch';
+
 create table if not exists academic_agent_artifact (
   id bigint unsigned not null auto_increment comment '自增主键',
   artifact_id varchar(256) not null comment '产物编号',
@@ -472,6 +525,7 @@ create table if not exists academic_agent_run (
   id bigint unsigned not null auto_increment comment '自增主键',
   run_id varchar(40) not null comment '运行编号',
   session_id varchar(64) not null comment '会话编号',
+  project_id varchar(40) not null default '' comment 'academic project id',
   request_id varchar(64) not null comment '请求编号',
   user_id varchar(64) not null comment '用户编号',
   task_type varchar(32) not null default '' comment '任务类型',
@@ -489,6 +543,7 @@ create table if not exists academic_agent_run (
   primary key (id),
   unique key uk_run_id (run_id),
   key idx_request_id (request_id),
+  key idx_user_project_time (user_id, project_id, started_at),
   key idx_user_session_time (user_id, session_id, started_at)
 ) engine=InnoDB default charset=utf8mb4 comment='学术智能体执行运行表';
 
@@ -895,7 +950,9 @@ insert into guide_goods (
 ('G10003', 'PPT 创作额度包', '', 69.90, 180.00, 'QUOTA_PACKAGE', '适合生成组会汇报、开题答辩和论文分享 PPT', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合需要多次生成和修改学术演示稿的用户', '只需要偶尔问答的用户', 1, 30),
 ('G10004', '图表重建额度包', '', 39.90, 90.00, 'QUOTA_PACKAGE', '适合图片、流程图和架构图转可编辑草稿', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合论文图、实验流程和系统架构图的重建编辑', '要求严格 1:1 商业级复刻的用户', 1, 40),
 ('G10005', '深度研究额度包', '', 99.90, 260.00, 'QUOTA_PACKAGE', '适合复杂主题拆解、多轮调研和报告生成', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合秋招项目调研、论文选题和技术路线规划', '只需要单轮短问答的用户', 1, 50),
-('G10006', '团队拼团额度包', '', 129.90, 360.00, 'QUOTA_PACKAGE', '适合实验室小组共享演示，额度更多且拼团优惠更明显', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合组会、课题组内部演示和多人拼团充值', '个人轻量体验用户', 1, 60)
+('G10006', '团队拼团额度包', '', 129.90, 360.00, 'QUOTA_PACKAGE', '适合实验室小组共享演示，额度更多且拼团优惠更明显', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合组会、课题组内部演示和多人拼团充值', '个人轻量体验用户', 1, 60),
+('MEMBER_PLUS_MONTH', 'Plus 会员', '', 39.90, 1000.00, 'MEMBERSHIP_PLAN', '每月 1000 点会员额度，自定义模型会员免费，适合高频论文问答和 PPT 生成', '会员属于虚拟服务，支付开通后按平台会员服务规则处理售后', '适合需要稳定使用对话、文件问答、图像和深度研究能力的个人用户', '只偶尔体验一次的用户', 1, 1),
+('MEMBER_PRO_MONTH', 'Pro 会员', '', 99.90, 5000.00, 'MEMBERSHIP_PLAN', '每月 5000 点会员额度，适合深度研究、长文档处理和多模态生成', '会员属于虚拟服务，支付开通后按平台会员服务规则处理售后', '适合项目复盘、论文精读、答辩材料和复杂 Agent 任务高频使用', '只进行普通短对话的用户', 1, 2)
 on duplicate key update
   goods_name = values(goods_name),
   image_url = values(image_url),

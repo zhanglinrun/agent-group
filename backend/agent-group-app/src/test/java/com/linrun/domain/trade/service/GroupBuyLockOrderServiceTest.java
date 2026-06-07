@@ -398,7 +398,7 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 callbackService,
-                new MockPaymentAccessChecker(true),
+                new MockPaymentAccessChecker(false),
                 new FakePaymentGatewayClient(),
                 new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
@@ -412,7 +412,8 @@ class GroupBuyLockOrderServiceTest {
                 groupCompensationService,
                 lockRepository,
                 tradeRefundService,
-                new TradeStatusFlowService(flowRepository));
+                new TradeStatusFlowService(flowRepository),
+                paymentService);
 
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_TIMEOUT_REFUND_10001"));
         callbackService.paySuccess(callback(lockResponse.getOrderId(), "TTIMEOUT10001"));
