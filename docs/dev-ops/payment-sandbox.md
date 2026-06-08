@@ -1,25 +1,25 @@
 # 支付沙箱检查
 
-项目提供 `/api/v1/payment/gateway/status`（支付网关状态接口），用于确认当前支付能力是本地 `MOCK_PAY`（模拟支付），还是已经具备 `ALIPAY`（支付宝渠道）沙箱联调条件。
+项目提供 `/api/v1/payment/gateway/status`（支付网关状态接口），用于确认 `ALIPAY`（支付宝沙箱）是否已经具备验收条件。当前演示和验收只接受真实支付宝沙箱；`MOCK_PAY`（模拟支付）只保留在单元测试桩里。
 
 ## 检查命令
 
 ```powershell
 cd E:\javaproject\agent-group
-.\docs\dev-ops\scripts\payment-sandbox-check.ps1
+.\docs\dev-ops\scripts\payment-sandbox-check.ps1 -RequireOfficialSandbox
 ```
 
-检查结果会保存到：
+报告会保存到：
 
 ```text
 docs\dev-ops\reports
 ```
 
-报告会记录推荐渠道、沙箱证据、缺失配置项、每个渠道的配置完整度和回调地址。
-
 ## 支付宝沙箱就绪条件
 
-`officialSandboxReady`（官方沙箱就绪）不是只看网关地址是否包含 `sandbox`（沙箱）或 `alipaydev`（支付宝沙箱域名），还要求以下条件同时满足：
+`officialSandboxReady`（官方沙箱就绪）必须为 `true`（真），并且 `recommendedChannel`（推荐支付渠道）应为 `ALIPAY`（支付宝渠道）。
+
+需要同时满足：
 
 - `AGENT_GROUP_ALIPAY_GATEWAY_URL`（支付宝网关地址）指向沙箱网关。
 - `AGENT_GROUP_ALIPAY_APP_ID`（支付宝应用编号）已配置。
@@ -27,7 +27,7 @@ docs\dev-ops\reports
 - `AGENT_GROUP_ALIPAY_PUBLIC_KEY`（支付宝公钥）已配置。
 - `AGENT_GROUP_ALIPAY_NOTIFY_URL`（异步回调地址）已配置，且是公网可访问地址。
 
-本地 `localhost`（本机地址）、`127.0.0.1`（本机回环地址）、内网地址不会被判定为公网回调。联调时可以用内网穿透工具生成公网地址，再配置到支付宝沙箱后台和本地环境变量中。
+本地 `localhost`（本机地址）、`127.0.0.1`（本机回环地址）和内网地址不会被判定为公网回调。联调时可以使用内网穿透或公网域名承载 `/api/v1/payment/alipay/notify`（支付宝回调）。
 
 ## 环境变量示例
 
@@ -41,12 +41,6 @@ $env:AGENT_GROUP_ALIPAY_NOTIFY_URL="https://你的公网域名/api/v1/payment/al
 
 密钥只放本地环境变量或 `.env`（环境变量文件），不要提交到 `Git`（版本控制工具）。
 
-## 严格检查
+## 失败口径
 
-如果要把“支付宝官方沙箱已就绪”作为通过条件：
-
-```powershell
-.\docs\dev-ops\scripts\payment-sandbox-check.ps1 -RequireOfficialSandbox
-```
-
-当配置不完整时，报告里的 `officialSandboxMissingItems`（官方沙箱缺失项）会列出需要补齐的环境变量或公网回调要求；此时 `recommendedChannel`（推荐支付渠道）会回退为 `MOCK_PAY`（模拟支付）。
+配置不完整时，报告里的 `officialSandboxMissingItems`（官方沙箱缺失项）会列出缺失项；此时系统不会推荐或自动回退到 `MOCK_PAY`（模拟支付），而是继续推荐 `ALIPAY`（支付宝沙箱）并标记为不可验收。

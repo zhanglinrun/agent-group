@@ -1,7 +1,7 @@
 package com.linrun.trigger.agent.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.trigger.http.AcademicExternalSearchService;
+import com.linrun.trigger.http.agent.AcademicExternalSearchService;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.annotation.Tool;

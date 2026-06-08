@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,7 +28,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   MockPaymentAccessChecker mockPaymentAccessChecker,
                                                    UserBearerTokenAuthenticationFilter userBearerTokenAuthenticationFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -72,11 +70,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/agent/admin/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/knowledge/**", "/api/v1/evaluate/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/ops/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/trade/order/mock-pay-success")
-                        .access((authentication, context) -> new AuthorizationDecision(
-                                mockPaymentAccessChecker.isAllowed(authentication.get())))
                         .requestMatchers("/api/v1/trade/order/status-flow").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/trade/order/admin", "/api/v1/trade/order/admin/refunds").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/trade/order/admin", "/api/v1/trade/order/admin/refunds",
+                                "/api/v1/trade/order/admin/consistency").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/gbm/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/group/trade/close-unpaid", "/api/v1/group/trade/refund").hasRole("ADMIN")
                         .requestMatchers("/api/v1/payment/refund", "/api/v1/payment/reconcile",

@@ -13,7 +13,7 @@ public enum PaymentChannel {
 
     public static PaymentChannel parse(String value) {
         if (!StringUtils.hasText(value)) {
-            return MOCK_PAY;
+            return ALIPAY;
         }
         String normalized = value.trim().toUpperCase(Locale.ROOT).replace("-", "_");
         for (PaymentChannel channel : values()) {

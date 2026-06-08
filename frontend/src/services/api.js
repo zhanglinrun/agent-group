@@ -939,19 +939,6 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
   });
 }
 
-export async function mockPaySuccess(orderId) {
-  return request("/api/v1/trade/order/mock-pay-success", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      orderId,
-      outTradeNo: `MOCK_${orderId}_${Date.now()}`,
-      payChannel: "MOCK_PAY"
-    })
-  });
-}
-
 export async function createPayment(orderId, options = {}) {
   const origin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : "http://localhost:5174";
   const returnUrl = options.returnUrl || `${origin}/?paymentReturn=1&orderId=${encodeURIComponent(orderId || "")}`;
@@ -1098,6 +1085,19 @@ export async function queryRefundOrderList(options = {}) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
+  });
+}
+
+export async function queryTradeConsistency(options = {}) {
+  return request("/api/v1/trade/order/admin/consistency", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      orderId: options.orderId || undefined,
+      userId: options.userId || undefined,
+      pageSize: options.pageSize || 20
+    })
   });
 }
 

@@ -1,8 +1,8 @@
-package com.linrun.domain.tag.service;
+package com.linrun.domain.groupbuy.tag.service;
 
-import com.linrun.domain.tag.adapter.CrowdTagRepository;
-import com.linrun.domain.tag.model.CrowdTagJob;
-import com.linrun.domain.tag.model.CrowdTagJobResult;
+import com.linrun.domain.groupbuy.tag.adapter.CrowdTagRepository;
+import com.linrun.domain.groupbuy.tag.model.CrowdTagJob;
+import com.linrun.domain.groupbuy.tag.model.CrowdTagJobResult;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

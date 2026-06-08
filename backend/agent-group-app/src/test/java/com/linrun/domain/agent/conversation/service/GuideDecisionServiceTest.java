@@ -6,9 +6,9 @@ import com.linrun.domain.agent.conversation.model.GuideIntentType;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.agent.conversation.model.GuideReference;
 import com.linrun.domain.agent.conversation.model.RecommendationReason;
-import com.linrun.domain.activity.adapter.repository.GroupBuyActivityRepository;
-import com.linrun.domain.activity.model.GroupBuyActivity;
-import com.linrun.domain.activity.service.GroupBuyActivityService;
+import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 

@@ -1,8 +1,8 @@
 package com.linrun.domain.agent.conversation.service;
 
-import com.linrun.domain.activity.adapter.repository.GroupBuyActivityRepository;
-import com.linrun.domain.activity.model.GroupBuyActivity;
-import com.linrun.domain.activity.service.GroupBuyActivityService;
+import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.agent.conversation.model.GuideReference;

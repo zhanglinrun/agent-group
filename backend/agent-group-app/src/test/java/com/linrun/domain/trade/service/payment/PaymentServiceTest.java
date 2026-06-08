@@ -20,6 +20,7 @@ import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
 import com.linrun.api.dto.RefundPaymentResponse;
+import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.adapter.repository.PaymentWebhookReplayRepository;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
@@ -40,7 +41,6 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
 import com.linrun.domain.trade.service.TradeOrderService;
-import com.linrun.trigger.config.MockPaymentAccessChecker;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -66,7 +66,7 @@ class PaymentServiceTest {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
         CreatePaymentRequest request = new CreatePaymentRequest();
         request.setOrderId("O10001");
-        request.setPayChannel("MOCK_PAY");
+        request.setPayChannel("ALIPAY");
 
         CreatePaymentResponse response = fixture.service.createPayment(request);
 
@@ -81,7 +81,7 @@ class PaymentServiceTest {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
         CreatePaymentRequest request = new CreatePaymentRequest();
         request.setOrderId("O10001");
-        request.setPayChannel("MOCK_PAY");
+        request.setPayChannel("ALIPAY");
 
         AppException exception = assertThrows(AppException.class,
                 () -> fixture.service.createPayment(request, "U20001"));
@@ -92,11 +92,14 @@ class PaymentServiceTest {
     @Test
     void shouldVerifyWebhookAndMarkPaySuccess() {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
         PaymentWebhookRequest request = new PaymentWebhookRequest();
-        request.setPayChannel("MOCK_PAY");
+        request.setPayChannel("ALIPAY");
         request.setOrderId("O10001");
         request.setPayOrderId("P10001");
         request.setGatewayTradeNo("GT10001");
+        request.setPayAmount(new BigDecimal("2399.00"));
+        request.setTradeStatus("TRADE_SUCCESS");
         request.setPayTime(LocalDateTime.of(2026, 5, 14, 10, 0));
 
         PaymentWebhookResponse response = fixture.service.handleWebhook(request);
@@ -203,6 +206,7 @@ class PaymentServiceTest {
     @Test
     void shouldRefundPaidOrderWithGateway() {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
         fixture.repository.payOrder.setOutTradeNo("GT10001");
         RefundPaymentRequest request = new RefundPaymentRequest();
         request.setOrderId("O10001");
@@ -219,6 +223,7 @@ class PaymentServiceTest {
     @Test
     void shouldReconcileLocalPaymentStatus() {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
         fixture.repository.payOrder.setOutTradeNo("GT10001");
         ReconcilePaymentRequest request = new ReconcilePaymentRequest();
         request.setOrderId("O10001");
@@ -269,8 +274,7 @@ class PaymentServiceTest {
         FakePaymentGatewayClient gateway = new FakePaymentGatewayClient();
         return new Fixture(
                 new PaymentService(repository, tradeOrderService, callbackService,
-                        new MockPaymentAccessChecker(true), gateway,
-                        replayGuard, flowService),
+                        gateway, replayGuard, flowService),
                 repository,
                 flowRepository,
                 gateway);
@@ -376,7 +380,7 @@ class PaymentServiceTest {
                     "P10001",
                     "O10001",
                     new BigDecimal("2399.00"),
-                    "MOCK_PAY",
+                    "ALIPAY",
                     "mock://pay/P10001",
                     LocalDateTime.now());
             payOrder.setPayStatus(payStatus);

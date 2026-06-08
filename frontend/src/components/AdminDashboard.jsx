@@ -14,6 +14,7 @@ import {
   queryPaymentErrorMap,
   queryPaymentRefund,
   queryRefundOrderList,
+  queryTradeConsistency,
   rebuildKnowledgeVector,
   refreshPaymentCertificate,
   runAgentEvaluation,
@@ -69,7 +70,7 @@ export default function AdminDashboard() {
   const [refunds, setRefunds] = useState([]);
   const [rules, setRules] = useState([]);
   const [opsDashboard, setOpsDashboard] = useState({ activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
-  const [paymentOps, setPaymentOps] = useState({ payChannel: "MOCK_PAY", billDate: "", refundOrderId: "", gatewayCode: "SYSTEMERROR" });
+  const [paymentOps, setPaymentOps] = useState({ payChannel: "ALIPAY", billDate: "", refundOrderId: "", gatewayCode: "SYSTEMERROR" });
   const [paymentOpsResult, setPaymentOpsResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -410,7 +411,6 @@ export default function AdminDashboard() {
               <label>
                 支付渠道
                 <select value={paymentOps.payChannel} onChange={(event) => updatePaymentOps("payChannel", event.target.value)}>
-                  <option value="MOCK_PAY">MOCK_PAY</option>
                   <option value="ALIPAY">ALIPAY</option>
                   <option value="WECHAT_PAY">WECHAT_PAY</option>
                 </select>
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
                 payChannel: paymentOps.payChannel,
                 billDate: paymentOps.billDate || undefined,
                 billType: "trade",
-                downloadContent: paymentOps.payChannel === "MOCK_PAY"
+                downloadContent: false
               }))}>
                 <Database size={16} /> 账单解析
               </button>
@@ -448,6 +448,12 @@ export default function AdminDashboard() {
               </button>
               <button className="admin-btn outline" onClick={() => runPaymentOps("映射错误码", () => queryPaymentErrorMap(paymentOps.payChannel, paymentOps.gatewayCode))}>
                 <AlertTriangle size={16} /> 错误码映射
+              </button>
+              <button className="admin-btn outline" onClick={() => runPaymentOps("交易一致性核查", () => queryTradeConsistency({
+                orderId: paymentOps.refundOrderId || undefined,
+                pageSize: 20
+              }))}>
+                <Activity size={16} /> 交易核查
               </button>
             </div>
             {paymentOpsResult && (

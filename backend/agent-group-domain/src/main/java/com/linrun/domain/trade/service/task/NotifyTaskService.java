@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
 import com.linrun.api.dto.NotifyTaskExecuteResponse;
 import com.linrun.domain.support.config.service.DynamicConfigService;
-import com.linrun.domain.activity.model.GroupBuyTeam;
+import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.trade.adapter.repository.NotifyTaskRepository;
 import com.linrun.domain.trade.adapter.port.TradeNotifyPort;
 import com.linrun.domain.trade.model.notify.NotifyConfig;

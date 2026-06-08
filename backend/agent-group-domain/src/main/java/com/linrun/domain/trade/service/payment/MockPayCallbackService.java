@@ -9,7 +9,7 @@ import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
-import com.linrun.domain.trade.service.GroupBuySettlementService;
+import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;

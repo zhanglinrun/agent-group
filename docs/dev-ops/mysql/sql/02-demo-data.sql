@@ -257,8 +257,8 @@ on duplicate key update
 insert into pay_order (
   pay_order_id, order_id, pay_channel, pay_amount, pay_status, pay_url, out_trade_no, pay_time
 ) values
-('P-DEMO-DIRECT-001', 'O-DEMO-DIRECT-001', 'MOCK_PAY', 19.90, 'SUCCESS', 'mock://pay/O-DEMO-DIRECT-001', 'OUT-DEMO-DIRECT-001', date_sub(now(), interval 1 hour)),
-('P-DEMO-GROUP-001', 'O-DEMO-GROUP-001', 'MOCK_PAY', 16.90, 'SUCCESS', 'mock://pay/O-DEMO-GROUP-001', 'OUT-DEMO-GROUP-001', date_sub(now(), interval 30 minute))
+('P-DEMO-DIRECT-001', 'O-DEMO-DIRECT-001', 'ALIPAY', 19.90, 'SUCCESS', 'https://openapi-sandbox.dl.alipaydev.com/gateway.do', 'ALI-DEMO-DIRECT-001', date_sub(now(), interval 1 hour)),
+('P-DEMO-GROUP-001', 'O-DEMO-GROUP-001', 'ALIPAY', 16.90, 'SUCCESS', 'https://openapi-sandbox.dl.alipaydev.com/gateway.do', 'ALI-DEMO-GROUP-001', date_sub(now(), interval 30 minute))
 on duplicate key update
   pay_channel = values(pay_channel),
   pay_amount = values(pay_amount),

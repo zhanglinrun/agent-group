@@ -13,11 +13,11 @@ import com.linrun.domain.agent.conversation.service.GuideRagAnswerService;
 import com.linrun.domain.agent.conversation.service.GuideRagPromptBuilder;
 import com.linrun.domain.agent.conversation.service.AgentPlannerService;
 import com.linrun.domain.agent.conversation.service.AgentToolRegistry;
-import com.linrun.domain.activity.adapter.repository.GroupBuyActivityRepository;
-import com.linrun.domain.activity.model.GroupBuyActivity;
-import com.linrun.domain.activity.service.GroupBuyActivityService;
+import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
+import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
 import com.linrun.domain.agent.prompt.service.PromptTemplateService;
-import com.linrun.infrastructure.adapter.repository.LocalPromptTemplateRepository;
+import com.linrun.infrastructure.agent.repository.LocalPromptTemplateRepository;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

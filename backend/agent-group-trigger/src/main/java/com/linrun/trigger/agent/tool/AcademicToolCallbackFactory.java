@@ -20,7 +20,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
-import com.linrun.trigger.http.McpAdminHandler;
+import com.linrun.trigger.http.agent.McpAdminHandler;
 import com.linrun.types.exception.AppException;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;

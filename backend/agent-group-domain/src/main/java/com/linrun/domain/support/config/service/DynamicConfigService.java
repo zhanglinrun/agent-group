@@ -52,7 +52,6 @@ public class DynamicConfigService {
             Map.entry(GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"),
             Map.entry(PAYMENT_QUERY_COMPENSATION_SWITCH, "1"),
             Map.entry(PAYMENT_QUERY_COMPENSATION_LIMIT, "50"),
-            Map.entry(MOCK_PAY_SWITCH, "1"),
             Map.entry(PAYMENT_RISK_CHECK_SWITCH, "1"),
             Map.entry(AGENT_PLAN_EXECUTE_SWITCH, "1"),
             Map.entry(AGENT_CONTEXT_COMPACT_THRESHOLD, "1600"),
@@ -170,7 +169,7 @@ public class DynamicConfigService {
     }
 
     public boolean isMockPayOpen() {
-        return "1".equals(getValue(MOCK_PAY_SWITCH, "1"));
+        return "1".equals(getValue(MOCK_PAY_SWITCH, "0"));
     }
 
     public boolean isPaymentRiskCheckOpen() {

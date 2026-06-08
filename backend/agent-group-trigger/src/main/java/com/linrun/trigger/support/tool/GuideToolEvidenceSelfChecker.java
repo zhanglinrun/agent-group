@@ -5,8 +5,8 @@ import com.linrun.domain.agent.conversation.model.GuideDecisionResult;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.agent.conversation.model.GuideReference;
 import com.linrun.domain.agent.conversation.service.AgentToolRegistry;
-import com.linrun.domain.activity.model.GroupBuyActivityStatus;
-import com.linrun.domain.activity.model.GroupBuyTrialResult;
+import com.linrun.domain.groupbuy.model.GroupBuyActivityStatus;
+import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
 import org.springframework.util.StringUtils;
 
 import java.util.List;

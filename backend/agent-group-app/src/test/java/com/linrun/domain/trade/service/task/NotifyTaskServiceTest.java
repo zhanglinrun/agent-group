@@ -18,7 +18,7 @@ import com.linrun.api.dto.NotifyTaskExecuteResponse;
 import com.linrun.domain.support.config.adapter.DynamicConfigRepository;
 import com.linrun.domain.support.config.model.DynamicConfig;
 import com.linrun.domain.support.config.service.DynamicConfigService;
-import com.linrun.domain.activity.model.GroupBuyTeam;
+import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.trade.adapter.repository.NotifyTaskRepository;
 import com.linrun.domain.trade.model.notify.NotifyTask;
 import com.linrun.domain.trade.adapter.repository.TradeEventPublisher;

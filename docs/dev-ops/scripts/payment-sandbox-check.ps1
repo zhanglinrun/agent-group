@@ -22,6 +22,7 @@ $data = $response.data
 $passed = $null -ne $data
 if ($RequireOfficialSandbox) {
     $passed = $passed -and [bool]$data.officialSandboxReady
+    $passed = $passed -and ([string]$data.recommendedChannel -eq "ALIPAY")
 }
 
 $missingItems = @()

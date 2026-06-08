@@ -1,7 +1,7 @@
 package com.linrun.trigger.job;
 
 import com.linrun.domain.support.adapter.ScheduledJobLockRepository;
-import com.linrun.trigger.http.KnowledgeVectorOpsHandler;
+import com.linrun.trigger.http.agent.KnowledgeVectorOpsHandler;
 import com.linrun.trigger.job.ScheduledJobLockExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

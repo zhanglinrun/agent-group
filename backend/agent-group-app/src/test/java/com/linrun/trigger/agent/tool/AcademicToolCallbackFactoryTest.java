@@ -7,7 +7,7 @@ import com.linrun.domain.academic.runtime.tool.AcademicToolCollectionFactory;
 import com.linrun.domain.academic.runtime.tool.AcademicToolDefinition;
 import com.linrun.domain.academic.runtime.tool.AcademicToolRuntimeRegistry;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
-import com.linrun.trigger.http.McpAdminHandler;
+import com.linrun.trigger.http.agent.McpAdminHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.ai.tool.ToolCallback;
