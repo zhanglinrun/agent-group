@@ -191,7 +191,7 @@ export function modelConfigReady(config) {
     && (Boolean(normalized.apiKey) || Boolean(normalized.keyMasked)));
 }
 
-function modelConfigPayload(config) {
+function modelConfigPayload() {
   return {};
 }
 

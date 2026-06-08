@@ -41,6 +41,9 @@ function safeResourceUrl(value: unknown): string {
   if (normalized.startsWith("/") && !normalized.startsWith("//")) {
     return normalized;
   }
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) {
+    return normalized;
+  }
   try {
     const parsed = new URL(normalized);
     return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";

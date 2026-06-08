@@ -4,21 +4,6 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.linrun.infrastructure.dao.IGuideDataDao">
 
-    <resultMap id="GuideReferenceMap" type="com.linrun.infrastructure.po.GuideReferencePO">
-        <id column="fragment_id" property="fragmentId"/>
-        <result column="document_id" property="documentId"/>
-        <result column="goods_id" property="goodsId"/>
-        <result column="document_type" property="documentType"/>
-        <result column="knowledge_version" property="knowledgeVersion"/>
-        <result column="content" property="content"/>
-        <result column="rank_no" property="rank"/>
-        <result column="parent_fragment_id" property="parentFragmentId"/>
-        <result column="brother_group_id" property="brotherGroupId"/>
-        <result column="brother_index" property="brotherIndex"/>
-        <result column="brother_total" property="brotherTotal"/>
-        <result column="chunk_type" property="chunkType"/>
-    </resultMap>
-
     <resultMap id="GuideProductMap" type="com.linrun.infrastructure.po.GuideProductPO">
         <id column="goods_id" property="goodsId"/>
         <result column="goods_name" property="goodsName"/>
@@ -35,98 +20,6 @@
         <result column="team_size" property="teamSize"/>
         <result column="remaining_seconds" property="remainingSeconds"/>
     </resultMap>
-
-    <select id="queryReferences" resultMap="GuideReferenceMap">
-        select f.fragment_id,
-               f.document_id,
-               f.goods_id,
-               f.document_type,
-               f.knowledge_version,
-               f.content,
-               f.rank_no,
-               f.parent_fragment_id,
-               f.brother_group_id,
-               f.brother_index,
-               f.brother_total,
-               f.chunk_type
-        from knowledge_fragment f
-        inner join knowledge_document d
-          on d.document_id = f.document_id
-        where f.enabled = 1
-          and f.fragment_status = 'ENABLED'
-          and d.enabled = 1
-          and d.document_status = 'ENABLED'
-          <if test="keywords != null and keywords.size > 0">
-          and (
-              <foreach collection="keywords" item="keyword" separator=" or ">
-              f.content like concat('%', #{keyword}, '%')
-              or f.document_type like concat('%', #{keyword}, '%')
-              </foreach>
-          )
-          </if>
-        <if test="keywords != null and keywords.size > 0">
-        order by (
-            <foreach collection="keywords" item="keyword" separator=" + ">
-            case when f.content like concat('%', #{keyword}, '%') then 10 else 0 end
-            + case when f.document_type like concat('%', #{keyword}, '%') then 5 else 0 end
-            </foreach>
-        ) desc,
-        f.rank_no asc
-        </if>
-        <if test="keywords == null or keywords.size == 0">
-        order by f.rank_no asc
-        </if>
-        limit #{limit}
-    </select>
-
-    <select id="queryReferenceByFragmentId" resultMap="GuideReferenceMap">
-        select f.fragment_id,
-               f.document_id,
-               f.goods_id,
-               f.document_type,
-               f.knowledge_version,
-               f.content,
-               f.rank_no,
-               f.parent_fragment_id,
-               f.brother_group_id,
-               f.brother_index,
-               f.brother_total,
-               f.chunk_type
-        from knowledge_fragment f
-        inner join knowledge_document d
-          on d.document_id = f.document_id
-        where f.fragment_id = #{fragmentId}
-          and f.enabled = 1
-          and f.fragment_status = 'ENABLED'
-          and d.enabled = 1
-          and d.document_status = 'ENABLED'
-        limit 1
-    </select>
-
-    <select id="querySiblingReferences" resultMap="GuideReferenceMap">
-        select f.fragment_id,
-               f.document_id,
-               f.goods_id,
-               f.document_type,
-               f.knowledge_version,
-               f.content,
-               f.rank_no,
-               f.parent_fragment_id,
-               f.brother_group_id,
-               f.brother_index,
-               f.brother_total,
-               f.chunk_type
-        from knowledge_fragment f
-        inner join knowledge_document d
-          on d.document_id = f.document_id
-        where f.brother_group_id = #{brotherGroupId}
-          and f.enabled = 1
-          and f.fragment_status = 'ENABLED'
-          and d.enabled = 1
-          and d.document_status = 'ENABLED'
-        order by f.brother_index asc, f.rank_no asc, f.id asc
-        limit #{limit}
-    </select>
 
     <select id="queryCandidateProducts" resultMap="GuideProductMap">
         select g.goods_id,
@@ -166,32 +59,6 @@
         order by g.sort_order asc, g.id asc
         </if>
         limit #{limit}
-    </select>
-
-    <select id="queryRecommendProduct" resultMap="GuideProductMap">
-        select g.goods_id,
-               g.goods_name,
-               g.image_url,
-               g.origin_price,
-               a.group_price,
-               g.quota_amount,
-               g.product_type,
-               g.spec_summary,
-               g.after_sale_policy,
-               g.recommend_reason,
-               g.not_suitable_for,
-               a.activity_id,
-               a.team_size,
-               timestampdiff(second, now(), a.end_time) as remaining_seconds
-        from guide_goods g
-        left join group_activity a
-          on a.goods_id = g.goods_id
-         and a.enabled = 1
-         and a.start_time &lt;= now()
-         and a.end_time &gt; now()
-        where g.enabled = 1
-        order by g.sort_order asc, g.id asc
-        limit 1
     </select>
 
     <select id="queryProductByGoodsId" resultMap="GuideProductMap">

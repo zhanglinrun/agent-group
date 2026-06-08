@@ -24,16 +24,16 @@ class AcademicTableRagToolRuntimeTest {
                 true,
                 request.requestId(),
                 List.of(new AcademicTableRagPort.AcademicTableSchemaMatch(
-                        "trade_order",
+                        "experiment_result",
                         0.92D,
-                        List.of(Map.of("column", "order_status", "type", "varchar")))),
+                        List.of(Map.of("column", "metric_name", "type", "varchar")))),
                 Map.of("provider", "mock-table-rag"),
                 "");
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
         registry.registerStructured(AcademicTableRagToolRuntime.definition(), new AcademicTableRagToolRuntime(port)::call);
 
         AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.TABLE_RAG)
-                .arguments(Map.of("query", "orders waiting for group settlement"))
+                .arguments(Map.of("query", "experiment metrics"))
                 .build());
 
         Map<String, Object> metadata = (Map<String, Object>) result.getResult().get("metadata");
@@ -48,7 +48,7 @@ class AcademicTableRagToolRuntimeTest {
 
         AppException exception = assertThrows(AppException.class,
                 () -> runtime.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.TABLE_RAG)
-                        .arguments(Map.of("query", "orders"))
+                        .arguments(Map.of("query", "experiments"))
                         .build()));
 
         assertEquals("TABLE_RAG_0001", exception.getCode());

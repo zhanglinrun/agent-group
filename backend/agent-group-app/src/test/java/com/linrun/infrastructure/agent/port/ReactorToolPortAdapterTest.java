@@ -228,7 +228,7 @@ class ReactorToolPortAdapterTest {
         AcademicScriptRunnerPort.AcademicScriptRunResult result = adapter.run(
                 new AcademicScriptRunnerPort.AcademicScriptRunRequest(
                         "req-script", "sql-analysis", "skills/sql-analysis", "summarize",
-                        "scripts/summarize.py", "python", Map.of("table", "trade_order"), List.of(), 30));
+                        "scripts/summarize.py", "python", Map.of("table", "experiment_result"), List.of(), 30));
 
         assertTrue(result.success());
         assertEquals(0, result.exitCode());
@@ -246,9 +246,9 @@ class ReactorToolPortAdapterTest {
                         {
                           "code": 200,
                           "data": {
-                            "trade_order": [
-                              {"name": "order_id", "type": "string"},
-                              {"name": "status", "type": "string"}
+                            "experiment_result": [
+                              {"name": "experiment_id", "type": "string"},
+                              {"name": "metric_value", "type": "decimal"}
                             ]
                           },
                           "requestId": "req-table"
@@ -259,11 +259,11 @@ class ReactorToolPortAdapterTest {
 
         AcademicTableRagPort.AcademicTableRagResult result = adapter.recall(
                 new AcademicTableRagPort.AcademicTableRagRequest(
-                        "req-table", "查询订单状态", List.of("trade_order"), "only_recall", true, false, 5));
+                        "req-table", "查询实验指标", List.of("experiment_result"), "only_recall", true, false, 5));
 
         assertTrue(result.success());
         assertEquals(1, result.matches().size());
-        assertEquals("trade_order", result.matches().getFirst().schemaList().getFirst().get("name"));
+        assertEquals("experiment_result", result.matches().getFirst().schemaList().getFirst().get("name"));
         server.verify();
     }
 
@@ -277,8 +277,8 @@ class ReactorToolPortAdapterTest {
                           "code": 200,
                           "data": [
                             {
-                              "query": "查询已支付订单",
-                              "nl2sql": "select * from trade_order where pay_status = 'PAY_SUCCESS'"
+                              "query": "查询实验准确率",
+                              "nl2sql": "select * from experiment_result where metric_name = 'accuracy'"
                             }
                           ],
                           "request_id": "req-sql",
@@ -291,12 +291,12 @@ class ReactorToolPortAdapterTest {
 
         AcademicNl2SqlPort.AcademicNl2SqlResult result = adapter.convert(
                 new AcademicNl2SqlPort.AcademicNl2SqlRequest(
-                        "req-sql", "查询已支付订单", List.of("trade_order"), List.of(),
+                        "req-sql", "查询实验准确率", List.of("experiment_result"), List.of(),
                         "2026-06-05", "mysql", false, true, false));
 
         assertTrue(result.success());
         assertEquals("data", result.status());
-        assertEquals("select * from trade_order where pay_status = 'PAY_SUCCESS'",
+        assertEquals("select * from experiment_result where metric_name = 'accuracy'",
                 result.candidates().getFirst().sql());
         server.verify();
     }
@@ -309,7 +309,7 @@ class ReactorToolPortAdapterTest {
                 .andRespond(withSuccess("""
                         {
                           "code": 200,
-                          "data": "支付成功订单环比上升 12%",
+                          "data": "实验准确率均值为 92.4%",
                           "request_id": "req-data"
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -318,11 +318,11 @@ class ReactorToolPortAdapterTest {
 
         AcademicDataAnalysisPort.AcademicDataAnalysisResult result = adapter.analyze(
                 new AcademicDataAnalysisPort.AcademicDataAnalysisRequest(
-                        "req-data", "分析支付趋势", List.of(), List.of(),
-                        List.of("trade_order"), "关注支付状态", 5, false));
+                        "req-data", "分析实验指标", List.of(), List.of(),
+                        List.of("experiment_result"), "关注准确率", 5, false));
 
         assertTrue(result.success());
-        assertEquals("支付成功订单环比上升 12%", result.content());
+        assertEquals("实验准确率均值为 92.4%", result.content());
         server.verify();
     }
 
@@ -334,11 +334,11 @@ class ReactorToolPortAdapterTest {
                 .andRespond(withSuccess("""
                         {
                           "code": 200,
-                          "data": "# 拼团交易报告",
+                          "data": "# 论文实验报告",
                           "fileInfo": [
                             {
-                              "fileName": "trade-report.md",
-                              "downloadUrl": "https://file.example.com/trade-report.md"
+                              "fileName": "experiment-report.md",
+                              "downloadUrl": "https://file.example.com/experiment-report.md"
                             }
                           ],
                           "requestId": "req-report"
@@ -349,12 +349,12 @@ class ReactorToolPortAdapterTest {
 
         AcademicReportPort.AcademicReportResult result = adapter.generate(
                 new AcademicReportPort.AcademicReportRequest(
-                        "req-report", "生成拼团交易报告", "拼团交易报告", "",
-                        List.of(), List.of(), List.of(), "trade-report.md", "markdown", "html", false));
+                        "req-report", "生成论文实验报告", "论文实验报告", "",
+                        List.of(), List.of(), List.of(), "experiment-report.md", "markdown", "html", false));
 
         assertTrue(result.success());
-        assertEquals("# 拼团交易报告", result.content());
-        assertEquals("trade-report.md", result.fileRefs().getFirst().getFileName());
+        assertEquals("# 论文实验报告", result.content());
+        assertEquals("experiment-report.md", result.fileRefs().getFirst().getFileName());
         server.verify();
     }
 

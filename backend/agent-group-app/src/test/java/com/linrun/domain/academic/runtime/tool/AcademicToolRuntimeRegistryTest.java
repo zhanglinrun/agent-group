@@ -1,9 +1,9 @@
 package com.linrun.domain.academic.runtime.tool;
 
-import com.linrun.types.exception.AppException;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
+import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -19,26 +19,26 @@ class AcademicToolRuntimeRegistryTest {
     @Test
     void shouldRegisterListAndCallTool() {
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
-        registry.register(definition("order_status", true), command ->
-                Map.of("orderId", command.getArguments().get("orderId"), "status", "PAY_SUCCESS"));
+        registry.register(definition("literature_search", true), command ->
+                Map.of("query", command.getArguments().get("query"), "hitCount", 3));
 
-        AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder("order_status")
-                .arguments(Map.of("orderId", "O1001"))
+        AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder("literature_search")
+                .arguments(Map.of("query", "RAG"))
                 .build());
 
         assertTrue(result.isSuccess());
-        assertEquals("PAY_SUCCESS", result.getResult().get("status"));
-        assertEquals(List.of("order_status"), registry.toolNames());
+        assertEquals(3, result.getResult().get("hitCount"));
+        assertEquals(List.of("literature_search"), registry.toolNames());
         assertEquals(1, registry.listEnabledDefinitions().size());
     }
 
     @Test
     void shouldRejectMissingRequiredArgument() {
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
-        registry.register(definition("refund_status", true), command -> Map.of());
+        registry.register(definition("literature_search", true), command -> Map.of());
 
         AppException exception = assertThrows(AppException.class,
-                () -> registry.call(AcademicToolCallCommand.builder("refund_status").build()));
+                () -> registry.call(AcademicToolCallCommand.builder("literature_search").build()));
 
         assertEquals("TOOL_0004", exception.getCode());
     }
@@ -68,7 +68,7 @@ class AcademicToolRuntimeRegistryTest {
                         .build());
 
         AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder("report_tool")
-                .arguments(Map.of("orderId", "O1001"))
+                .arguments(Map.of("query", "RAG"))
                 .build());
 
         assertTrue(result.isSuccess());
@@ -102,8 +102,8 @@ class AcademicToolRuntimeRegistryTest {
                 .description("test tool")
                 .category("test")
                 .source("unit")
-                .inputSchema(Map.of("type", "object", "properties", Map.of("orderId", Map.of("type", "string"))))
-                .requiredArguments(List.of("orderId"))
+                .inputSchema(Map.of("type", "object", "properties", Map.of("query", Map.of("type", "string"))))
+                .requiredArguments(List.of("query"))
                 .enabled(enabled)
                 .build();
     }

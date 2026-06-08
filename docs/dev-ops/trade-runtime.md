@@ -1,4 +1,4 @@
-# 拼团交易运行说明
+﻿# 拼团交易运行说明
 
 本文件只补 `dev-ops`（运维部署）视角，用于演示和排障，不放学习笔记。
 
@@ -102,21 +102,9 @@ aggregate -> references ranked
 POST /api/v1/knowledge/vector/compensate-failed-embedding?limit=20
 ```
 
-`MCP`（模型上下文协议）工具当前包含：
+交易状态、退款状态、额度流水只作为后台排障和运营核对数据，不再作为用户对话 `Agent`（智能体）的工具暴露。
 
-```text
-query_route
-knowledge_search
-quota_recommend
-group_trial
-order_status
-refund_status
-json_repair
-document_compensation
-```
-
-其中 `query_route`（查询路由）和 `refund_status`（退款状态）补强交易查询，`json_repair`（结构化数据修复）用于修复模型返回的非标准 `JSON`（结构化数据格式），`document_compensation`（文档补偿）用于触发失败文档重试。
-
+用户侧主要使用学术问答、文件理解、数据分析、图像生成和技能执行；交易相关信息在购买页、订单页和后台管理端查看。
 ## 排障检查
 
 ```powershell

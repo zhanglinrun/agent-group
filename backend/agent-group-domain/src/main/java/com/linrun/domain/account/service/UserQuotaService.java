@@ -38,6 +38,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
@@ -357,14 +358,23 @@ public class UserQuotaService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void grantQuotaForOrderIds(List<String> orderIds) {
+    public List<String> grantQuotaForOrderIds(List<String> orderIds) {
         if (orderIds == null || orderIds.isEmpty()) {
-            return;
+            return List.of();
         }
+        List<String> processedOrderIds = new ArrayList<>();
         orderIds.stream()
                 .filter(StringUtils::hasText)
-                .map(orderId -> tradeOrderRepository.queryTradeOrderByOrderId(orderId).orElse(null))
-                .forEach(this::grantQuotaForPaidOrder);
+                .map(String::trim)
+                .distinct()
+                .forEach(orderId -> {
+                    TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId).orElse(null);
+                    if (tradeOrder != null) {
+                        grantQuotaForPaidOrder(tradeOrder);
+                        processedOrderIds.add(tradeOrder.getOrderId());
+                    }
+                });
+        return processedOrderIds;
     }
 
     @Transactional(rollbackFor = Exception.class)

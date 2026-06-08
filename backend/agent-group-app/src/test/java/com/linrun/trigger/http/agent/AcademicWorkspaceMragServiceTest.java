@@ -56,25 +56,25 @@ class AcademicWorkspaceMragServiceTest {
         AcademicMultimodalAnalysisPort multimodalPort = request -> new AcademicMultimodalAnalysisPort.AcademicMultimodalAnalysisResult(
                 true,
                 "image evidence parsed",
-                "the uploaded image contains a paid order funnel",
+                "the uploaded image contains a paper experiment chart",
                 Map.of("provider", "mock-mrag"),
                 List.of(),
                 "");
         AcademicTableRagPort tablePort = request -> new AcademicTableRagPort.AcademicTableRagResult(
                 true,
                 request.requestId(),
-                List.of(new AcademicTableRagPort.AcademicTableSchemaMatch("trade_order", 0.88,
-                        List.of(Map.of("column", "pay_status")))),
+                List.of(new AcademicTableRagPort.AcademicTableSchemaMatch("experiment_result", 0.88,
+                        List.of(Map.of("column", "metric_name")))),
                 Map.of("provider", "mock-table-rag"),
                 "");
         AcademicDeepSearchPort deepPort = request -> new AcademicDeepSearchPort.AcademicDeepSearchResult(
                 true,
                 request.query(),
-                "external evidence confirms the funnel metrics",
+                "external evidence confirms the paper figure metrics",
                 "external evidence confirms",
-                List.of("paid order funnel"),
+                List.of("paper figure metrics"),
                 List.of(new AcademicDeepSearchPort.AcademicDeepSearchDocument(
-                        "payment funnel", "https://example.com/funnel", "funnel content", "mock")),
+                        "paper figure", "https://example.com/figure", "figure content", "mock")),
                 List.of(),
                 Map.of("provider", "mock-deep-search"),
                 "");
@@ -84,7 +84,7 @@ class AcademicWorkspaceMragServiceTest {
         when(tableProvider.getIfAvailable()).thenReturn(tablePort);
         when(deepProvider.getIfAvailable()).thenReturn(deepPort);
         when(ledgerService.startRun(eq("U1001"), eq("M1001"), eq(""), anyString(), eq("workspace-mrag"),
-                eq("cross check paid orders"), eq("workspace-mrag-tools"))).thenReturn(run);
+                eq("cross check paper figures"), eq("workspace-mrag-tools"))).thenReturn(run);
         when(ledgerService.recordToolStart(any(), anyString(), anyString(), eq("workspace/mrag/run"), anyString()))
                 .thenAnswer(invocation -> "TOOL_" + invocation.getArgument(2, String.class));
         AcademicWorkspaceMragService service = new AcademicWorkspaceMragService(
@@ -92,9 +92,9 @@ class AcademicWorkspaceMragServiceTest {
                 userAccountService, userQuotaService, repository, ledgerService);
         AcademicWorkspaceMragRunRequest request = new AcademicWorkspaceMragRunRequest();
         request.setSessionId("M1001");
-        request.setQuestion("cross check paid orders");
-        request.setImageUrls(List.of("https://example.com/funnel.png"));
-        request.setModelCodeList(List.of("trade_order"));
+        request.setQuestion("cross check paper figures");
+        request.setImageUrls(List.of("https://example.com/figure.png"));
+        request.setModelCodeList(List.of("experiment_result"));
 
         AcademicWorkspaceMragRunResponse response = service.run("Bearer token", request);
 
@@ -152,7 +152,7 @@ class AcademicWorkspaceMragServiceTest {
         when(tableProvider.getIfAvailable()).thenReturn(tablePort);
         when(deepProvider.getIfAvailable()).thenReturn(deepPort);
         when(ledgerService.startRun(eq("U1001"), eq("M1001"), eq(""), anyString(), eq("workspace-mrag"),
-                eq("cross check paid orders"), eq("workspace-mrag-tools"))).thenReturn(run);
+                eq("cross check paper figures"), eq("workspace-mrag-tools"))).thenReturn(run);
         when(ledgerService.recordToolStart(any(), anyString(), anyString(), eq("workspace/mrag/run"), anyString()))
                 .thenAnswer(invocation -> "TOOL_" + invocation.getArgument(2, String.class));
         AcademicWorkspaceMragService service = new AcademicWorkspaceMragService(
@@ -160,7 +160,7 @@ class AcademicWorkspaceMragServiceTest {
                 userAccountService, userQuotaService, repository, ledgerService, executor);
         AcademicWorkspaceMragRunRequest request = new AcademicWorkspaceMragRunRequest();
         request.setSessionId("M1001");
-        request.setQuestion("cross check paid orders");
+        request.setQuestion("cross check paper figures");
 
         try {
             AcademicWorkspaceMragRunResponse response = service.run("Bearer token", request);
@@ -185,7 +185,7 @@ class AcademicWorkspaceMragServiceTest {
         AcademicAgentRun run = run("RUN1001");
         run.setSessionId("M1001");
         run.setTaskType("workspace-mrag");
-        run.setQuestion("cross check paid orders");
+        run.setQuestion("cross check paper figures");
         run.setFinalSummary("mrag done");
         run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         run.setStartedAt(LocalDateTime.now());

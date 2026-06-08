@@ -38,6 +38,12 @@ describe("file url normalization", () => {
     );
   });
 
+  it("keeps safe inline image data urls for local fallback previews", () => {
+    expect(normalizeFileUrlForBrowser("data:image/png;base64,iVBORw0KGgo=")).toBe(
+      "data:image/png;base64,iVBORw0KGgo="
+    );
+  });
+
   it("returns the current tool base url when no runtime url is configured", () => {
     vi.stubGlobal("window", {
       location: {

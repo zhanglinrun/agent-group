@@ -34,7 +34,6 @@ import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideReference;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
@@ -667,13 +666,8 @@ class GroupBuyLockOrderServiceTest {
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
-        public List<GuideReference> queryReferences(String question, int limit) {
-            return List.of();
-        }
-
-        @Override
-        public Optional<GuideProduct> queryRecommendProduct(String question) {
-            return queryProductByGoodsId("G10001");
+        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+            return queryProductByGoodsId("G10001").stream().toList();
         }
 
         @Override

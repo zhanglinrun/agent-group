@@ -14,8 +14,8 @@ class AcademicAgentFlowProjectorTest {
     @Test
     void shouldBuildParallelStagesByDependencies() {
         AcademicAgentPlan plan = new AcademicAgentPlan("并行研究", List.of(
-                step("S1", "查询订单", 1),
-                step("S2", "查询额度", 1),
+                step("S1", "读取论文摘要", 1),
+                step("S2", "查询实验指标", 1),
                 step("S3", "生成报告", 2, "S1", "S2")
         ));
 
@@ -28,7 +28,7 @@ class AcademicAgentFlowProjectorTest {
 
     @Test
     void shouldSkipCompletedDependenciesWhenFindingNextExecutableSteps() {
-        AcademicPlanStep first = step("S1", "查询订单", 1);
+        AcademicPlanStep first = step("S1", "读取论文摘要", 1);
         first.setStatus(AcademicPlanLifecycleService.STATUS_COMPLETED);
         AcademicPlanStep second = step("S2", "生成报告", 2, "S1");
         AcademicAgentPlan plan = new AcademicAgentPlan("串行研究", List.of(first, second));
@@ -50,8 +50,8 @@ class AcademicAgentFlowProjectorTest {
     @Test
     void shouldRejectCyclicDependency() {
         AcademicAgentPlan plan = new AcademicAgentPlan("循环流程", List.of(
-                step("S1", "查询订单", 1, "S2"),
-                step("S2", "查询额度", 1, "S1")
+                step("S1", "读取论文摘要", 1, "S2"),
+                step("S2", "查询实验指标", 1, "S1")
         ));
 
         assertThrows(IllegalStateException.class, () -> flowProjector.buildRemainingStages(plan));

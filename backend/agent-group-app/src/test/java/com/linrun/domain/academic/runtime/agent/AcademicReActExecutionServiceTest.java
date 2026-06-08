@@ -19,38 +19,38 @@ class AcademicReActExecutionServiceTest {
 
         AcademicReActExecutionResult result = service.execute(
                 "RUN1001",
-                "check order O1001",
+                "find papers about retrieval augmented generation",
                 context -> {
                     if (context.previousTurns().isEmpty()) {
                         return AcademicReActDecision.action(
-                                "Need backend order status before answering.",
-                                "order_status",
-                                Map.of("orderId", "O1001"));
+                                "Need literature evidence before answering.",
+                                "literature_search",
+                                Map.of("query", "retrieval augmented generation"));
                     }
                     AcademicReActTurn lastTurn = context.previousTurns().getLast();
-                    assertEquals("PAY_SUCCESS waiting group settlement", lastTurn.observation());
+                    assertEquals("Found 3 high relevance papers", lastTurn.observation());
                     return AcademicReActDecision.finalAnswer(
-                            "Payment is not enough for quota grant.",
-                            "Do not grant quota before GROUP_SETTLED.");
+                            "RAG combines retrieval with generation.",
+                            "RAG combines retrieval with generation and should cite retrieved papers.");
                 },
                 (decision, context) -> {
                     actionCount.incrementAndGet();
-                    assertEquals("order_status", decision.actionName());
-                    assertEquals("O1001", decision.actionArguments().get("orderId"));
+                    assertEquals("literature_search", decision.actionName());
+                    assertEquals("retrieval augmented generation", decision.actionArguments().get("query"));
                     return AcademicReActObservation.success(
-                            "PAY_SUCCESS waiting group settlement",
-                            Map.of("orderStatus", "PAY_SUCCESS"));
+                            "Found 3 high relevance papers",
+                            Map.of("hitCount", 3));
                 });
 
         assertTrue(result.completed());
-        assertEquals("Do not grant quota before GROUP_SETTLED.", result.answer());
+        assertEquals("RAG combines retrieval with generation and should cite retrieved papers.", result.answer());
         assertEquals(AcademicReActExecutionService.STOP_REASON_FINAL_ANSWER, result.stopReason());
         assertEquals(1, actionCount.get());
         assertEquals(List.of(
                         AcademicReActTurn.STATUS_OBSERVED,
                         AcademicReActTurn.STATUS_FINAL),
                 result.turns().stream().map(AcademicReActTurn::status).toList());
-        assertEquals("PAY_SUCCESS", result.turns().getFirst().observationMetadata().get("orderStatus"));
+        assertEquals(3, result.turns().getFirst().observationMetadata().get("hitCount"));
     }
 
     @Test

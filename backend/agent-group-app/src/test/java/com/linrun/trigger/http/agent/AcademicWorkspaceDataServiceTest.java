@@ -28,7 +28,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,23 +53,23 @@ class AcademicWorkspaceDataServiceTest {
         AcademicTableRagPort tablePort = request -> new AcademicTableRagPort.AcademicTableRagResult(
                 true,
                 request.requestId(),
-                List.of(new AcademicTableRagPort.AcademicTableSchemaMatch("trade_order", 0.91,
-                        List.of(Map.of("column", "pay_status", "type", "varchar")))),
+                List.of(new AcademicTableRagPort.AcademicTableSchemaMatch("experiment_result", 0.91,
+                        List.of(Map.of("column", "metric_name", "type", "varchar")))),
                 Map.of("provider", "mock-table-rag"),
                 "");
         AcademicNl2SqlPort sqlPort = request -> new AcademicNl2SqlPort.AcademicNl2SqlResult(
                 true,
                 request.requestId(),
                 request.query(),
-                "use trade_order",
+                "use experiment_result",
                 "SUCCESS",
                 List.of(new AcademicNl2SqlPort.AcademicSqlCandidate(request.query(),
-                        "select count(*) from trade_order where pay_status = 'PAY_SUCCESS'")),
+                        "select avg(metric_value) from experiment_result where metric_name = 'accuracy'")),
                 Map.of("provider", "mock-nl2sql"),
                 "");
         AcademicDataAnalysisPort dataPort = request -> new AcademicDataAnalysisPort.AcademicDataAnalysisResult(
                 true,
-                "pay success count = 12",
+                "average accuracy = 92.4",
                 "analysis done",
                 List.of(),
                 Map.of("sampleRows", request.rows()),
@@ -81,7 +80,7 @@ class AcademicWorkspaceDataServiceTest {
         when(tableProvider.getIfAvailable()).thenReturn(tablePort);
         when(sqlProvider.getIfAvailable()).thenReturn(sqlPort);
         when(ledgerService.startRun(eq("U1001"), eq("D1001"), eq(""), anyString(), eq("workspace-data"),
-                eq("count paid orders"), eq("workspace-data-tools"))).thenReturn(run);
+                eq("compare experiment metrics"), eq("workspace-data-tools"))).thenReturn(run);
         when(ledgerService.recordToolStart(any(), anyString(), anyString(), eq("workspace/data/run"), anyString()))
                 .thenReturn("TOOL_TABLE", "TOOL_SQL", "TOOL_DATA");
         AcademicWorkspaceDataService service = new AcademicWorkspaceDataService(
@@ -89,10 +88,10 @@ class AcademicWorkspaceDataServiceTest {
                 userAccountService, userQuotaService, repository, ledgerService);
         AcademicWorkspaceDataRunRequest request = new AcademicWorkspaceDataRunRequest();
         request.setSessionId("D1001");
-        request.setQuestion("count paid orders");
-        request.setRows(List.of(Map.of("pay_status", "PAY_SUCCESS", "count", 12)));
-        request.setColumns(List.of("pay_status", "count"));
-        request.setModelCodeList(List.of("trade_order"));
+        request.setQuestion("compare experiment metrics");
+        request.setRows(List.of(Map.of("metric_name", "accuracy", "metric_value", 92.4)));
+        request.setColumns(List.of("metric_name", "metric_value"));
+        request.setModelCodeList(List.of("experiment_result"));
 
         AcademicWorkspaceDataRunResponse response = service.run("Bearer token", request);
 
@@ -125,7 +124,7 @@ class AcademicWorkspaceDataServiceTest {
         AcademicAgentRun run = run("RUN1001");
         run.setSessionId("D1001");
         run.setTaskType("workspace-data");
-        run.setQuestion("count paid orders");
+        run.setQuestion("compare experiment metrics");
         run.setFinalSummary("analysis done");
         run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         run.setStartedAt(LocalDateTime.now());
@@ -143,7 +142,7 @@ class AcademicWorkspaceDataServiceTest {
     }
 
     @Test
-    void shouldExposeDefaultDataCatalogForTradeAndQuotaTables() {
+    void shouldExposeDefaultDataCatalogForAcademicTables() {
         UserAccountService userAccountService = mock(UserAccountService.class);
         when(userAccountService.requireUserByToken("Bearer token")).thenReturn(user("U1001"));
         AcademicWorkspaceDataService service = new AcademicWorkspaceDataService(
@@ -151,13 +150,13 @@ class AcademicWorkspaceDataServiceTest {
 
         AcademicWorkspaceDataCatalogResponse response = service.catalog("Bearer token");
 
-        assertTrue(response.getDefaultModelCodeList().contains("trade_order"));
-        assertTrue(response.getDefaultModelCodeList().contains("group_buy_order_lock"));
-        assertTrue(response.getDefaultModelCodeList().contains("user_quota_account"));
-        assertTrue(response.getDefaultModelCodeList().contains("user_quota_flow"));
+        assertTrue(response.getDefaultModelCodeList().contains("paper_metadata"));
+        assertTrue(response.getDefaultModelCodeList().contains("experiment_result"));
+        assertTrue(response.getDefaultModelCodeList().contains("citation_network"));
+        assertTrue(response.getDefaultModelCodeList().contains("reading_note"));
         assertEquals(4, response.getModels().size());
-        assertEquals("trade_order", response.getModels().getFirst().getModelCode());
-        assertTrue(response.getSampleQuestions().getFirst().contains("拼团订单"));
+        assertEquals("paper_metadata", response.getModels().getFirst().getModelCode());
+        assertTrue(response.getSampleQuestions().getFirst().contains("RAG"));
     }
 
     private UserAccount user(String userId) {

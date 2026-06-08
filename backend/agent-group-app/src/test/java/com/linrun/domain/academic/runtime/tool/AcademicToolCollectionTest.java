@@ -15,15 +15,15 @@ class AcademicToolCollectionTest {
     @Test
     void shouldBuildSceneCollectionByCategoryAndCallOnlyEnabledTool() {
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
-        registry.register(definition("order_status", "trade", "mcp"), command -> Map.of("status", "PAY_SUCCESS"));
+        registry.register(definition("literature_search", "research", "mcp"), command -> Map.of("hitCount", 3));
         registry.register(definition("data_analysis", "analysis", "local"), command -> Map.of("rows", 3));
 
         AcademicToolCollection collection = new AcademicToolCollectionFactory(registry)
-                .buildByCategories("trade_agent", List.of("trade"));
+                .buildByCategories("research_agent", List.of("research"));
 
-        assertEquals(List.of("order_status"), collection.toolNames());
-        assertEquals("PAY_SUCCESS", collection.call(AcademicToolCallCommand.builder("order_status").build())
-                .getResult().get("status"));
+        assertEquals(List.of("literature_search"), collection.toolNames());
+        assertEquals(3, collection.call(AcademicToolCallCommand.builder("literature_search").build())
+                .getResult().get("hitCount"));
 
         AppException exception = assertThrows(AppException.class,
                 () -> collection.call(AcademicToolCallCommand.builder("data_analysis").build()));
@@ -35,13 +35,13 @@ class AcademicToolCollectionTest {
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
         registry.register(definition("report_tool", "report", "local"), command -> Map.of("ok", true));
         AcademicToolCollection collection = new AcademicToolCollectionFactory(registry).buildAll("deep_research");
-        collection.updateCurrentTask("整理交易链路报告");
+        collection.updateCurrentTask("整理论文阅读报告");
         collection.updateToolRoles(Map.of("report_tool", "报告生成专员"));
 
         AcademicToolCollection child = collection.select("parallel_task", List.of("report_tool"));
 
         assertTrue(child.contains("report_tool"));
-        assertEquals("整理交易链路报告", child.getCurrentTask());
+        assertEquals("整理论文阅读报告", child.getCurrentTask());
         assertEquals("报告生成专员", child.getToolRole("report_tool"));
     }
 

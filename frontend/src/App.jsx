@@ -32,15 +32,12 @@ import {
   X
 } from "lucide-react";
 import AdminDashboard from "./components/AdminDashboard";
-import AgentAdminPanel from "./components/AgentAdminPanel";
-import McpManagementPanelV2 from "./components/McpManagementPanelV2";
 import ThemeToggle from "./components/ThemeToggle";
 import {
-  OUTPUT_KIND_LABELS,
   TOOL_LABELS,
   WORKSPACES,
   workspaceAgentMode,
-  userWorkspaceFromPath,
+  workspaceFromPath,
   workspacePath
 } from "./workspaces";
 import {
@@ -51,11 +48,6 @@ import {
   buildWorkspaceStreamDraft,
   knowledgeBaseCatalogKey,
   normalizeWorkspaceHistoryItems,
-  visibleAgentExecutionModes,
-  visibleCapabilityMatrix as buildVisibleCapabilityMatrix,
-  visibleToolCatalogGroups,
-  visibleToolRuntimeFamilyReadiness,
-  visibleToolRuntimeReadiness,
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
   workspaceServiceProfile,
@@ -74,6 +66,7 @@ import {
 } from "./agentTimeline";
 import { buildPlannerHistory } from "./plannerHistory";
 import { buildAgentRunDigest } from "./agentRunDigest";
+import { assistantMessageCanRetry, retryFilesFromUserMessage } from "./messageRetry";
 import {
   eventArtifacts,
   mergeArtifacts,
@@ -88,18 +81,13 @@ import {
 import { normalizeFileUrlForBrowser } from "./fileUrl";
 import { buildArtifactPreviewModel } from "./artifactPreview";
 import {
-  cacheMcpTools,
-  callMcpTool,
   applyAcademicProjectPatch,
   createPayment,
   createDirectOrder,
   createAcademicProject,
   deleteAcademicSession,
   deleteKnowledgeDocument,
-  discoverMcpTools,
   downloadAcademicArtifact,
-  enableMcpServer,
-  exportMcpState,
   generateWorkspaceImage,
   getKnowledgeDocumentFullContent,
   getAdminAuth,
@@ -110,7 +98,6 @@ import {
   getSessionId,
   getUserModelConfig,
   getUserAuth,
-  importMcpState,
   lockMarketPayOrder,
   login,
   logout,
@@ -124,9 +111,6 @@ import {
   queryAcademicSessionDetail,
   queryAcademicSessions,
   queryGroupBuyMarketConfig,
-  queryMcpHealth,
-  queryMcpServers,
-  queryMcpTools,
   queryQuotaPackages,
   queryWorkspaceDataCatalog,
   queryWorkspaceDataHistory,
@@ -135,7 +119,6 @@ import {
   queryUserOrderList,
   rebuildKnowledgeVector,
   register,
-  registerMcpServer,
   requestAcademicAttachStream,
   requestAcademicResumeStream,
   requestAcademicStream,
@@ -152,19 +135,12 @@ import {
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
 import { APP_ROUTES } from "./routes";
 import { USER_AGENT_MODES } from "./agentModes";
-import { buildAgentExecutionSummary } from "./agentExecutionSummary";
-import { buildAgentPlatformReadiness } from "./agentPlatformReadiness";
 import {
   summarizeTradeWorkspace,
   tradeSettlementHint,
   tradeOrderStatusLabel
 } from "./tradeWorkspace";
 import { buildWorkspacePageModel } from "./workspacePageModel";
-import {
-  DEFAULT_MCP_SERVER_FORM,
-  buildMcpServerPayload
-} from "./mcpServerForm";
-import { buildMcpRuntimeSummary } from "./mcpRuntimeSummary";
 import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
 
 const AGENTS = USER_AGENT_MODES;
@@ -224,34 +200,6 @@ function manualSkillHelpText(skill = {}, fallback = DEFAULT_MANUAL_SKILL_HELP) {
   return text || fallback;
 }
 
-const DEFAULT_MCP_TOOLS_TEXT = JSON.stringify({
-  tools: [
-    {
-      name: "web_fetch",
-      description: "fetch and summarize web page",
-      enabled: true
-    },
-    {
-      name: "data_analysis",
-      description: "analyze table data and return insight",
-      enabled: true
-    }
-  ]
-}, null, 2);
-
-const DEFAULT_MCP_IMPORT_TEXT = JSON.stringify({
-  replace: false,
-  snapshot: {
-    servers: [],
-    toolsByServer: {},
-    discoveredAtByServer: {}
-  }
-}, null, 2);
-
-const DEFAULT_MCP_TOOL_CALL_TEXT = JSON.stringify({
-  arguments: {}
-}, null, 2);
-
 function apiSucceeded(res) {
   return res?.code === "0000" || res?.code === 200 || res?.code === "200";
 }
@@ -298,6 +246,14 @@ function latestAssistantWithPayload(messages = []) {
   return [...messages].reverse().find((message) => message.role === "assistant" && hasAssistantPayload(message)) || null;
 }
 
+function plannerHistoryMeta(version = {}, fallbackRevision = 1) {
+  return [
+    `第 ${version.revision || fallbackRevision} 版`,
+    version.stageCount > 0 ? `${version.stageCount} 阶段` : "",
+    `${version.stepCount || 0} 步${version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}`
+  ].filter(Boolean).join(" · ");
+}
+
 function hasSessionMemory(memory = {}) {
   return Boolean(
     (memory.runs || []).length
@@ -329,6 +285,7 @@ function safeResourceUrl(url = "") {
   const value = normalizeFileUrlForBrowser(url);
   if (!value) return "";
   if (value.startsWith("/") && !value.startsWith("//")) return value;
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(value)) return value;
   return safeExternalUrl(value);
 }
 
@@ -761,7 +718,7 @@ function App() {
 function BearDoctorAcademicApp() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routeWorkspace = userWorkspaceFromPath(location.pathname);
+  const routeWorkspace = workspaceFromPath(location.pathname);
   const [theme, setTheme] = useState(() => getStoredTheme());
   const [auth, setAuth] = useState(() => getUserAuth());
   const [loginOpen, setLoginOpen] = useState(() => !getUserAuth()?.token);
@@ -840,29 +797,13 @@ function BearDoctorAcademicApp() {
   const [toast, setToast] = useState("");
   const [copiedId, setCopiedId] = useState("");
   const [agentCapabilities, setAgentCapabilities] = useState(null);
-  const [agentCapabilitiesError, setAgentCapabilitiesError] = useState("");
-  const [agentAdminPanelOpen, setAgentAdminPanelOpen] = useState(false);
-  const [mcpPanelOpen, setMcpPanelOpen] = useState(false);
-  const [mcpServers, setMcpServers] = useState([]);
-  const [mcpTools, setMcpTools] = useState([]);
-  const [mcpLoading, setMcpLoading] = useState(false);
-  const [mcpActionKey, setMcpActionKey] = useState("");
-  const [mcpError, setMcpError] = useState("");
-  const [mcpServerForm, setMcpServerForm] = useState(DEFAULT_MCP_SERVER_FORM);
-  const [mcpCacheServerId, setMcpCacheServerId] = useState("");
-  const [mcpToolPayload, setMcpToolPayload] = useState(DEFAULT_MCP_TOOLS_TEXT);
-  const [mcpHealth, setMcpHealth] = useState(null);
-  const [mcpExportPayload, setMcpExportPayload] = useState("");
-  const [mcpImportPayload, setMcpImportPayload] = useState(DEFAULT_MCP_IMPORT_TEXT);
-  const [mcpToolCallName, setMcpToolCallName] = useState("");
-  const [mcpToolCallPayload, setMcpToolCallPayload] = useState(DEFAULT_MCP_TOOL_CALL_TEXT);
-  const [mcpToolCallResult, setMcpToolCallResult] = useState("");
   const messagesContainer = useRef(null);
   const fileInputRef = useRef(null);
   const knowledgeFileInputRef = useRef(null);
   const streamControllersRef = useRef({});
   const selectedFilePreviewUrlsRef = useRef([]);
   const uploadCountRef = useRef(0);
+  const retryDraftRef = useRef(null);
 
   const syncSelectedFiles = useCallback((nextFiles) => {
     const nextList = Array.isArray(nextFiles) ? nextFiles.filter(Boolean) : [];
@@ -917,7 +858,6 @@ function BearDoctorAcademicApp() {
   }, []);
 
   const currentChat = useMemo(() => chatList.find((item) => item.id === currentChatId), [chatList, currentChatId]);
-  const selectedFile = selectedFiles[0] || null;
   const readySelectedFiles = selectedFiles.filter((file) => file?.fileId && file.status !== "uploading");
   const visibleConnectionError = useMemo(() => (
     isOperatorAuthText(connectionError) ? "" : connectionError
@@ -952,40 +892,6 @@ function BearDoctorAcademicApp() {
   const selectedManualSkillHelp = useMemo(() => (
     selectedSkillName ? manualSkillHelpText(selectedManualSkill) : DEFAULT_MANUAL_SKILL_HELP
   ), [selectedManualSkill, selectedSkillName]);
-  const capabilitySummary = useMemo(() => {
-    if (!agentCapabilities) return [];
-    const toolCount = Number(agentCapabilities.academicToolCount || 0);
-    const manualSkillCount = Number(agentCapabilities.manualSkillCount || 0);
-    return [
-      { key: "model", label: "模型", value: agentCapabilities.chatModelAvailable ? "可用" : "未配置", active: Boolean(agentCapabilities.chatModelAvailable) },
-      { key: "tools", label: "工具", value: `${toolCount} 个`, active: toolCount > 0 },
-      { key: "manual", label: "Skill", value: `${manualSkillCount} 个`, active: manualSkillCount > 0 },
-      { key: "reactor", label: "参考工具", value: agentCapabilities.reactorToolEnabled ? "已开启" : "未开启", active: Boolean(agentCapabilities.reactorToolEnabled) },
-      { key: "web", label: "联网", value: agentCapabilities.webSearchAvailable ? "可用" : "本地", active: Boolean(agentCapabilities.webSearchAvailable) }
-    ];
-  }, [agentCapabilities]);
-  const visibleAcademicTools = useMemo(() => (
-    (agentCapabilities?.academicTools || []).slice(0, 7)
-  ), [agentCapabilities]);
-  const visibleToolGroups = useMemo(() => (
-    visibleToolCatalogGroups(agentCapabilities, 5)
-  ), [agentCapabilities]);
-  const visibleToolReadiness = useMemo(() => (
-    visibleToolRuntimeReadiness(agentCapabilities, 8)
-  ), [agentCapabilities]);
-  const visibleToolFamilies = useMemo(() => (
-    visibleToolRuntimeFamilyReadiness(agentCapabilities, 6)
-  ), [agentCapabilities]);
-  const visibleCapabilityMatrix = useMemo(() => (
-    buildVisibleCapabilityMatrix(agentCapabilities, 6)
-  ), [agentCapabilities]);
-  const visibleExecutionModes = useMemo(() => (
-    visibleAgentExecutionModes(agentCapabilities, 6)
-  ), [agentCapabilities]);
-  const mcpRuntimeLoaded = mcpServers.length > 0 || mcpTools.length > 0 || Boolean(mcpHealth);
-  const mcpRuntimeSummary = useMemo(() => (
-    buildMcpRuntimeSummary({ servers: mcpServers, tools: mcpTools, health: mcpHealth })
-  ), [mcpHealth, mcpServers, mcpTools]);
   const tradeWorkspaceSummary = useMemo(() => (
     summarizeTradeWorkspace({ quota, flows: quotaFlows, orders })
   ), [quota, quotaFlows, orders]);
@@ -1025,31 +931,6 @@ function BearDoctorAcademicApp() {
 
   const toggleTheme = () => {
     setTheme((prev) => applyTheme(nextTheme(prev)));
-  };
-
-  const openWorkspace = (workspaceId) => {
-    const nextWorkspace = WORKSPACES.find((workspace) => workspace.id === workspaceId) || WORKSPACES[0];
-    setActiveWorkspace(nextWorkspace.id);
-    if (nextWorkspace.agentId) {
-      setSelectedAgent(nextWorkspace.agentId);
-      if (nextWorkspace.agentId !== "file" && nextWorkspace.agentId !== "data" && nextWorkspace.agentId !== "mrag" && nextWorkspace.agentId !== "skills" && nextWorkspace.agentId !== "manual-skills") {
-        clearSelectedFile();
-      }
-    }
-    const path = workspacePath(nextWorkspace.id);
-    if (location.pathname !== path) {
-      navigate(path);
-    }
-    if (nextWorkspace.id === "trade") {
-      if (!getUserAuth()?.token) {
-        setLoginOpen(true);
-      } else {
-        setGroupPreviewPackage(null);
-        setGroupMarketConfig(null);
-        setRechargeTab("packages");
-        setRechargeOpen(true);
-      }
-    }
   };
 
   const ensureChat = useCallback((sessionId = currentChatId) => {
@@ -1210,39 +1091,9 @@ function BearDoctorAcademicApp() {
     const res = await queryAgentCapabilities();
     if (apiSucceeded(res)) {
       setAgentCapabilities(res.data || {});
-      setAgentCapabilitiesError("");
       return;
     }
-    setAgentCapabilitiesError(normalizeUserMessage(res.message || res.info, "能力状态读取失败"));
-  }, []);
-
-  const loadMcpState = useCallback(async () => {
-    setMcpLoading(true);
-    setMcpError("");
-    try {
-      const [serversRes, toolsRes, healthRes] = await Promise.all([
-        queryMcpServers(),
-        queryMcpTools({ enabledOnly: false }),
-        queryMcpHealth()
-      ]);
-      if (!apiSucceeded(serversRes)) {
-        throw new Error(normalizeUserMessage(serversRes.info || serversRes.message, "MCP 服务读取失败"));
-      }
-      if (!apiSucceeded(toolsRes)) {
-        throw new Error(normalizeUserMessage(toolsRes.info || toolsRes.message, "MCP 工具读取失败"));
-      }
-      const servers = serversRes.data || [];
-      const tools = toolsRes.data || [];
-      setMcpServers(servers);
-      setMcpTools(tools);
-      setMcpHealth(apiSucceeded(healthRes) ? healthRes.data || null : null);
-      setMcpCacheServerId((prev) => prev || servers[0]?.serverId || "");
-      setMcpToolCallName((prev) => prev || tools.find((tool) => tool.enabled)?.qualifiedName || tools[0]?.qualifiedName || "");
-    } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 管理信息读取失败"));
-    } finally {
-      setMcpLoading(false);
-    }
+    console.warn(normalizeUserMessage(res.message || res.info, "能力状态读取失败"));
   }, []);
 
   const loadOrders = useCallback(async () => {
@@ -1706,12 +1557,10 @@ function BearDoctorAcademicApp() {
   useEffect(() => {
     if (!auth?.token) {
       setAgentCapabilities(null);
-      setAgentCapabilitiesError("");
       return;
     }
     loadAgentCapabilities().catch((error) => {
       console.warn("Agent 能力读取失败", error);
-      setAgentCapabilitiesError("能力状态读取失败");
     });
   }, [auth?.token, loadAgentCapabilities]);
 
@@ -1970,11 +1819,14 @@ function BearDoctorAcademicApp() {
   };
 
   const sendMessage = () => {
-    const text = inputMessage.trim();
+    const retryDraft = retryDraftRef.current;
+    retryDraftRef.current = null;
+    const fromRetry = Boolean(retryDraft);
+    const text = String(retryDraft?.text ?? inputMessage).trim();
     const sessionId = currentChatId;
-    const files = readySelectedFiles;
+    const files = retryDraft?.files || readySelectedFiles;
     const file = files[0] || null;
-    const hasPendingUploads = uploadCountRef.current > 0 || selectedFiles.some((item) => item.status === "uploading");
+    const hasPendingUploads = !fromRetry && (uploadCountRef.current > 0 || selectedFiles.some((item) => item.status === "uploading"));
     if (runningChatIds[sessionId]) return;
     if (hasPendingUploads) {
       setConnectionError("图片还在解析中，请稍等完成后再发送");
@@ -2080,8 +1932,10 @@ function BearDoctorAcademicApp() {
       messages: [...chat.messages, userMsg, assistantMsg]
     }));
     setChatRunning(sessionId, true, { stopped: false });
-    setInputMessage("");
-    clearSelectedFile();
+    if (!fromRetry) {
+      setInputMessage("");
+      clearSelectedFile();
+    }
     setConnectionError("");
 
     if (currentWorkspace.id === "image") {
@@ -2364,6 +2218,25 @@ function BearDoctorAcademicApp() {
     );
   };
 
+  const retryAssistantMessage = (assistantMessageId) => {
+    const sessionId = currentChatId;
+    if (runningChatIds[sessionId]) return;
+    const chat = chatList.find((item) => item.id === sessionId);
+    const messages = chat?.messages || [];
+    const assistantIndex = messages.findIndex((message) => message.id === assistantMessageId);
+    if (assistantIndex < 0) return;
+    const userMessage = [...messages.slice(0, assistantIndex)].reverse().find((message) => message.role === "user");
+    if (!userMessage || !String(userMessage.content || "").trim()) {
+      setConnectionError("没有找到可重试的上一条问题");
+      return;
+    }
+    retryDraftRef.current = {
+      text: userMessage.content,
+      files: retryFilesFromUserMessage(userMessage)
+    };
+    sendMessage();
+  };
+
   const stopMessage = async () => {
     const sessionId = currentChatId;
     streamControllersRef.current[sessionId]?.abort();
@@ -2573,204 +2446,6 @@ function BearDoctorAcademicApp() {
 
   const handleCompensateKnowledgeVector = () => {
     runKnowledgeAction("compensate", compensateKnowledgeVector, "知识向量已补偿").catch(() => {});
-  };
-
-  const toggleMcpPanel = () => {
-    const nextOpen = !mcpPanelOpen;
-    setMcpPanelOpen(nextOpen);
-    if (nextOpen) {
-      setAgentAdminPanelOpen(false);
-    }
-    if (nextOpen && mcpServers.length === 0) {
-      loadMcpState().catch(() => {});
-    }
-  };
-
-  const toggleAgentAdminPanel = () => {
-    const nextOpen = !agentAdminPanelOpen;
-    setAgentAdminPanelOpen(nextOpen);
-    if (nextOpen) {
-      setMcpPanelOpen(false);
-    }
-  };
-
-  const handleSaveMcpAdminAuth = () => {
-    handleSaveAdminAuth();
-    loadMcpState().catch(() => {});
-  };
-
-  const handleRegisterMcpServer = async (event) => {
-    event.preventDefault();
-    setMcpError("");
-    setMcpActionKey("register");
-    try {
-      const payload = buildMcpServerPayload(mcpServerForm);
-      if (!payload.serverId || !payload.endpoint) {
-        throw new Error("请填写服务标识和服务地址");
-      }
-      const res = await registerMcpServer(payload);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 服务注册失败"));
-      }
-      setMcpCacheServerId(payload.serverId);
-      setToast("MCP 服务已注册");
-      await loadMcpState();
-      await loadAgentCapabilities().catch(() => {});
-    } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 服务注册失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleToggleMcpServer = async (server) => {
-    if (!server?.serverId) return;
-    const nextEnabled = !server.enabled;
-    setMcpError("");
-    setMcpActionKey(`server-${server.serverId}`);
-    try {
-      const res = await enableMcpServer(server.serverId, nextEnabled);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 服务切换失败"));
-      }
-      setToast(nextEnabled ? "MCP 服务已启用" : "MCP 服务已停用");
-      await loadMcpState();
-      await loadAgentCapabilities().catch(() => {});
-    } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 服务切换失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleCacheMcpTools = async (event) => {
-    event.preventDefault();
-    setMcpError("");
-    setMcpActionKey("cache-tools");
-    try {
-      const serverId = String(mcpCacheServerId || "").trim();
-      if (!serverId) throw new Error("请先选择 MCP 服务");
-      const payload = JSON.parse(mcpToolPayload || "{}");
-      const tools = Array.isArray(payload.tools) ? payload.tools : [];
-      if (tools.length === 0) throw new Error("请填写工具列表");
-      const res = await cacheMcpTools(serverId, { tools });
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具缓存失败"));
-      }
-      setToast("MCP 工具已缓存");
-      await loadMcpState();
-      await loadAgentCapabilities().catch(() => {});
-    } catch (error) {
-      setMcpError(error instanceof SyntaxError
-        ? "请检查 JSON 格式"
-        : normalizeUserMessage(error.message, "MCP 工具缓存失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleDiscoverMcpTools = async (server) => {
-    const serverId = String(server?.serverId || mcpCacheServerId || "").trim();
-    if (!serverId) return;
-    setMcpError("");
-    setMcpActionKey(`discover-${serverId}`);
-    try {
-      const res = await discoverMcpTools(serverId, { cache: true });
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具发现失败"));
-      }
-      setMcpCacheServerId(serverId);
-      const toolCount = Number(res.data?.toolCount || 0);
-      setToast(toolCount > 0 ? `MCP 已发现 ${toolCount} 个工具` : "MCP 未发现可用工具");
-      await loadMcpState();
-      await loadAgentCapabilities().catch(() => {});
-    } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 工具发现失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleCheckMcpHealth = async () => {
-    setMcpError("");
-    setMcpActionKey("health");
-    try {
-      const res = await queryMcpHealth();
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 健康检查失败"));
-      }
-      setMcpHealth(res.data || null);
-      setToast("MCP 健康状态已更新");
-    } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 健康检查失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleExportMcpState = async () => {
-    setMcpError("");
-    setMcpActionKey("export");
-    try {
-      const res = await exportMcpState();
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 配置导出失败"));
-      }
-      const text = JSON.stringify(res.data || {}, null, 2);
-      setMcpExportPayload(text);
-      setMcpImportPayload(text);
-      setToast("MCP 配置已导出");
-    } catch (error) {
-      setMcpError(normalizeUserMessage(error.message, "MCP 配置导出失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleImportMcpState = async () => {
-    setMcpError("");
-    setMcpActionKey("import");
-    try {
-      const payload = JSON.parse(mcpImportPayload || "{}");
-      const res = await importMcpState(payload);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 配置导入失败"));
-      }
-      setToast(`MCP 配置已导入 ${res.data?.serverCount || 0} 个服务、${res.data?.toolCount || 0} 个工具`);
-      await loadMcpState();
-      await loadAgentCapabilities().catch(() => {});
-    } catch (error) {
-      setMcpError(error instanceof SyntaxError
-        ? "请检查 JSON 格式"
-        : normalizeUserMessage(error.message, "MCP 配置导入失败"));
-    } finally {
-      setMcpActionKey("");
-    }
-  };
-
-  const handleCallMcpTool = async () => {
-    const toolName = String(mcpToolCallName || "").trim();
-    if (!toolName) {
-      setMcpError("请先选择要测试的 MCP 工具");
-      return;
-    }
-    setMcpError("");
-    setMcpActionKey("call-tool");
-    try {
-      const payload = JSON.parse(mcpToolCallPayload || "{}");
-      const res = await callMcpTool(toolName, payload);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具调用失败"));
-      }
-      setMcpToolCallResult(JSON.stringify(res.data || {}, null, 2));
-      setToast("MCP 工具调用完成");
-    } catch (error) {
-      setMcpError(error instanceof SyntaxError
-        ? "请检查 JSON 格式"
-        : normalizeUserMessage(error.message, "MCP 工具调用失败"));
-    } finally {
-      setMcpActionKey("");
-    }
   };
 
   const buyPackage = async (pkg, buyType, options = {}) => {
@@ -3048,6 +2723,7 @@ function BearDoctorAcademicApp() {
                     onToggleTimeline={toggleTimeline}
                     onToggleReference={toggleReference}
                     onRecommendClick={quickPrompt}
+                    onRetry={retryAssistantMessage}
                     onDownloadArtifact={handleArtifactDownload}
                   />
                 ))}
@@ -3332,155 +3008,6 @@ function BearDoctorAcademicApp() {
 function formatWorkspaceHistoryTime(value = "") {
   const text = String(value || "").replace("T", " ").trim();
   return text.length > 19 ? text.slice(0, 19) : text;
-}
-
-function compactToolList(items = [], limit = 2) {
-  const cleanItems = (items || []).filter(Boolean);
-  const visible = cleanItems.slice(0, limit);
-  if (visible.length === 0) return "";
-  const more = Math.max(0, cleanItems.length - visible.length);
-  return `${visible.join("/")}${more ? ` +${more}` : ""}`;
-}
-
-function toolReadinessMeta(tool = {}) {
-  const inputText = compactToolList(
-    tool.requiredArguments?.length ? tool.requiredArguments : tool.inputFields,
-    2
-  );
-  const outputText = compactToolList(tool.outputKinds, 2);
-  const workspaceText = compactToolList(tool.workspaces, 2);
-  return [
-    inputText ? `入参 ${inputText}` : "",
-    outputText ? `输出 ${outputText}` : "",
-    workspaceText ? `工作区 ${workspaceText}` : ""
-  ].filter(Boolean).join(" · ");
-}
-
-function AgentPlatformReadinessPanel({ capabilities }) {
-  const readiness = buildAgentPlatformReadiness(capabilities);
-  if (!readiness || typeof readiness !== "object") return null;
-  const metrics = readiness.metrics || [];
-  const actions = readiness.actions || [];
-  const gaps = readiness.gaps || [];
-  const mcpHealth = readiness.mcpHealth;
-  const status = readiness.status || "partial";
-  return (
-    <div className={`agent-platform-readiness ${status}`}>
-      <div className="agent-platform-readiness-head">
-        <b>{readiness.title || "Agent + 工具运行状态"}</b>
-        <em>{readiness.statusLabel || status}</em>
-      </div>
-      {metrics.slice(0, 5).map((metric) => (
-        <span key={metric.key || metric.label} className={metric.tone || "normal"}>
-          <b>{metric.label}</b>
-          <em>{metric.value}</em>
-        </span>
-      ))}
-      {mcpHealth && (
-        <span className={`agent-platform-readiness-mcp ${mcpHealth.tone || "normal"}`} title={mcpHealth.message || mcpHealth.summary}>
-          <b>MCP</b>
-          <em>{mcpHealth.summary}</em>
-        </span>
-      )}
-      {(actions[0] || gaps[0]) && <small>{actions[0] || gaps[0]}</small>}
-    </div>
-  );
-}
-
-function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
-  if (!items.length && !executionModes.length) return null;
-  const executionSummary = buildAgentExecutionSummary(executionModes);
-  return (
-    <div className="agent-capability-matrix">
-      {executionModes.length > 0 && (
-        <>
-          <div className={`agent-execution-summary ${executionSummary.status}`}>
-            {executionSummary.metrics.map((metric) => (
-              <span key={metric.key} className={metric.tone || "normal"}>
-                <b>{metric.label}</b>
-                <em>{metric.value}</em>
-              </span>
-            ))}
-            {executionSummary.actions[0] && <small>{executionSummary.actions[0]}</small>}
-          </div>
-          <div className="agent-execution-modes">
-            {executionModes.map((mode) => {
-              const replanEvidence = compactToolList(mode.replanEvidence, 3);
-              const title = [mode.summary || "", replanEvidence ? `閲嶈鍒掕瘉鎹?${replanEvidence}` : ""]
-                .filter(Boolean)
-                .join("\n");
-              return (
-                <span
-                  key={mode.agentId}
-                  className={mode.replanEnabled ? "replan-enabled" : ""}
-                  title={title}
-                >
-                  <b>{mode.name}</b>
-                  <em>{mode.executionMode || mode.family || "-"}</em>
-                  {mode.replanEnabled && <small>重规划</small>}
-                </span>
-              );
-            })}
-          </div>
-        </>
-      )}
-      {items.map((item) => (
-        <article
-          key={item.key || item.label}
-          className={`agent-capability-node ${item.status === "ready" ? "ready" : "degraded"}`}
-        >
-          <div>
-            <b>{item.label}</b>
-            <em>{item.status === "ready" ? "已就绪" : "降级中"}</em>
-          </div>
-          {item.summary && <p>{item.summary}</p>}
-          {item.evidence?.length > 0 && (
-            <div className="agent-capability-evidence">
-              {item.evidence.map((evidence) => (
-                <span key={evidence}>{evidence}</span>
-              ))}
-            </div>
-          )}
-          {item.dynamicReplan?.enabled && (
-            <div
-              className="agent-dynamic-replan"
-              title={[
-                compactToolList(item.dynamicReplan.executionModes, 3),
-                compactToolList(item.dynamicReplan.historyEvidence, 3)
-              ].filter(Boolean).join("\n")}
-            >
-              <span>动态重规划</span>
-              {item.dynamicReplan.streamEvents?.slice(0, 2).map((event) => (
-                <em key={event}>{event}</em>
-              ))}
-            </div>
-          )}
-          {item.settlementRules?.length > 0 && (
-            <div className="agent-settlement-rules">
-              {item.settlementRules.slice(0, 4).map((rule) => (
-                <span
-                  key={rule.key}
-                  className={rule.quotaGrantAllowed ? "allowed" : "blocked"}
-                  title={rule.operatorHint}
-                >
-                  <b>{rule.scenario}</b>
-                  <em>{rule.quotaGrantAllowed ? "可发放" : "不发放"}</em>
-                </span>
-              ))}
-            </div>
-          )}
-          {item.guardrails?.length > 0 && (
-            <div className="agent-capability-guardrails">
-              {item.guardrails.map((guardrail) => (
-                <span key={guardrail}>{guardrail}</span>
-              ))}
-            </div>
-          )}
-          <small>{item.gaps?.length > 0 ? item.gaps.join("；") : "无缺口"}</small>
-        </article>
-      ))}
-    </div>
-  );
 }
 
 function WorkspaceHistoryPanel({
@@ -3819,7 +3346,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <input
             value={draft.columnsText}
             onChange={(event) => update("columnsText", event.target.value)}
-            placeholder="pay_status, count, amount"
+            placeholder="metric_name, metric_value, dataset"
           />
         </label>
         <label>
@@ -3827,7 +3354,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <input
             value={draft.modelCodeText}
             onChange={(event) => update("modelCodeText", event.target.value)}
-            placeholder="trade_order, quota_flow"
+            placeholder="paper_metadata, experiment_result"
           />
         </label>
         <label className="wide">
@@ -3843,7 +3370,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <textarea
             value={draft.rowsJson}
             onChange={(event) => update("rowsJson", event.target.value)}
-            placeholder='[{"pay_status":"PAY_SUCCESS","count":12}]'
+            placeholder='[{"metric_name":"accuracy","metric_value":92.4}]'
           />
         </label>
         <label className="wide">
@@ -3851,7 +3378,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <textarea
             value={draft.schemaInfoJson}
             onChange={(event) => update("schemaInfoJson", event.target.value)}
-            placeholder='[{"table":"trade_order","columns":["pay_status","order_status"]}]'
+            placeholder='[{"table":"experiment_result","columns":["metric_name","metric_value"]}]'
           />
         </label>
       </div>
@@ -4168,8 +3695,6 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPr
   const toolReadiness = page.toolReadiness;
   const runtimeCoverage = page.runtimeCoverage;
   const isImage = workspace.id === "image";
-  const isData = workspace.id === "data";
-  const isMrag = workspace.id === "mrag";
   const isTrade = workspace.id === "trade";
   const isAgent = workspace.id === "agent";
   const useSimpleEmpty = isAgent || isImage;
@@ -4771,10 +4296,11 @@ function AgentRunDigestPanel({ digest }) {
   );
 }
 
-function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick, onDownloadArtifact }) {
+function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick, onRetry, onDownloadArtifact }) {
   const isUser = msg.role === "user";
   const plannerHistory = !isUser ? buildPlannerHistory(msg.timeline || []) : [];
   const runDigest = !isUser ? buildAgentRunDigest(msg) : null;
+  const canRetry = !isUser && !isSending && assistantMessageCanRetry(msg);
   const [previewArtifactKey, setPreviewArtifactKey] = useState("");
   return (
     <div className={`message ${msg.role}`}>
@@ -4804,12 +4330,7 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                     <div className={`planner-history-item ${version.latest ? "latest" : ""}`} key={version.id}>
                       <span className={`planner-history-status ${version.status}`}>{version.status}</span>
                       <strong>{index + 1}. {version.title}</strong>
-                      <small>
-                        第 {version.revision || index + 1} 版
-                        {"?"}
-                        {version.stageCount > 0 ? `${version.stageCount} 阶段` : ""}
-                        {version.stepCount} 步{version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}
-                      </small>
+                      <small>{plannerHistoryMeta(version, index + 1)}</small>
                       {version.replanReason && <em>原因：{version.replanReason}</em>}
                       {version.summary && <em>{version.summary}</em>}
                     </div>
@@ -4997,9 +4518,17 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
               </div>
             )}
 
-            <button className="copy-btn" onClick={() => onCopy(msg)}>
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-            </button>
+            <div className="message-action-row">
+              {canRetry && (
+                <button type="button" className="message-retry-btn" onClick={() => onRetry?.(msg.id)}>
+                  <RotateCcw size={15} />
+                  <span>重试</span>
+                </button>
+              )}
+              <button className="copy-btn" onClick={() => onCopy(msg)}>
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+              </button>
+            </div>
           </div>
         )}
       </div>

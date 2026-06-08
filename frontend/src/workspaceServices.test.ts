@@ -165,61 +165,61 @@ describe("workspace service profiles", () => {
   it("builds data workspace payload from structured draft inputs", () => {
     expect(buildWorkspaceDataRunPayload({
       sessionId: "D1",
-      question: "count paid orders",
-      rowsJson: "[{\"pay_status\":\"PAY_SUCCESS\",\"count\":12}]",
-      columnsText: "pay_status, count\namount",
-      modelCodeText: "trade_order；quota_flow",
-      schemaInfoJson: "[{\"table\":\"trade_order\"}]",
-      businessKnowledge: " group orders settle before quota grant "
+      question: "compare experiment metrics",
+      rowsJson: "[{\"metric_name\":\"accuracy\",\"metric_value\":92.4}]",
+      columnsText: "metric_name, metric_value\ndataset",
+      modelCodeText: "paper_metadata；experiment_result",
+      schemaInfoJson: "[{\"table\":\"experiment_result\"}]",
+      businessKnowledge: " compare metrics from paper experiments "
     })).toEqual({
       sessionId: "D1",
-      question: "count paid orders",
-      rows: [{ pay_status: "PAY_SUCCESS", count: 12 }],
-      columns: ["pay_status", "count", "amount"],
-      modelCodeList: ["trade_order", "quota_flow"],
-      schemaInfo: [{ table: "trade_order" }],
-      businessKnowledge: "group orders settle before quota grant"
+      question: "compare experiment metrics",
+      rows: [{ metric_name: "accuracy", metric_value: 92.4 }],
+      columns: ["metric_name", "metric_value", "dataset"],
+      modelCodeList: ["paper_metadata", "experiment_result"],
+      schemaInfo: [{ table: "experiment_result" }],
+      businessKnowledge: "compare metrics from paper experiments"
     });
   });
 
   it("builds data workspace draft from backend catalog", () => {
     const draft = buildWorkspaceDataCatalogDraft({
-      defaultModelCodeList: ["trade_order", "user_quota_flow"],
+      defaultModelCodeList: ["paper_metadata", "experiment_result"],
       models: [
         {
-          modelCode: "trade_order",
-          tableName: "trade_order",
-          displayName: "交易订单",
+          modelCode: "paper_metadata",
+          tableName: "paper_metadata",
+          displayName: "论文元数据",
           columns: [
-            { name: "order_id", type: "varchar", description: "订单编号" },
-            { name: "pay_amount", type: "decimal", description: "支付金额", metric: true }
+            { name: "paper_id", type: "varchar", description: "论文编号" },
+            { name: "publish_year", type: "int", description: "发表年份", metric: true }
           ]
         },
         {
-          modelCode: "user_quota_flow",
-          tableName: "user_quota_flow",
-          displayName: "额度流水",
+          modelCode: "experiment_result",
+          tableName: "experiment_result",
+          displayName: "实验结果",
           columns: [
-            { name: "order_id", type: "varchar", description: "订单编号" },
-            { name: "quota_amount", type: "decimal", description: "额度变动", metric: true }
+            { name: "experiment_id", type: "varchar", description: "实验编号" },
+            { name: "metric_value", type: "decimal", description: "指标数值", metric: true }
           ]
         }
       ]
     });
 
-    expect(draft.modelCodeText).toBe("trade_order, user_quota_flow");
-    expect(draft.columnsText).toBe("order_id, pay_amount, quota_amount");
+    expect(draft.modelCodeText).toBe("paper_metadata, experiment_result");
+    expect(draft.columnsText).toBe("paper_id, publish_year, experiment_id, metric_value");
     expect(JSON.parse(draft.schemaInfoJson)[0]).toMatchObject({
-      modelCode: "trade_order",
-      displayName: "交易订单"
+      modelCode: "paper_metadata",
+      displayName: "论文元数据"
     });
-    expect(draft.businessKnowledge).toContain("拼团支付成功");
+    expect(draft.businessKnowledge).toContain("论文元数据");
   });
 
   it("rejects invalid data workspace JSON arrays", () => {
     expect(() => buildWorkspaceDataRunPayload({
       sessionId: "D1",
-      question: "count paid orders",
+      question: "compare experiment metrics",
       rowsJson: "{\"bad\":true}"
     })).toThrow("表格行 必须是 JSON 数组");
   });

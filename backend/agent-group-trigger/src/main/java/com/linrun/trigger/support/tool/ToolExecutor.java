@@ -1,15 +1,13 @@
 package com.linrun.trigger.support.tool;
 
-
-import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
-import com.linrun.domain.agent.conversation.model.AgentToolDefinition;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.ObjectProvider;
+import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
@@ -48,16 +46,6 @@ public class ToolExecutor {
                                         String successMessage,
                                         Supplier<T> supplier) {
         return execute(toolName, action, successMessage, 0, supplier);
-    }
-
-    public <T> ToolExecution<T> execute(AgentToolDefinition definition,
-                                        String action,
-                                        String successMessage,
-                                        Supplier<T> supplier) {
-        if (definition == null) {
-            return execute("unknown", action, successMessage, supplier);
-        }
-        return execute(definition.getName(), action, successMessage, definition.getMaxRetries(), supplier);
     }
 
     public <T> ToolExecution<T> execute(String toolName,

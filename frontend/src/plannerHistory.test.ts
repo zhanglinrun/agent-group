@@ -9,8 +9,8 @@ describe("planner history projection", () => {
         type: "plan",
         title: "初始计划",
         steps: [
-          { stepId: "S1", instruction: "查询订单" },
-          { stepId: "S2", instruction: "核对额度" }
+          { stepId: "S1", instruction: "读取论文摘要" },
+          { stepId: "S2", instruction: "核对实验指标" }
         ]
       },
       { type: "flow", stageIndex: 0, status: "RUNNING" }
@@ -30,15 +30,15 @@ describe("planner history projection", () => {
 
   it("keeps replanned versions and marks latest", () => {
     const history = buildPlannerHistory([
-      { type: "plan", title: "初始计划", steps: ["先查订单"] },
-      { type: "flow", stageIndex: 0, status: "REPLANNED", message: "支付记录不足，改查退款" },
+      { type: "plan", title: "初始计划", steps: ["先读论文摘要"] },
+      { type: "flow", stageIndex: 0, status: "REPLANNED", message: "引用数据不足，改查实验结果" },
       {
         type: "plan",
         title: "重规划计划",
         revision: 2,
         changeType: "replan",
-        replanReason: "支付记录不足，改查退款",
-        steps: ["改查退款"]
+        replanReason: "引用数据不足，改查实验结果",
+        steps: ["改查实验结果"]
       },
       { type: "flow", stageIndex: 0, status: "COMPLETED" }
     ]);
@@ -46,13 +46,13 @@ describe("planner history projection", () => {
     expect(history).toHaveLength(2);
     expect(history[0]).toMatchObject({
       status: "replanned",
-      replanReason: "支付记录不足，改查退款",
+      replanReason: "引用数据不足，改查实验结果",
       latest: false
     });
     expect(history[1]).toMatchObject({
       revision: 2,
       changeType: "replan",
-      replanReason: "支付记录不足，改查退款",
+      replanReason: "引用数据不足，改查实验结果",
       status: "completed",
       latest: true
     });

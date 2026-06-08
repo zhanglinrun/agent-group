@@ -17,6 +17,7 @@ class SecurityConfigTest {
     void shouldUseOperatorMessageForAdminEndpoints() {
         assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/mcp/admin/servers"));
         assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/agent/admin/configs"));
+        assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/quota/admin/grant-by-orders"));
         assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/knowledge/documents"));
     }
 }

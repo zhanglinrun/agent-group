@@ -1062,8 +1062,8 @@ insert into knowledge_document (
   document_id, document_name, document_type, knowledge_version, source_type, source_name, document_status, enabled
 ) values
 ('DOC10001', '学术额度包说明', '额度包资料', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10002', '学术额度包拼团规则', '拼团规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10003', '学术额度包退款规则', '退款规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10002', '论文阅读工作流说明', '学术工作流', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10003', '学术资料整理边界', '安全边界', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
 ('DOC10005', '学术 Agent 任务说明', 'Agent 任务规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
 on duplicate key update
   document_name = values(document_name),
@@ -1078,13 +1078,13 @@ insert into knowledge_fragment (
   fragment_id, document_id, goods_id, document_type, knowledge_version, content, rank_no, fragment_status, enabled
 ) values
 ('KF10001', 'DOC10001', 'G10001', '额度包资料', 'v1', '基础额度包包含 40 点额度，适合普通学术问答、论文摘要和轻量资料整理。', 1, 'ENABLED', 1),
-('KF10002', 'DOC10002', 'G10001', '拼团规则', 'v1', '基础额度包支持 3 人拼团，拼团价 16.90 元，直接购买价 19.90 元，支付成功后自动发放额度。', 2, 'ENABLED', 1),
-('KF10003', 'DOC10003', 'G10001', '退款规则', 'v1', '额度属于虚拟商品，到账后不支持无理由退款；未使用额度退款时系统会回滚已发放额度。', 3, 'ENABLED', 1),
+('KF10002', 'DOC10002', 'G10001', '学术工作流', 'v1', '论文阅读任务应先提取题名、摘要、方法、实验设置和结论，再整理贡献点与不足。', 2, 'ENABLED', 1),
+('KF10003', 'DOC10003', 'G10001', '安全边界', 'v1', '学术 Agent 可以辅助整理资料和生成草稿，但不能把未验证的模型推断写成论文事实。', 3, 'ENABLED', 1),
 ('KF10011', 'DOC10005', 'G10003', 'Agent 任务规则', 'v1', 'PPT 创作额度包适合组会汇报、开题答辩和论文分享，支持生成演示稿结构、页面大纲和讲稿草稿。', 11, 'ENABLED', 1),
 ('KF10012', 'DOC10005', 'G10004', 'Agent 任务规则', 'v1', '图表重建额度包适合把论文图、流程图和架构图转换成可编辑 Mermaid 或结构化草稿。', 12, 'ENABLED', 1),
 ('KF10013', 'DOC10005', 'G10005', 'Agent 任务规则', 'v1', '深度研究额度包适合复杂主题拆解、技术路线规划、相关工作整理和长报告生成。', 13, 'ENABLED', 1),
 ('KF10014', 'DOC10005', 'G10006', 'Agent 任务规则', 'v1', '团队拼团额度包适合实验室小组共享演示，拼团价 109.90 元，可获得 360 点额度。', 14, 'ENABLED', 1),
-('KF10015', 'DOC10005', 'G10001', '交易规则', 'v1', '购买入口由后端交易系统创建订单，订单金额、支付单金额和额度发放数量都以后端交易系统为准。', 15, 'ENABLED', 1)
+('KF10015', 'DOC10005', 'G10001', 'Agent 任务规则', 'v1', '普通学术问答应优先给出直接结论，再补充必要依据和可继续验证的资料方向。', 15, 'ENABLED', 1)
 on duplicate key update
   document_id = values(document_id),
   goods_id = values(goods_id),

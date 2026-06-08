@@ -24,12 +24,12 @@ class AcademicPlanningToolRuntimeTest {
         AcademicToolCallResult createResult = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.PLANNING)
                 .arguments(Map.of(
                         "command", "create",
-                        "title", "交易链路研究",
-                        "steps", List.of("查询订单状态", "检查额度发放", "生成报告")))
+                        "title", "论文实验研究",
+                        "steps", List.of("读取论文摘要", "检查实验指标", "生成报告")))
                 .build());
 
         assertTrue(createResult.isSuccess());
-        assertEquals("交易链路研究", createResult.getResult().get("title"));
+        assertEquals("论文实验研究", createResult.getResult().get("title"));
         assertEquals(AcademicPlanLifecycleService.STATUS_IN_PROGRESS,
                 planningTool.currentPlan().getSteps().getFirst().getStatus());
 
@@ -38,19 +38,19 @@ class AcademicPlanningToolRuntimeTest {
                         "command", "mark_step",
                         "stepIndex", 0,
                         "status", AcademicPlanLifecycleService.STATUS_COMPLETED,
-                        "note", "订单状态已确认"))
+                        "note", "论文摘要已确认"))
                 .build());
 
         AcademicToolCallResult updateResult = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.PLANNING)
                 .arguments(Map.of(
                         "command", "update",
-                        "title", "交易一致性复查",
-                        "steps", List.of("补充退款补偿检查", "输出交易一致性报告")))
+                        "title", "实验指标复查",
+                        "steps", List.of("补充消融实验对比", "输出实验分析报告")))
                 .build());
 
         assertTrue(updateResult.isSuccess());
-        assertEquals("查询订单状态", planningTool.currentPlan().getSteps().getFirst().getInstruction());
-        assertEquals("补充退款补偿检查", planningTool.currentPlan().getSteps().get(1).getInstruction());
+        assertEquals("读取论文摘要", planningTool.currentPlan().getSteps().getFirst().getInstruction());
+        assertEquals("补充消融实验对比", planningTool.currentPlan().getSteps().get(1).getInstruction());
     }
 
     @Test

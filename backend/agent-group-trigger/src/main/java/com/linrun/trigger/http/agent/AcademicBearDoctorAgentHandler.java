@@ -1228,7 +1228,7 @@ public class AcademicBearDoctorAgentHandler {
             return "请生成一张适合项目展示的智能体平台概念图。";
         }
         if ("data".equals(taskType) && !StringUtils.hasText(question)) {
-            return "请分析当前拼团交易、额度消耗和订单状态的关键指标。";
+            return "请分析近五年 RAG 相关论文发表趋势、主要方法和实验指标差异。";
         }
         if (StringUtils.hasText(question)) {
             return question;

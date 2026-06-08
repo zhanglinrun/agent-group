@@ -18,7 +18,6 @@ import com.linrun.domain.groupbuy.service.discount.ZJCalculateService;
 import com.linrun.domain.groupbuy.service.discount.ZKCalculateService;
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideReference;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -175,13 +174,8 @@ class GroupBuyMarketTrialServiceTest {
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
-        public List<GuideReference> queryReferences(String question, int limit) {
+        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
             return List.of();
-        }
-
-        @Override
-        public Optional<GuideProduct> queryRecommendProduct(String question) {
-            return Optional.empty();
         }
 
         @Override

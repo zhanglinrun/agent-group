@@ -30,7 +30,6 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
-import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -183,7 +182,7 @@ public class LegacyMallPayHandler {
         info.setOrderTime(order.getCreateTime());
         info.setTotalAmount(order.getOriginAmount());
         info.setStatus(order.getOrderStatus() == null ? null : order.getOrderStatus().name());
-        info.setDisplayStatus(resolveDisplayStatus(order));
+        info.setDisplayStatus(TradeDisplayStatusResolver.resolve(order, tradeOrderRepository));
         info.setPayUrl(payOrder == null ? "" : payOrder.getPayUrl());
         info.setMarketType(TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType()) ? MARKET_TYPE_GROUP_BUY : 0);
         info.setPayAmount(order.getPayAmount());
@@ -192,47 +191,6 @@ public class LegacyMallPayHandler {
                 : order.getOriginAmount().subtract(order.getPayAmount()));
         info.setPayTime(order.getPayTime());
         return info;
-    }
-
-    private String resolveDisplayStatus(TradeOrderEntity order) {
-        if (order == null || order.getOrderStatus() == null) {
-            return "-";
-        }
-        boolean groupOrder = TradeBuyTypeEnumVO.GROUP_BUY.equals(order.getBuyType());
-        if (groupOrder && TradeOrderStatusEnumVO.CLOSED.equals(order.getOrderStatus())) {
-            return "?????????";
-        }
-        if (groupOrder && TradeOrderStatusEnumVO.REFUNDED.equals(order.getOrderStatus())) {
-            RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(order.getOrderId()).orElse(null);
-            if (refundOrder != null && isGroupTimeoutRefund(refundOrder.getRefundReason())) {
-                return "?????????";
-            }
-            return "???";
-        }
-        if (groupOrder && TradeOrderStatusEnumVO.PAY_SUCCESS.equals(order.getOrderStatus())) {
-            return "????";
-        }
-        return switch (order.getOrderStatus()) {
-            case CREATE -> "???";
-            case PAY_WAIT -> "???";
-            case PAY_SUCCESS -> "???";
-            case GROUP_SETTLED -> "???";
-            case DEAL_DONE -> "???";
-            case CLOSED -> "???";
-            case WAIT_REFUND -> "???";
-            case REFUNDED -> "???";
-        };
-    }
-
-    private boolean isGroupTimeoutRefund(String refundReason) {
-        if (!StringUtils.hasText(refundReason)) {
-            return false;
-        }
-        String reason = refundReason.trim().toLowerCase();
-        return reason.contains("group buy timeout")
-                || reason.contains("timeout unformed")
-                || refundReason.contains("????")
-                || refundReason.contains("???");
     }
 
     private QueryRefundOrderListResponse.RefundInfo toRefundInfo(RefundOrderEntity refundOrder) {

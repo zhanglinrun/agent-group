@@ -60,6 +60,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/weixin/portal", "/api/v1/weixin/login/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/profile").hasRole("USER")
+                        .requestMatchers("/api/v1/quota/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/quota/**", "/api/v1/academic/**").hasRole("USER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").hasRole("USER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/payment/create").hasRole("USER")
@@ -91,6 +92,7 @@ public class SecurityConfig {
         String path = StringUtils.hasText(requestUri) ? requestUri : "";
         return path.startsWith("/api/v1/mcp")
                 || path.startsWith("/api/v1/agent/admin/")
+                || path.startsWith("/api/v1/quota/admin/")
                 || path.startsWith("/api/v1/knowledge/")
                 || path.startsWith("/api/v1/evaluate/")
                 || path.startsWith("/api/v1/ops/")

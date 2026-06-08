@@ -163,23 +163,23 @@ class AcademicBearDoctorAgentHandlerTest {
         AcademicAgentRun run = new AcademicAgentRun();
         run.setRunId("RUN1001");
         run.setTaskType("data");
-        run.setQuestion("排查额度不到账");
+        run.setQuestion("复核论文实验指标");
         run.setModelName("test-model");
         run.setStatus(AcademicAgentRun.STATUS_RUNNING);
         AcademicAgentPlan plan = new AcademicAgentPlan("原计划", List.of(
-                AcademicPlanStep.builder("S1", "查询订单").order(1).build(),
-                AcademicPlanStep.builder("S2", "查询支付").order(2).dependencies(List.of("S1")).build()
+                AcademicPlanStep.builder("S1", "读取论文摘要").order(1).build(),
+                AcademicPlanStep.builder("S2", "查询实验结果").order(2).dependencies(List.of("S1")).build()
         ));
 
         Object runState = runState(run, plan);
         String raw = """
                 {
                   "type": "replan",
-                  "reason": "支付表不可用，改查额度流水",
+                  "reason": "引用数据不足，改查实验结果表",
                   "title": "补救计划",
                   "structuredSteps": [
-                    {"stepId": "R1", "instruction": "查询额度流水", "order": 1, "assignedAgent": "data"},
-                    {"stepId": "R2", "instruction": "整理补偿建议", "order": 2, "dependencies": ["R1"]}
+                    {"stepId": "R1", "instruction": "查询实验结果表", "order": 1, "assignedAgent": "data"},
+                    {"stepId": "R2", "instruction": "整理指标差异", "order": 2, "dependencies": ["R1"]}
                   ]
                 }
                 """;
@@ -200,7 +200,7 @@ class AcademicBearDoctorAgentHandlerTest {
         Map<String, Object> flowData = (Map<String, Object>) events.get(3).getData();
         assertEquals("RUNNING", flowData.get("status"));
         assertEquals(List.of("R1"), flowData.get("stepIds"));
-        assertTrue(String.valueOf(oldFlowData.get("message")).contains("支付表不可用"));
+        assertTrue(String.valueOf(oldFlowData.get("message")).contains("引用数据不足"));
     }
 
     @Test

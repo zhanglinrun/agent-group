@@ -1202,6 +1202,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         }
         if ("trade-quota".equals(key)) {
             item.put("authoritativeSources", List.of("trade_order", "pay_order", "group_buy_team", "quota_flow"));
+            item.put("userAgentExposure", "backend_only");
             item.put("settlementRules", tradeQuotaSettlementRules());
             item.put("guardrails", List.of(
                     "前端和 Agent 不能直接决定额度到账",
@@ -1656,9 +1657,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         if ("data".equals(workspace)) {
             return ("""
                     ## 数据问答工作区
-                    - 优先使用 data_analysis、table_rag 或 nl2sql 工具处理表格、指标和查询问题。
-                    - 涉及额度余额、订单状态、支付状态、拼团是否成团时，只能依据后端交易系统返回的数据，不要凭模型猜测。
-                    - 如果没有接入真实数据源，要说明缺少数据端口，并输出可执行的分析口径、字段需求和校验步骤。
+                    - 优先使用 data_analysis、table_rag 或 nl2sql 工具处理论文表格、实验指标、引用网络和阅读笔记。
+                    - 结论要说明数据来源、统计口径、字段含义和不确定点，不要把模型猜测写成数据事实。
+                    - 如果没有接入真实学术数据源，要说明缺少数据端口，并输出可执行的分析口径、字段需求和校验步骤。
 
                     """ + base).trim();
         }
@@ -1667,7 +1668,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                     ## MRAG 多模态知识问答工作区
                     - 优先结合 file_tool、multimodal_agent、table_rag、deep_search 和 web_fetch 处理文档、图片、表格与外部资料。
                     - 先说明使用了哪些资料来源，再给结论、证据和不确定点；不要把模型猜测写成系统事实。
-                    - 涉及额度、订单、支付、拼团状态时，仍以交易系统数据为准，不能由 Agent 自行判断到账或退款。
+                    - 遇到论文结论、实验图表或引用关系时，要区分原文证据、表格计算结果和模型推断。
                     """ + base).trim();
         }
         if ("trade".equals(workspace)) {
@@ -1694,7 +1695,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         }
         if ("data".equals(workspace)) {
             return """
-                    请按数据问答工作区处理下面需求。优先调用 data_analysis、table_rag 或 nl2sql 工具，并把查询口径、结果和校验点说明清楚。
+                    请按数据问答工作区处理下面需求。优先调用 data_analysis、table_rag 或 nl2sql 工具分析学术表格、实验指标、引用网络或阅读笔记，并把查询口径、结果和校验点说明清楚。
 
                     需求：
                     %s

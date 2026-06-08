@@ -18,7 +18,6 @@ import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotReposit
 import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
 import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideReference;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
@@ -245,13 +244,8 @@ class DirectBuyOrderServiceTest {
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
-        public List<GuideReference> queryReferences(String question, int limit) {
-            return List.of();
-        }
-
-        @Override
-        public Optional<GuideProduct> queryRecommendProduct(String question) {
-            return queryProductByGoodsId("G10001");
+        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+            return queryProductByGoodsId("G10001").stream().toList();
         }
 
         @Override
@@ -270,13 +264,8 @@ class DirectBuyOrderServiceTest {
     private static class EmptyGuideDataRepository implements GuideDataRepository {
 
         @Override
-        public List<GuideReference> queryReferences(String question, int limit) {
+        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
             return List.of();
-        }
-
-        @Override
-        public Optional<GuideProduct> queryRecommendProduct(String question) {
-            return Optional.empty();
         }
 
         @Override

@@ -1,11 +1,10 @@
 package com.linrun.domain.agent.conversation.service;
 
+import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.agent.conversation.model.GuideProduct;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideReference;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -66,21 +65,11 @@ class QuotaPackageCatalogServiceTest {
     private static class FakeGuideDataRepository implements GuideDataRepository {
 
         @Override
-        public List<GuideReference> queryReferences(String question, int limit) {
-            return List.of();
-        }
-
-        @Override
         public List<GuideProduct> queryCandidateProducts(String question, int limit) {
             return List.of(
                     product("G10001", "基础额度包"),
                     product("G10002", "论文阅读额度包"),
                     membershipPlan("MEMBER_PLUS_MONTH", "Plus 会员"));
-        }
-
-        @Override
-        public Optional<GuideProduct> queryRecommendProduct(String question) {
-            return Optional.of(product("G10001", "基础额度包"));
         }
 
         @Override

@@ -503,10 +503,10 @@ describe("mcp admin api client", () => {
 
     await runWorkspaceData({
       sessionId: "D1001",
-      question: "count paid orders",
-      rows: [{ pay_status: "PAY_SUCCESS", count: 12 }],
-      columns: ["pay_status", "count"],
-      modelCodeList: ["trade_order"]
+      question: "compare experiment metrics",
+      rows: [{ metric_name: "accuracy", metric_value: 92.4 }],
+      columns: ["metric_name", "metric_value"],
+      modelCodeList: ["experiment_result"]
     });
     await queryWorkspaceDataCatalog();
     await queryWorkspaceDataHistory({ sessionId: "D1001", limit: 5 });
@@ -519,10 +519,10 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({
         sessionId: "D1001",
-        question: "count paid orders",
-        rows: [{ pay_status: "PAY_SUCCESS", count: 12 }],
-        columns: ["pay_status", "count"],
-        modelCodeList: ["trade_order"],
+        question: "compare experiment metrics",
+        rows: [{ metric_name: "accuracy", metric_value: 92.4 }],
+        columns: ["metric_name", "metric_value"],
+        modelCodeList: ["experiment_result"],
         schemaInfo: [],
         businessKnowledge: "",
         dbType: "mysql",
@@ -563,9 +563,9 @@ describe("mcp admin api client", () => {
 
     await runWorkspaceMrag({
       sessionId: "M1001",
-      question: "cross check paid orders",
-      imageUrls: ["https://example.com/funnel.png"],
-      modelCodeList: ["trade_order"]
+      question: "cross check paper figures",
+      imageUrls: ["https://example.com/figure.png"],
+      modelCodeList: ["paper_metadata"]
     });
     await queryWorkspaceMragHistory({ sessionId: "M1001", limit: 6 });
 
@@ -577,11 +577,11 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({
         sessionId: "M1001",
-        question: "cross check paid orders",
+        question: "cross check paper figures",
         text: "",
-        imageUrls: ["https://example.com/funnel.png"],
+        imageUrls: ["https://example.com/figure.png"],
         fileUrls: [],
-        modelCodeList: ["trade_order"],
+        modelCodeList: ["paper_metadata"],
         sourceTypes: [],
         topK: 5,
         maxResults: 5,

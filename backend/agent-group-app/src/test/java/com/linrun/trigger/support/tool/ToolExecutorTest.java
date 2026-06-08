@@ -1,16 +1,5 @@
 package com.linrun.trigger.support.tool;
 
-
-
-
-
-
-
-import com.linrun.trigger.support.tool.ToolExecution;
-import com.linrun.trigger.support.tool.ToolExecutor;
-import com.linrun.domain.trade.service.*;
-import com.linrun.domain.trade.service.payment.*;
-import com.linrun.domain.trade.service.task.NotifyTaskService;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -28,28 +17,28 @@ class ToolExecutorTest {
         SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         ToolExecutor executor = new ToolExecutor(new AgentObservabilityMetrics(meterRegistry));
 
-        ToolExecution<String> success = executor.execute("knowledge_search", "execute", "ok", () -> "done");
-        ToolExecution<String> failure = executor.execute("group_trial", "execute", "ok", () -> {
+        ToolExecution<String> success = executor.execute("literature_search", "execute", "ok", () -> "done");
+        ToolExecution<String> failure = executor.execute("chart_render", "execute", "ok", () -> {
             throw new IllegalStateException("unavailable");
         });
 
         assertTrue(success.isSuccess());
         assertFalse(failure.isSuccess());
         assertEquals(1D, meterRegistry.get("agent_group_tool_call_total")
-                .tag("tool", "knowledge_search")
+                .tag("tool", "literature_search")
                 .tag("status", "success")
                 .counter()
                 .count());
         assertEquals(1D, meterRegistry.get("agent_group_tool_call_total")
-                .tag("tool", "group_trial")
+                .tag("tool", "chart_render")
                 .tag("status", "failed")
                 .counter()
                 .count());
         assertEquals(1L, meterRegistry.get("agent_group_tool_call_latency")
-                .tag("tool", "knowledge_search")
+                .tag("tool", "literature_search")
                 .timer()
                 .count());
-        assertTrue(success.getToolCallId().startsWith("knowledge_search-"));
+        assertTrue(success.getToolCallId().startsWith("literature_search-"));
         assertEquals("done", success.getResultDigest());
     }
 
@@ -58,7 +47,7 @@ class ToolExecutorTest {
         ToolExecutor executor = new ToolExecutor();
         AtomicInteger attempts = new AtomicInteger();
 
-        ToolExecution<String> execution = executor.execute("knowledge_search", "execute", "ok", 1, () -> {
+        ToolExecution<String> execution = executor.execute("literature_search", "execute", "ok", 1, () -> {
             if (attempts.incrementAndGet() == 1) {
                 throw new IllegalStateException("temporary");
             }

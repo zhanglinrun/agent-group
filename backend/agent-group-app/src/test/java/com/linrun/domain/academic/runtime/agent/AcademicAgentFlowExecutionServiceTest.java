@@ -13,10 +13,10 @@ class AcademicAgentFlowExecutionServiceTest {
 
     @Test
     void shouldExecutePlanByDependencyStages() {
-        AcademicAgentPlan plan = new AcademicAgentPlan("拼团交易分析", List.of(
-                step("S1", "读取订单", 1),
-                step("S2", "分析支付", 2, "S1"),
-                step("S3", "分析成团", 2, "S1"),
+        AcademicAgentPlan plan = new AcademicAgentPlan("论文实验分析", List.of(
+                step("S1", "读取论文摘要", 1),
+                step("S2", "分析方法设计", 2, "S1"),
+                step("S3", "分析实验指标", 2, "S1"),
                 step("S4", "生成报告", 3, "S2", "S3")
         ));
         AcademicAgentFlowExecutionService service = new AcademicAgentFlowExecutionService(
@@ -38,8 +38,8 @@ class AcademicAgentFlowExecutionServiceTest {
 
     @Test
     void shouldReplanRemainingStepsWhenExecutionIsBlocked() {
-        AcademicAgentPlan plan = new AcademicAgentPlan("额度到账排查", List.of(
-                step("S1", "查询订单", 1),
+        AcademicAgentPlan plan = new AcademicAgentPlan("论文实验指标复核", List.of(
+                step("S1", "读取论文摘要", 1),
                 step("S2", "调用不可用数据源", 2, "S1"),
                 step("S3", "整理结论", 3, "S2")
         ));
@@ -53,8 +53,8 @@ class AcademicAgentFlowExecutionServiceTest {
             }
             return AcademicAgentStepExecutionResult.success("done " + step.getStepId());
         }, request -> List.of(
-                step("R1", "改查额度流水", 2),
-                step("R2", "整理补偿建议", 3, "R1")
+                step("R1", "改查实验结果表", 2),
+                step("R2", "整理指标差异结论", 3, "R1")
         ));
 
         assertTrue(result.isCompleted());

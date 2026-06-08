@@ -61,6 +61,9 @@ export function normalizeFileUrlForBrowser(rawUrl?: string | null): string {
   if (!normalized) {
     return "";
   }
+  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized)) {
+    return normalized;
+  }
 
   try {
     const parsed = new URL(normalized);

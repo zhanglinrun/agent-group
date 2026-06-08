@@ -127,8 +127,8 @@ describe("agent timeline projection", () => {
       data: {
         stageIndex: 0,
         status: "REPLANNED",
-        message: "计划已重规划：改查额度流水",
-        steps: [{ stepId: "R1", instruction: "查询额度流水" }]
+        message: "计划已重规划：改查实验结果表",
+        steps: [{ stepId: "R1", instruction: "查询实验结果表" }]
       }
     });
 
@@ -136,7 +136,7 @@ describe("agent timeline projection", () => {
       type: "flow",
       stageIndex: 0,
       status: "replanned",
-      message: "计划已重规划：改查额度流水"
+      message: "计划已重规划：改查实验结果表"
     });
     expect(timelineItemStatusLabel(replanned)).toBe("已重规划");
   });
@@ -160,8 +160,8 @@ describe("agent timeline projection", () => {
         title: "重规划计划",
         revision: 2,
         changeType: "replan",
-        replanReason: "网页资料不足，改查额度流水",
-        steps: ["改查额度流水"]
+        replanReason: "网页资料不足，改查实验结果表",
+        steps: ["改查实验结果表"]
       }
     });
 
@@ -170,7 +170,7 @@ describe("agent timeline projection", () => {
       title: "重规划计划",
       revision: 2,
       changeType: "replan",
-      replanReason: "网页资料不足，改查额度流水"
+      replanReason: "网页资料不足，改查实验结果表"
     });
   });
 
@@ -264,10 +264,10 @@ describe("agent timeline projection", () => {
     const timeline = replayEventsToTimeline([
       {
         events: [
-          { event: "plan_delta", data: { title: "初始计划", steps: ["先查订单"] } },
+          { event: "plan_delta", data: { title: "初始计划", steps: ["先读论文摘要"] } },
           { event: "flow_delta", data: { stageIndex: 0, status: "RUNNING", message: "start" } },
           { event: "flow_delta", data: { stageIndex: 0, status: "REPLANNED", message: "计划已重规划" } },
-          { event: "plan_delta", data: { title: "重规划计划", steps: ["改查额度流水"] } },
+          { event: "plan_delta", data: { title: "重规划计划", steps: ["改查实验结果表"] } },
           { event: "flow_delta", data: { stageIndex: 0, status: "COMPLETED", message: "done" } }
         ]
       }

@@ -79,6 +79,18 @@ describe("artifact preview model", () => {
     expect(model.kind).toBe("none");
   });
 
+  it("allows inline image data urls for local fallback image previews", () => {
+    const model = buildArtifactPreviewModel({
+      fileName: "local-fallback-image-1.png",
+      previewUrl: "data:image/png;base64,iVBORw0KGgo=",
+      contentType: "image/png"
+    });
+
+    expect(model.kind).toBe("image");
+    expect(model.canPreview).toBe(true);
+    expect(model.url).toBe("data:image/png;base64,iVBORw0KGgo=");
+  });
+
   it("rewrites local tool preview urls through browser proxy", () => {
     vi.stubGlobal("window", {
       location: {

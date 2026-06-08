@@ -4,6 +4,8 @@ import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.api.dto.QuotaPackageCatalogResponse;
 import com.linrun.api.dto.QuotaSummaryResponse;
 import com.linrun.api.dto.ProductCardDTO;
+import com.linrun.api.dto.QuotaGrantOrderRequest;
+import com.linrun.api.dto.QuotaGrantOrderResponse;
 import com.linrun.api.dto.UserModelConfigRequest;
 import com.linrun.api.dto.UserModelConfigResponse;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
@@ -21,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -72,6 +76,18 @@ public class QuotaController {
         response.setPackages(quotaPackageCatalogService.listPackages(keyword, limit).stream()
                 .map(this::toProductCard)
                 .toList());
+        return Response.success(response, RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/admin/grant-by-orders")
+    public Response<QuotaGrantOrderResponse> grantQuotaByOrders(@RequestBody(required = false) QuotaGrantOrderRequest request) {
+        List<String> orderIds = request == null || request.getOrderIds() == null ? List.of() : request.getOrderIds();
+        List<String> processedOrderIds = userQuotaService.grantQuotaForOrderIds(orderIds);
+        QuotaGrantOrderResponse response = new QuotaGrantOrderResponse();
+        response.setRequestedCount(orderIds.size());
+        response.setProcessedOrderIds(processedOrderIds);
+        response.setProcessedCount(processedOrderIds.size());
+        response.setMessage("已按后端订单状态执行额度补发，未满足到账条件的订单不会发放额度");
         return Response.success(response, RequestTraceContext.getRequestId());
     }
 

@@ -2,20 +2,12 @@ package com.linrun.infrastructure.agent.converter;
 
 import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
 import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideReference;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragmentStatus;
-import com.linrun.domain.agent.quality.model.GuideEvaluationFeedback;
-import com.linrun.domain.agent.quality.model.GuideEvaluationItemResult;
-import com.linrun.domain.agent.quality.model.GuideEvaluationReport;
 import com.linrun.infrastructure.po.GuideDecisionSnapshotPO;
-import com.linrun.infrastructure.po.GuideEvaluationFeedbackPO;
-import com.linrun.infrastructure.po.GuideEvaluationItemResultPO;
-import com.linrun.infrastructure.po.GuideEvaluationReportPO;
 import com.linrun.infrastructure.po.GuideProductPO;
-import com.linrun.infrastructure.po.GuideReferencePO;
 import com.linrun.infrastructure.po.KnowledgeDocumentPO;
 import com.linrun.infrastructure.po.KnowledgeFragmentPO;
 import org.springframework.beans.BeanUtils;
@@ -55,22 +47,6 @@ public final class AgentPOConverter {
     }
 
     public static List<GuideProduct> toGuideProducts(List<GuideProductPO> poList) {
-        if (poList == null || poList.isEmpty()) {
-            return List.of();
-        }
-        return poList.stream().map(AgentPOConverter::toEntity).toList();
-    }
-
-    public static GuideReference toEntity(GuideReferencePO po) {
-        if (po == null) {
-            return null;
-        }
-        GuideReference entity = new GuideReference();
-        BeanUtils.copyProperties(po, entity);
-        return entity;
-    }
-
-    public static List<GuideReference> toGuideReferences(List<GuideReferencePO> poList) {
         if (poList == null || poList.isEmpty()) {
             return List.of();
         }
@@ -132,88 +108,6 @@ public final class AgentPOConverter {
     }
 
     public static List<KnowledgeFragment> toKnowledgeFragments(List<KnowledgeFragmentPO> poList) {
-        if (poList == null || poList.isEmpty()) {
-            return List.of();
-        }
-        return poList.stream().map(AgentPOConverter::toEntity).toList();
-    }
-
-    public static GuideEvaluationReportPO toPO(GuideEvaluationReport entity) {
-        if (entity == null) {
-            return null;
-        }
-        GuideEvaluationReportPO po = new GuideEvaluationReportPO();
-        BeanUtils.copyProperties(entity, po);
-        return po;
-    }
-
-    public static GuideEvaluationReport toEntity(GuideEvaluationReportPO po) {
-        if (po == null) {
-            return null;
-        }
-        GuideEvaluationReport entity = new GuideEvaluationReport();
-        BeanUtils.copyProperties(po, entity);
-        return entity;
-    }
-
-    public static GuideEvaluationItemResultPO toPO(GuideEvaluationItemResult entity) {
-        if (entity == null) {
-            return null;
-        }
-        GuideEvaluationItemResultPO po = new GuideEvaluationItemResultPO();
-        BeanUtils.copyProperties(entity, po);
-        return po;
-    }
-
-    public static List<GuideEvaluationItemResultPO> toGuideEvaluationItemPOList(List<GuideEvaluationItemResult> entities) {
-        if (entities == null || entities.isEmpty()) {
-            return List.of();
-        }
-        return entities.stream().map(AgentPOConverter::toPO).toList();
-    }
-
-    public static GuideEvaluationItemResult toEntity(GuideEvaluationItemResultPO po) {
-        if (po == null) {
-            return null;
-        }
-        GuideEvaluationItemResult entity = new GuideEvaluationItemResult();
-        BeanUtils.copyProperties(po, entity);
-        return entity;
-    }
-
-    public static List<GuideEvaluationItemResult> toGuideEvaluationItems(List<GuideEvaluationItemResultPO> poList) {
-        if (poList == null || poList.isEmpty()) {
-            return List.of();
-        }
-        return poList.stream().map(AgentPOConverter::toEntity).toList();
-    }
-
-    public static GuideEvaluationFeedbackPO toPO(GuideEvaluationFeedback entity) {
-        if (entity == null) {
-            return null;
-        }
-        GuideEvaluationFeedbackPO po = new GuideEvaluationFeedbackPO();
-        BeanUtils.copyProperties(entity, po);
-        return po;
-    }
-
-    public static List<GuideEvaluationFeedbackPO> toGuideEvaluationFeedbackPOList(List<GuideEvaluationFeedback> entities) {
-        if (entities == null || entities.isEmpty()) {
-            return List.of();
-        }
-        return entities.stream().map(AgentPOConverter::toPO).toList();
-    }
-
-    public static GuideEvaluationFeedback toEntity(GuideEvaluationFeedbackPO po) {
-        if (po == null) {
-            return null;
-        }
-        GuideEvaluationFeedback entity = new GuideEvaluationFeedback();
-        BeanUtils.copyProperties(po, entity);
-        return entity;
-    }
-
-    public static List<GuideEvaluationFeedback> toGuideEvaluationFeedbacks(List<GuideEvaluationFeedbackPO> poList) {
         if (poList == null || poList.isEmpty()) {
             return List.of();
         }

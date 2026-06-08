@@ -1,11 +1,8 @@
 package com.linrun.domain.agent.conversation.model;
 
-import org.springframework.util.StringUtils;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.UUID;
 
 public class GuideDecisionSnapshot {
@@ -28,14 +25,11 @@ public class GuideDecisionSnapshot {
     private LocalDateTime quoteExpireTime;
     private LocalDateTime createTime;
 
-    public static GuideDecisionSnapshot capture(String sessionId,
-                                                String requestId,
-                                                String userId,
-                                                String question,
-                                                GuideDecisionResult decisionResult,
-                                                List<GuideReference> references,
-                                                AgentPlan agentPlan) {
-        GuideProduct product = decisionResult == null ? null : decisionResult.getProduct();
+    public static GuideDecisionSnapshot captureQuote(String sessionId,
+                                                     String requestId,
+                                                     String userId,
+                                                     String question,
+                                                     GuideProduct product) {
         LocalDateTime now = LocalDateTime.now();
         GuideDecisionSnapshot snapshot = new GuideDecisionSnapshot();
         snapshot.setDecisionId(nextDecisionId(now));
@@ -55,8 +49,8 @@ public class GuideDecisionSnapshot {
             snapshot.setOriginAmount(safeAmount(product.getOriginPrice()));
             snapshot.setGroupAmount(safeAmount(product.getGroupPrice()));
         }
-        snapshot.setReferenceIds(joinReferenceIds(references));
-        snapshot.setToolNames(joinToolNames(agentPlan));
+        snapshot.setReferenceIds("");
+        snapshot.setToolNames("");
         snapshot.setQuoteExpireTime(now.plusMinutes(DEFAULT_QUOTE_TTL_MINUTES));
         snapshot.setCreateTime(now);
         return snapshot;
@@ -69,29 +63,6 @@ public class GuideDecisionSnapshot {
     private static String nextDecisionId(LocalDateTime now) {
         return "D" + now.format(ID_TIME_FORMATTER)
                 + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
-    }
-
-    private static String joinReferenceIds(List<GuideReference> references) {
-        if (references == null || references.isEmpty()) {
-            return "";
-        }
-        return references.stream()
-                .map(GuideReference::getFragmentId)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .reduce((left, right) -> left + "," + right)
-                .orElse("");
-    }
-
-    private static String joinToolNames(AgentPlan agentPlan) {
-        if (agentPlan == null || agentPlan.getTools() == null || agentPlan.getTools().isEmpty()) {
-            return "";
-        }
-        return agentPlan.getTools().stream()
-                .map(AgentToolCall::getName)
-                .filter(StringUtils::hasText)
-                .reduce((left, right) -> left + "," + right)
-                .orElse("");
     }
 
     private static String safeText(String value) {

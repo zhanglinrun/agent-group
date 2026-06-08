@@ -93,7 +93,7 @@ class AcademicCommonToolRuntimeFactoryTest {
         return request -> new AcademicTableRagPort.AcademicTableRagResult(
                 true,
                 request.requestId(),
-                List.of(new AcademicTableRagPort.AcademicTableSchemaMatch("trade_order", 0.9D, List.of())),
+                List.of(new AcademicTableRagPort.AcademicTableSchemaMatch("experiment_result", 0.9D, List.of())),
                 Map.of(),
                 "");
     }

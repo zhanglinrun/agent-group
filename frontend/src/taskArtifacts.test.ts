@@ -262,7 +262,7 @@ describe("task artifact projection", () => {
         toolName: "nl2sql",
         structuredOutput: {
           metadata: {
-            candidates: [{ query: "查询成团订单", sql: "select * from trade_order" }]
+            candidates: [{ query: "查询实验准确率", sql: "select * from experiment_result" }]
           }
         }
       }
@@ -274,16 +274,16 @@ describe("task artifact projection", () => {
         toolName: "table_rag",
         structuredOutput: {
           metadata: {
-            matches: [{ modelCode: "trade_order", score: 0.91 }]
+            matches: [{ modelCode: "experiment_result", score: 0.91 }]
           }
         }
       }
     });
 
     expect(sqlPanel.kind).toBe("sql");
-    expect(sqlPanel.candidates[0].sql).toContain("trade_order");
+    expect(sqlPanel.candidates[0].sql).toContain("experiment_result");
     expect(schemaPanel.kind).toBe("schema");
-    expect(schemaPanel.matches[0].modelCode).toBe("trade_order");
+    expect(schemaPanel.matches[0].modelCode).toBe("experiment_result");
   });
 
   it("projects deep search documents into source panels", () => {

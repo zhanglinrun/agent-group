@@ -241,7 +241,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     id: "data",
     taskType: "data",
     title: "数据问答工作区",
-    summary: "面向订单、额度、工具账本和交易一致性分析。",
+    summary: "面向论文表格、实验指标、引用网络和阅读笔记分析。",
     primaryTools: ["data_analysis", "table_rag", "nl2sql", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["table", "sql", "chart", "report"],
@@ -952,7 +952,7 @@ export function buildWorkspaceDataCatalogDraft(catalog: {
     modelCodeText: modelCodes.join(", "),
     columnsText: columnNames.join(", "),
     schemaInfoJson: schemaInfo.length ? JSON.stringify(schemaInfo, null, 2) : "",
-    businessKnowledge: "拼团支付成功只代表名额已支付，必须等拼团成团或交易完成后才能发放额度。"
+    businessKnowledge: "默认围绕论文元数据、实验结果、引用网络和阅读笔记分析，结论需要说明数据来源和统计口径。"
   };
 }
 
