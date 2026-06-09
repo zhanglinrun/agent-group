@@ -15,6 +15,7 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.port.AcademicImageGenerationPort;
 import com.linrun.domain.account.model.UserAccount;
+import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
@@ -54,6 +55,11 @@ class AcademicWorkspaceImageServiceTest {
         AcademicFile sourceFile = new AcademicFile();
         sourceFile.setFileId("AF1001");
         sourceFile.setObjectUrl("/objects/source.png");
+        UserModelConfig modelConfig = new UserModelConfig();
+        modelConfig.setEnabled(true);
+        modelConfig.setImageBaseUrl("https://image.example.com/v1");
+        modelConfig.setImageApiKey("sk-image-secret-5678");
+        modelConfig.setImageModel("custom-image-model");
         AtomicReference<AcademicImageGenerationPort.AcademicImageGenerationRequest> capturedRequest = new AtomicReference<>();
         AcademicImageGenerationPort port = imageRequest -> {
             capturedRequest.set(imageRequest);
@@ -74,6 +80,7 @@ class AcademicWorkspaceImageServiceTest {
         };
         when(userAccountService.requireUserByToken("Bearer token")).thenReturn(user);
         when(userQuotaService.estimatePreCheckCost("workspace-image")).thenReturn(BigDecimal.valueOf(4));
+        when(userQuotaService.queryRuntimeModelConfig("U1001")).thenReturn(Optional.of(modelConfig));
         when(provider.getIfAvailable()).thenReturn(port);
         when(repository.queryFile("U1001", "AF1001")).thenReturn(Optional.of(sourceFile));
         when(ledgerService.startRun(eq("U1001"), eq("S1001"), eq(""), anyString(), eq("workspace-image"),
@@ -95,12 +102,22 @@ class AcademicWorkspaceImageServiceTest {
         assertEquals("TOOL1001", response.getInvocationId());
         assertEquals("mock-image", response.getProvider());
         assertEquals(List.of("/objects/source.png"), capturedRequest.get().sourceImageUrls());
+        assertEquals("custom-image-model", capturedRequest.get().model());
+        assertEquals("https://image.example.com/v1", capturedRequest.get().baseUrl());
+        assertEquals("sk-image-secret-5678", capturedRequest.get().apiKey());
+        assertEquals("auto", capturedRequest.get().quality());
+        assertEquals("1:1", capturedRequest.get().aspectRatio());
         assertEquals("poster.png", response.getFileRefs().getFirst().getFileName());
         assertEquals("IMG-1", response.getArtifactRefs().getFirst().getArtifactId());
         ArgumentCaptor<AcademicArtifact> artifactCaptor = ArgumentCaptor.forClass(AcademicArtifact.class);
         verify(repository).saveArtifact(artifactCaptor.capture());
         assertEquals("IMG-1", artifactCaptor.getValue().getArtifactId());
         assertEquals("TOOL1001", artifactCaptor.getValue().getToolInvocationId());
+        ArgumentCaptor<String> argumentsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(ledgerService).recordToolStart(any(), anyString(), eq(AcademicToolOutputNames.IMAGE_GENERATION),
+                eq("workspace/image/generate"), argumentsCaptor.capture());
+        assertFalse(argumentsCaptor.getValue().contains("sk-image-secret-5678"));
+        assertFalse(argumentsCaptor.getValue().contains("imageBaseUrl"));
         verify(userQuotaService).estimatePreCheckCost("workspace-image");
         verify(userQuotaService).assertEnoughQuota("U1001", BigDecimal.valueOf(4));
         verify(userQuotaService).consumeForAcademicTask(eq("U1001"), eq("S1001"),
@@ -142,7 +159,7 @@ class AcademicWorkspaceImageServiceTest {
         invocation.setToolName(AcademicToolOutputNames.IMAGE_GENERATION);
         invocation.setAction("workspace/image/generate");
         invocation.setArgumentsJson("""
-                {"mode":"edit","size":"1536x1024","batchCount":3,"sourceImageUrls":["/objects/source-a.png","/objects/source-b.png"]}
+                {"mode":"edit","model":"gpt-image-2","quality":"high","aspectRatio":"3:2","size":"1536x1024","batchCount":3,"sourceImageUrls":["/objects/source-a.png","/objects/source-b.png"]}
                 """);
         detail.setToolInvocations(List.of(invocation));
         when(userAccountService.requireUserByToken("Bearer token")).thenReturn(user);
@@ -162,6 +179,9 @@ class AcademicWorkspaceImageServiceTest {
         assertEquals("IMG-1", response.getBatches().getFirst().getImages().getFirst().getArtifactId());
         assertEquals("IMGREQ1001", response.getBatches().getFirst().getRequestId());
         assertEquals("edit", response.getBatches().getFirst().getMode());
+        assertEquals("gpt-image-2", response.getBatches().getFirst().getModel());
+        assertEquals("high", response.getBatches().getFirst().getQuality());
+        assertEquals("3:2", response.getBatches().getFirst().getAspectRatio());
         assertEquals("1536x1024", response.getBatches().getFirst().getSize());
         assertEquals(3, response.getBatches().getFirst().getBatchCount());
         assertEquals(2, response.getBatches().getFirst().getSourceImageCount());

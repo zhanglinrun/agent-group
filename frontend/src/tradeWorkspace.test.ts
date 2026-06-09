@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTradeAuditPrompt,
+  buildTradeHistoryAuditPrompt,
   summarizeTradeWorkspace,
   tradeSettlementHint,
   tradeOrderStatusLabel
@@ -51,6 +53,23 @@ describe("trade workspace summary", () => {
     expect(tradeOrderStatusLabel("WAIT_REFUND")).toBe("待退款");
     expect(tradeOrderStatusLabel("REFUNDED")).toBe("已退款");
     expect(tradeOrderStatusLabel("missing")).toBe("MISSING");
+  });
+
+  it("builds an agent audit prompt from an order", () => {
+    const prompt = buildTradeAuditPrompt({
+      orderId: "O1001",
+      teamId: "T1001",
+      productName: "Agent quota",
+      marketType: 1,
+      orderStatus: "PAY_SUCCESS",
+      payAmount: 19.9
+    });
+
+    expect(prompt).toContain("O1001");
+    expect(prompt).toContain("T1001");
+    expect(prompt).toContain("trade_audit");
+    expect(prompt).toContain("Agent");
+    expect(prompt).toContain("暂不能发放额度");
   });
 
   it("keeps quota grant rules explicit for trade settlement states", () => {
@@ -105,4 +124,21 @@ describe("trade workspace summary", () => {
     });
   });
 
+  it("builds an agent audit prompt from a trade history item", () => {
+    const prompt = buildTradeHistoryAuditPrompt({
+      id: "O1001",
+      title: "Agent quota",
+      status: "PAY_SUCCESS",
+      summary: "\u62fc\u56e2\u8ba2\u5355",
+      source: {
+        teamId: "T1001",
+        payAmount: 19.9
+      }
+    });
+
+    expect(prompt).toContain("O1001");
+    expect(prompt).toContain("T1001");
+    expect(prompt).toContain("19.9");
+    expect(prompt).toContain("trade_audit");
+  });
 });

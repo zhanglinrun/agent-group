@@ -230,30 +230,34 @@ describe("workspace service profiles", () => {
       prompt: " make a cover ",
       mode: "generate",
       size: "1536x1024",
-      batchCount: 9
+      batchCount: 12
     })).toEqual({
       sessionId: "IMG1",
       prompt: "make a cover",
       mode: "generate",
+      model: "gpt-image-2",
+      quality: "auto",
+      aspectRatio: "1:1",
       size: "1536x1024",
-      batchCount: 4,
+      batchCount: 10,
       sourceFileIds: [],
       sourceImageUrls: [],
       maskImageUrls: []
     });
   });
 
-  it("requires a reference image for image edit mode", () => {
-    expect(() => buildWorkspaceImageGeneratePayload({
+  it("uses reference images to choose image edit mode automatically", () => {
+    expect(buildWorkspaceImageGeneratePayload({
       sessionId: "IMG2",
       prompt: "edit style",
       mode: "edit"
-    })).toThrow("图生图需要先上传参考图");
+    })).toMatchObject({
+      mode: "generate"
+    });
 
     expect(buildWorkspaceImageGeneratePayload({
       sessionId: "IMG2",
       prompt: "edit style",
-      mode: "edit",
       sourceFileIds: ["F1"],
       maskImageUrls: "https://example.com/mask-a.png\nhttps://example.com/mask-b.png"
     })).toMatchObject({

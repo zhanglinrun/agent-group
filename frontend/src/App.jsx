@@ -32,12 +32,15 @@ import {
   X
 } from "lucide-react";
 import AdminDashboard from "./components/AdminDashboard";
+import AgentAdminPanel from "./components/AgentAdminPanel";
+import McpManagementPanelV2 from "./components/McpManagementPanelV2";
 import ThemeToggle from "./components/ThemeToggle";
 import {
+  OUTPUT_KIND_LABELS,
   TOOL_LABELS,
   WORKSPACES,
   workspaceAgentMode,
-  workspaceFromPath,
+  userWorkspaceFromPath,
   workspacePath
 } from "./workspaces";
 import {
@@ -48,6 +51,11 @@ import {
   buildWorkspaceStreamDraft,
   knowledgeBaseCatalogKey,
   normalizeWorkspaceHistoryItems,
+  visibleAgentExecutionModes,
+  visibleCapabilityMatrix as buildVisibleCapabilityMatrix,
+  visibleToolCatalogGroups,
+  visibleToolRuntimeFamilyReadiness,
+  visibleToolRuntimeReadiness,
   workspaceAcceptsFile,
   workspaceCapabilityStatus,
   workspaceServiceProfile,
@@ -66,7 +74,6 @@ import {
 } from "./agentTimeline";
 import { buildPlannerHistory } from "./plannerHistory";
 import { buildAgentRunDigest } from "./agentRunDigest";
-import { assistantMessageCanRetry, retryFilesFromUserMessage } from "./messageRetry";
 import {
   eventArtifacts,
   mergeArtifacts,
@@ -81,13 +88,19 @@ import {
 import { normalizeFileUrlForBrowser } from "./fileUrl";
 import { buildArtifactPreviewModel } from "./artifactPreview";
 import {
+  cacheMcpTools,
+  callMcpTool,
   applyAcademicProjectPatch,
+  bindAcademicProjectFile,
   createPayment,
   createDirectOrder,
   createAcademicProject,
   deleteAcademicSession,
   deleteKnowledgeDocument,
+  discoverMcpTools,
   downloadAcademicArtifact,
+  enableMcpServer,
+  exportMcpState,
   generateWorkspaceImage,
   getKnowledgeDocumentFullContent,
   getAdminAuth,
@@ -98,6 +111,7 @@ import {
   getSessionId,
   getUserModelConfig,
   getUserAuth,
+  importMcpState,
   lockMarketPayOrder,
   login,
   logout,
@@ -111,6 +125,9 @@ import {
   queryAcademicSessionDetail,
   queryAcademicSessions,
   queryGroupBuyMarketConfig,
+  queryMcpHealth,
+  queryMcpServers,
+  queryMcpTools,
   queryQuotaPackages,
   queryWorkspaceDataCatalog,
   queryWorkspaceDataHistory,
@@ -119,6 +136,7 @@ import {
   queryUserOrderList,
   rebuildKnowledgeVector,
   register,
+  registerMcpServer,
   requestAcademicAttachStream,
   requestAcademicResumeStream,
   requestAcademicStream,
@@ -135,12 +153,19 @@ import {
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
 import { APP_ROUTES } from "./routes";
 import { USER_AGENT_MODES } from "./agentModes";
+import { buildAgentExecutionSummary } from "./agentExecutionSummary";
+import { buildAgentPlatformReadiness } from "./agentPlatformReadiness";
 import {
   summarizeTradeWorkspace,
   tradeSettlementHint,
   tradeOrderStatusLabel
 } from "./tradeWorkspace";
 import { buildWorkspacePageModel } from "./workspacePageModel";
+import {
+  DEFAULT_MCP_SERVER_FORM,
+  buildMcpServerPayload
+} from "./mcpServerForm";
+import { buildMcpRuntimeSummary } from "./mcpRuntimeSummary";
 import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
 
 const AGENTS = USER_AGENT_MODES;
@@ -192,13 +217,33 @@ const EMPTY_MESSAGES = [];
 
 const normalizeUserMessage = normalizeApiMessage;
 
-const DEFAULT_IMAGE_QUESTION = "这个图上是什么内容呢";
-const DEFAULT_MANUAL_SKILL_HELP = "适合指定某个固定流程处理任务。选择一个 Skill 后，输入目标、素材路径和约束；选择“自动”时，系统会根据任务内容匹配合适的 Skill。";
+const DEFAULT_MCP_TOOLS_TEXT = JSON.stringify({
+  tools: [
+    {
+      name: "web_fetch",
+      description: "fetch and summarize web page",
+      enabled: true
+    },
+    {
+      name: "data_analysis",
+      description: "analyze table data and return insight",
+      enabled: true
+    }
+  ]
+}, null, 2);
 
-function manualSkillHelpText(skill = {}, fallback = DEFAULT_MANUAL_SKILL_HELP) {
-  const text = String(skill?.descriptionZh || skill?.description || "").replace(/\s+/g, " ").trim();
-  return text || fallback;
-}
+const DEFAULT_MCP_IMPORT_TEXT = JSON.stringify({
+  replace: false,
+  snapshot: {
+    servers: [],
+    toolsByServer: {},
+    discoveredAtByServer: {}
+  }
+}, null, 2);
+
+const DEFAULT_MCP_TOOL_CALL_TEXT = JSON.stringify({
+  arguments: {}
+}, null, 2);
 
 function apiSucceeded(res) {
   return res?.code === "0000" || res?.code === 200 || res?.code === "200";
@@ -246,14 +291,6 @@ function latestAssistantWithPayload(messages = []) {
   return [...messages].reverse().find((message) => message.role === "assistant" && hasAssistantPayload(message)) || null;
 }
 
-function plannerHistoryMeta(version = {}, fallbackRevision = 1) {
-  return [
-    `第 ${version.revision || fallbackRevision} 版`,
-    version.stageCount > 0 ? `${version.stageCount} 阶段` : "",
-    `${version.stepCount || 0} 步${version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}`
-  ].filter(Boolean).join(" · ");
-}
-
 function hasSessionMemory(memory = {}) {
   return Boolean(
     (memory.runs || []).length
@@ -285,7 +322,6 @@ function safeResourceUrl(url = "") {
   const value = normalizeFileUrlForBrowser(url);
   if (!value) return "";
   if (value.startsWith("/") && !value.startsWith("//")) return value;
-  if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(value)) return value;
   return safeExternalUrl(value);
 }
 
@@ -350,42 +386,6 @@ function isImageUpload(file = {}) {
     contentType: file.type || file.contentType || file.fileType || "",
     fileName: file.name || file.fileName || ""
   });
-}
-
-function imageExtensionFromType(type = "") {
-  const normalized = String(type || "").toLowerCase();
-  if (normalized.includes("jpeg") || normalized.includes("jpg")) return "jpg";
-  if (normalized.includes("webp")) return "webp";
-  if (normalized.includes("gif")) return "gif";
-  return "png";
-}
-
-function namedClipboardImage(file) {
-  if (!file || !isImageUpload(file)) return null;
-  if (file.name) return file;
-  return new File(
-    [file],
-    `pasted-image-${Date.now()}.${imageExtensionFromType(file.type)}`,
-    { type: file.type || "image/png", lastModified: Date.now() }
-  );
-}
-
-function clipboardImageFiles(clipboardData) {
-  const images = [];
-  const items = Array.from(clipboardData?.items || []);
-  for (const item of items) {
-    if (item.kind !== "file") continue;
-    const image = namedClipboardImage(item.getAsFile());
-    if (image) images.push(image);
-  }
-  const files = Array.from(clipboardData?.files || []);
-  for (const file of files) {
-    const image = namedClipboardImage(file);
-    if (image && !images.some((item) => item.name === image.name && item.size === image.size)) {
-      images.push(image);
-    }
-  }
-  return images;
 }
 
 function createLocalPreviewUrl(file) {
@@ -718,7 +718,7 @@ function App() {
 function BearDoctorAcademicApp() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routeWorkspace = workspaceFromPath(location.pathname);
+  const routeWorkspace = userWorkspaceFromPath(location.pathname);
   const [theme, setTheme] = useState(() => getStoredTheme());
   const [auth, setAuth] = useState(() => getUserAuth());
   const [loginOpen, setLoginOpen] = useState(() => !getUserAuth()?.token);
@@ -753,7 +753,11 @@ function BearDoctorAcademicApp() {
   const [workspaceRunDetailError, setWorkspaceRunDetailError] = useState("");
   const [imageWorkspaceDraft, setImageWorkspaceDraft] = useState({
     mode: "generate",
-    size: "1024x1024",
+    model: getModelConfig().imageModel || "gpt-image-2",
+    quality: "auto",
+    ratioPreset: "16:9-4k",
+    aspectRatio: "16:9",
+    size: "3840x2160",
     batchCount: 1,
     maskImageUrlsText: ""
   });
@@ -781,7 +785,7 @@ function BearDoctorAcademicApp() {
   const [selectedAgent, setSelectedAgent] = useState(() => workspaceAgentMode(routeWorkspace));
   const [selectedSkillName, setSelectedSkillName] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [runningChatIds, setRunningChatIds] = useState({});
   const [connectionError, setConnectionError] = useState("");
@@ -797,68 +801,48 @@ function BearDoctorAcademicApp() {
   const [toast, setToast] = useState("");
   const [copiedId, setCopiedId] = useState("");
   const [agentCapabilities, setAgentCapabilities] = useState(null);
+  const [agentCapabilitiesError, setAgentCapabilitiesError] = useState("");
+  const [agentAdminPanelOpen, setAgentAdminPanelOpen] = useState(false);
+  const [mcpPanelOpen, setMcpPanelOpen] = useState(false);
+  const [mcpServers, setMcpServers] = useState([]);
+  const [mcpTools, setMcpTools] = useState([]);
+  const [mcpLoading, setMcpLoading] = useState(false);
+  const [mcpActionKey, setMcpActionKey] = useState("");
+  const [mcpError, setMcpError] = useState("");
+  const [mcpServerForm, setMcpServerForm] = useState(DEFAULT_MCP_SERVER_FORM);
+  const [mcpCacheServerId, setMcpCacheServerId] = useState("");
+  const [mcpToolPayload, setMcpToolPayload] = useState(DEFAULT_MCP_TOOLS_TEXT);
+  const [mcpHealth, setMcpHealth] = useState(null);
+  const [mcpExportPayload, setMcpExportPayload] = useState("");
+  const [mcpImportPayload, setMcpImportPayload] = useState(DEFAULT_MCP_IMPORT_TEXT);
+  const [mcpToolCallName, setMcpToolCallName] = useState("");
+  const [mcpToolCallPayload, setMcpToolCallPayload] = useState(DEFAULT_MCP_TOOL_CALL_TEXT);
+  const [mcpToolCallResult, setMcpToolCallResult] = useState("");
   const messagesContainer = useRef(null);
   const fileInputRef = useRef(null);
   const knowledgeFileInputRef = useRef(null);
   const streamControllersRef = useRef({});
-  const selectedFilePreviewUrlsRef = useRef([]);
-  const uploadCountRef = useRef(0);
-  const retryDraftRef = useRef(null);
+  const selectedFilePreviewUrlRef = useRef("");
 
-  const syncSelectedFiles = useCallback((nextFiles) => {
-    const nextList = Array.isArray(nextFiles) ? nextFiles.filter(Boolean) : [];
-    const nextUrls = new Set(nextList.map((file) => file.localPreviewUrl).filter(Boolean));
-    selectedFilePreviewUrlsRef.current.forEach((url) => {
-      if (!nextUrls.has(url)) {
-        revokeLocalPreviewUrl(url);
-      }
-    });
-    selectedFilePreviewUrlsRef.current = Array.from(nextUrls);
-    setSelectedFiles(nextList);
+  const replaceSelectedFile = useCallback((nextFile) => {
+    const nextPreviewUrl = nextFile?.localPreviewUrl || "";
+    if (selectedFilePreviewUrlRef.current && selectedFilePreviewUrlRef.current !== nextPreviewUrl) {
+      revokeLocalPreviewUrl(selectedFilePreviewUrlRef.current);
+    }
+    selectedFilePreviewUrlRef.current = nextPreviewUrl;
+    setSelectedFile(nextFile);
   }, []);
 
   const clearSelectedFile = useCallback(() => {
-    syncSelectedFiles([]);
-  }, [syncSelectedFiles]);
-
-  const removeSelectedFile = useCallback((clientId) => {
-    setSelectedFiles((prev) => {
-      const nextList = prev.filter((file) => file.clientId !== clientId);
-      const nextUrls = new Set(nextList.map((file) => file.localPreviewUrl).filter(Boolean));
-      selectedFilePreviewUrlsRef.current.forEach((url) => {
-        if (!nextUrls.has(url)) {
-          revokeLocalPreviewUrl(url);
-        }
-      });
-      selectedFilePreviewUrlsRef.current = Array.from(nextUrls);
-      return nextList;
-    });
-  }, []);
-
-  const upsertSelectedFile = useCallback((nextFile) => {
-    if (!nextFile) return;
-    setSelectedFiles((prev) => {
-      const nextList = prev.some((file) => file.clientId === nextFile.clientId)
-        ? prev.map((file) => (file.clientId === nextFile.clientId ? nextFile : file))
-        : [...prev, nextFile];
-      const nextUrls = new Set(nextList.map((file) => file.localPreviewUrl).filter(Boolean));
-      selectedFilePreviewUrlsRef.current.forEach((url) => {
-        if (!nextUrls.has(url)) {
-          revokeLocalPreviewUrl(url);
-        }
-      });
-      selectedFilePreviewUrlsRef.current = Array.from(nextUrls);
-      return nextList;
-    });
-  }, []);
+    replaceSelectedFile(null);
+  }, [replaceSelectedFile]);
 
   useEffect(() => () => {
-    selectedFilePreviewUrlsRef.current.forEach(revokeLocalPreviewUrl);
-    selectedFilePreviewUrlsRef.current = [];
+    revokeLocalPreviewUrl(selectedFilePreviewUrlRef.current);
+    selectedFilePreviewUrlRef.current = "";
   }, []);
 
   const currentChat = useMemo(() => chatList.find((item) => item.id === currentChatId), [chatList, currentChatId]);
-  const readySelectedFiles = selectedFiles.filter((file) => file?.fileId && file.status !== "uploading");
   const visibleConnectionError = useMemo(() => (
     isOperatorAuthText(connectionError) ? "" : connectionError
   ), [connectionError]);
@@ -881,17 +865,43 @@ function BearDoctorAcademicApp() {
   const isSending = Boolean(runningChatIds[currentChatId]);
   const canResumeCurrentChat = Boolean((currentTaskStatus.stopped || currentChat?.stopped) && !isSending);
   const canUseFile = workspaceAcceptsFile(currentWorkspace.id, selectedAgent);
-  const showAcademicProjectPanel = currentWorkspace.id === "mrag" && (academicProjects.length > 0 || activeAcademicProject);
-  const activeConversationProjectId = showAcademicProjectPanel ? activeAcademicProject?.projectId || "" : "";
   const manualSkills = useMemo(() => (
     Array.isArray(agentCapabilities?.manualSkills) ? agentCapabilities.manualSkills : []
   ), [agentCapabilities]);
-  const selectedManualSkill = useMemo(() => (
-    manualSkills.find((skill) => skill.name === selectedSkillName) || null
-  ), [manualSkills, selectedSkillName]);
-  const selectedManualSkillHelp = useMemo(() => (
-    selectedSkillName ? manualSkillHelpText(selectedManualSkill) : DEFAULT_MANUAL_SKILL_HELP
-  ), [selectedManualSkill, selectedSkillName]);
+  const capabilitySummary = useMemo(() => {
+    if (!agentCapabilities) return [];
+    const toolCount = Number(agentCapabilities.academicToolCount || 0);
+    const manualSkillCount = Number(agentCapabilities.manualSkillCount || 0);
+    return [
+      { key: "model", label: "模型", value: agentCapabilities.chatModelAvailable ? "可用" : "未配置", active: Boolean(agentCapabilities.chatModelAvailable) },
+      { key: "tools", label: "工具", value: `${toolCount} 个`, active: toolCount > 0 },
+      { key: "manual", label: "Skill", value: `${manualSkillCount} 个`, active: manualSkillCount > 0 },
+      { key: "reactor", label: "参考工具", value: agentCapabilities.reactorToolEnabled ? "已开启" : "未开启", active: Boolean(agentCapabilities.reactorToolEnabled) },
+      { key: "web", label: "联网", value: agentCapabilities.webSearchAvailable ? "可用" : "本地", active: Boolean(agentCapabilities.webSearchAvailable) }
+    ];
+  }, [agentCapabilities]);
+  const visibleAcademicTools = useMemo(() => (
+    (agentCapabilities?.academicTools || []).slice(0, 7)
+  ), [agentCapabilities]);
+  const visibleToolGroups = useMemo(() => (
+    visibleToolCatalogGroups(agentCapabilities, 5)
+  ), [agentCapabilities]);
+  const visibleToolReadiness = useMemo(() => (
+    visibleToolRuntimeReadiness(agentCapabilities, 8)
+  ), [agentCapabilities]);
+  const visibleToolFamilies = useMemo(() => (
+    visibleToolRuntimeFamilyReadiness(agentCapabilities, 6)
+  ), [agentCapabilities]);
+  const visibleCapabilityMatrix = useMemo(() => (
+    buildVisibleCapabilityMatrix(agentCapabilities, 6)
+  ), [agentCapabilities]);
+  const visibleExecutionModes = useMemo(() => (
+    visibleAgentExecutionModes(agentCapabilities, 6)
+  ), [agentCapabilities]);
+  const mcpRuntimeLoaded = mcpServers.length > 0 || mcpTools.length > 0 || Boolean(mcpHealth);
+  const mcpRuntimeSummary = useMemo(() => (
+    buildMcpRuntimeSummary({ servers: mcpServers, tools: mcpTools, health: mcpHealth })
+  ), [mcpHealth, mcpServers, mcpTools]);
   const tradeWorkspaceSummary = useMemo(() => (
     summarizeTradeWorkspace({ quota, flows: quotaFlows, orders })
   ), [quota, quotaFlows, orders]);
@@ -931,6 +941,31 @@ function BearDoctorAcademicApp() {
 
   const toggleTheme = () => {
     setTheme((prev) => applyTheme(nextTheme(prev)));
+  };
+
+  const openWorkspace = (workspaceId) => {
+    const nextWorkspace = WORKSPACES.find((workspace) => workspace.id === workspaceId) || WORKSPACES[0];
+    setActiveWorkspace(nextWorkspace.id);
+    if (nextWorkspace.agentId) {
+      setSelectedAgent(nextWorkspace.agentId);
+      if (nextWorkspace.agentId !== "file" && nextWorkspace.agentId !== "data" && nextWorkspace.agentId !== "mrag" && nextWorkspace.agentId !== "skills" && nextWorkspace.agentId !== "manual-skills") {
+        clearSelectedFile();
+      }
+    }
+    const path = workspacePath(nextWorkspace.id);
+    if (location.pathname !== path) {
+      navigate(path);
+    }
+    if (nextWorkspace.id === "trade") {
+      if (!getUserAuth()?.token) {
+        setLoginOpen(true);
+      } else {
+        setGroupPreviewPackage(null);
+        setGroupMarketConfig(null);
+        setRechargeTab("packages");
+        setRechargeOpen(true);
+      }
+    }
   };
 
   const ensureChat = useCallback((sessionId = currentChatId) => {
@@ -976,9 +1011,17 @@ function BearDoctorAcademicApp() {
 
   const loadModelConfig = useCallback(async () => {
     if (!getUserAuth()?.token) return;
+    const previousImageModel = getModelConfig().imageModel || "gpt-image-2";
     const res = await getUserModelConfig();
     if (res.code === "0000") {
-      setModelConfig({ ...getModelConfig(), ...(res.data || {}), apiKey: "" });
+      const nextConfig = { ...getModelConfig(), ...(res.data || {}), apiKey: "", textApiKey: "", imageApiKey: "" };
+      setModelConfig(nextConfig);
+      setImageWorkspaceDraft((prev) => {
+        if (prev.model && prev.model !== previousImageModel) {
+          return prev;
+        }
+        return { ...prev, model: nextConfig.imageModel || "gpt-image-2" };
+      });
     }
   }, []);
 
@@ -1091,9 +1134,39 @@ function BearDoctorAcademicApp() {
     const res = await queryAgentCapabilities();
     if (apiSucceeded(res)) {
       setAgentCapabilities(res.data || {});
+      setAgentCapabilitiesError("");
       return;
     }
-    console.warn(normalizeUserMessage(res.message || res.info, "能力状态读取失败"));
+    setAgentCapabilitiesError(normalizeUserMessage(res.message || res.info, "能力状态读取失败"));
+  }, []);
+
+  const loadMcpState = useCallback(async () => {
+    setMcpLoading(true);
+    setMcpError("");
+    try {
+      const [serversRes, toolsRes, healthRes] = await Promise.all([
+        queryMcpServers(),
+        queryMcpTools({ enabledOnly: false }),
+        queryMcpHealth()
+      ]);
+      if (!apiSucceeded(serversRes)) {
+        throw new Error(normalizeUserMessage(serversRes.info || serversRes.message, "MCP 服务读取失败"));
+      }
+      if (!apiSucceeded(toolsRes)) {
+        throw new Error(normalizeUserMessage(toolsRes.info || toolsRes.message, "MCP 工具读取失败"));
+      }
+      const servers = serversRes.data || [];
+      const tools = toolsRes.data || [];
+      setMcpServers(servers);
+      setMcpTools(tools);
+      setMcpHealth(apiSucceeded(healthRes) ? healthRes.data || null : null);
+      setMcpCacheServerId((prev) => prev || servers[0]?.serverId || "");
+      setMcpToolCallName((prev) => prev || tools.find((tool) => tool.enabled)?.qualifiedName || tools[0]?.qualifiedName || "");
+    } catch (error) {
+      setMcpError(normalizeUserMessage(error.message, "MCP 管理信息读取失败"));
+    } finally {
+      setMcpLoading(false);
+    }
   }, []);
 
   const loadOrders = useCallback(async () => {
@@ -1127,13 +1200,25 @@ function BearDoctorAcademicApp() {
     setWorkspaceRunDetailError("");
     try {
       if (targetWorkspaceId === "trade") {
-        const ordersRes = await queryUserOrderList({ pageSize: 8 });
+        const [ordersRes, sessionsRes] = await Promise.all([
+          queryUserOrderList({ pageSize: 8 }),
+          queryAcademicSessions(30).catch(() => null)
+        ]);
         if (!apiSucceeded(ordersRes)) {
           throw new Error(normalizeUserMessage(ordersRes?.info || ordersRes?.message, "工作区历史读取失败"));
         }
+        const auditSessions = apiSucceeded(sessionsRes) && Array.isArray(sessionsRes?.data)
+          ? sessionsRes.data.filter((item) => (
+            ["trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade"]
+              .includes(String(item?.taskType || item?.agentType || "").trim().toLowerCase())
+          ))
+          : [];
         setWorkspaceHistory({
           workspaceId: targetWorkspaceId,
-          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, ordersRes.data?.orderList || [], 8)
+          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, [
+            ...auditSessions,
+            ...(ordersRes.data?.orderList || [])
+          ], 8)
         });
         return;
       }
@@ -1557,10 +1642,12 @@ function BearDoctorAcademicApp() {
   useEffect(() => {
     if (!auth?.token) {
       setAgentCapabilities(null);
+      setAgentCapabilitiesError("");
       return;
     }
     loadAgentCapabilities().catch((error) => {
       console.warn("Agent 能力读取失败", error);
+      setAgentCapabilitiesError("能力状态读取失败");
     });
   }, [auth?.token, loadAgentCapabilities]);
 
@@ -1676,6 +1763,17 @@ function BearDoctorAcademicApp() {
     setInputMessage(prompt);
   };
 
+  const auditTradeOrder = (order) => {
+    if (!auth?.token) {
+      setLoginOpen(true);
+      return;
+    }
+    setRechargeTab("orders");
+    setRechargeOpen(true);
+    loadOrders().catch(() => {});
+    setConnectionError("");
+  };
+
   const openRecharge = () => {
     if (!auth?.token) {
       setLoginOpen(true);
@@ -1740,21 +1838,17 @@ function BearDoctorAcademicApp() {
     setToast("已退出登录");
   };
 
-  const uploadSelectedFile = async (file) => {
+  const handleFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
     if (!auth?.token) {
       setLoginOpen(true);
       return;
     }
-    if (!canUseFile) {
-      setConnectionError("当前模式不支持上传附件");
-      return;
-    }
     const imageFile = isImageUpload(file);
     const localPreviewUrl = createLocalPreviewUrl(file);
-    const clientId = `${createRuntimeId("F")}-${Math.random().toString(16).slice(2)}`;
-    upsertSelectedFile({
-      clientId,
+    replaceSelectedFile({
       name: file.name,
       fileType: file.type || "",
       contentType: file.type || "",
@@ -1764,13 +1858,11 @@ function BearDoctorAcademicApp() {
       previewUrl: localPreviewUrl,
       localPreviewUrl
     });
-    uploadCountRef.current += 1;
     setIsUploading(true);
     try {
       const res = await uploadAcademicFile(file, currentChatId);
       if (res.code === "0000") {
         const parsedFile = {
-          clientId,
           fileId: res.data.fileId,
           name: res.data.fileName,
           fileType: res.data.fileType,
@@ -1782,73 +1874,57 @@ function BearDoctorAcademicApp() {
           previewUrl: localPreviewUrl,
           localPreviewUrl
         };
-        upsertSelectedFile(parsedFile);
+        replaceSelectedFile(parsedFile);
         if (imageFile) {
-          setInputMessage((prev) => (prev.trim() ? prev : DEFAULT_IMAGE_QUESTION));
+          setInputMessage((prev) => (prev.trim() ? prev : "这个图上是什么内容呢"));
+        }
+        const project = activeAcademicProject || await createDefaultAcademicProject();
+        if (project?.projectId) {
+          const bindRes = await bindAcademicProjectFile(project.projectId, {
+            fileId: parsedFile.fileId,
+            fileName: parsedFile.name,
+            fileType: parsedFile.fileType,
+            folderType: selectedAgent === "file" ? "draftManuscripts" : "coreReferences",
+            summary: parsedFile.summary,
+            contentPreview: parsedFile.summary
+          });
+          if (apiSucceeded(bindRes)) {
+            setAcademicProjects((prev) => [bindRes.data, ...prev.filter((item) => item.projectId !== bindRes.data.projectId)]);
+            setActiveAcademicProjectId(bindRes.data.projectId);
+          }
         }
         setToast("文件解析完成");
       } else {
         setConnectionError(normalizeUserMessage(res.info, "文件上传失败"));
-        removeSelectedFile(clientId);
+        clearSelectedFile();
       }
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "文件上传失败"));
-      removeSelectedFile(clientId);
+      clearSelectedFile();
     } finally {
-      uploadCountRef.current = Math.max(0, uploadCountRef.current - 1);
-      setIsUploading(uploadCountRef.current > 0);
-    }
-  };
-
-  const handleFileSelect = async (event) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    for (const file of files) {
-      await uploadSelectedFile(file);
-    }
-  };
-
-  const handleComposerPaste = async (event) => {
-    if (!canUseFile) return;
-    const imageFiles = clipboardImageFiles(event.clipboardData);
-    if (!imageFiles.length) return;
-    event.preventDefault();
-    for (const imageFile of imageFiles) {
-      await uploadSelectedFile(imageFile);
+      setIsUploading(false);
     }
   };
 
   const sendMessage = () => {
-    const retryDraft = retryDraftRef.current;
-    retryDraftRef.current = null;
-    const fromRetry = Boolean(retryDraft);
-    const text = String(retryDraft?.text ?? inputMessage).trim();
+    const text = inputMessage.trim();
     const sessionId = currentChatId;
-    const files = retryDraft?.files || readySelectedFiles;
-    const file = files[0] || null;
-    const hasPendingUploads = !fromRetry && (uploadCountRef.current > 0 || selectedFiles.some((item) => item.status === "uploading"));
-    if (runningChatIds[sessionId]) return;
-    if (hasPendingUploads) {
-      setConnectionError("图片还在解析中，请稍等完成后再发送");
-      return;
-    }
-    if (!text && files.length === 0) return;
+    const file = selectedFile;
+    if (runningChatIds[sessionId] || isUploading || (!text && !file)) return;
     if (!auth?.token) {
       setLoginOpen(true);
       return;
     }
-    if (!modelConfigReady(modelConfig)) {
-      setConnectionError("请先配置可用的模型 API");
+    const modelScope = currentWorkspace.id === "image" ? "image" : "text";
+    if (!modelConfigReady(modelConfig, modelScope)) {
+      setConnectionError(modelScope === "image" ? "请先配置可用的图像模型 API" : "请先配置可用的文本模型 API");
       setModelConfigOpen(true);
       return;
     }
-    const fileIds = files.map((item) => item.fileId).filter(Boolean);
-    const allFilesAreImages = files.length > 0 && files.every((item) => (
-      item?.isImage || isImageArtifact({ fileName: item?.name, contentType: item?.contentType || item?.fileType, previewUrl: item?.previewUrl })
-    ));
-    const displayQuestion = text || (files.length ? (allFilesAreImages ? DEFAULT_IMAGE_QUESTION : "请分析这些文件") : "");
+    const fileIsImage = file?.isImage || isImageArtifact({ fileName: file?.name, contentType: file?.contentType || file?.fileType, previewUrl: file?.previewUrl });
+    const displayQuestion = text || (file ? (fileIsImage ? "这个图上是什么内容呢" : "请分析这个文件") : "");
     const skillInstruction = selectedAgent === "manual-skills" && selectedSkillName
-      ? `请使用 ${selectedSkillName} 技能。除非缺少必要参数、素材或权限，否则不要停下来询问是否继续，也不要只输出执行计划、当前进度、预计耗时或下一步说明；请按技能要求连续调用工具，直到最终产物已经生成。`
+      ? `请使用 ${selectedSkillName} 技能`
       : "";
     const pptInstruction = selectedAgent === "ppt" ? PPT_IMAGE2_SKILL_INSTRUCTION : "";
     const deepResearchInstruction = selectedAgent === "deep" ? DEEP_RESEARCH_STYLE_INSTRUCTION : "";
@@ -1858,12 +1934,12 @@ function BearDoctorAcademicApp() {
       workspaceId: currentWorkspace.id,
       agentId: selectedAgent,
       question: instructionPrefix ? `${instructionPrefix}\n\n${displayQuestion}` : displayQuestion,
-      fileId: fileIds[0] || "",
+      fileId: file?.fileId || "",
       imageUrl: file?.imageUrl || "",
-      imageName: files.map((item) => item.name).filter(Boolean).join("，")
+      imageName: file?.name || ""
     });
     let dataWorkspacePayload = null;
-    if (currentWorkspace.id === "data" && files.length === 0) {
+    if (currentWorkspace.id === "data" && !file) {
       try {
         dataWorkspacePayload = buildWorkspaceDataRunPayload({
           sessionId,
@@ -1877,9 +1953,9 @@ function BearDoctorAcademicApp() {
     }
     let imageWorkspacePayload = null;
     if (currentWorkspace.id === "image") {
-      const sourceFileIds = files
-        .filter((item) => item.fileId && isImageArtifact({ fileName: item.name, contentType: item.fileType || item.contentType, previewUrl: item.previewUrl }))
-        .map((item) => item.fileId);
+      const sourceFileIds = file?.fileId && isImageArtifact({ fileName: file.name, contentType: file.fileType })
+        ? [file.fileId]
+        : [];
       const sourceImageUrls = streamDraft.imageUrl ? [streamDraft.imageUrl] : [];
       try {
         imageWorkspacePayload = buildWorkspaceImageGeneratePayload({
@@ -1900,15 +1976,8 @@ function BearDoctorAcademicApp() {
       id: createRuntimeId("U"),
       role: "user",
       content: displayQuestion,
-      file: files.length > 0,
-      fileName: files.map((item) => item.name).filter(Boolean).join("，"),
-      files: files.map((item) => ({
-        fileId: item.fileId,
-        name: item.name,
-        fileType: item.fileType,
-        isImage: item.isImage,
-        size: item.size
-      }))
+      file: Boolean(file),
+      fileName: file?.name || ""
     };
     const assistantId = createRuntimeId("A");
     const assistantMsg = {
@@ -1932,10 +2001,7 @@ function BearDoctorAcademicApp() {
       messages: [...chat.messages, userMsg, assistantMsg]
     }));
     setChatRunning(sessionId, true, { stopped: false });
-    if (!fromRetry) {
-      setInputMessage("");
-      clearSelectedFile();
-    }
+    setInputMessage("");
     setConnectionError("");
 
     if (currentWorkspace.id === "image") {
@@ -1964,10 +2030,10 @@ function BearDoctorAcademicApp() {
         .then((res) => {
           if (controller.aborted) return;
           if (!apiSucceeded(res)) {
-            throw new Error(normalizeUserMessage(res?.info, "image generation failed"));
+            throw new Error(normalizeUserMessage(res?.info, "后端绘图模型异常，请检查图像模型配置后重试"));
           }
           const data = res.data || {};
-          const summary = data.summary || data.title || "image generation completed";
+          const summary = data.summary || data.title || "图片生成完成";
           const artifacts = workspaceImageArtifacts(data);
           processStreamEvent(sessionId, assistantId, workspaceImageToolResultEvent(data, invocationId));
           updateAssistantInChat(sessionId, assistantId, (message) => ({
@@ -1983,7 +2049,7 @@ function BearDoctorAcademicApp() {
         })
         .catch((error) => {
           if (controller.aborted) return;
-          const message = normalizeUserMessage(error.message, "image generation failed");
+          const message = normalizeUserMessage(error.message, "后端绘图模型异常，请检查图像模型配置后重试");
           processStreamEvent(sessionId, assistantId, {
             event: "run_error",
             data: { message }
@@ -2005,7 +2071,7 @@ function BearDoctorAcademicApp() {
       return;
     }
 
-    if (currentWorkspace.id === "data" && files.length === 0) {
+    if (currentWorkspace.id === "data" && !file) {
       const controller = {
         aborted: false,
         abort() {
@@ -2091,7 +2157,7 @@ function BearDoctorAcademicApp() {
       return;
     }
 
-    if (currentWorkspace.id === "mrag" && files.length === 0) {
+    if (currentWorkspace.id === "mrag" && !file) {
       const controller = {
         aborted: false,
         abort() {
@@ -2184,13 +2250,13 @@ function BearDoctorAcademicApp() {
     streamControllersRef.current[sessionId] = requestAcademicStream(
       {
         sessionId,
-        projectId: activeConversationProjectId,
+        projectId: activeAcademicProject?.projectId || "",
         threadId: sessionId,
         question: streamDraft.question,
         taskType: streamDraft.taskType,
         taskMode: selectedAgent,
         fileId: streamDraft.fileId,
-        selectedFileIds: fileIds,
+        selectedFileIds: streamDraft.fileId ? [streamDraft.fileId] : [],
         imageUrl: streamDraft.imageUrl,
         imageName: streamDraft.imageName,
         webSearchEnabled,
@@ -2218,25 +2284,6 @@ function BearDoctorAcademicApp() {
     );
   };
 
-  const retryAssistantMessage = (assistantMessageId) => {
-    const sessionId = currentChatId;
-    if (runningChatIds[sessionId]) return;
-    const chat = chatList.find((item) => item.id === sessionId);
-    const messages = chat?.messages || [];
-    const assistantIndex = messages.findIndex((message) => message.id === assistantMessageId);
-    if (assistantIndex < 0) return;
-    const userMessage = [...messages.slice(0, assistantIndex)].reverse().find((message) => message.role === "user");
-    if (!userMessage || !String(userMessage.content || "").trim()) {
-      setConnectionError("没有找到可重试的上一条问题");
-      return;
-    }
-    retryDraftRef.current = {
-      text: userMessage.content,
-      files: retryFilesFromUserMessage(userMessage)
-    };
-    sendMessage();
-  };
-
   const stopMessage = async () => {
     const sessionId = currentChatId;
     streamControllersRef.current[sessionId]?.abort();
@@ -2249,8 +2296,9 @@ function BearDoctorAcademicApp() {
   const resumeMessage = () => {
     const sessionId = currentChatId;
     if (runningChatIds[sessionId] || !auth?.token) return;
-    if (!modelConfigReady(modelConfig)) {
-      setConnectionError("请先配置可用的模型 API");
+    const modelScope = currentWorkspace.id === "image" ? "image" : "text";
+    if (!modelConfigReady(modelConfig, modelScope)) {
+      setConnectionError(modelScope === "image" ? "请先配置可用的图像模型 API" : "请先配置可用的文本模型 API");
       setModelConfigOpen(true);
       return;
     }
@@ -2331,7 +2379,9 @@ function BearDoctorAcademicApp() {
         if (!apiSucceeded(res)) {
           throw new Error(normalizeUserMessage(res.info || res.message, "模型配置保存失败"));
         }
-        setModelConfig({ ...getModelConfig(), ...(res.data || {}), apiKey: "" });
+        const nextSavedConfig = { ...getModelConfig(), ...(res.data || {}), apiKey: "", textApiKey: "", imageApiKey: "" };
+        setModelConfig(nextSavedConfig);
+        setImageWorkspaceDraft((prev) => ({ ...prev, model: nextSavedConfig.imageModel || "gpt-image-2" }));
         setModelConfigOpen(false);
         setToast("模型配置已保存");
       })
@@ -2446,6 +2496,204 @@ function BearDoctorAcademicApp() {
 
   const handleCompensateKnowledgeVector = () => {
     runKnowledgeAction("compensate", compensateKnowledgeVector, "知识向量已补偿").catch(() => {});
+  };
+
+  const toggleMcpPanel = () => {
+    const nextOpen = !mcpPanelOpen;
+    setMcpPanelOpen(nextOpen);
+    if (nextOpen) {
+      setAgentAdminPanelOpen(false);
+    }
+    if (nextOpen && mcpServers.length === 0) {
+      loadMcpState().catch(() => {});
+    }
+  };
+
+  const toggleAgentAdminPanel = () => {
+    const nextOpen = !agentAdminPanelOpen;
+    setAgentAdminPanelOpen(nextOpen);
+    if (nextOpen) {
+      setMcpPanelOpen(false);
+    }
+  };
+
+  const handleSaveMcpAdminAuth = () => {
+    handleSaveAdminAuth();
+    loadMcpState().catch(() => {});
+  };
+
+  const handleRegisterMcpServer = async (event) => {
+    event.preventDefault();
+    setMcpError("");
+    setMcpActionKey("register");
+    try {
+      const payload = buildMcpServerPayload(mcpServerForm);
+      if (!payload.serverId || !payload.endpoint) {
+        throw new Error("请填写服务标识和服务地址");
+      }
+      const res = await registerMcpServer(payload);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 服务注册失败"));
+      }
+      setMcpCacheServerId(payload.serverId);
+      setToast("MCP 服务已注册");
+      await loadMcpState();
+      await loadAgentCapabilities().catch(() => {});
+    } catch (error) {
+      setMcpError(normalizeUserMessage(error.message, "MCP 服务注册失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleToggleMcpServer = async (server) => {
+    if (!server?.serverId) return;
+    const nextEnabled = !server.enabled;
+    setMcpError("");
+    setMcpActionKey(`server-${server.serverId}`);
+    try {
+      const res = await enableMcpServer(server.serverId, nextEnabled);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 服务切换失败"));
+      }
+      setToast(nextEnabled ? "MCP 服务已启用" : "MCP 服务已停用");
+      await loadMcpState();
+      await loadAgentCapabilities().catch(() => {});
+    } catch (error) {
+      setMcpError(normalizeUserMessage(error.message, "MCP 服务切换失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleCacheMcpTools = async (event) => {
+    event.preventDefault();
+    setMcpError("");
+    setMcpActionKey("cache-tools");
+    try {
+      const serverId = String(mcpCacheServerId || "").trim();
+      if (!serverId) throw new Error("请先选择 MCP 服务");
+      const payload = JSON.parse(mcpToolPayload || "{}");
+      const tools = Array.isArray(payload.tools) ? payload.tools : [];
+      if (tools.length === 0) throw new Error("请填写工具列表");
+      const res = await cacheMcpTools(serverId, { tools });
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具缓存失败"));
+      }
+      setToast("MCP 工具已缓存");
+      await loadMcpState();
+      await loadAgentCapabilities().catch(() => {});
+    } catch (error) {
+      setMcpError(error instanceof SyntaxError
+        ? "请检查 JSON 格式"
+        : normalizeUserMessage(error.message, "MCP 工具缓存失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleDiscoverMcpTools = async (server) => {
+    const serverId = String(server?.serverId || mcpCacheServerId || "").trim();
+    if (!serverId) return;
+    setMcpError("");
+    setMcpActionKey(`discover-${serverId}`);
+    try {
+      const res = await discoverMcpTools(serverId, { cache: true });
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具发现失败"));
+      }
+      setMcpCacheServerId(serverId);
+      const toolCount = Number(res.data?.toolCount || 0);
+      setToast(toolCount > 0 ? `MCP 已发现 ${toolCount} 个工具` : "MCP 未发现可用工具");
+      await loadMcpState();
+      await loadAgentCapabilities().catch(() => {});
+    } catch (error) {
+      setMcpError(normalizeUserMessage(error.message, "MCP 工具发现失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleCheckMcpHealth = async () => {
+    setMcpError("");
+    setMcpActionKey("health");
+    try {
+      const res = await queryMcpHealth();
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 健康检查失败"));
+      }
+      setMcpHealth(res.data || null);
+      setToast("MCP 健康状态已更新");
+    } catch (error) {
+      setMcpError(normalizeUserMessage(error.message, "MCP 健康检查失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleExportMcpState = async () => {
+    setMcpError("");
+    setMcpActionKey("export");
+    try {
+      const res = await exportMcpState();
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 配置导出失败"));
+      }
+      const text = JSON.stringify(res.data || {}, null, 2);
+      setMcpExportPayload(text);
+      setMcpImportPayload(text);
+      setToast("MCP 配置已导出");
+    } catch (error) {
+      setMcpError(normalizeUserMessage(error.message, "MCP 配置导出失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleImportMcpState = async () => {
+    setMcpError("");
+    setMcpActionKey("import");
+    try {
+      const payload = JSON.parse(mcpImportPayload || "{}");
+      const res = await importMcpState(payload);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 配置导入失败"));
+      }
+      setToast(`MCP 配置已导入 ${res.data?.serverCount || 0} 个服务、${res.data?.toolCount || 0} 个工具`);
+      await loadMcpState();
+      await loadAgentCapabilities().catch(() => {});
+    } catch (error) {
+      setMcpError(error instanceof SyntaxError
+        ? "请检查 JSON 格式"
+        : normalizeUserMessage(error.message, "MCP 配置导入失败"));
+    } finally {
+      setMcpActionKey("");
+    }
+  };
+
+  const handleCallMcpTool = async () => {
+    const toolName = String(mcpToolCallName || "").trim();
+    if (!toolName) {
+      setMcpError("请先选择要测试的 MCP 工具");
+      return;
+    }
+    setMcpError("");
+    setMcpActionKey("call-tool");
+    try {
+      const payload = JSON.parse(mcpToolCallPayload || "{}");
+      const res = await callMcpTool(toolName, payload);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "MCP 工具调用失败"));
+      }
+      setMcpToolCallResult(JSON.stringify(res.data || {}, null, 2));
+      setToast("MCP 工具调用完成");
+    } catch (error) {
+      setMcpError(error instanceof SyntaxError
+        ? "请检查 JSON 格式"
+        : normalizeUserMessage(error.message, "MCP 工具调用失败"));
+    } finally {
+      setMcpActionKey("");
+    }
   };
 
   const buyPackage = async (pkg, buyType, options = {}) => {
@@ -2624,7 +2872,7 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="messages-container" ref={messagesContainer}>
-            {showAcademicProjectPanel && (
+            {(academicProjects.length > 0 || activeAcademicProject) && (
               <AcademicProjectPanel
                 projects={academicProjects}
                 model={academicProjectWorkspace}
@@ -2698,6 +2946,7 @@ function BearDoctorAcademicApp() {
                 loading={ordersLoading}
                 onRefresh={() => loadOrders().catch(() => {})}
                 onOpenRecharge={openRecharge}
+                onAuditOrder={auditTradeOrder}
               />
             )}
             {(!currentChat || currentChat.messages.length === 0) ? (
@@ -2723,7 +2972,6 @@ function BearDoctorAcademicApp() {
                     onToggleTimeline={toggleTimeline}
                     onToggleReference={toggleReference}
                     onRecommendClick={quickPrompt}
-                    onRetry={retryAssistantMessage}
                     onDownloadArtifact={handleArtifactDownload}
                   />
                 ))}
@@ -2732,44 +2980,42 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="input-area">
-            {selectedFiles.length > 0 && (
+            {selectedFile && (
               <div className="file-preview">
-                {selectedFiles.map((attachment) => (
-                  attachment.isImage || isImageArtifact({ fileName: attachment.name, contentType: attachment.contentType || attachment.fileType, previewUrl: attachment.previewUrl }) ? (
-                    <div className="image-preview-item" key={attachment.clientId || attachment.fileId || attachment.name}>
-                      <div className="image-preview-thumb">
-                        {attachment.previewUrl ? (
-                          <img src={attachment.previewUrl} alt={attachment.name || "上传图片"} />
-                        ) : (
-                          <div className="image-preview-empty"><ImagePlus size={24} /></div>
-                        )}
-                        {attachment.status === "uploading" && (
-                          <div className="image-upload-mask">
-                            <Loader2 size={17} className="spin" />
-                            <span>解析中</span>
-                          </div>
-                        )}
-                        <button type="button" className="image-preview-remove" onClick={() => removeSelectedFile(attachment.clientId)} aria-label="移除图片">
-                          <X size={15} />
-                        </button>
-                      </div>
-                      <div className="image-preview-meta">
-                        <div className="image-preview-name">{attachment.name}</div>
-                        <div className="image-preview-size">{formatFileSize(attachment.size)}</div>
-                      </div>
+                {selectedFile.isImage || isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.contentType || selectedFile.fileType, previewUrl: selectedFile.previewUrl }) ? (
+                  <div className="image-preview-item">
+                    <div className="image-preview-thumb">
+                      {selectedFile.previewUrl ? (
+                        <img src={selectedFile.previewUrl} alt={selectedFile.name || "上传图片"} />
+                      ) : (
+                        <div className="image-preview-empty"><ImagePlus size={24} /></div>
+                      )}
+                      {isUploading && (
+                        <div className="image-upload-mask">
+                          <Loader2 size={17} className="spin" />
+                          <span>解析中</span>
+                        </div>
+                      )}
+                      <button type="button" className="image-preview-remove" onClick={clearSelectedFile} aria-label="移除图片">
+                        <X size={15} />
+                      </button>
                     </div>
-                  ) : (
-                    <div className="file-preview-item" key={attachment.clientId || attachment.fileId || attachment.name}>
-                      <div className="file-icon-wrapper"><FileText size={22} /></div>
-                      <div className="file-info">
-                        <div className="file-name">{attachment.name}</div>
-                        <div className="file-size">{formatFileSize(attachment.size)}</div>
-                        {attachment.status === "uploading" && <div className="upload-parsing"><Loader2 size={14} className="spin" /><span>解析中...</span></div>}
-                      </div>
-                      <button type="button" className="remove-file" onClick={() => removeSelectedFile(attachment.clientId)} aria-label="移除文件"><Trash2 size={16} /></button>
+                    <div className="image-preview-meta">
+                      <div className="image-preview-name">{selectedFile.name}</div>
+                      <div className="image-preview-size">{formatFileSize(selectedFile.size)}</div>
                     </div>
-                  )
-                ))}
+                  </div>
+                ) : (
+                <div className="file-preview-item">
+                  <div className="file-icon-wrapper"><FileText size={22} /></div>
+                  <div className="file-info">
+                    <div className="file-name">{selectedFile.name}</div>
+                    <div className="file-size">{formatFileSize(selectedFile.size)}</div>
+                    {isUploading && <div className="upload-parsing"><Loader2 size={14} className="spin" /><span>解析中...</span></div>}
+                  </div>
+                  <button type="button" className="remove-file" onClick={clearSelectedFile} aria-label="移除文件"><Trash2 size={16} /></button>
+                </div>
+                )}
               </div>
             )}
 
@@ -2787,7 +3033,6 @@ function BearDoctorAcademicApp() {
               <textarea
                 value={inputMessage}
                 onChange={(event) => setInputMessage(event.target.value)}
-                onPaste={handleComposerPaste}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
@@ -2797,10 +3042,10 @@ function BearDoctorAcademicApp() {
                 placeholder={webSearchEnabled ? "搜索网页" : selectedAgent === "image" ? "描述或编辑图片" : selectedAgent === "deep" ? "获取详细报告" : "问点什么"}
                 rows={1}
               />
-              <input ref={fileInputRef} type="file" multiple accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
+              <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
               <div className="composer-toolbar">
                 <div className="composer-tool-left">
-                  {canUseFile && (
+                  {canUseFile && !selectedFile && (
                     <button className="file-btn composer-icon-btn" disabled={isUploading} onClick={() => fileInputRef.current?.click()} title="上传文件">
                       <Plus size={19} />
                     </button>
@@ -2837,10 +3082,10 @@ function BearDoctorAcademicApp() {
                     <ChevronDown size={14} />
                   </button>
                   <button
-                    className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (isUploading || (!inputMessage.trim() && readySelectedFiles.length === 0)) ? "disabled" : ""}`}
+                    className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (!inputMessage.trim() && !selectedFile) ? "disabled" : ""}`}
                     onClick={isSending ? stopMessage : sendMessage}
-                    disabled={!isSending && (isUploading || (!inputMessage.trim() && readySelectedFiles.length === 0))}
-                    title={isSending ? "停止生成" : isUploading ? "图片解析中" : "发送"}
+                    disabled={!isSending && (!inputMessage.trim() && !selectedFile)}
+                    title={isSending ? "停止生成" : "发送"}
                   >
                     {isSending ? <Square size={17} /> : <ArrowUp size={18} />}
                   </button>
@@ -2887,7 +3132,7 @@ function BearDoctorAcademicApp() {
                   <span>{selectedSkillName || "自动"}</span>
                 </div>
                 <p className="composer-skill-help">
-                  {selectedManualSkillHelp}
+                  适合指定某个固定流程处理任务。选择一个 Skill 后，输入目标、素材路径和约束；选择“自动”时，系统会根据任务内容匹配合适的 Skill。
                 </p>
                 <div className="skill-picker composer-skill-picker" aria-label="选择 Skill">
                   <button
@@ -2903,7 +3148,7 @@ function BearDoctorAcademicApp() {
                       key={skill.name || skill.description}
                       className={selectedSkillName === skill.name ? "active" : ""}
                       onClick={() => setSelectedSkillName(skill.name || "")}
-                      title={manualSkillHelpText(skill, skill.name || "")}
+                      title={skill.description || skill.name || ""}
                     >
                       {skill.name || "技能"}
                     </button>
@@ -2917,7 +3162,7 @@ function BearDoctorAcademicApp() {
                 compact
                 draft={imageWorkspaceDraft}
                 onChange={setImageWorkspaceDraft}
-                hasReference={readySelectedFiles.some((file) => file.fileId && isImageArtifact({ fileName: file.name, contentType: file.fileType || file.contentType }))}
+                hasReference={Boolean(selectedFile?.fileId && isImageArtifact({ fileName: selectedFile.name, contentType: selectedFile.fileType }))}
               />
             )}
           </div>
@@ -3008,6 +3253,155 @@ function BearDoctorAcademicApp() {
 function formatWorkspaceHistoryTime(value = "") {
   const text = String(value || "").replace("T", " ").trim();
   return text.length > 19 ? text.slice(0, 19) : text;
+}
+
+function compactToolList(items = [], limit = 2) {
+  const cleanItems = (items || []).filter(Boolean);
+  const visible = cleanItems.slice(0, limit);
+  if (visible.length === 0) return "";
+  const more = Math.max(0, cleanItems.length - visible.length);
+  return `${visible.join("/")}${more ? ` +${more}` : ""}`;
+}
+
+function toolReadinessMeta(tool = {}) {
+  const inputText = compactToolList(
+    tool.requiredArguments?.length ? tool.requiredArguments : tool.inputFields,
+    2
+  );
+  const outputText = compactToolList(tool.outputKinds, 2);
+  const workspaceText = compactToolList(tool.workspaces, 2);
+  return [
+    inputText ? `入参 ${inputText}` : "",
+    outputText ? `输出 ${outputText}` : "",
+    workspaceText ? `工作区 ${workspaceText}` : ""
+  ].filter(Boolean).join(" · ");
+}
+
+function AgentPlatformReadinessPanel({ capabilities }) {
+  const readiness = buildAgentPlatformReadiness(capabilities);
+  if (!readiness || typeof readiness !== "object") return null;
+  const metrics = readiness.metrics || [];
+  const actions = readiness.actions || [];
+  const gaps = readiness.gaps || [];
+  const mcpHealth = readiness.mcpHealth;
+  const status = readiness.status || "partial";
+  return (
+    <div className={`agent-platform-readiness ${status}`}>
+      <div className="agent-platform-readiness-head">
+        <b>{readiness.title || "Agent + 工具运行状态"}</b>
+        <em>{readiness.statusLabel || status}</em>
+      </div>
+      {metrics.slice(0, 5).map((metric) => (
+        <span key={metric.key || metric.label} className={metric.tone || "normal"}>
+          <b>{metric.label}</b>
+          <em>{metric.value}</em>
+        </span>
+      ))}
+      {mcpHealth && (
+        <span className={`agent-platform-readiness-mcp ${mcpHealth.tone || "normal"}`} title={mcpHealth.message || mcpHealth.summary}>
+          <b>MCP</b>
+          <em>{mcpHealth.summary}</em>
+        </span>
+      )}
+      {(actions[0] || gaps[0]) && <small>{actions[0] || gaps[0]}</small>}
+    </div>
+  );
+}
+
+function CapabilityMatrixPanel({ items = [], executionModes = [] }) {
+  if (!items.length && !executionModes.length) return null;
+  const executionSummary = buildAgentExecutionSummary(executionModes);
+  return (
+    <div className="agent-capability-matrix">
+      {executionModes.length > 0 && (
+        <>
+          <div className={`agent-execution-summary ${executionSummary.status}`}>
+            {executionSummary.metrics.map((metric) => (
+              <span key={metric.key} className={metric.tone || "normal"}>
+                <b>{metric.label}</b>
+                <em>{metric.value}</em>
+              </span>
+            ))}
+            {executionSummary.actions[0] && <small>{executionSummary.actions[0]}</small>}
+          </div>
+          <div className="agent-execution-modes">
+            {executionModes.map((mode) => {
+              const replanEvidence = compactToolList(mode.replanEvidence, 3);
+              const title = [mode.summary || "", replanEvidence ? `閲嶈鍒掕瘉鎹?${replanEvidence}` : ""]
+                .filter(Boolean)
+                .join("\n");
+              return (
+                <span
+                  key={mode.agentId}
+                  className={mode.replanEnabled ? "replan-enabled" : ""}
+                  title={title}
+                >
+                  <b>{mode.name}</b>
+                  <em>{mode.executionMode || mode.family || "-"}</em>
+                  {mode.replanEnabled && <small>重规划</small>}
+                </span>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {items.map((item) => (
+        <article
+          key={item.key || item.label}
+          className={`agent-capability-node ${item.status === "ready" ? "ready" : "degraded"}`}
+        >
+          <div>
+            <b>{item.label}</b>
+            <em>{item.status === "ready" ? "已就绪" : "降级中"}</em>
+          </div>
+          {item.summary && <p>{item.summary}</p>}
+          {item.evidence?.length > 0 && (
+            <div className="agent-capability-evidence">
+              {item.evidence.map((evidence) => (
+                <span key={evidence}>{evidence}</span>
+              ))}
+            </div>
+          )}
+          {item.dynamicReplan?.enabled && (
+            <div
+              className="agent-dynamic-replan"
+              title={[
+                compactToolList(item.dynamicReplan.executionModes, 3),
+                compactToolList(item.dynamicReplan.historyEvidence, 3)
+              ].filter(Boolean).join("\n")}
+            >
+              <span>动态重规划</span>
+              {item.dynamicReplan.streamEvents?.slice(0, 2).map((event) => (
+                <em key={event}>{event}</em>
+              ))}
+            </div>
+          )}
+          {item.settlementRules?.length > 0 && (
+            <div className="agent-settlement-rules">
+              {item.settlementRules.slice(0, 4).map((rule) => (
+                <span
+                  key={rule.key}
+                  className={rule.quotaGrantAllowed ? "allowed" : "blocked"}
+                  title={rule.operatorHint}
+                >
+                  <b>{rule.scenario}</b>
+                  <em>{rule.quotaGrantAllowed ? "可发放" : "不发放"}</em>
+                </span>
+              ))}
+            </div>
+          )}
+          {item.guardrails?.length > 0 && (
+            <div className="agent-capability-guardrails">
+              {item.guardrails.map((guardrail) => (
+                <span key={guardrail}>{guardrail}</span>
+              ))}
+            </div>
+          )}
+          <small>{item.gaps?.length > 0 ? item.gaps.join("；") : "无缺口"}</small>
+        </article>
+      ))}
+    </div>
+  );
 }
 
 function WorkspaceHistoryPanel({
@@ -3247,55 +3641,114 @@ function ProjectFileRow({ file = {} }) {
   );
 }
 
+const IMAGE_QUALITY_OPTIONS = [
+  { value: "auto", label: "自动" },
+  { value: "high", label: "高" },
+  { value: "medium", label: "中" },
+  { value: "low", label: "低" }
+];
+
+const IMAGE_RATIO_PRESETS = [
+  { id: "1:1", label: "1:1", aspectRatio: "1:1", size: "1024x1024", shape: "square" },
+  { id: "3:2", label: "3:2", aspectRatio: "3:2", size: "1536x1024", shape: "landscape" },
+  { id: "2:3", label: "2:3", aspectRatio: "2:3", size: "1024x1536", shape: "portrait" },
+  { id: "4:3", label: "4:3", aspectRatio: "4:3", size: "1600x1200", shape: "landscape" },
+  { id: "3:4", label: "3:4", aspectRatio: "3:4", size: "1200x1600", shape: "portrait" },
+  { id: "16:9", label: "16:9", aspectRatio: "16:9", size: "1920x1080", shape: "landscape" },
+  { id: "9:16", label: "9:16", aspectRatio: "9:16", size: "1080x1920", shape: "portrait" },
+  { id: "1:1-2k", label: "1:1 2K", aspectRatio: "1:1", size: "2048x2048", shape: "square" },
+  { id: "16:9-2k", label: "16:9 2K", aspectRatio: "16:9", size: "2560x1440", shape: "landscape" },
+  { id: "9:16-2k", label: "9:16 2K", aspectRatio: "9:16", size: "1440x2560", shape: "portrait" },
+  { id: "16:9-4k", label: "16:9 4K", aspectRatio: "16:9", size: "3840x2160", shape: "landscape" },
+  { id: "9:16-4k", label: "9:16 4K", aspectRatio: "9:16", size: "2160x3840", shape: "portrait" },
+  { id: "auto", label: "自动", aspectRatio: "auto", size: "auto", shape: "auto" }
+];
+
+const IMAGE_BATCH_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
+
 function ImageWorkspacePanel({ draft, onChange, hasReference, compact = false }) {
   const update = (field, value) => onChange({ ...draft, [field]: value });
+  const selectedPreset = IMAGE_RATIO_PRESETS.find((preset) => (
+    draft.ratioPreset === preset.id
+    || (preset.aspectRatio === draft.aspectRatio && preset.size === draft.size)
+  )) || IMAGE_RATIO_PRESETS.find((preset) => preset.id === "16:9-4k");
+  const updatePreset = (preset) => onChange({
+    ...draft,
+    ratioPreset: preset.id,
+    aspectRatio: preset.aspectRatio,
+    size: preset.size
+  });
   return (
     <section className={`image-workspace-panel ${compact ? "composer-image-settings" : ""}`}>
       <div className="image-workspace-head">
         <div>
           <strong>图像参数</strong>
-          <span>{draft.mode === "edit" ? "使用参考图生成变体" : "根据提示词生成图片"}</span>
+          <span>模型、质量、比例和张数</span>
         </div>
         <span className={hasReference ? "ready" : ""}>{hasReference ? "已有参考图" : "无参考图"}</span>
       </div>
       <div className="image-workspace-grid">
-        <label>
-          <span>模式</span>
-          <select value={draft.mode} onChange={(event) => update("mode", event.target.value)}>
-            <option value="generate">文生图</option>
-            <option value="edit">图生图</option>
-          </select>
-        </label>
-        <label>
-          <span>尺寸</span>
-          <select value={draft.size} onChange={(event) => update("size", event.target.value)}>
-            <option value="1024x1024">1024x1024</option>
-            <option value="1536x1024">1536x1024</option>
-            <option value="1024x1536">1024x1536</option>
-            <option value="768x768">768x768</option>
-          </select>
-        </label>
-        <label>
-          <span>张数</span>
+        <label className="image-model-field">
+          <span>模型</span>
           <input
-            type="number"
-            min="1"
-            max="4"
-            value={draft.batchCount}
-            onChange={(event) => update("batchCount", event.target.value)}
+            list="image-model-options"
+            value={draft.model || "gpt-image-2"}
+            onChange={(event) => update("model", event.target.value)}
+            placeholder="gpt-image-2"
           />
+          <datalist id="image-model-options">
+            <option value="gpt-image-2" />
+          </datalist>
         </label>
-        {draft.mode === "edit" && (
-          <label className="image-mask-field">
-            <span>蒙版图片地址</span>
-            <textarea
-              rows="2"
-              value={draft.maskImageUrlsText || ""}
-              onChange={(event) => update("maskImageUrlsText", event.target.value)}
-              placeholder="https://example.com/mask.png"
-            />
-          </label>
-        )}
+        <div className="image-option-group image-quality-field">
+          <span>质量</span>
+          <div className="image-segmented-options">
+            {IMAGE_QUALITY_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                className={(draft.quality || "auto") === option.value ? "active" : ""}
+                onClick={() => update("quality", option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="image-option-group image-ratio-field">
+          <div className="image-option-title">
+            <span>比例与尺寸</span>
+            <em>{selectedPreset?.size === "auto" ? "自动" : selectedPreset?.size}</em>
+          </div>
+          <div className="image-ratio-options">
+            {IMAGE_RATIO_PRESETS.map((preset) => (
+              <button
+                type="button"
+                key={preset.id}
+                className={selectedPreset?.id === preset.id ? "active" : ""}
+                onClick={() => updatePreset(preset)}
+              >
+                <i className={`ratio-icon ${preset.shape}`} />
+                <span>{preset.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="image-option-group image-batch-field">
+          <span>生成张数</span>
+          <div className="image-batch-options">
+            {IMAGE_BATCH_OPTIONS.map((count) => (
+              <button
+                type="button"
+                key={count}
+                className={Number(draft.batchCount || 1) === count ? "active" : ""}
+                onClick={() => update("batchCount", count)}
+              >
+                {count} 张
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -3346,7 +3799,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <input
             value={draft.columnsText}
             onChange={(event) => update("columnsText", event.target.value)}
-            placeholder="metric_name, metric_value, dataset"
+            placeholder="pay_status, count, amount"
           />
         </label>
         <label>
@@ -3354,7 +3807,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <input
             value={draft.modelCodeText}
             onChange={(event) => update("modelCodeText", event.target.value)}
-            placeholder="paper_metadata, experiment_result"
+            placeholder="trade_order, quota_flow"
           />
         </label>
         <label className="wide">
@@ -3370,7 +3823,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <textarea
             value={draft.rowsJson}
             onChange={(event) => update("rowsJson", event.target.value)}
-            placeholder='[{"metric_name":"accuracy","metric_value":92.4}]'
+            placeholder='[{"pay_status":"PAY_SUCCESS","count":12}]'
           />
         </label>
         <label className="wide">
@@ -3378,7 +3831,7 @@ function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogE
           <textarea
             value={draft.schemaInfoJson}
             onChange={(event) => update("schemaInfoJson", event.target.value)}
-            placeholder='[{"table":"experiment_result","columns":["metric_name","metric_value"]}]'
+            placeholder='[{"table":"trade_order","columns":["pay_status","order_status"]}]'
           />
         </label>
       </div>
@@ -3394,7 +3847,7 @@ function tradeOrderAmount(order = {}) {
   return formatTradeNumber(order.payAmount || order.totalAmount || order.amount || order.lockAmount);
 }
 
-function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge }) {
+function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAuditOrder }) {
   const stats = [
     { label: "当前余额", value: `${formatTradeNumber(summary.quotaBalance)} 点` },
     { label: "已用额度", value: `${formatTradeNumber(summary.usedQuota)} 点` },
@@ -3455,6 +3908,10 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge }) {
                   {settlementHint.label}
                 </small>
                 <span>￥{tradeOrderAmount(order)}</span>
+                <button type="button" className="trade-order-audit" onClick={() => onAuditOrder?.(order)}>
+                  <Eye size={14} />
+                  <span>记录</span>
+                </button>
               </article>
             );
           })}
@@ -3695,6 +4152,8 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPr
   const toolReadiness = page.toolReadiness;
   const runtimeCoverage = page.runtimeCoverage;
   const isImage = workspace.id === "image";
+  const isData = workspace.id === "data";
+  const isMrag = workspace.id === "mrag";
   const isTrade = workspace.id === "trade";
   const isAgent = workspace.id === "agent";
   const useSimpleEmpty = isAgent || isImage;
@@ -3883,6 +4342,23 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
               <span>{resultPanelKindLabel(panel.kind)}</span>
             </div>
           </div>
+
+          {panel.kind === "audit" && (
+            <div className="result-audit-panel">
+              {(panel.findings || []).length > 0 && (
+                <div className="result-audit-findings">
+                  {panel.findings.slice(0, 6).map((finding, index) => (
+                    <div className={`result-audit-finding result-audit-${String(finding.severity || "info").toLowerCase()}`} key={`${panel.id}-finding-${index}`}>
+                      <strong>{formatPanelValue(finding.code || "FINDING")}</strong>
+                      <span>{formatPanelValue(finding.severity || "INFO")}</span>
+                      {finding.message && <p>{formatPanelValue(finding.message)}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {panel.content && <pre className="result-panel-content">{panel.content}</pre>}
+            </div>
+          )}
 
           {panel.kind === "data" && (
             <>
@@ -4113,7 +4589,7 @@ function ResultPanelList({ panels = [], onDownloadArtifact }) {
           {panel.kind === "image" && (
             <div className="result-image-panel">
               <div className="result-code-meta">
-                {["mode", "size", "batchCount", "provider", "usedFallback"].map((key) => (
+                {["model", "quality", "aspectRatio", "mode", "size", "batchCount", "provider"].map((key) => (
                   panel.metadata?.[key] !== undefined && panel.metadata?.[key] !== "" ? (
                     <span key={key}>
                       <b>{key}</b>
@@ -4296,11 +4772,10 @@ function AgentRunDigestPanel({ digest }) {
   );
 }
 
-function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick, onRetry, onDownloadArtifact }) {
+function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick, onDownloadArtifact }) {
   const isUser = msg.role === "user";
   const plannerHistory = !isUser ? buildPlannerHistory(msg.timeline || []) : [];
   const runDigest = !isUser ? buildAgentRunDigest(msg) : null;
-  const canRetry = !isUser && !isSending && assistantMessageCanRetry(msg);
   const [previewArtifactKey, setPreviewArtifactKey] = useState("");
   return (
     <div className={`message ${msg.role}`}>
@@ -4309,7 +4784,7 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
         {isUser ? (
           <>
             <div className="user-message">
-              {msg.file && <span className="file-attachment"><Paperclip size={14} />{msg.fileName || `${(msg.files || []).length} 个附件`}</span>}
+              {msg.file && <span className="file-attachment"><Paperclip size={14} />{msg.fileName}</span>}
               <div>{msg.content}</div>
             </div>
             <button className="copy-btn copy-btn-user" onClick={() => onCopy(msg)}>
@@ -4330,7 +4805,12 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
                     <div className={`planner-history-item ${version.latest ? "latest" : ""}`} key={version.id}>
                       <span className={`planner-history-status ${version.status}`}>{version.status}</span>
                       <strong>{index + 1}. {version.title}</strong>
-                      <small>{plannerHistoryMeta(version, index + 1)}</small>
+                      <small>
+                        第 {version.revision || index + 1} 版
+                        {"?"}
+                        {version.stageCount > 0 ? `${version.stageCount} 阶段` : ""}
+                        {version.stepCount} 步{version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}
+                      </small>
                       {version.replanReason && <em>原因：{version.replanReason}</em>}
                       {version.summary && <em>{version.summary}</em>}
                     </div>
@@ -4518,17 +4998,9 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
               </div>
             )}
 
-            <div className="message-action-row">
-              {canRetry && (
-                <button type="button" className="message-retry-btn" onClick={() => onRetry?.(msg.id)}>
-                  <RotateCcw size={15} />
-                  <span>重试</span>
-                </button>
-              )}
-              <button className="copy-btn" onClick={() => onCopy(msg)}>
-                {copied ? <Check size={15} /> : <Copy size={15} />}
-              </button>
-            </div>
+            <button className="copy-btn" onClick={() => onCopy(msg)}>
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+            </button>
           </div>
         )}
       </div>
@@ -4573,6 +5045,18 @@ function ModelConfigDialog({ config, onSave, onClose }) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+  const updateTextBaseUrl = (value) => {
+    setDraft((prev) => ({ ...prev, baseUrl: value, textBaseUrl: value }));
+  };
+
+  const updateTextApiKey = (value) => {
+    setDraft((prev) => ({ ...prev, apiKey: value, textApiKey: value }));
+  };
+
+  const updateTextModel = (value) => {
+    setDraft((prev) => ({ ...prev, model: value, textModel: value }));
+  };
+
   const submit = (event) => {
     event.preventDefault();
     onSave(draft);
@@ -4594,35 +5078,72 @@ function ModelConfigDialog({ config, onSave, onClose }) {
           />
           <span>使用自定义模型</span>
         </label>
-        <label>
-          <span>API 地址</span>
-          <input
-            value={draft.baseUrl || ""}
-            onChange={(event) => update("baseUrl", event.target.value)}
-            placeholder="https://dashscope.aliyuncs.com/compatible-mode"
-            disabled={!draft.enabled}
-          />
-        </label>
-        <label>
-          <span>API 密钥</span>
-          <input
-            value={draft.apiKey || ""}
-            onChange={(event) => update("apiKey", event.target.value)}
-            type="password"
-            placeholder={draft.keyMasked ? "留空则继续使用已保存密钥" : "sk-..."}
-            disabled={!draft.enabled}
-          />
-          {draft.keyMasked && <em className="model-config-key-mask">已保存：{draft.keyMasked}</em>}
-        </label>
-        <label>
-          <span>模型名称</span>
-          <input
-            value={draft.model || ""}
-            onChange={(event) => update("model", event.target.value)}
-            placeholder="qwen3.6-plus"
-            disabled={!draft.enabled}
-          />
-        </label>
+        <section className="model-config-section">
+          <strong>文本模型</strong>
+          <label>
+            <span>API 地址</span>
+            <input
+              value={draft.textBaseUrl || draft.baseUrl || ""}
+              onChange={(event) => updateTextBaseUrl(event.target.value)}
+              placeholder="https://dashscope.aliyuncs.com/compatible-mode"
+              disabled={!draft.enabled}
+            />
+          </label>
+          <label>
+            <span>API 密钥</span>
+            <input
+              value={draft.textApiKey || draft.apiKey || ""}
+              onChange={(event) => updateTextApiKey(event.target.value)}
+              type="password"
+              placeholder={draft.textKeyMasked || draft.keyMasked ? "留空则继续使用已保存密钥" : "sk-..."}
+              disabled={!draft.enabled}
+            />
+            {(draft.textKeyMasked || draft.keyMasked) && (
+              <em className="model-config-key-mask">已保存：{draft.textKeyMasked || draft.keyMasked}</em>
+            )}
+          </label>
+          <label>
+            <span>默认文本模型</span>
+            <input
+              value={draft.textModel || draft.model || ""}
+              onChange={(event) => updateTextModel(event.target.value)}
+              placeholder="qwen3.6-plus"
+              disabled={!draft.enabled}
+            />
+          </label>
+        </section>
+        <section className="model-config-section">
+          <strong>图像模型</strong>
+          <label>
+            <span>API 地址</span>
+            <input
+              value={draft.imageBaseUrl || ""}
+              onChange={(event) => update("imageBaseUrl", event.target.value)}
+              placeholder="https://api.openai.com"
+              disabled={!draft.enabled}
+            />
+          </label>
+          <label>
+            <span>API 密钥</span>
+            <input
+              value={draft.imageApiKey || ""}
+              onChange={(event) => update("imageApiKey", event.target.value)}
+              type="password"
+              placeholder={draft.imageKeyMasked ? "留空则继续使用已保存密钥" : "sk-..."}
+              disabled={!draft.enabled}
+            />
+            {draft.imageKeyMasked && <em className="model-config-key-mask">已保存：{draft.imageKeyMasked}</em>}
+          </label>
+          <label>
+            <span>默认图像模型</span>
+            <input
+              value={draft.imageModel || ""}
+              onChange={(event) => update("imageModel", event.target.value)}
+              placeholder="gpt-image-2"
+              disabled={!draft.enabled}
+            />
+          </label>
+        </section>
         <div className="model-config-actions">
           <button type="button" onClick={onClose}>取消</button>
           <button type="submit" className="primary">保存</button>

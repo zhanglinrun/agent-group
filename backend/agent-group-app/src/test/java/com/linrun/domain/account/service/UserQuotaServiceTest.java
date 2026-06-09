@@ -1,5 +1,7 @@
 package com.linrun.domain.account.service;
 
+import com.linrun.api.dto.UserModelConfigRequest;
+import com.linrun.api.dto.UserModelConfigResponse;
 import com.linrun.domain.account.adapter.UserQuotaRepository;
 import com.linrun.domain.account.model.ModelUsageRecord;
 import com.linrun.domain.account.model.UserMembershipAccount;
@@ -14,6 +16,7 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -47,6 +50,58 @@ class UserQuotaServiceTest {
         assertNotEquals(quotaRepository.flows.get(0).getBizId(), quotaRepository.flows.get(1).getBizId());
         assertEquals("AS1780458958046", quotaRepository.usages.get(0).getSessionId());
         assertEquals("AS1780458958046", quotaRepository.usages.get(1).getSessionId());
+    }
+
+    @Test
+    void tradeAuditPreCheckUsesTradeTaskCost() {
+        UserQuotaService service = new UserQuotaService(
+                new InMemoryQuotaRepository(BigDecimal.TEN),
+                mock(GuideDataRepository.class),
+                mock(TradeOrderRepository.class));
+
+        assertEquals(new BigDecimal("0.20"), service.estimatePreCheckCost("trade-audit"));
+    }
+
+    @Test
+    void modelConfigSeparatesTextAndImageModels() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
+        UserQuotaService service = new UserQuotaService(
+                quotaRepository,
+                mock(GuideDataRepository.class),
+                mock(TradeOrderRepository.class));
+        ReflectionTestUtils.setField(service, "modelConfigCryptoSecret", "test-model-config-secret");
+
+        UserModelConfigRequest request = new UserModelConfigRequest();
+        request.setEnabled(true);
+        request.setTextBaseUrl("https://text.example.com/v1");
+        request.setTextApiKey("sk-text-secret-1234");
+        request.setTextModel("custom-text-model");
+        request.setImageBaseUrl("https://image.example.com/v1");
+        request.setImageApiKey("sk-image-secret-5678");
+        request.setImageModel("custom-image-model");
+
+        UserModelConfigResponse response = service.saveModelConfig("U10001", request);
+        Optional<UserModelConfig> runtimeConfig = service.queryRuntimeModelConfig("U10001");
+
+        assertEquals("https://text.example.com/v1", response.getBaseUrl());
+        assertEquals("https://text.example.com/v1", response.getTextBaseUrl());
+        assertEquals("custom-text-model", response.getModel());
+        assertEquals("custom-text-model", response.getTextModel());
+        assertEquals("https://image.example.com/v1", response.getImageBaseUrl());
+        assertEquals("custom-image-model", response.getImageModel());
+        assertEquals("sk-t****1234", response.getTextKeyMasked());
+        assertEquals("sk-i****5678", response.getImageKeyMasked());
+        assertTrue(runtimeConfig.isPresent());
+        assertEquals("https://text.example.com/v1", runtimeConfig.get().getBaseUrl());
+        assertEquals("https://text.example.com/v1", runtimeConfig.get().getTextBaseUrl());
+        assertEquals("https://image.example.com/v1", runtimeConfig.get().getImageBaseUrl());
+        assertEquals("custom-text-model", runtimeConfig.get().getModel());
+        assertEquals("custom-text-model", runtimeConfig.get().getTextModel());
+        assertEquals("custom-image-model", runtimeConfig.get().getImageModel());
+        assertEquals("sk-text-secret-1234", runtimeConfig.get().getApiKey());
+        assertEquals("sk-text-secret-1234", runtimeConfig.get().getTextApiKey());
+        assertEquals("sk-image-secret-5678", runtimeConfig.get().getImageApiKey());
+        assertNotEquals(runtimeConfig.get().getTextApiKey(), runtimeConfig.get().getImageApiKey());
     }
 
     @Test

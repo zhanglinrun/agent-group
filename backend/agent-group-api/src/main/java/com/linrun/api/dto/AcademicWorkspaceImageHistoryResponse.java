@@ -25,6 +25,9 @@ public class AcademicWorkspaceImageHistoryResponse implements Serializable {
         private String summary;
         private String status;
         private String mode;
+        private String model;
+        private String quality;
+        private String aspectRatio;
         private String size;
         private Integer batchCount = 0;
         private Integer sourceImageCount = 0;

@@ -89,6 +89,9 @@ export interface WorkspaceImageGeneratePayload {
   sessionId: string;
   prompt: string;
   mode: "generate" | "edit";
+  model: string;
+  quality: string;
+  aspectRatio: string;
   size: string;
   batchCount: number;
   sourceFileIds: string[];
@@ -959,13 +962,16 @@ export function buildWorkspaceDataCatalogDraft(catalog: {
 function clampBatchCount(value: unknown): number {
   const numeric = Number(value || 1);
   if (!Number.isFinite(numeric)) return 1;
-  return Math.max(1, Math.min(Math.floor(numeric), 4));
+  return Math.max(1, Math.min(Math.floor(numeric), 10));
 }
 
 export function buildWorkspaceImageGeneratePayload(input: {
   sessionId: string;
   prompt: string;
   mode?: string;
+  model?: string;
+  quality?: string;
+  aspectRatio?: string;
   size?: string;
   batchCount?: number | string;
   sourceFileIds?: string[];
@@ -975,14 +981,14 @@ export function buildWorkspaceImageGeneratePayload(input: {
   const sourceFileIds = stringList(input.sourceFileIds);
   const sourceImageUrls = stringList(input.sourceImageUrls);
   const maskImageUrls = textOrArrayList(input.maskImageUrls);
-  const requestedMode = String(input.mode || "").trim() === "edit" ? "edit" : "generate";
-  if (requestedMode === "edit" && sourceFileIds.length === 0 && sourceImageUrls.length === 0) {
-    throw new Error("图生图需要先上传参考图");
-  }
+  const requestedMode = sourceFileIds.length > 0 || sourceImageUrls.length > 0 ? "edit" : "generate";
   return {
     sessionId: String(input.sessionId || ""),
     prompt: String(input.prompt || "").trim(),
     mode: requestedMode,
+    model: String(input.model || "gpt-image-2").trim() || "gpt-image-2",
+    quality: String(input.quality || "auto").trim() || "auto",
+    aspectRatio: String(input.aspectRatio || "1:1").trim() || "1:1",
     size: String(input.size || "1024x1024").trim() || "1024x1024",
     batchCount: clampBatchCount(input.batchCount),
     sourceFileIds,

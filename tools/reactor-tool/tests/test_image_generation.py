@@ -1,6 +1,6 @@
 import asyncio
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 
@@ -213,6 +213,82 @@ class ImageGenerationToolTest(unittest.TestCase):
             self.assertIsNone(client.calls[0]["json"])
             self.assertIsNotNone(client.calls[0]["files"])
             self.assertNotIn("Content-Type", client.calls[0]["headers"])
+
+        asyncio.run(_run())
+
+    def test_should_prefer_request_level_image_config_over_env(self):
+        class FakeResponse:
+            def __init__(self):
+                self.is_success = True
+                self.status_code = 200
+                self.text = '{"output":[{"type":"image_generation_call","result":"' + TINY_PNG_BASE64 + '"}]}'
+
+            def json(self):
+                return {
+                    "output": [
+                        {
+                            "type": "image_generation_call",
+                            "result": TINY_PNG_BASE64,
+                        }
+                    ]
+                }
+
+        class FakeClient:
+            calls = []
+
+            def __init__(self, *args, **kwargs):
+                self.timeout = kwargs.get("timeout")
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def post(self, url, headers=None, json=None, files=None):
+                self.calls.append(
+                    {
+                        "url": url,
+                        "headers": headers or {},
+                        "json": json,
+                        "files": files,
+                    }
+                )
+                return FakeResponse()
+
+        request = ImageGenerationRequest.model_validate(
+            {
+                "requestId": "req-config-001",
+                "prompt": "draw a paper framework diagram",
+                "baseUrl": "https://request-image.example.com",
+                "apiKey": "request-image-key",
+                "model": "request-image-model",
+            }
+        )
+
+        async def _run():
+            FakeClient.calls = []
+            with patch.dict(
+                "os.environ",
+                {
+                    "IMAGE_GENERATION_BASE_URL": "https://env-image.example.com",
+                    "IMAGE_GENERATION_API_KEY": "env-image-key",
+                    "IMAGE_GENERATION_MODEL": "env-image-model",
+                },
+                clear=True,
+            ), patch(
+                "reactor_tool.tool.image_generation.httpx.AsyncClient",
+                FakeClient,
+            ), patch(
+                "reactor_tool.tool.image_generation.upload_file_by_path",
+                AsyncMock(return_value={"fileName": "result.png"}),
+            ):
+                result = await generate_images(request)
+
+            self.assertEqual("https://request-image.example.com/v1/responses", FakeClient.calls[0]["url"])
+            self.assertEqual("Bearer request-image-key", FakeClient.calls[0]["headers"]["Authorization"])
+            self.assertEqual("request-image-model", FakeClient.calls[0]["json"]["model"])
+            self.assertEqual("result.png", result["fileInfo"][0]["fileName"])
 
         asyncio.run(_run())
 

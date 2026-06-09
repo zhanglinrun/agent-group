@@ -27,7 +27,7 @@ if [[ -z "${FILE_SAVE_PATH:-}" ]]; then
 fi
 
 if [[ -z "${FILE_SERVER_URL:-}" || ! "${FILE_SERVER_URL}" =~ ^https?:// ]]; then
-  export FILE_SERVER_URL="http://127.0.0.1:1601/v1/file_tool"
+  export FILE_SERVER_URL="http://127.0.0.1:1801/v1/file_tool"
 fi
 
 # FILE_SAVE_PATH 负责本地落盘目录，FILE_SERVER_URL 必须保持为可访问的 HTTP 地址。

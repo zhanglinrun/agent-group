@@ -28,7 +28,7 @@ cd E:\javaproject\agent-group\tools\reactor-tool
 .\start.ps1
 ```
 
-默认监听 `http://127.0.0.1:1601`（本地工具服务地址）。
+默认监听 `http://127.0.0.1:1801`（本地工具服务地址）。
 
 ## 后端接入
 
@@ -36,7 +36,7 @@ cd E:\javaproject\agent-group\tools\reactor-tool
 
 ```powershell
 $env:AGENT_GROUP_REACTOR_TOOL_ENABLED="true"
-$env:AGENT_GROUP_REACTOR_TOOL_BASE_URL="http://127.0.0.1:1601"
+$env:AGENT_GROUP_REACTOR_TOOL_BASE_URL="http://127.0.0.1:1801"
 ```
 
 然后启动后端：

@@ -41,6 +41,9 @@ class AcademicImageGenerationToolRuntimeTest {
         AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.IMAGE_GENERATION)
                 .arguments(Map.of(
                         "prompt", "生成拼团活动主图",
+                        "model", "gpt-image-2",
+                        "quality", "auto",
+                        "aspectRatio", "1:1",
                         "size", "1024x1024",
                         "batchCount", 1))
                 .build());
@@ -48,6 +51,9 @@ class AcademicImageGenerationToolRuntimeTest {
         Map<String, Object> metadata = (Map<String, Object>) result.getResult().get("metadata");
         assertTrue(result.isSuccess());
         assertEquals("mock-image", metadata.get("provider"));
+        assertEquals("gpt-image-2", metadata.get("model"));
+        assertEquals("auto", metadata.get("quality"));
+        assertEquals("1:1", metadata.get("aspectRatio"));
         assertEquals("1024x1024", metadata.get("size"));
         assertEquals(List.of("A-IMG-1"), result.getArtifactIds());
     }

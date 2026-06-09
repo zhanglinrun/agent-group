@@ -33,6 +33,12 @@ class ReactorToolPortAdapterTest {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         server.expect(requestTo("http://127.0.0.1:1601/v1/tool/image_generation"))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("\"model\":\"gpt-image-2\""),
+                        org.hamcrest.Matchers.containsString("\"quality\":\"auto\""),
+                        org.hamcrest.Matchers.containsString("\"aspectRatio\":\"1:1\""),
+                        org.hamcrest.Matchers.containsString("\"size\":\"1024x1024\"")
+                )))
                 .andRespond(withSuccess("""
                         {
                           "data": "图片生成完成",
@@ -57,6 +63,45 @@ class ReactorToolPortAdapterTest {
         assertTrue(result.success());
         assertEquals("图片生成完成", result.summary());
         assertEquals("result.png", result.fileRefs().getFirst().getFileName());
+        server.verify();
+    }
+
+    @Test
+    void shouldForwardImageModelConnectionConfig() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        server.expect(requestTo("http://127.0.0.1:1601/v1/tool/image_generation"))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("\"model\":\"custom-image-model\""),
+                        org.hamcrest.Matchers.containsString("\"baseUrl\":\"https://image.example.com/v1\""),
+                        org.hamcrest.Matchers.containsString("\"apiKey\":\"sk-image-secret\""),
+                        org.hamcrest.Matchers.containsString("\"quality\":\"high\""),
+                        org.hamcrest.Matchers.containsString("\"aspectRatio\":\"16:9\"")
+                )))
+                .andRespond(withSuccess("""
+                        {
+                          "data": "done",
+                          "fileInfo": [
+                            {
+                              "fileName": "result.png",
+                              "ossUrl": "https://file.example.com/download/result.png",
+                              "domainUrl": "https://file.example.com/preview/result.png",
+                              "fileSize": 128
+                            }
+                          ],
+                          "requestId": "req-image"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        ReactorToolPortAdapter adapter = new ReactorToolPortAdapter(
+                restTemplate, new ObjectMapper(), "http://127.0.0.1:1601", "");
+
+        AcademicImageGenerationPort.AcademicImageGenerationResult result = adapter.generate(
+                new AcademicImageGenerationPort.AcademicImageGenerationRequest(
+                        "draw diagram", "images", "1024x1024", 1, List.of(), List.of(),
+                        "custom-image-model", "high", "16:9",
+                        "https://image.example.com/v1", "sk-image-secret"));
+
+        assertTrue(result.success());
         server.verify();
     }
 

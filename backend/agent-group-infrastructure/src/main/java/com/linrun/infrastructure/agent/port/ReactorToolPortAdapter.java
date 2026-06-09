@@ -14,6 +14,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpEntity;
@@ -57,6 +58,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     private final String baseUrl;
     private final String apiKey;
 
+    @Autowired
     public ReactorToolPortAdapter(ObjectMapper objectMapper,
                                   @Value("${agent.group.reactor-tool.base-url:}") String baseUrl,
                                   @Value("${agent.group.reactor-tool.api-key:}") String apiKey) {
@@ -192,8 +194,13 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "requestId", requestId,
                 "prompt", request == null ? "" : text(request.prompt()),
                 "mode", imageMode(request == null ? "" : request.mode()),
-                "size", request == null ? "" : text(request.size()),
-                "n", request == null ? 1 : Math.max(1, request.batchCount()),
+                "model", request == null ? AcademicImageGenerationPort.DEFAULT_MODEL : firstText(request.model(), AcademicImageGenerationPort.DEFAULT_MODEL),
+                "baseUrl", request == null ? "" : text(request.baseUrl()),
+                "apiKey", request == null ? "" : text(request.apiKey()),
+                "quality", request == null ? AcademicImageGenerationPort.DEFAULT_QUALITY : firstText(request.quality(), AcademicImageGenerationPort.DEFAULT_QUALITY),
+                "aspectRatio", request == null ? AcademicImageGenerationPort.DEFAULT_ASPECT_RATIO : firstText(request.aspectRatio(), AcademicImageGenerationPort.DEFAULT_ASPECT_RATIO),
+                "size", request == null ? "1024x1024" : firstText(request.size(), "1024x1024"),
+                "n", request == null ? 1 : Math.max(1, Math.min(10, request.batchCount())),
                 "fileNames", request == null ? List.of() : safeList(request.sourceImageUrls()),
                 "maskFileNames", request == null ? List.of() : safeList(request.maskImageUrls()),
                 "stream", false
@@ -691,7 +698,10 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     private String imageMode(String mode) {
-        return "edit".equalsIgnoreCase(mode) ? "edits" : "images".equalsIgnoreCase(mode) ? "images" : mode;
+        if ("edit".equalsIgnoreCase(mode) || "edits".equalsIgnoreCase(mode)) {
+            return "edits";
+        }
+        return "images";
     }
 
     private String nextRequestId(String prefix) {

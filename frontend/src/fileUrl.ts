@@ -20,7 +20,7 @@ function shouldRewriteToToolProxy(url: URL): boolean {
   }
 
   const isLoopback = url.hostname === "127.0.0.1" || url.hostname === "localhost";
-  if (url.port === "1601" || (isLoopback && !url.port)) {
+  if (url.port === "1801" || url.port === "1601" || (isLoopback && !url.port)) {
     return true;
   }
 

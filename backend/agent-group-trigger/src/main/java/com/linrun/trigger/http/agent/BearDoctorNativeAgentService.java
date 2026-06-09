@@ -1103,7 +1103,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             case AcademicToolOutputNames.REPORT_TOOL -> List.of("title", "content", "format");
             case AcademicToolOutputNames.PLANNING -> List.of("goal", "context");
             case AcademicToolOutputNames.CODE_INTERPRETER -> List.of("task", "language", "code");
-            case AcademicToolOutputNames.IMAGE_GENERATION -> List.of("prompt", "size", "mode");
+            case AcademicToolOutputNames.IMAGE_GENERATION -> List.of("prompt", "model", "quality", "aspectRatio", "size", "mode");
             case AcademicToolOutputNames.MULTIMODAL_AGENT -> List.of("question", "imageUrls", "fileIds");
             case AcademicToolOutputNames.DEEP_SEARCH -> List.of("query", "scope");
             case AcademicToolOutputNames.FILE_TOOL -> List.of("action", "fileId", "fileName");
@@ -1145,7 +1145,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private String toolRuntimeHint(String toolName) {
-        String base = "启动 tools/reactor-tool/start.ps1，并设置 AGENT_GROUP_REACTOR_TOOL_ENABLED=true、AGENT_GROUP_REACTOR_TOOL_BASE_URL=http://127.0.0.1:1601。";
+        String base = "启动 tools/reactor-tool/start.ps1，并设置 AGENT_GROUP_REACTOR_TOOL_ENABLED=true、AGENT_GROUP_REACTOR_TOOL_BASE_URL=http://127.0.0.1:1801。";
         return switch (toolName) {
             case AcademicToolOutputNames.IMAGE_GENERATION -> base + " 图像生成还需要在 reactor-tool 的 .env 中配置图像模型。";
             case AcademicToolOutputNames.DATA_ANALYSIS,

@@ -142,7 +142,7 @@ agent:
         allowed-content-types: ${AGENT_GROUP_MULTIMODAL_IMAGE_ALLOWED_CONTENT_TYPES:image/jpeg,image/png,image/webp,image/gif}
     reactor-tool:
       enabled: ${AGENT_GROUP_REACTOR_TOOL_ENABLED:false}
-      base-url: ${AGENT_GROUP_REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+      base-url: ${AGENT_GROUP_REACTOR_TOOL_BASE_URL:http://127.0.0.1:1801}
       api-key: ${AGENT_GROUP_REACTOR_TOOL_API_KEY:}
     mcp:
       admin-state-file: ${AGENT_GROUP_MCP_ADMIN_STATE_FILE:data/mcp-admin-state.json}

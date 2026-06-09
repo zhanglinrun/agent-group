@@ -38,7 +38,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +55,9 @@ public class UserQuotaService {
     private static final BigDecimal DEFAULT_COMPLETION_COST_PER_1K = new BigDecimal("0.30");
     private static final BigDecimal DEFAULT_CUSTOM_MODEL_SERVICE_RATE = new BigDecimal("0.10");
     private static final String DEFAULT_CUSTOM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode";
-    private static final String DEFAULT_CUSTOM_MODEL = "qwen3.6-plus";
+    private static final String DEFAULT_CUSTOM_IMAGE_BASE_URL = "https://api.openai.com";
+    private static final String DEFAULT_CUSTOM_TEXT_MODEL = "qwen3.6-plus";
+    private static final String DEFAULT_CUSTOM_IMAGE_MODEL = "gpt-image-2";
     private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
     private final UserQuotaRepository userQuotaRepository;
@@ -131,28 +132,60 @@ public class UserQuotaService {
         UserModelConfigRequest safeRequest = request == null ? new UserModelConfigRequest() : request;
         UserModelConfig existing = userQuotaRepository.queryModelConfig(userId).orElse(null);
         boolean enabled = Boolean.TRUE.equals(safeRequest.getEnabled());
-        String baseUrl = normalizeModelBaseUrl(firstText(safeRequest.getBaseUrl(),
-                existing == null ? DEFAULT_CUSTOM_BASE_URL : existing.getBaseUrl()));
-        String model = firstText(safeRequest.getModel(),
-                existing == null ? DEFAULT_CUSTOM_MODEL : existing.getModel());
-        String apiKey = safe(safeRequest.getApiKey()).trim();
+        String existingTextBaseUrl = existing == null
+                ? DEFAULT_CUSTOM_BASE_URL
+                : firstText(existing.getTextBaseUrl(), firstText(existing.getBaseUrl(), DEFAULT_CUSTOM_BASE_URL));
+        String existingImageBaseUrl = existing == null
+                ? DEFAULT_CUSTOM_IMAGE_BASE_URL
+                : firstText(existing.getImageBaseUrl(), DEFAULT_CUSTOM_IMAGE_BASE_URL);
+        String textBaseUrl = normalizeModelBaseUrl(firstText(safeRequest.getTextBaseUrl(),
+                firstText(safeRequest.getBaseUrl(), existingTextBaseUrl)));
+        String imageBaseUrl = normalizeModelBaseUrl(firstText(safeRequest.getImageBaseUrl(), existingImageBaseUrl));
+        String existingTextModel = existing == null
+                ? DEFAULT_CUSTOM_TEXT_MODEL
+                : firstText(existing.getTextModel(), firstText(existing.getModel(), DEFAULT_CUSTOM_TEXT_MODEL));
+        String textModel = firstText(safeRequest.getTextModel(),
+                firstText(safeRequest.getModel(), existingTextModel));
+        String imageModel = firstText(safeRequest.getImageModel(),
+                existing == null ? DEFAULT_CUSTOM_IMAGE_MODEL : firstText(existing.getImageModel(), DEFAULT_CUSTOM_IMAGE_MODEL));
+        String textApiKey = firstText(safeRequest.getTextApiKey(), safeRequest.getApiKey()).trim();
+        String imageApiKey = safe(safeRequest.getImageApiKey()).trim();
 
         UserModelConfig modelConfig = new UserModelConfig();
         modelConfig.setUserId(userId);
         modelConfig.setEnabled(enabled);
-        modelConfig.setBaseUrl(baseUrl);
-        modelConfig.setModel(model);
-        if (StringUtils.hasText(apiKey)) {
-            modelConfig.setEncryptedApiKey(encryptApiKey(apiKey));
-            modelConfig.setKeyMasked(maskApiKey(apiKey));
+        modelConfig.setBaseUrl(textBaseUrl);
+        modelConfig.setTextBaseUrl(textBaseUrl);
+        modelConfig.setImageBaseUrl(imageBaseUrl);
+        modelConfig.setModel(textModel);
+        modelConfig.setTextModel(textModel);
+        modelConfig.setImageModel(imageModel);
+        if (StringUtils.hasText(textApiKey)) {
+            String encrypted = encryptApiKey(textApiKey);
+            String masked = maskApiKey(textApiKey);
+            modelConfig.setEncryptedApiKey(encrypted);
+            modelConfig.setEncryptedTextApiKey(encrypted);
+            modelConfig.setKeyMasked(masked);
+            modelConfig.setTextKeyMasked(masked);
         } else if (existing != null) {
-            modelConfig.setEncryptedApiKey(existing.getEncryptedApiKey());
-            modelConfig.setKeyMasked(existing.getKeyMasked());
+            String encrypted = firstText(existing.getEncryptedTextApiKey(), existing.getEncryptedApiKey());
+            String masked = firstText(existing.getTextKeyMasked(), existing.getKeyMasked());
+            modelConfig.setEncryptedApiKey(encrypted);
+            modelConfig.setEncryptedTextApiKey(encrypted);
+            modelConfig.setKeyMasked(masked);
+            modelConfig.setTextKeyMasked(masked);
         }
-        if (enabled && (!StringUtils.hasText(baseUrl)
-                || !StringUtils.hasText(model)
-                || !StringUtils.hasText(modelConfig.getEncryptedApiKey()))) {
-            throw new AppException("MODEL_CONFIG_0001", "请补全自定义模型地址、模型名和 API Key");
+        if (StringUtils.hasText(imageApiKey)) {
+            modelConfig.setEncryptedImageApiKey(encryptApiKey(imageApiKey));
+            modelConfig.setImageKeyMasked(maskApiKey(imageApiKey));
+        } else if (existing != null) {
+            modelConfig.setEncryptedImageApiKey(existing.getEncryptedImageApiKey());
+            modelConfig.setImageKeyMasked(existing.getImageKeyMasked());
+        }
+        boolean textConfigReady = modelConfigComplete(textBaseUrl, textModel, modelConfig.getEncryptedTextApiKey());
+        boolean imageConfigReady = modelConfigComplete(imageBaseUrl, imageModel, modelConfig.getEncryptedImageApiKey());
+        if (enabled && !textConfigReady && !imageConfigReady) {
+            throw new AppException("MODEL_CONFIG_0001", "请至少补全一套文本模型或图像模型 API 配置");
         }
         userQuotaRepository.upsertModelConfig(modelConfig);
         return queryModelConfigResponse(userId);
@@ -166,10 +199,22 @@ public class UserQuotaService {
                     UserModelConfig runtime = new UserModelConfig();
                     runtime.setUserId(config.getUserId());
                     runtime.setEnabled(config.getEnabled());
-                    runtime.setBaseUrl(config.getBaseUrl());
-                    runtime.setModel(config.getModel());
-                    runtime.setApiKey(decryptApiKey(config.getEncryptedApiKey()));
-                    runtime.setKeyMasked(config.getKeyMasked());
+                    String textBaseUrl = firstText(config.getTextBaseUrl(), firstText(config.getBaseUrl(), DEFAULT_CUSTOM_BASE_URL));
+                    runtime.setBaseUrl(textBaseUrl);
+                    runtime.setTextBaseUrl(textBaseUrl);
+                    runtime.setImageBaseUrl(firstText(config.getImageBaseUrl(), DEFAULT_CUSTOM_IMAGE_BASE_URL));
+                    String textModel = firstText(config.getTextModel(), firstText(config.getModel(), DEFAULT_CUSTOM_TEXT_MODEL));
+                    runtime.setModel(textModel);
+                    runtime.setTextModel(textModel);
+                    runtime.setImageModel(firstText(config.getImageModel(), DEFAULT_CUSTOM_IMAGE_MODEL));
+                    String textApiKey = decryptApiKey(firstText(config.getEncryptedTextApiKey(), config.getEncryptedApiKey()));
+                    runtime.setApiKey(textApiKey);
+                    runtime.setTextApiKey(textApiKey);
+                    runtime.setImageApiKey(decryptApiKey(config.getEncryptedImageApiKey()));
+                    String textKeyMasked = firstText(config.getTextKeyMasked(), config.getKeyMasked());
+                    runtime.setKeyMasked(textKeyMasked);
+                    runtime.setTextKeyMasked(textKeyMasked);
+                    runtime.setImageKeyMasked(config.getImageKeyMasked());
                     runtime.setCreateTime(config.getCreateTime());
                     runtime.setUpdateTime(config.getUpdateTime());
                     return runtime;
@@ -182,8 +227,8 @@ public class UserQuotaService {
         }
         return userQuotaRepository.queryModelConfig(userId)
                 .filter(config -> Boolean.TRUE.equals(config.getEnabled()))
-                .filter(config -> StringUtils.hasText(config.getBaseUrl()))
-                .filter(config -> StringUtils.hasText(config.getEncryptedApiKey()))
+                .filter(config -> StringUtils.hasText(firstText(config.getTextBaseUrl(), config.getBaseUrl())))
+                .filter(config -> StringUtils.hasText(firstText(config.getEncryptedTextApiKey(), config.getEncryptedApiKey())))
                 .isPresent();
     }
 
@@ -362,18 +407,16 @@ public class UserQuotaService {
         if (orderIds == null || orderIds.isEmpty()) {
             return List.of();
         }
-        List<String> processedOrderIds = new ArrayList<>();
-        orderIds.stream()
+        List<String> processedOrderIds = orderIds.stream()
                 .filter(StringUtils::hasText)
                 .map(String::trim)
-                .distinct()
-                .forEach(orderId -> {
-                    TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId).orElse(null);
-                    if (tradeOrder != null) {
-                        grantQuotaForPaidOrder(tradeOrder);
-                        processedOrderIds.add(tradeOrder.getOrderId());
-                    }
-                });
+                .filter(orderId -> tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+                        .map(order -> {
+                            grantQuotaForPaidOrder(order);
+                            return true;
+                        })
+                        .orElse(false))
+                .toList();
         return processedOrderIds;
     }
 
@@ -647,9 +690,26 @@ public class UserQuotaService {
     private UserModelConfigResponse toModelConfigResponse(UserModelConfig modelConfig) {
         UserModelConfigResponse response = new UserModelConfigResponse();
         response.setEnabled(modelConfig != null && Boolean.TRUE.equals(modelConfig.getEnabled()));
-        response.setBaseUrl(modelConfig == null ? DEFAULT_CUSTOM_BASE_URL : firstText(modelConfig.getBaseUrl(), DEFAULT_CUSTOM_BASE_URL));
-        response.setModel(modelConfig == null ? DEFAULT_CUSTOM_MODEL : firstText(modelConfig.getModel(), DEFAULT_CUSTOM_MODEL));
-        response.setKeyMasked(modelConfig == null ? "" : safe(modelConfig.getKeyMasked()));
+        String textBaseUrl = modelConfig == null
+                ? DEFAULT_CUSTOM_BASE_URL
+                : firstText(modelConfig.getTextBaseUrl(), firstText(modelConfig.getBaseUrl(), DEFAULT_CUSTOM_BASE_URL));
+        response.setBaseUrl(textBaseUrl);
+        response.setTextBaseUrl(textBaseUrl);
+        String textModel = modelConfig == null
+                ? DEFAULT_CUSTOM_TEXT_MODEL
+                : firstText(modelConfig.getTextModel(), firstText(modelConfig.getModel(), DEFAULT_CUSTOM_TEXT_MODEL));
+        response.setModel(textModel);
+        response.setTextModel(textModel);
+        response.setImageBaseUrl(modelConfig == null
+                ? DEFAULT_CUSTOM_IMAGE_BASE_URL
+                : firstText(modelConfig.getImageBaseUrl(), DEFAULT_CUSTOM_IMAGE_BASE_URL));
+        response.setImageModel(modelConfig == null
+                ? DEFAULT_CUSTOM_IMAGE_MODEL
+                : firstText(modelConfig.getImageModel(), DEFAULT_CUSTOM_IMAGE_MODEL));
+        String textKeyMasked = modelConfig == null ? "" : firstText(modelConfig.getTextKeyMasked(), modelConfig.getKeyMasked());
+        response.setKeyMasked(textKeyMasked);
+        response.setTextKeyMasked(textKeyMasked);
+        response.setImageKeyMasked(modelConfig == null ? "" : safe(modelConfig.getImageKeyMasked()));
         response.setUpdateTime(modelConfig == null ? null : modelConfig.getUpdateTime());
         return response;
     }
@@ -688,9 +748,15 @@ public class UserQuotaService {
         return text.replaceAll("/+$", "");
     }
 
+    private boolean modelConfigComplete(String baseUrl, String model, String encryptedApiKey) {
+        return StringUtils.hasText(baseUrl)
+                && StringUtils.hasText(model)
+                && StringUtils.hasText(encryptedApiKey);
+    }
+
     private String encryptApiKey(String apiKey) {
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "模型配置服务暂不可用，请联系管理员处理");
+            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
         }
         try {
             byte[] iv = new byte[12];
@@ -710,7 +776,7 @@ public class UserQuotaService {
             return "";
         }
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "模型配置服务暂不可用，请联系管理员处理");
+            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
         }
         String[] parts = encryptedApiKey.split(":", 3);
         if (parts.length != 3 || !"v1".equals(parts[0])) {

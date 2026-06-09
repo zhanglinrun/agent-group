@@ -8,9 +8,19 @@ public class UserModelConfig {
     private Boolean enabled = false;
     private String baseUrl;
     private String model;
+    private String textBaseUrl;
+    private String textModel;
+    private String imageBaseUrl;
+    private String imageModel;
     private String apiKey;
+    private String textApiKey;
+    private String imageApiKey;
     private String encryptedApiKey;
+    private String encryptedTextApiKey;
+    private String encryptedImageApiKey;
     private String keyMasked;
+    private String textKeyMasked;
+    private String imageKeyMasked;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
@@ -46,12 +56,60 @@ public class UserModelConfig {
         this.model = model;
     }
 
+    public String getTextBaseUrl() {
+        return textBaseUrl;
+    }
+
+    public void setTextBaseUrl(String textBaseUrl) {
+        this.textBaseUrl = textBaseUrl;
+    }
+
+    public String getTextModel() {
+        return textModel;
+    }
+
+    public void setTextModel(String textModel) {
+        this.textModel = textModel;
+    }
+
+    public String getImageBaseUrl() {
+        return imageBaseUrl;
+    }
+
+    public void setImageBaseUrl(String imageBaseUrl) {
+        this.imageBaseUrl = imageBaseUrl;
+    }
+
+    public String getImageModel() {
+        return imageModel;
+    }
+
+    public void setImageModel(String imageModel) {
+        this.imageModel = imageModel;
+    }
+
     public String getApiKey() {
         return apiKey;
     }
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public String getTextApiKey() {
+        return textApiKey;
+    }
+
+    public void setTextApiKey(String textApiKey) {
+        this.textApiKey = textApiKey;
+    }
+
+    public String getImageApiKey() {
+        return imageApiKey;
+    }
+
+    public void setImageApiKey(String imageApiKey) {
+        this.imageApiKey = imageApiKey;
     }
 
     public String getEncryptedApiKey() {
@@ -62,12 +120,44 @@ public class UserModelConfig {
         this.encryptedApiKey = encryptedApiKey;
     }
 
+    public String getEncryptedTextApiKey() {
+        return encryptedTextApiKey;
+    }
+
+    public void setEncryptedTextApiKey(String encryptedTextApiKey) {
+        this.encryptedTextApiKey = encryptedTextApiKey;
+    }
+
+    public String getEncryptedImageApiKey() {
+        return encryptedImageApiKey;
+    }
+
+    public void setEncryptedImageApiKey(String encryptedImageApiKey) {
+        this.encryptedImageApiKey = encryptedImageApiKey;
+    }
+
     public String getKeyMasked() {
         return keyMasked;
     }
 
     public void setKeyMasked(String keyMasked) {
         this.keyMasked = keyMasked;
+    }
+
+    public String getTextKeyMasked() {
+        return textKeyMasked;
+    }
+
+    public void setTextKeyMasked(String textKeyMasked) {
+        this.textKeyMasked = textKeyMasked;
+    }
+
+    public String getImageKeyMasked() {
+        return imageKeyMasked;
+    }
+
+    public void setImageKeyMasked(String imageKeyMasked) {
+        this.imageKeyMasked = imageKeyMasked;
     }
 
     public LocalDateTime getCreateTime() {

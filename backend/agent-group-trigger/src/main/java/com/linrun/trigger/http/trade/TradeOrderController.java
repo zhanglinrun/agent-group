@@ -7,8 +7,6 @@ import com.linrun.api.dto.QueryOrderListResponse;
 import com.linrun.api.dto.QueryRefundOrderListRequest;
 import com.linrun.api.dto.QueryRefundOrderListResponse;
 import com.linrun.api.dto.TradeStatusFlowDTO;
-import com.linrun.api.dto.TradeConsistencyCheckRequest;
-import com.linrun.api.dto.TradeConsistencyCheckResponse;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
@@ -17,7 +15,6 @@ import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.service.DirectBuyOrderService;
-import com.linrun.domain.trade.service.TradeConsistencyCheckService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.common.Response;
@@ -39,18 +36,15 @@ import java.util.List;
 public class TradeOrderController {
 
     private final DirectBuyOrderService directBuyOrderService;
-    private final TradeConsistencyCheckService tradeConsistencyCheckService;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final UserAccountService userAccountService;
     private final TradeOrderRepository tradeOrderRepository;
 
     public TradeOrderController(DirectBuyOrderService directBuyOrderService,
-                                TradeConsistencyCheckService tradeConsistencyCheckService,
                                 TradeStatusFlowService tradeStatusFlowService,
                                 UserAccountService userAccountService,
                                 TradeOrderRepository tradeOrderRepository) {
         this.directBuyOrderService = directBuyOrderService;
-        this.tradeConsistencyCheckService = tradeConsistencyCheckService;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.userAccountService = userAccountService;
         this.tradeOrderRepository = tradeOrderRepository;
@@ -112,11 +106,6 @@ public class TradeOrderController {
         QueryRefundOrderListResponse response = new QueryRefundOrderListResponse();
         response.setRefundList(refunds.stream().map(this::toRefundInfo).toList());
         return Response.success(response, RequestTraceContext.getRequestId());
-    }
-
-    @PostMapping("/admin/consistency")
-    public Response<TradeConsistencyCheckResponse> checkTradeConsistency(@RequestBody(required = false) TradeConsistencyCheckRequest request) {
-        return Response.success(tradeConsistencyCheckService.check(request), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/my")

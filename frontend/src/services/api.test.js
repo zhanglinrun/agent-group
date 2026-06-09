@@ -23,6 +23,7 @@ import {
   getUserModelConfig,
   importAgentAdminState,
   importMcpState,
+  modelConfigReady,
   queryMcpHealth,
   queryAgentCapabilities,
   queryAgentAdminConfigs,
@@ -131,7 +132,7 @@ describe("mcp admin api client", () => {
 
     await queryAgentCapabilities();
 
-    expect(fetch).toHaveBeenCalledWith("/api/v1/academic/capabilities", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/agent/capabilities", expect.objectContaining({
       method: "GET",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token"
@@ -393,9 +394,12 @@ describe("mcp admin api client", () => {
     await getUserModelConfig();
     await saveModelConfig({
       enabled: true,
-      baseUrl: "https://example.com",
-      apiKey: "sk-secret",
-      model: "custom-model"
+      textBaseUrl: "https://text.example.com",
+      textApiKey: "sk-text-secret",
+      textModel: "custom-text-model",
+      imageBaseUrl: "https://image.example.com",
+      imageApiKey: "sk-image-secret",
+      imageModel: "custom-image-model"
     });
 
     expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/quota/model-config", expect.objectContaining({
@@ -412,11 +416,38 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({
         enabled: true,
-        baseUrl: "https://example.com",
-        apiKey: "sk-secret",
-        model: "custom-model"
+        baseUrl: "https://text.example.com",
+        apiKey: "sk-text-secret",
+        model: "custom-text-model",
+        textBaseUrl: "https://text.example.com",
+        textApiKey: "sk-text-secret",
+        textModel: "custom-text-model",
+        imageBaseUrl: "https://image.example.com",
+        imageApiKey: "sk-image-secret",
+        imageModel: "custom-image-model"
       })
     }));
+  });
+
+  it("checks text and image model readiness independently", () => {
+    expect(modelConfigReady({
+      enabled: true,
+      textBaseUrl: "https://text.example.com",
+      textModel: "custom-text-model",
+      textKeyMasked: "sk-t****cret"
+    }, "text")).toBe(true);
+    expect(modelConfigReady({
+      enabled: true,
+      textBaseUrl: "https://text.example.com",
+      textModel: "custom-text-model",
+      textKeyMasked: "sk-t****cret"
+    }, "image")).toBe(false);
+    expect(modelConfigReady({
+      enabled: true,
+      imageBaseUrl: "https://image.example.com",
+      imageModel: "custom-image-model",
+      imageKeyMasked: "sk-i****cret"
+    }, "image")).toBe(true);
   });
 
   it("wires workspace image generation and history APIs with user token", async () => {
@@ -440,6 +471,9 @@ describe("mcp admin api client", () => {
         sessionId: "S1001",
         prompt: "生成拼团活动主图",
         mode: "generate",
+        model: "gpt-image-2",
+        quality: "auto",
+        aspectRatio: "1:1",
         size: "1024x1024",
         batchCount: 2,
         sourceFileIds: [],
@@ -457,6 +491,45 @@ describe("mcp admin api client", () => {
         })
       })
     );
+  });
+
+  it("uses saved image model as workspace image default", async () => {
+    saveUserAuth({ token: "user-token" });
+    fetch
+      .mockResolvedValueOnce(jsonResponse({
+        code: "0000",
+        data: {
+          enabled: true,
+          baseUrl: "https://text.example.com",
+          textBaseUrl: "https://text.example.com",
+          imageBaseUrl: "https://image.example.com",
+          model: "custom-text-model",
+          textModel: "custom-text-model",
+          imageModel: "custom-image-model",
+          keyMasked: "sk-t****cret",
+          textKeyMasked: "sk-t****cret",
+          imageKeyMasked: "sk-i****cret"
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse());
+
+    await saveModelConfig({
+      enabled: true,
+      textBaseUrl: "https://text.example.com",
+      textApiKey: "",
+      textModel: "custom-text-model",
+      imageBaseUrl: "https://image.example.com",
+      imageApiKey: "",
+      imageModel: "custom-image-model",
+      textKeyMasked: "sk-t****cret",
+      imageKeyMasked: "sk-i****cret"
+    });
+    await generateWorkspaceImage({
+      sessionId: "S1002",
+      prompt: "论文框架图"
+    });
+
+    expect(JSON.parse(fetch.mock.calls[1][1].body).model).toBe("custom-image-model");
   });
 
   it("wires academic session and run detail APIs with user token", async () => {
@@ -533,6 +606,10 @@ describe("mcp admin api client", () => {
         includeTableRag: true,
         includeNl2Sql: true,
         includeAnalysis: true,
+        includeTradeAudit: false,
+        auditOrderId: "",
+        auditTeamId: "",
+        auditKeyword: "",
         metadata: {}
       })
     }));

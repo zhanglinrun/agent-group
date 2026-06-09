@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 # Always use the local project virtual environment.
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pythonExe = Join-Path $projectRoot ".venv\\Scripts\\python.exe"
-$port = 1601
+$port = 1801
 
 function Get-ProcessInfo([int]$processId) {
     return Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue

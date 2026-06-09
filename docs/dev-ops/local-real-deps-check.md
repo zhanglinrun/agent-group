@@ -44,8 +44,8 @@ mvn -pl agent-group-app -am spring-boot:run -Dspring-boot.run.profiles=dev
 打开：
 
 ```text
-http://localhost:5173/
-http://localhost:5173/admin
+E:\javaproject\agent-group\frontend\index.html
+E:\javaproject\agent-group\frontend\admin.html
 ```
 
 如果需要手动刷新演示数据，请带上 `utf8mb4`（四字节 UTF-8 编码）：

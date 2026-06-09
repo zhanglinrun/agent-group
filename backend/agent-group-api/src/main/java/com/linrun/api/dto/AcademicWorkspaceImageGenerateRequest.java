@@ -12,6 +12,9 @@ public class AcademicWorkspaceImageGenerateRequest implements Serializable {
     private String sessionId;
     private String prompt;
     private String mode = "generate";
+    private String model = "gpt-image-2";
+    private String quality = "auto";
+    private String aspectRatio = "1:1";
     private String size = "1024x1024";
     private Integer batchCount = 1;
     private List<String> sourceFileIds = new ArrayList<>();

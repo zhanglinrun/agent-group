@@ -21,6 +21,7 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputProjecto
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicImageGenerationPort;
 import com.linrun.domain.account.model.UserAccount;
+import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
@@ -82,7 +83,8 @@ public class AcademicWorkspaceImageService {
                 userId, sessionId, "", requestId, TASK_TYPE, safeRequest.getPrompt(), AcademicToolOutputNames.IMAGE_GENERATION);
         AcademicLedgerContext.Context context = new AcademicLedgerContext.Context(
                 run.getRunId(), requestId, sessionId, userId, TASK_TYPE);
-        Map<String, Object> arguments = arguments(userId, safeRequest);
+        UserModelConfig runtimeModelConfig = runtimeModelConfig(userId);
+        Map<String, Object> arguments = arguments(userId, safeRequest, runtimeModelConfig);
         String invocationId = ledgerService.recordToolStart(context,
                 "workspace-image-" + requestId,
                 AcademicToolOutputNames.IMAGE_GENERATION,
@@ -92,9 +94,12 @@ public class AcademicWorkspaceImageService {
         try {
             AcademicImageGenerationPort port = imageGenerationPort == null ? null : imageGenerationPort.getIfAvailable();
             if (port == null) {
-                throw new AppException("IMAGE_WORKSPACE_0002", "image generation port is not configured");
+                throw new AppException("IMAGE_WORKSPACE_0002", "后端绘图模型异常，请检查图像模型配置后重试");
             }
-            AcademicToolStructuredOutput output = new AcademicImageGenerationToolRuntime(port)
+            AcademicToolStructuredOutput output = new AcademicImageGenerationToolRuntime(
+                    port,
+                    runtimeModelConfig == null ? "" : runtimeModelConfig.getImageBaseUrl(),
+                    runtimeModelConfig == null ? "" : runtimeModelConfig.getImageApiKey())
                     .call(AcademicToolCallCommand.builder(AcademicToolOutputNames.IMAGE_GENERATION)
                             .action(ACTION)
                             .requestId(requestId)
@@ -119,7 +124,7 @@ public class AcademicWorkspaceImageService {
             throw e;
         } catch (Exception e) {
             recordFailure(run, invocationId, "IMAGE_WORKSPACE_0003", e.getMessage(), startedAt);
-            throw new AppException("IMAGE_WORKSPACE_0003", "图像生成失败: " + firstText(e.getMessage(), "未知错误"));
+            throw new AppException("IMAGE_WORKSPACE_0003", "后端绘图模型异常，请检查图像模型配置后重试");
         }
     }
 
@@ -130,6 +135,13 @@ public class AcademicWorkspaceImageService {
     private void consumeQuota(String userId, String sessionId, String requestId, long durationMillis) {
         userQuotaService.consumeForAcademicTask(userId, sessionId, TASK_TYPE + "-" + requestId, TASK_TYPE,
                 GuideTokenUsage.empty(), TASK_TYPE + "-tool", durationMillis);
+    }
+
+    private UserModelConfig runtimeModelConfig(String userId) {
+        if (userQuotaService == null) {
+            return null;
+        }
+        return userQuotaService.queryRuntimeModelConfig(userId).orElse(null);
     }
 
     public AcademicWorkspaceImageHistoryResponse history(String token, String sessionId, int limit) {
@@ -235,6 +247,9 @@ public class AcademicWorkspaceImageService {
         batch.setSummary(firstText(run.getFinalSummary(), batch.getSummary()));
         batch.setStatus(firstText(run.getStatus(), batch.getStatus()));
         batch.setMode(firstText(arguments.get("mode"), batch.getMode()));
+        batch.setModel(firstText(arguments.get("model"), batch.getModel()));
+        batch.setQuality(firstText(arguments.get("quality"), batch.getQuality()));
+        batch.setAspectRatio(firstText(arguments.get("aspectRatio"), batch.getAspectRatio()));
         batch.setSize(firstText(arguments.get("size"), batch.getSize()));
         batch.setBatchCount(intValue(arguments.get("batchCount"), batch.getBatchCount()));
         batch.setSourceImageCount(listSize(arguments.get("sourceImageUrls")));
@@ -293,6 +308,9 @@ public class AcademicWorkspaceImageService {
         batch.setSummary(firstText(first.getTitle(), "图像生成结果"));
         batch.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         batch.setMode("generate");
+        batch.setModel(AcademicImageGenerationPort.DEFAULT_MODEL);
+        batch.setQuality(AcademicImageGenerationPort.DEFAULT_QUALITY);
+        batch.setAspectRatio(AcademicImageGenerationPort.DEFAULT_ASPECT_RATIO);
         batch.setSize("");
         batch.setImages(artifacts.stream().map(this::artifactRef).toList());
         batch.setBatchCount(batch.getImages().size());
@@ -331,15 +349,22 @@ public class AcademicWorkspaceImageService {
         }
     }
 
-    private Map<String, Object> arguments(String userId, AcademicWorkspaceImageGenerateRequest request) {
+    private Map<String, Object> arguments(String userId,
+                                          AcademicWorkspaceImageGenerateRequest request,
+                                          UserModelConfig runtimeModelConfig) {
         Map<String, Object> arguments = new LinkedHashMap<>();
         List<String> sourceImageUrls = new ArrayList<>();
         sourceImageUrls.addAll(request.getSourceImageUrls() == null ? List.of() : request.getSourceImageUrls());
         sourceImageUrls.addAll(resolveSourceFileUrls(userId, request.getSourceFileIds()));
         arguments.put("prompt", request.getPrompt().trim());
-        arguments.put("mode", firstText(request.getMode(), "generate"));
+        arguments.put("mode", sourceImageUrls.isEmpty() ? "generate" : "edit");
+        arguments.put("model", firstText(request.getModel(),
+                runtimeModelConfig == null ? "" : runtimeModelConfig.getImageModel(),
+                AcademicImageGenerationPort.DEFAULT_MODEL));
+        arguments.put("quality", firstText(request.getQuality(), AcademicImageGenerationPort.DEFAULT_QUALITY));
+        arguments.put("aspectRatio", firstText(request.getAspectRatio(), AcademicImageGenerationPort.DEFAULT_ASPECT_RATIO));
         arguments.put("size", firstText(request.getSize(), "1024x1024"));
-        arguments.put("batchCount", Math.max(1, request.getBatchCount() == null ? 1 : request.getBatchCount()));
+        arguments.put("batchCount", Math.max(1, Math.min(10, request.getBatchCount() == null ? 1 : request.getBatchCount())));
         arguments.put("sourceImageUrls", sourceImageUrls);
         arguments.put("maskImageUrls", request.getMaskImageUrls() == null ? List.of() : request.getMaskImageUrls());
         return arguments;
@@ -474,9 +499,9 @@ public class AcademicWorkspaceImageService {
                                String message,
                                long startedAt) {
         ledgerService.recordToolFinish(invocationId, AcademicAgentRun.STATUS_FAILED,
-                "", "", 0, firstText(message, "图像生成失败"), elapsed(startedAt));
+                "", "", 0, firstText(message, "后端绘图模型异常，请检查图像模型配置后重试"), elapsed(startedAt));
         ledgerService.finishRun(run, AcademicAgentRun.STATUS_FAILED,
-                "", firstText(code, "IMAGE_WORKSPACE_0003"), firstText(message, "图像生成失败"), elapsed(startedAt));
+                "", firstText(code, "IMAGE_WORKSPACE_0003"), firstText(message, "后端绘图模型异常，请检查图像模型配置后重试"), elapsed(startedAt));
     }
 
     private String json(Object value) {

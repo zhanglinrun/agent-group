@@ -3417,7 +3417,9 @@ body {
 }
 
 .bear-doctor-app .image-workspace-head span,
-.bear-doctor-app .image-workspace-grid label span {
+.bear-doctor-app .image-workspace-grid label span,
+.bear-doctor-app .image-option-group > span,
+.bear-doctor-app .image-option-title span {
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -3442,10 +3444,16 @@ body {
   gap: 10px;
 }
 
-.bear-doctor-app .image-workspace-grid label {
+.bear-doctor-app .image-workspace-grid label,
+.bear-doctor-app .image-workspace-grid .image-option-group {
   min-width: 0;
   display: grid;
   gap: 6px;
+}
+
+.bear-doctor-app .image-workspace-grid .image-ratio-field,
+.bear-doctor-app .image-workspace-grid .image-batch-field {
+  grid-column: 1 / -1;
 }
 
 .bear-doctor-app .image-workspace-grid select,
@@ -3471,6 +3479,90 @@ body {
   min-height: 58px;
   padding-top: 8px;
   resize: vertical;
+}
+
+.bear-doctor-app .image-option-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bear-doctor-app .image-option-title em {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.bear-doctor-app .image-segmented-options,
+.bear-doctor-app .image-batch-options,
+.bear-doctor-app .image-ratio-options {
+  display: grid;
+  gap: 8px;
+}
+
+.bear-doctor-app .image-segmented-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.bear-doctor-app .image-batch-options {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.bear-doctor-app .image-ratio-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.bear-doctor-app .image-segmented-options button,
+.bear-doctor-app .image-batch-options button,
+.bear-doctor-app .image-ratio-options button {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.48);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.bear-doctor-app .image-segmented-options button.active,
+.bear-doctor-app .image-batch-options button.active,
+.bear-doctor-app .image-ratio-options button.active {
+  border-color: #60a5fa;
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+}
+
+.bear-doctor-app .image-ratio-options button {
+  min-height: 74px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+}
+
+.bear-doctor-app .ratio-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border: 2px solid currentColor;
+}
+
+.bear-doctor-app .ratio-icon.landscape {
+  width: 36px;
+  height: 22px;
+}
+
+.bear-doctor-app .ratio-icon.portrait {
+  width: 22px;
+  height: 36px;
+}
+
+.bear-doctor-app .ratio-icon.auto {
+  width: 34px;
+  height: 22px;
+  border-style: dashed;
 }
 
 .bear-doctor-app .image-workspace-grid .image-mask-field {
@@ -3516,12 +3608,29 @@ body {
 }
 
 .bear-doctor-app .composer-image-settings .image-workspace-grid {
-  grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 1fr) minmax(96px, 0.65fr);
+  grid-template-columns: minmax(120px, 0.8fr) minmax(220px, 1.4fr);
   gap: 8px;
 }
 
 .bear-doctor-app .composer-image-settings .image-workspace-grid label {
   gap: 5px;
+}
+
+.bear-doctor-app .composer-image-settings .image-workspace-grid .image-ratio-field,
+.bear-doctor-app .composer-image-settings .image-workspace-grid .image-batch-field {
+  grid-column: 1 / -1;
+}
+
+.bear-doctor-app .composer-image-settings .image-ratio-options {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.bear-doctor-app .composer-image-settings .image-ratio-options button {
+  min-height: 62px;
+}
+
+.bear-doctor-app .composer-image-settings .image-batch-options {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
 }
 
 .bear-doctor-app .composer-image-settings .image-workspace-grid select,
@@ -7113,7 +7222,9 @@ body {
 
 .bear-doctor-app .model-config-dialog {
   position: relative;
-  width: min(460px, 100%);
+  width: min(560px, 100%);
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
   padding: 26px;
   border: 1px solid rgba(139, 92, 246, 0.28);
   border-radius: 14px;
@@ -7148,6 +7259,18 @@ body {
   grid-template-columns: auto 1fr;
   align-items: center;
   padding: 10px 0;
+}
+
+.bear-doctor-app .model-config-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.bear-doctor-app .model-config-section > strong {
+  color: var(--text-primary);
+  font-size: 14px;
 }
 
 .bear-doctor-app .model-config-toggle input {
@@ -8438,6 +8561,14 @@ body {
     align-items: stretch;
   }
 
+  .bear-doctor-app .composer-image-settings .image-ratio-options {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .bear-doctor-app .composer-image-settings .image-batch-options {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .bear-doctor-app .mrag-knowledge-head {
     display: grid;
   }
@@ -9065,10 +9196,21 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .composer-image-settings .image-workspace-grid select,
 .bear-doctor-app[data-theme] .composer-image-settings .image-workspace-grid input,
 .bear-doctor-app[data-theme] .composer-image-settings .image-workspace-grid textarea,
+.bear-doctor-app[data-theme] .composer-image-settings .image-segmented-options button,
+.bear-doctor-app[data-theme] .composer-image-settings .image-batch-options button,
+.bear-doctor-app[data-theme] .composer-image-settings .image-ratio-options button,
 .bear-doctor-app[data-theme] .composer-image-settings .image-workspace-head > span:last-child {
   background: var(--app-hover);
   border-color: var(--app-border);
   color: var(--app-text);
+}
+
+.bear-doctor-app[data-theme] .composer-image-settings .image-segmented-options button.active,
+.bear-doctor-app[data-theme] .composer-image-settings .image-batch-options button.active,
+.bear-doctor-app[data-theme] .composer-image-settings .image-ratio-options button.active {
+  background: var(--app-primary-soft);
+  border-color: var(--app-primary);
+  color: var(--app-primary);
 }
 
 .bear-doctor-app[data-theme] .file-btn {

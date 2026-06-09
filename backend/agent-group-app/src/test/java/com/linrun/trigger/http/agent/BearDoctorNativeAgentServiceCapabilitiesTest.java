@@ -307,6 +307,8 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(((List<?>) toolReadiness(readiness, "code_interpreter").get("workspaces")).contains("agent"));
         assertTrue(((List<?>) toolReadiness(readiness, "data_analysis").get("inputFields")).contains("task"));
         assertTrue(((List<?>) toolReadiness(readiness, "image_generation").get("outputKinds")).contains("image"));
+        assertTrue(((List<?>) toolReadiness(readiness, "image_generation").get("inputFields")).contains("model"));
+        assertTrue(((List<?>) toolReadiness(readiness, "image_generation").get("inputFields")).contains("aspectRatio"));
 
         List<Map<String, Object>> toolRuntimeFamilies =
                 (List<Map<String, Object>>) capabilities.get("toolRuntimeFamilies");

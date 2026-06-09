@@ -43,8 +43,16 @@
         <result column="enabled" property="enabled"/>
         <result column="base_url" property="baseUrl"/>
         <result column="model" property="model"/>
+        <result column="text_base_url" property="textBaseUrl"/>
+        <result column="text_model" property="textModel"/>
+        <result column="image_base_url" property="imageBaseUrl"/>
+        <result column="image_model" property="imageModel"/>
         <result column="encrypted_api_key" property="encryptedApiKey"/>
+        <result column="encrypted_text_api_key" property="encryptedTextApiKey"/>
+        <result column="encrypted_image_api_key" property="encryptedImageApiKey"/>
         <result column="key_masked" property="keyMasked"/>
+        <result column="text_key_masked" property="textKeyMasked"/>
+        <result column="image_key_masked" property="imageKeyMasked"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
@@ -162,7 +170,9 @@
     </update>
 
     <select id="queryModelConfig" resultMap="UserModelConfigMap">
-        select user_id, enabled, base_url, model, encrypted_api_key, key_masked, create_time, update_time
+        select user_id, enabled, base_url, model, text_base_url, text_model, image_base_url, image_model,
+               encrypted_api_key, encrypted_text_api_key, encrypted_image_api_key,
+               key_masked, text_key_masked, image_key_masked, create_time, update_time
         from user_model_config
         where user_id = #{userId}
         limit 1
@@ -170,16 +180,28 @@
 
     <insert id="upsertModelConfig" parameterType="com.linrun.infrastructure.po.UserModelConfigPO">
         insert into user_model_config (
-          user_id, enabled, base_url, model, encrypted_api_key, key_masked, create_time, update_time
+          user_id, enabled, base_url, model, text_base_url, text_model, image_base_url, image_model,
+          encrypted_api_key, encrypted_text_api_key, encrypted_image_api_key,
+          key_masked, text_key_masked, image_key_masked, create_time, update_time
         ) values (
-          #{userId}, #{enabled}, #{baseUrl}, #{model}, #{encryptedApiKey}, #{keyMasked}, now(), now()
+          #{userId}, #{enabled}, #{baseUrl}, #{model}, #{textBaseUrl}, #{textModel}, #{imageBaseUrl}, #{imageModel},
+          #{encryptedApiKey}, #{encryptedTextApiKey}, #{encryptedImageApiKey},
+          #{keyMasked}, #{textKeyMasked}, #{imageKeyMasked}, now(), now()
         )
         on duplicate key update
           enabled = values(enabled),
           base_url = values(base_url),
           model = values(model),
+          text_base_url = values(text_base_url),
+          text_model = values(text_model),
+          image_base_url = values(image_base_url),
+          image_model = values(image_model),
           encrypted_api_key = values(encrypted_api_key),
+          encrypted_text_api_key = values(encrypted_text_api_key),
+          encrypted_image_api_key = values(encrypted_image_api_key),
           key_masked = values(key_masked),
+          text_key_masked = values(text_key_masked),
+          image_key_masked = values(image_key_masked),
           update_time = now()
     </insert>
 </mapper>

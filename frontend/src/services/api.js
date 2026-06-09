@@ -6,12 +6,23 @@ const USER_AUTH_KEY = "agentGroupUserAuth";
 const MODEL_CONFIG_KEY = "agentGroupModelConfig";
 let adminAuthMemory = null;
 
+const DEFAULT_TEXT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode";
+const DEFAULT_IMAGE_BASE_URL = "https://api.openai.com";
+
 const DEFAULT_MODEL_CONFIG = {
   enabled: false,
-  baseUrl: "https://dashscope.aliyuncs.com/compatible-mode",
+  baseUrl: DEFAULT_TEXT_BASE_URL,
   apiKey: "",
   model: "qwen3.6-plus",
-  keyMasked: ""
+  textBaseUrl: DEFAULT_TEXT_BASE_URL,
+  textApiKey: "",
+  textModel: "qwen3.6-plus",
+  imageBaseUrl: DEFAULT_IMAGE_BASE_URL,
+  imageApiKey: "",
+  imageModel: "gpt-image-2",
+  keyMasked: "",
+  textKeyMasked: "",
+  imageKeyMasked: ""
 };
 
 function volatileStorage() {
@@ -38,8 +49,8 @@ function clearVolatile(key) {
   localStorage.removeItem(key);
 }
 
-function normalizeModelBaseUrl(value) {
-  let text = String(value || DEFAULT_MODEL_CONFIG.baseUrl).trim();
+function normalizeModelBaseUrl(value, fallback = DEFAULT_TEXT_BASE_URL) {
+  let text = String(value || fallback).trim();
   if (!text) return "";
   if (/^ttps:\/\//i.test(text)) {
     text = `h${text}`;
@@ -56,11 +67,6 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
   const lower = text.toLowerCase();
   if (lower.includes("data_inspection_failed") || lower.includes("inappropriate content")) {
     return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试。";
-  }
-  if (lower.includes("model_config_0003")
-    || lower.includes("自定义模型密钥加密密钥")
-    || lower.includes("模型配置服务暂不可用")) {
-    return "模型配置服务暂不可用，请联系管理员处理";
   }
   if ((lower.includes("401 unauthorized") || lower.includes("unauthorized"))
     && (lower.includes("dashscope") || lower.includes("chat/completions") || lower.includes("openai") || lower.includes("api key"))) {
@@ -160,14 +166,28 @@ export function clearUserAuth() {
 }
 
 function normalizeModelConfig(config = {}) {
+  const textModel = String(config.textModel || config.model || DEFAULT_MODEL_CONFIG.textModel).trim();
+  const imageModel = String(config.imageModel || DEFAULT_MODEL_CONFIG.imageModel).trim();
+  const textBaseUrl = normalizeModelBaseUrl(config.textBaseUrl || config.baseUrl, DEFAULT_TEXT_BASE_URL);
+  const imageBaseUrl = normalizeModelBaseUrl(config.imageBaseUrl, DEFAULT_IMAGE_BASE_URL);
+  const textKeyMasked = String(config.textKeyMasked || config.keyMasked || "").trim();
+  const imageKeyMasked = String(config.imageKeyMasked || "").trim();
   return {
     ...DEFAULT_MODEL_CONFIG,
     ...config,
     enabled: Boolean(config.enabled),
-    baseUrl: normalizeModelBaseUrl(config.baseUrl),
-    apiKey: String(config.apiKey || "").trim(),
-    model: String(config.model || DEFAULT_MODEL_CONFIG.model).trim(),
-    keyMasked: String(config.keyMasked || "").trim()
+    baseUrl: textBaseUrl,
+    apiKey: String(config.textApiKey || config.apiKey || "").trim(),
+    model: textModel || DEFAULT_MODEL_CONFIG.textModel,
+    textBaseUrl,
+    textApiKey: String(config.textApiKey || config.apiKey || "").trim(),
+    textModel: textModel || DEFAULT_MODEL_CONFIG.textModel,
+    imageBaseUrl,
+    imageApiKey: String(config.imageApiKey || "").trim(),
+    imageModel: imageModel || DEFAULT_MODEL_CONFIG.imageModel,
+    keyMasked: textKeyMasked,
+    textKeyMasked,
+    imageKeyMasked
   };
 }
 
@@ -181,17 +201,23 @@ export function getModelConfig() {
 
 function rememberModelConfig(config) {
   const normalized = normalizeModelConfig(config);
-  writeVolatileJson(MODEL_CONFIG_KEY, { ...normalized, apiKey: "" });
+  writeVolatileJson(MODEL_CONFIG_KEY, { ...normalized, apiKey: "", textApiKey: "", imageApiKey: "" });
   return normalized;
 }
 
-export function modelConfigReady(config) {
+export function modelConfigReady(config, scope = "text") {
   const normalized = normalizeModelConfig(config);
-  return !normalized.enabled || (Boolean(normalized.baseUrl) && Boolean(normalized.model)
-    && (Boolean(normalized.apiKey) || Boolean(normalized.keyMasked)));
+  if (!normalized.enabled) return true;
+  const textReady = Boolean(normalized.textBaseUrl) && Boolean(normalized.textModel)
+    && (Boolean(normalized.textApiKey) || Boolean(normalized.textKeyMasked));
+  const imageReady = Boolean(normalized.imageBaseUrl) && Boolean(normalized.imageModel)
+    && (Boolean(normalized.imageApiKey) || Boolean(normalized.imageKeyMasked));
+  if (scope === "image") return imageReady;
+  if (scope === "all") return textReady && imageReady;
+  return textReady;
 }
 
-function modelConfigPayload() {
+function modelConfigPayload(config) {
   return {};
 }
 
@@ -316,13 +342,19 @@ export async function saveModelConfig(config) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       enabled: normalized.enabled,
-      baseUrl: normalized.baseUrl,
-      apiKey: normalized.apiKey,
-      model: normalized.model
+      baseUrl: normalized.textBaseUrl,
+      apiKey: normalized.textApiKey,
+      model: normalized.textModel,
+      textBaseUrl: normalized.textBaseUrl,
+      textApiKey: normalized.textApiKey,
+      textModel: normalized.textModel,
+      imageBaseUrl: normalized.imageBaseUrl,
+      imageApiKey: normalized.imageApiKey,
+      imageModel: normalized.imageModel
     })
   });
   if (res.code === "0000") {
-    rememberModelConfig({ ...res.data, apiKey: "" });
+    rememberModelConfig({ ...res.data, apiKey: "", textApiKey: "", imageApiKey: "" });
   }
   return res;
 }
@@ -506,6 +538,9 @@ export async function generateWorkspaceImage(payload = {}) {
       sessionId: payload.sessionId || getSessionId(),
       prompt: payload.prompt || payload.question || "",
       mode: payload.mode || "generate",
+      model: payload.model || getModelConfig().imageModel || DEFAULT_MODEL_CONFIG.imageModel,
+      quality: payload.quality || "auto",
+      aspectRatio: payload.aspectRatio || "1:1",
       size: payload.size || "1024x1024",
       batchCount: payload.batchCount || 1,
       sourceFileIds: payload.sourceFileIds || [],
@@ -546,6 +581,10 @@ export async function runWorkspaceData(payload = {}) {
       includeTableRag: payload.includeTableRag !== false,
       includeNl2Sql: payload.includeNl2Sql !== false,
       includeAnalysis: payload.includeAnalysis !== false,
+      includeTradeAudit: Boolean(payload.includeTradeAudit),
+      auditOrderId: payload.auditOrderId || "",
+      auditTeamId: payload.auditTeamId || "",
+      auditKeyword: payload.auditKeyword || "",
       metadata: payload.metadata || {}
     })
   });
@@ -604,7 +643,7 @@ export async function queryWorkspaceMragHistory({ sessionId = "", limit = 20 } =
 }
 
 export async function queryAgentCapabilities() {
-  return request("/api/v1/academic/capabilities", {
+  return request("/agent/capabilities", {
     userAuth: true,
     method: "GET"
   });
@@ -935,6 +974,19 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
       notifyConfigVO: {
         notifyType: "MQ"
       }
+    })
+  });
+}
+
+export async function mockPaySuccess(orderId) {
+  return request("/api/v1/trade/order/mock-pay-success", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      orderId,
+      outTradeNo: `MOCK_${orderId}_${Date.now()}`,
+      payChannel: "MOCK_PAY"
     })
   });
 }

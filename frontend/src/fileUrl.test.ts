@@ -20,6 +20,20 @@ describe("file url normalization", () => {
     });
 
     expect(
+      normalizeFileUrlForBrowser("http://127.0.0.1:1801/v1/file_tool/preview/req/demo.html")
+    ).toBe("http://localhost:5173/tool/v1/file_tool/preview/req/demo.html");
+  });
+
+  it("keeps compatibility with old local reactor-tool port", () => {
+    vi.stubGlobal("window", {
+      location: {
+        host: "localhost:5173",
+        hostname: "localhost",
+        protocol: "http:"
+      }
+    });
+
+    expect(
       normalizeFileUrlForBrowser("http://127.0.0.1:1601/v1/file_tool/preview/req/demo.html")
     ).toBe("http://localhost:5173/tool/v1/file_tool/preview/req/demo.html");
   });
@@ -38,7 +52,7 @@ describe("file url normalization", () => {
     );
   });
 
-  it("keeps safe inline image data urls for local fallback previews", () => {
+  it("keeps safe inline image data urls for image previews", () => {
     expect(normalizeFileUrlForBrowser("data:image/png;base64,iVBORw0KGgo=")).toBe(
       "data:image/png;base64,iVBORw0KGgo="
     );

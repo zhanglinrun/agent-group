@@ -25,19 +25,65 @@ from reactor_tool.util.file_util import (
     _normalize_local_path,
     upload_file_by_path,
 )
-from reactor_tool.util.llm_util import (
-    _build_openai_compat_headers,
-    _normalize_openai_compat_api_base,
-)
-
 
 DEFAULT_IMAGE_MODEL = "gpt-image-2"
 DEFAULT_IMAGE_SIZE = "1024x1024"
-RESPONSES_FALLBACK_STATUS = {404, 405, 501}
+OPENAI_COMPAT_DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) "
+    "Gecko/20100101 Firefox/148.0"
+)
+RESPONSES_FALLBACK_STATUS = {404, 405, 501, 503}
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;,]+);base64,(?P<data>.+)$", re.IGNORECASE | re.DOTALL)
 BASE64_IMAGE_RE = re.compile(r"[A-Za-z0-9+/=\s]{200,}")
 HTTP_IMAGE_RE = re.compile(r"https?://[^\s\"'<>)]+" , re.IGNORECASE)
 MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*]\((https?://[^)\s]+)\)", re.IGNORECASE)
+
+
+def _normalize_api_base(api_base: str) -> str:
+    if not api_base:
+        return api_base
+    normalized = api_base.strip().rstrip("/")
+    if not normalized.lower().endswith("/v1"):
+        normalized = f"{normalized}/v1"
+    return normalized
+
+
+def _normalize_openai_compat_api_base(api_base: str) -> str:
+    if not api_base:
+        return api_base
+
+    normalized = api_base.strip().rstrip("/")
+    suffixes = (
+        "/v1/chat/completions",
+        "/chat/completions",
+        "/v1/completions",
+        "/completions",
+        "/v1/responses",
+        "/responses",
+    )
+
+    lower = normalized.lower()
+    changed = True
+    while changed:
+        changed = False
+        for suffix in suffixes:
+            if lower.endswith(suffix):
+                normalized = normalized[: -len(suffix)].rstrip("/")
+                lower = normalized.lower()
+                changed = True
+                break
+
+    if "bigmodel.cn" in lower:
+        return normalized
+    return _normalize_api_base(normalized)
+
+
+def _build_openai_compat_headers(existing_headers: dict[str, Any] | None = None) -> dict[str, Any]:
+    headers = dict(existing_headers or {})
+    lower_header_keys = {str(key).lower() for key in headers.keys()}
+    if "user-agent" not in lower_header_keys:
+        headers["User-Agent"] = os.getenv("OPENAI_COMPAT_USER_AGENT", OPENAI_COMPAT_DEFAULT_USER_AGENT)
+    return headers
 
 
 @dataclass
@@ -110,16 +156,15 @@ async def generate_images(request: ImageGenerationRequest) -> dict[str, Any]:
     if request.mask_file_names and len(request.mask_file_names) > len(request.file_names):
         raise ValueError("maskFileNames 数量不能超过 fileNames")
 
-    # 图片模型统一走独立环境变量，避免请求侧透传敏感配置或和服务端配置产生漂移。
-    base_url = _resolve_base_url()
-    api_key = _resolve_api_key()
+    base_url = (request.base_url or _resolve_base_url()).strip()
+    api_key = (request.api_key or _resolve_api_key()).strip()
     if not base_url:
         raise ValueError("未配置图片生成 base url，请设置 IMAGE_GENERATION_BASE_URL")
     if not api_key:
         raise ValueError("未配置图片生成 api key，请设置 IMAGE_GENERATION_API_KEY")
 
     normalized_base_url = _normalize_openai_compat_api_base(base_url)
-    model_name = _resolve_model_name()
+    model_name = (request.model or _resolve_model_name()).strip()
     if not model_name:
         raise ValueError("未配置图片生成 model，请设置 IMAGE_GENERATION_MODEL")
     timeout = httpx.Timeout(timeout=float(request.timeout_seconds))
@@ -155,7 +200,6 @@ async def generate_images(request: ImageGenerationRequest) -> dict[str, Any]:
     summary = _build_generation_summary(
         mode=mode,
         file_info=file_info,
-        used_fallback=used_fallback,
     )
     return {
         "data": summary,
@@ -587,12 +631,10 @@ def _resolve_model_name() -> str:
 def _build_generation_summary(
     mode: str,
     file_info: list[dict[str, Any]],
-    used_fallback: bool,
 ) -> str:
     action = "图片编辑" if mode == "edits" else "图片生成"
     file_names = "、".join(str(item.get("fileName") or "") for item in file_info if item.get("fileName"))
-    fallback_hint = "；已自动切换兼容接口" if used_fallback else ""
-    return f"{action}完成，共生成 {len(file_info)} 个图片文件：{file_names}{fallback_hint}"
+    return f"{action}完成，共生成 {len(file_info)} 个图片文件：{file_names}"
 
 
 def _sanitize_raw_response(payload: Any) -> Any:

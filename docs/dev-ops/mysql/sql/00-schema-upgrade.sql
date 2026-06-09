@@ -20,12 +20,148 @@ create table if not exists user_model_config (
   enabled tinyint not null default 0 comment 'custom model enabled',
   base_url varchar(256) not null default '' comment 'api base url',
   model varchar(128) not null default '' comment 'model name',
+  text_base_url varchar(256) not null default '' comment 'text model api base url',
+  text_model varchar(128) not null default '' comment 'text model name',
+  image_base_url varchar(256) not null default '' comment 'image model api base url',
+  image_model varchar(128) not null default '' comment 'image model name',
   encrypted_api_key text null comment 'encrypted api key',
+  encrypted_text_api_key text null comment 'encrypted text model api key',
+  encrypted_image_api_key text null comment 'encrypted image model api key',
   key_masked varchar(64) not null default '' comment 'masked api key',
+  text_key_masked varchar(64) not null default '' comment 'masked text model api key',
+  image_key_masked varchar(64) not null default '' comment 'masked image model api key',
   create_time datetime not null default current_timestamp comment 'create time',
   update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
   primary key (user_id)
 ) engine=InnoDB default charset=utf8mb4 comment='user model config';
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column text_model varchar(128) not null default '''' comment ''text model name'' after model',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'text_model'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column text_base_url varchar(256) not null default '''' comment ''text model api base url''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'text_base_url'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column image_model varchar(128) not null default '''' comment ''image model name'' after text_model',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'image_model'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column image_base_url varchar(256) not null default '''' comment ''image model api base url''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'image_base_url'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column encrypted_text_api_key text null comment ''encrypted text model api key''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'encrypted_text_api_key'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column encrypted_image_api_key text null comment ''encrypted image model api key''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'encrypted_image_api_key'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column text_key_masked varchar(64) not null default '''' comment ''masked text model api key''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'text_key_masked'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_model_config add column image_key_masked varchar(64) not null default '''' comment ''masked image model api key''',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_model_config'
+    and column_name = 'image_key_masked'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+update user_model_config
+set text_base_url = base_url
+where text_base_url = ''
+  and base_url <> '';
+
+update user_model_config
+set text_model = model
+where text_model = ''
+  and model <> '';
+
+update user_model_config
+set encrypted_text_api_key = encrypted_api_key
+where encrypted_text_api_key is null
+  and encrypted_api_key is not null;
+
+update user_model_config
+set text_key_masked = key_masked
+where text_key_masked = ''
+  and key_masked <> '';
+
+update user_model_config
+set image_model = 'gpt-image-2'
+where image_model = '';
 
 create table if not exists academic_agent_run (
   id bigint unsigned not null auto_increment comment '自增主键',

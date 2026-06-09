@@ -11,4 +11,10 @@ public class UserModelConfigRequest implements Serializable {
     private String baseUrl;
     private String apiKey;
     private String model;
+    private String textBaseUrl;
+    private String textApiKey;
+    private String textModel;
+    private String imageBaseUrl;
+    private String imageApiKey;
+    private String imageModel;
 }

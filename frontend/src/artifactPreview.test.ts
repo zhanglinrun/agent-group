@@ -79,9 +79,9 @@ describe("artifact preview model", () => {
     expect(model.kind).toBe("none");
   });
 
-  it("allows inline image data urls for local fallback image previews", () => {
+  it("allows inline image data urls for image previews", () => {
     const model = buildArtifactPreviewModel({
-      fileName: "local-fallback-image-1.png",
+      fileName: "inline-image-1.png",
       previewUrl: "data:image/png;base64,iVBORw0KGgo=",
       contentType: "image/png"
     });

@@ -14,7 +14,8 @@ const READY_TOOLS = [
   "file_tool",
   "script_runner",
   "table_rag",
-  "nl2sql"
+  "nl2sql",
+  "trade_audit"
 ];
 
 function executionModes() {
@@ -115,7 +116,7 @@ describe("agent platform readiness", () => {
       tone: "good"
     });
     expect(summary?.metrics.find((item) => item.key === "tools")).toMatchObject({
-      value: "11/12",
+      value: "12/13",
       tone: "warn"
     });
     expect(summary?.missingTools).toEqual(["code_interpreter"]);
@@ -169,7 +170,7 @@ describe("agent platform readiness", () => {
     expect(summary?.statusLabel).toBe("已就绪");
     expect(summary?.gaps).toEqual([]);
     expect(summary?.actions).toEqual(["Agent 与拼团交易闭环已具备完整演示面"]);
-    expect(summary?.metrics.map((item) => item.value)).toEqual(["4/4", "1", "12/12", "2/2", "3"]);
+    expect(summary?.metrics.map((item) => item.value)).toEqual(["4/4", "1", "13/13", "2/2", "3"]);
   });
 
   it("returns null before capabilities are loaded", () => {
