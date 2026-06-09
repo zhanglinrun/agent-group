@@ -47,7 +47,7 @@ public class ExecutionModeRegistry {
     }
 
     /**
-     * 获取所有已注册的模式名�?
+     * 获取所有已注册的模式名秒
      */
     public java.util.Set<String> getRegisteredModeNames() {
         return modes.keySet();

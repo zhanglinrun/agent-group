@@ -38,7 +38,7 @@ public final class AcademicAgentExecutorSupport {
 
     private static Executor requireExecutor(Executor executor, String scene) {
         if (executor == null) {
-            throw new IllegalStateException("缺少执行�? " + safeScene(scene));
+            throw new IllegalStateException("缺少执行器 " + safeScene(scene));
         }
         return executor;
     }

@@ -3,7 +3,7 @@ package com.linrun.domain.academic.runtime.mode;
 import java.util.List;
 
 /**
- * 模式动态切换策�?
+ * 模式动态切换策略
  * 根数据任务特征自动选择最优执行模开
  */
 public class ModeSwitchStrategy {
