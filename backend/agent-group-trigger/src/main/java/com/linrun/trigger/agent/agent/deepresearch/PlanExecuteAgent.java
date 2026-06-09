@@ -443,6 +443,9 @@ public class PlanExecuteAgent extends BaseAgent {
      */
     private void generateResearchTopicPhase(OverAllState state, Sinks.Many<String> sink,
                                             AtomicBoolean finished, StringBuilder thinkingBuffer, Runnable onComplete) {
+        // 任务推理分析（新增）
+        analyzeTaskWithReasoning(state, sink, finished, thinkingBuffer);
+        
         emit(sink, finished, "📝 正在生成研究主题...\n", "thinking", thinkingBuffer);
 
         List<Message> messages = new ArrayList<>();
@@ -482,6 +485,41 @@ public class PlanExecuteAgent extends BaseAgent {
                 .subscribe();
 
         compositeDisposable.add(disposable);
+    }
+
+    /**
+     * 任务推理分析（类似 OpenAI o1 的推理过程展示）
+     */
+    private void analyzeTaskWithReasoning(OverAllState state, Sinks.Many<String> sink,
+                                         AtomicBoolean finished, StringBuilder thinkingBuffer) {
+        try {
+            com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningService reasoningService = 
+                new com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningService();
+            
+            emit(sink, finished, "🤔 正在分析任务...\n", "reasoning", thinkingBuffer);
+            
+            var analysisResult = reasoningService.analyzeTask(state.getQuestion());
+            
+            String reasoningOutput = String.format("""
+                    
+                    📊 任务分析结果：
+                    • 任务类型：%s
+                    • 预估步骤：%d 步
+                    • 难度评估：%s
+                    • 信息源：%s
+                    
+                    """,
+                    analysisResult.getTaskType(),
+                    analysisResult.getEstimatedSteps(),
+                    analysisResult.getDifficulty(),
+                    analysisResult.needsMultipleSources() ? "需要多个信息源" : "单一信息源即可");
+            
+            emit(sink, finished, reasoningOutput, "reasoning", thinkingBuffer);
+            
+        } catch (Exception e) {
+            log.warn("[PlanExecuteAgent] 任务分析失败: {}", e.getMessage());
+            // 分析失败不影响主流程，继续执行
+        }
     }
 
     /**
