@@ -178,7 +178,7 @@ class AcademicBearDoctorAgentHandlerTest {
                   "reason": "引用数据不足，改查实验结果表",
                   "title": "补救计划",
                   "structuredSteps": [
-                    {"stepId": "R1", "instruction": "查询实验结果�?, "order": 1, "assignedAgent": "data"},
+                    {"stepId": "R1", "instruction": "查询实验结果行, "order": 1, "assignedAgent": "data"},
                     {"stepId": "R2", "instruction": "整理指标差异", "order": 2, "dependencies": ["R1"]}
                   ]
                 }

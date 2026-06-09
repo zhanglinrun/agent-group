@@ -152,7 +152,7 @@ class AcademicWorkspaceImageServiceTest {
         run.setRequestId("IMGREQ1001");
         run.setTaskType("workspace-image");
         run.setQuestion("编辑拼团活动主图");
-        run.setFinalSummary("已生�?3 张图�?);
+        run.setFinalSummary("已生成3 张图�?);
         run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         AcademicRunDetailResponse detail = new AcademicRunDetailResponse();
         AcademicRunDetailResponse.ToolInvocation invocation = new AcademicRunDetailResponse.ToolInvocation();

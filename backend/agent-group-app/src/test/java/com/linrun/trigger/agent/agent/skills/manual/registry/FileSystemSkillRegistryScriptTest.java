@@ -26,7 +26,7 @@ class FileSystemSkillRegistryScriptTest {
         Files.createDirectories(skillDir.resolve("scripts"));
         Files.writeString(skillDir.resolve("SKILL.md"), """
                 ---
-                description: 分析 SQL 指标并生成报�?                allowedTools:
+                description: 分析 SQL 指标并生成报告                allowedTools:
                   - script_runner
                 ---
                 # SQL Analysis
@@ -48,7 +48,7 @@ class FileSystemSkillRegistryScriptTest {
 
         SkillMetadata metadata = registry.get("sql-analysis");
 
-        assertEquals("分析 SQL 指标并生成报�?, metadata.description());
+        assertEquals("分析 SQL 指标并生成报告, metadata.description());
         assertTrue(metadata.scripts().containsKey("summarize"));
         assertTrue(metadata.scripts().containsKey("build_report"));
         assertTrue(metadata.buildScriptSummaries().stream().anyMatch(line -> line.contains("build_report")));

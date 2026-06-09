@@ -26,7 +26,7 @@ class KnowledgeDocumentServiceTest {
 
         KnowledgeDocumentBuildResult result = service.createParsedDocument(documentCommand(), List.of(
                 fragmentCommand("G10001", "基础额度包适合论文摘要和普通问答�?, 1),
-                fragmentCommand("G10001", "拼团价比原价�?300 元�?, 2)));
+                fragmentCommand("G10001", "拼团价比原价位300 元�?, 2)));
 
         KnowledgeDocument document = result.getDocument();
         assertTrue(document.getDocumentId().startsWith("DOC"));

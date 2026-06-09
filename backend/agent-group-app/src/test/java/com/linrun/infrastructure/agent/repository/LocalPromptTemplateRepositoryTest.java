@@ -30,7 +30,7 @@ class LocalPromptTemplateRepositoryTest {
 
         assertTrue(guideTemplate.getContent().contains("额度购买与智能体使用助手"));
         assertTrue(guideTemplate.getContent().contains("不要编�?));
-        assertTrue(selfCheckTemplate.getContent().contains("回答前检�?));
+        assertTrue(selfCheckTemplate.getContent().contains("回答前检查));
         assertTrue(selfCheckTemplate.getContent().contains("资料待补�?));
     }
 }

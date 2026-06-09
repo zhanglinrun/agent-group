@@ -60,7 +60,7 @@ class AcademicToolRuntimeRegistryTest {
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
         registry.registerStructured(definition("report_tool", true), command ->
                 AcademicToolStructuredOutput.builder(AcademicToolOutputNames.REPORT_TOOL)
-                        .summary("报告已生�?)
+                        .summary("报告已生成)
                         .addFileRef(AcademicToolFileRef.builder()
                                 .artifactId("A3001")
                                 .fileName("report.md")
@@ -72,7 +72,7 @@ class AcademicToolRuntimeRegistryTest {
                 .build());
 
         assertTrue(result.isSuccess());
-        assertEquals("报告已生�?, result.getResult().get("summary"));
+        assertEquals("报告已生成, result.getResult().get("summary"));
         assertEquals(List.of("A3001"), result.getArtifactIds());
     }
 

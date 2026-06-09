@@ -255,7 +255,7 @@ class DirectBuyOrderServiceTest {
             product.setGoodsName("基础学术额度�?);
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
-            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整�?);
+            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整理);
             product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更�?);
             return Optional.of(product);
         }

@@ -25,7 +25,7 @@ class AcademicPlanningToolRuntimeTest {
                 .arguments(Map.of(
                         "command", "create",
                         "title", "论文实验研究",
-                        "steps", List.of("读取论文摘要", "检查实验指�?, "生成报告")))
+                        "steps", List.of("读取论文摘要", "检查实验指核, "生成报告")))
                 .build());
 
         assertTrue(createResult.isSuccess());

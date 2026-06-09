@@ -100,11 +100,11 @@ class AcademicToolOutputReaderTest {
     @Test
     void shouldBuildFallbackOutputWhenResultJsonIsBlank() {
         AcademicToolInvocation invocation = invocation("");
-        invocation.setResultSummary("报告已生�?);
+        invocation.setResultSummary("报告已生成);
 
         AcademicToolOutputView view = reader.read(invocation, List.of());
 
-        assertEquals("报告已生�?, view.getStructuredOutput().get("summary"));
+        assertEquals("报告已生成, view.getStructuredOutput().get("summary"));
         assertTrue((Boolean) view.getStructuredOutput().get("success"));
     }
 

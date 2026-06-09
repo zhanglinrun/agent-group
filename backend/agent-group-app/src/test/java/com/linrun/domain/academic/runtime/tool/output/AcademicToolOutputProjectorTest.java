@@ -17,7 +17,7 @@ class AcademicToolOutputProjectorTest {
         AcademicToolStructuredOutput output = AcademicToolStructuredOutput.builder(AcademicToolOutputNames.IMAGE_GENERATION)
                 .title("配图生成")
                 .summary("生成两张活动海报")
-                .content("图片已生�?)
+                .content("图片已生成)
                 .putMetadata("prompt", "秋招项目展示")
                 .addFileRef(AcademicToolFileRef.builder()
                         .artifactId("A1001")
@@ -67,7 +67,7 @@ class AcademicToolOutputProjectorTest {
     @Test
     void shouldBuildCallResultFromStructuredOutput() {
         AcademicToolStructuredOutput output = AcademicToolStructuredOutput.builder(AcademicToolOutputNames.REPORT_TOOL)
-                .summary("报告已生�?)
+                .summary("报告已生成)
                 .addFileRef(AcademicToolFileRef.builder().artifactId("A2001").fileName("report.md").build())
                 .build();
 
