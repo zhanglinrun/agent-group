@@ -106,3 +106,18 @@ public class RabbitTradeEventListener {
         return message.length() > 512 ? message.substring(0, 512) : message;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

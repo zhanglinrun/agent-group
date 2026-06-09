@@ -27,8 +27,8 @@ import com.linrun.domain.groupbuy.model.GroupBuyTeamStatistic;
 import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
 import com.linrun.domain.groupbuy.service.GroupBuyMarketTrialService;
 import com.linrun.trigger.http.agent.HumanApprovalHandler;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
@@ -43,7 +43,7 @@ import java.math.BigDecimal;
 @Service
 public class MarketTradeFacadeHandler {
 
-    private final GuideDataRepository guideDataRepository;
+    private final QuotaProductRepository QuotaProductRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final GroupBuyLockOrderService groupBuyLockOrderService;
@@ -54,7 +54,7 @@ public class MarketTradeFacadeHandler {
     private final GroupBuyMarketTrialService groupBuyMarketTrialService;
     private final HumanApprovalHandler humanApprovalService;
 
-    public MarketTradeFacadeHandler(GuideDataRepository guideDataRepository,
+    public MarketTradeFacadeHandler(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyLockOrderService groupBuyLockOrderService,
@@ -64,7 +64,7 @@ public class MarketTradeFacadeHandler {
                                     DynamicConfigService dynamicConfigService,
                                     GroupBuyMarketTrialService groupBuyMarketTrialService,
                                     HumanApprovalHandler humanApprovalService) {
-        this.guideDataRepository = guideDataRepository;
+        this.QuotaProductRepository = QuotaProductRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.groupBuyLockOrderService = groupBuyLockOrderService;
@@ -289,8 +289,8 @@ public class MarketTradeFacadeHandler {
                 : request.getUserId() + ":" + request.getGoodsId() + ":" + request.getActivityId();
     }
 
-    private GuideProduct queryProduct(String goodsId) {
-        GuideProduct product = guideDataRepository.queryProductByGoodsId(goodsId)
+    private QuotaProduct queryProduct(String goodsId) {
+        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(goodsId)
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         if (product.getOriginPrice() == null) {
             product.setOriginPrice(BigDecimal.ZERO);
@@ -307,3 +307,18 @@ public class MarketTradeFacadeHandler {
                 .orElse(outTradeNo);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

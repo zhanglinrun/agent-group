@@ -41,3 +41,18 @@ public class UserQuotaAccount {
         this.usedQuota = usedQuota == null ? BigDecimal.ZERO : usedQuota;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

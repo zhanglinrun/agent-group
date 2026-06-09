@@ -21,3 +21,18 @@ public class KnowledgeVectorMaintenanceResponse implements Serializable {
     private List<String> hitFragmentIds;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

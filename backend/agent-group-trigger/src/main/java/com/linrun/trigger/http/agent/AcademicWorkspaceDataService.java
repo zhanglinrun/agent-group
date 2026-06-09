@@ -25,7 +25,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
@@ -77,7 +77,7 @@ public class AcademicWorkspaceDataService {
         AcademicWorkspaceDataRunRequest safeRequest = request == null
                 ? new AcademicWorkspaceDataRunRequest()
                 : request;
-        String question = firstText(safeRequest.getQuestion(), "数据工作区分析");
+        String question = firstText(safeRequest.getQuestion(), "数据工作区分�?);
         UserAccount user = userAccountService.requireUserByToken(token);
         String userId = user.getUserId();
         preCheckQuota(userId);
@@ -126,8 +126,8 @@ public class AcademicWorkspaceDataService {
             throw e;
         } catch (Exception e) {
             ledgerService.finishRun(run, AcademicAgentRun.STATUS_FAILED, "", "DATA_WORKSPACE_0001",
-                    firstText(e.getMessage(), "数据工作区执行失败"), elapsed(startedAt));
-            throw new AppException("DATA_WORKSPACE_0001", "数据工作区执行失败: " + firstText(e.getMessage(), "未知错误"));
+                    firstText(e.getMessage(), "数据工作区执行失�?), elapsed(startedAt));
+            throw new AppException("DATA_WORKSPACE_0001", "数据工作区执行失�? " + firstText(e.getMessage(), "未知错误"));
         }
     }
 
@@ -137,7 +137,7 @@ public class AcademicWorkspaceDataService {
 
     private void consumeQuota(String userId, String sessionId, String requestId, long durationMillis) {
         userQuotaService.consumeForAcademicTask(userId, sessionId, TASK_TYPE + "-" + requestId, TASK_TYPE,
-                GuideTokenUsage.empty(), TASK_TYPE + "-tools", durationMillis);
+                TokenUsageMetrics.empty(), TASK_TYPE + "-tools", durationMillis);
     }
 
     public AcademicWorkspaceDataHistoryResponse history(String token, String sessionId, int limit) {
@@ -175,41 +175,41 @@ public class AcademicWorkspaceDataService {
                 "citation_network",
                 "reading_note"));
         response.setModels(List.of(
-                model("paper_metadata", "论文元数据", "paper_metadata", "论文题名、作者、年份、关键词和摘要信息",
+                model("paper_metadata", "论文元数�?, "paper_metadata", "论文题名、作者、年份、关键词和摘要信�?,
                         List.of("paper_id", "title", "authors", "publish_year", "venue", "keywords", "abstract_text"),
                         column("paper_id", "varchar", "论文编号", false),
                         column("title", "varchar", "论文标题", false),
-                        column("authors", "varchar", "作者列表", false),
+                        column("authors", "varchar", "作者列�?, false),
                         column("publish_year", "int", "发表年份", true),
-                        column("venue", "varchar", "期刊或会议", false),
-                        column("keywords", "varchar", "关键词", false),
+                        column("venue", "varchar", "期刊或会�?, false),
+                        column("keywords", "varchar", "关键�?, false),
                         column("abstract_text", "text", "摘要内容", false)),
                 model("experiment_result", "实验结果", "experiment_result", "实验组、指标、数值和复现实验备注",
                         List.of("experiment_id", "paper_id", "dataset", "method_name", "metric_name", "metric_value", "run_time"),
                         column("experiment_id", "varchar", "实验编号", false),
                         column("paper_id", "varchar", "关联论文编号", false),
-                        column("dataset", "varchar", "数据集名称", false),
+                        column("dataset", "varchar", "数据集名�?, false),
                         column("method_name", "varchar", "方法名称", false),
                         column("metric_name", "varchar", "评价指标", false),
-                        column("metric_value", "decimal", "指标数值", true),
+                        column("metric_value", "decimal", "指标数�?, true),
                         column("run_time", "datetime", "实验运行时间", false)),
                 model("citation_network", "引用网络", "citation_network", "论文之间的引用、被引和关系类型",
                         List.of("source_paper_id", "target_paper_id", "relation_type", "citation_context"),
-                        column("source_paper_id", "varchar", "引用方论文编号", false),
-                        column("target_paper_id", "varchar", "被引用论文编号", false),
+                        column("source_paper_id", "varchar", "引用方论文编�?, false),
+                        column("target_paper_id", "varchar", "被引用论文编�?, false),
                         column("relation_type", "varchar", "引用关系类型", false),
-                        column("citation_context", "text", "引用上下文", false)),
+                        column("citation_context", "text", "引用上下�?, false)),
                 model("reading_note", "阅读笔记", "reading_note", "用户整理的论文笔记、问题和结论",
                         List.of("note_id", "paper_id", "section_name", "note_text", "tag", "create_time"),
                         column("note_id", "varchar", "笔记编号", false),
                         column("paper_id", "varchar", "关联论文编号", false),
-                        column("section_name", "varchar", "章节或主题", false),
+                        column("section_name", "varchar", "章节或主�?, false),
                         column("note_text", "text", "笔记内容", false),
                         column("tag", "varchar", "笔记标签", false),
                         column("create_time", "datetime", "创建时间", false))));
         response.setSampleQuestions(List.of(
-                "统计近五年 RAG 相关论文的发表趋势",
-                "比较不同方法在同一数据集上的实验指标",
+                "统计近五�?RAG 相关论文的发表趋�?,
+                "比较不同方法在同一数据集上的实验指�?,
                 "找出某篇论文引用链路中的核心相关工作"));
         return response;
     }
@@ -359,7 +359,7 @@ public class AcademicWorkspaceDataService {
                 .map(item -> firstText(item.getSummary(), item.getTitle(), item.getToolName()))
                 .filter(StringUtils::hasText)
                 .toList();
-        String summary = parts.isEmpty() ? "数据工作区已完成工具运行" : String.join("；", parts);
+        String summary = parts.isEmpty() ? "数据工作区已完成工具运行" : String.join("�?, parts);
         if (!missingTools.isEmpty()) {
             summary = summary + "；未配置工具: " + String.join(", ", missingTools);
         }
@@ -487,3 +487,19 @@ public class AcademicWorkspaceDataService {
         AcademicToolStructuredOutput call(AcademicToolCallCommand command);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

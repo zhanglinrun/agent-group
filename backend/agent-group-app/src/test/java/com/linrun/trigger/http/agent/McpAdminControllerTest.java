@@ -181,3 +181,18 @@ class McpAdminControllerTest {
                 .andExpect(jsonPath("$.data.text").value("called agent"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

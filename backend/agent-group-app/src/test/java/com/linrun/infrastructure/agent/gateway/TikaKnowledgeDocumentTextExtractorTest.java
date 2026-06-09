@@ -94,3 +94,18 @@ class TikaKnowledgeDocumentTextExtractorTest {
         return outputStream.toByteArray();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

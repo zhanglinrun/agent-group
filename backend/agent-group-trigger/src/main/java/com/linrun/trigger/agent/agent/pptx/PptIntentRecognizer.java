@@ -17,7 +17,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.util.StringUtils;
 
 /**
- * PPT意图识别器
+ * PPT意图识别�?
  */
 @Slf4j
 public class PptIntentRecognizer {
@@ -43,35 +43,35 @@ public class PptIntentRecognizer {
 
         // 如果没有PPT实例，默认为CREATE_PPT意图
         if (latestInst == null) {
-            log.info("会话中无PPT实例，默认新建");
-            return new PptIntentResult(PptIntent.CREATE_PPT, "会话中无PPT实例，默认新建");
+            log.info("会话中无PPT实例，默认新�?);
+            return new PptIntentResult(PptIntent.CREATE_PPT, "会话中无PPT实例，默认新�?);
         }
 
         PptInstStatus status = latestInst.getStatusEnum();
         String errorMsg = latestInst.getErrorMsg();
 
-        // 检查是否需要断点重连
+        // 检查是否需要断点重�?
         if (needsResume(status, errorMsg, query)) {
-            log.info("检测到断点重连需求: status={}, hasError={}", status, StringUtils.hasText(errorMsg));
+            log.info("检测到断点重连需�? status={}, hasError={}", status, StringUtils.hasText(errorMsg));
             return new PptIntentResult(PptIntent.RESUME_PPT,
-                    "检测到上次执行未完成，从状态 " + status + " 继续执行");
+                    "检测到上次执行未完成，从状�?" + status + " 继续执行");
         }
 
-        // 如果是SUCCESS状态，调用LLM进行意图识别（CREATE_PPT 或 MODIFY_PPT）
+        // 如果是SUCCESS状态，调用LLM进行意图识别（CREATE_PPT �?MODIFY_PPT�?
         if (status == PptInstStatus.SUCCESS) {
             return recognizeWithLLM(query);
         }
 
         // 对于其他中间状态（非失败），也默认为CREATE_PPT（新建）
-        log.info("状态为 {}，默认新建", status);
-        return new PptIntentResult(PptIntent.CREATE_PPT, "状态为 " + status + "，默认新建");
+        log.info("状态为 {}，默认新�?, status);
+        return new PptIntentResult(PptIntent.CREATE_PPT, "状态为 " + status + "，默认新�?);
     }
 
     /**
-     * 判断是否需要断点重连
+     * 判断是否需要断点重�?
      */
     private boolean needsResume(PptInstStatus status, String errorMsg, String query) {
-        // 如果有错误信息，说明上次执行失败，需要重连
+        // 如果有错误信息，说明上次执行失败，需要重�?
         if (StringUtils.hasText(errorMsg)) {
             return true;
         }
@@ -87,11 +87,11 @@ public class PptIntentRecognizer {
 
         // 对于中间状态（非SUCCESS、非INIT），如果用户没有明确要求新建，则继续
         if (status != PptInstStatus.SUCCESS && status != PptInstStatus.INIT) {
-            // 检查用户是否明确要求新建
+            // 检查用户是否明确要求新�?
             String[] newKeywords = {"新建", "重新", "重新生成", "new", "create new"};
             for (String keyword : newKeywords) {
                 if (lowerQuery.contains(keyword)) {
-                    return false; // 用户明确要新建
+                    return false; // 用户明确要新�?
                 }
             }
             return true; // 默认继续
@@ -118,7 +118,22 @@ public class PptIntentRecognizer {
             return result;
         } catch (Exception e) {
             log.error("解析意图识别结果失败", e);
-            return new PptIntentResult(PptIntent.CREATE_PPT, "意图识别失败，默认新建");
+            return new PptIntentResult(PptIntent.CREATE_PPT, "意图识别失败，默认新�?);
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

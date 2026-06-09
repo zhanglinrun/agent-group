@@ -60,3 +60,18 @@ public class UserQuotaAccountPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

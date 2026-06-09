@@ -15,3 +15,18 @@ public class UploadKnowledgeDocumentRequest implements Serializable {
     private String goodsId;
     private String content;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

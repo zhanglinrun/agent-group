@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Data
-public class GuideUsageMetricsDTO implements Serializable {
+public class QuotaUsageMetricsDTO implements Serializable {
 
     private Long promptTokens;
     private Long completionTokens;
@@ -19,3 +19,18 @@ public class GuideUsageMetricsDTO implements Serializable {
     private BigDecimal remainingQuota;
     private String model;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

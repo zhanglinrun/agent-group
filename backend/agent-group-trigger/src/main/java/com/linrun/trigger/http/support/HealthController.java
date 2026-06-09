@@ -13,3 +13,18 @@ public class HealthController {
         return Response.success("agent-group start success", RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

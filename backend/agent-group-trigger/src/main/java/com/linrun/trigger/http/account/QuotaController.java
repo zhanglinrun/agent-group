@@ -8,7 +8,7 @@ import com.linrun.api.dto.QuotaGrantOrderRequest;
 import com.linrun.api.dto.QuotaGrantOrderResponse;
 import com.linrun.api.dto.UserModelConfigRequest;
 import com.linrun.api.dto.UserModelConfigResponse;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.agent.conversation.service.QuotaPackageCatalogService;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -91,7 +91,7 @@ public class QuotaController {
         return Response.success(response, RequestTraceContext.getRequestId());
     }
 
-    private ProductCardDTO toProductCard(GuideProduct product) {
+    private ProductCardDTO toProductCard(QuotaProduct product) {
         ProductCardDTO dto = new ProductCardDTO();
         dto.setGoodsId(product.getGoodsId());
         dto.setGoodsName(product.getGoodsName());
@@ -110,3 +110,18 @@ public class QuotaController {
         return dto;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.linrun.infrastructure.dao.IGuideDataDao">
+<mapper namespace="com.linrun.infrastructure.dao.IQuotaProductDao">
 
-    <resultMap id="GuideProductMap" type="com.linrun.infrastructure.po.GuideProductPO">
+    <resultMap id="QuotaProductMap" type="com.linrun.infrastructure.po.QuotaProductPO">
         <id column="goods_id" property="goodsId"/>
         <result column="goods_name" property="goodsName"/>
         <result column="image_url" property="imageUrl"/>
@@ -21,7 +21,7 @@
         <result column="remaining_seconds" property="remainingSeconds"/>
     </resultMap>
 
-    <select id="queryCandidateProducts" resultMap="GuideProductMap">
+    <select id="queryCandidateProducts" resultMap="QuotaProductMap">
         select g.goods_id,
                g.goods_name,
                g.image_url,
@@ -61,7 +61,7 @@
         limit #{limit}
     </select>
 
-    <select id="queryProductByGoodsId" resultMap="GuideProductMap">
+    <select id="queryProductByGoodsId" resultMap="QuotaProductMap">
         select g.goods_id,
                g.goods_name,
                g.image_url,
@@ -88,3 +88,18 @@
         limit 1
     </select>
 </mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

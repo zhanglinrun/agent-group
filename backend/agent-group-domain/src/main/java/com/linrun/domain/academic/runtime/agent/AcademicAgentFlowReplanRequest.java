@@ -31,3 +31,18 @@ public record AcademicAgentFlowReplanRequest(AcademicAgentPlan planSnapshot,
         return completedSteps.stream().map(AcademicPlanStep::copy).toList();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

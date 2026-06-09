@@ -40,7 +40,7 @@ public class GroupBuyTrialResult {
         result.setStatus(GroupBuyActivityStatus.MISSING);
         result.setAvailable(false);
         result.setRemainingSeconds(0);
-        result.setMessage("当前额度包没有配置拼团活动");
+        result.setMessage("当前额度包没有配置拼团活�?);
         return result;
     }
 
@@ -276,3 +276,18 @@ public class GroupBuyTrialResult {
         this.message = message;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

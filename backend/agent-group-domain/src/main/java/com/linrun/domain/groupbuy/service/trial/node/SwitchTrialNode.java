@@ -25,14 +25,29 @@ public class SwitchTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
             GroupBuyMarketTrialCommand request,
             GroupBuyMarketTrialContext dynamicContext) {
         if (dynamicConfigService.isDowngradeSwitch()) {
-            throw new AppException("DCC_0003", "拼团活动暂时不可用");
+            throw new AppException("DCC_0003", "拼团活动暂时不可�?);
         }
         if (StringUtils.hasText(request.getUserId()) && !dynamicConfigService.isCutRange(request.getUserId())) {
             throw new AppException("DCC_0004", "当前账号暂不在活动范围内");
         }
         if (dynamicConfigService.isSourceChannelBlackIntercept(request.getSource(), request.getChannel())) {
-            throw new AppException("DCC_0005", "当前渠道暂不能参加活动");
+            throw new AppException("DCC_0005", "当前渠道暂不能参加活�?);
         }
         return next;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

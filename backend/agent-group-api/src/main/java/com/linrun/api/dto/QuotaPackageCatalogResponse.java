@@ -11,3 +11,18 @@ public class QuotaPackageCatalogResponse implements Serializable {
 
     private List<ProductCardDTO> packages = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

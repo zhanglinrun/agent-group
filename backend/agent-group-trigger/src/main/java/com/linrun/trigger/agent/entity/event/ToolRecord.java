@@ -1,7 +1,7 @@
 package com.linrun.trigger.agent.entity.event;
 
 /**
- * 工具执行记录。
+ * 工具执行记录�?
  *
  * @param toolName   工具名称
  * @param toolCallId 工具调用 ID
@@ -16,3 +16,18 @@ public record ToolRecord(
         String result
 ) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

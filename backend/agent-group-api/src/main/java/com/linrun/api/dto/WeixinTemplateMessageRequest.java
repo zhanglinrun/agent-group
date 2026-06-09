@@ -17,3 +17,18 @@ public class WeixinTemplateMessageRequest implements Serializable {
     private String remark;
     private Map<String, String> data = new HashMap<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

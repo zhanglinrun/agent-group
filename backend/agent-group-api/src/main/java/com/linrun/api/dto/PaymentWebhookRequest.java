@@ -20,3 +20,18 @@ public class PaymentWebhookRequest implements Serializable {
     private String tradeStatus;
     private LocalDateTime payTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

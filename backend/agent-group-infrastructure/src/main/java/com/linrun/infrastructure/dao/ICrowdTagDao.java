@@ -41,3 +41,18 @@ public interface ICrowdTagDao {
                          @Param("batchId") String batchId,
                          @Param("status") int status);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

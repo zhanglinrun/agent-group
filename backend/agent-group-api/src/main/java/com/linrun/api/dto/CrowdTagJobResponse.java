@@ -16,3 +16,18 @@ public class CrowdTagJobResponse implements Serializable {
     private List<String> userIds;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -12,3 +12,18 @@ public class GroupBuyLockDynamicContext {
         this.userTakeOrderCount = userTakeOrderCount;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

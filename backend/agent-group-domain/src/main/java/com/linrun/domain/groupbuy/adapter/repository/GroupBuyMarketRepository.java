@@ -25,3 +25,18 @@ public interface GroupBuyMarketRepository {
         return List.of();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

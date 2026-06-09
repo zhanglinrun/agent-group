@@ -27,3 +27,18 @@ public interface IGroupBuyStockDao {
 
     void insertStockFlow(GroupBuyStockFlowPO flow);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -20,3 +20,18 @@ public class UserModelConfigResponse implements Serializable {
     private String imageKeyMasked;
     private LocalDateTime updateTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

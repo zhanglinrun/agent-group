@@ -86,3 +86,18 @@ final class RestrictedToolSupport {
     record CommandResult(int exitCode, String output) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

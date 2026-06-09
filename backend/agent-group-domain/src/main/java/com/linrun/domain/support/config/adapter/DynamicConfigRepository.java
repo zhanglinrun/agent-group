@@ -15,3 +15,18 @@ public interface DynamicConfigRepository {
 
     void saveOrUpdate(DynamicConfig config);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

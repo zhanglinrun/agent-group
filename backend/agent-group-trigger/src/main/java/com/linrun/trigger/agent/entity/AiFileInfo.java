@@ -29,7 +29,7 @@ public class AiFileInfo {
     private String fileId;
 
     /**
-     * 原始文件名
+     * 原始文件�?
      */
     @TableField("file_name")
     private String fileName;
@@ -53,7 +53,7 @@ public class AiFileInfo {
     private String minioPath;
 
     /**
-     * 解析后的纯文本内容
+     * 解析后的纯文本内�?
      */
     @TableField("extracted_text")
     private String extractedText;
@@ -65,13 +65,13 @@ public class AiFileInfo {
     private LocalDateTime createdAt;
 
     /**
-     * 会话ID（可选，用于关联特定会话）
+     * 会话ID（可选，用于关联特定会话�?
      */
     @TableField("conversation_id")
     private String conversationId;
 
     /**
-     * 文件状态
+     * 文件状�?
      */
     @TableField("status")
     private String status;
@@ -83,9 +83,24 @@ public class AiFileInfo {
     private LocalDateTime updateTime;
 
     /**
-     * 是否已向量化（大文件标识）
-     * 0-未向量化，1-已向量化
+     * 是否已向量化（大文件标识�?
+     * 0-未向量化�?-已向量化
      */
     @TableField("embed")
     private Integer embed;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

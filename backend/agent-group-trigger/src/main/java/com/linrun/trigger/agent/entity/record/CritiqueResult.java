@@ -8,3 +8,18 @@ public record CritiqueResult(
         String feedback
 ) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

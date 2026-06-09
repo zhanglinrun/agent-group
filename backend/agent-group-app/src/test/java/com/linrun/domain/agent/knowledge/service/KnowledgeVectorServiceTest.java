@@ -17,7 +17,7 @@ class KnowledgeVectorServiceTest {
     void shouldSaveFragmentEmbedding() {
         FakeKnowledgeVectorRepository vectorRepository = new FakeKnowledgeVectorRepository();
         KnowledgeVectorService service = new KnowledgeVectorService(vectorRepository);
-        KnowledgeFragment fragment = fragment("KF10001", "拼团退款规则");
+        KnowledgeFragment fragment = fragment("KF10001", "拼团退款规�?);
 
         service.saveFragmentEmbedding(fragment);
 
@@ -82,3 +82,18 @@ class KnowledgeVectorServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -31,8 +31,8 @@ public class AcademicAgentReasoningService {
         if (lower.contains("研究") || lower.contains("调研") || lower.contains("分析")) {
             return "深度分析";
         }
-        if (lower.contains("搜索") || lower.contains("查找") || lower.contains("检索")) {
-            return "信息检索";
+        if (lower.contains("搜索") || lower.contains("查找") || lower.contains("检�?)) {
+            return "信息检�?;
         }
         if (lower.contains("生成") || lower.contains("创建") || lower.contains("制作")) {
             return "内容生成";
@@ -55,7 +55,7 @@ public class AcademicAgentReasoningService {
     }
     
     /**
-     * 推断是否需要多信息源
+     * 推断是否需要多信息�?
      */
     private boolean inferNeedsMultipleSources(String question) {
         String lower = question.toLowerCase();
@@ -67,7 +67,7 @@ public class AcademicAgentReasoningService {
      * 推断难度
      */
     private String inferDifficulty(int steps) {
-        if (steps <= 2) return "简单";
+        if (steps <= 2) return "简�?;
         if (steps <= 4) return "中等";
         return "困难";
     }
@@ -110,8 +110,23 @@ public class AcademicAgentReasoningService {
         }
 
         public String getSummary() {
-            return String.format("任务类型：%s | 预估步骤：%d | 难度：%s", 
+            return String.format("任务类型�?s | 预估步骤�?d | 难度�?s", 
                     taskType, estimatedSteps, difficulty);
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -12,3 +12,18 @@ public class CreatePaymentRequest implements Serializable {
     private String notifyUrl;
     private String returnUrl;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -34,3 +34,18 @@ public interface AcademicFileToolPort {
                                   String errorMessage) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

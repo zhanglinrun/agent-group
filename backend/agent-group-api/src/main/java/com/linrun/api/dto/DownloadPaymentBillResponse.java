@@ -20,3 +20,18 @@ public class DownloadPaymentBillResponse implements Serializable {
     private String summary;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

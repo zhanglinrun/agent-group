@@ -73,3 +73,18 @@ class AcademicImageGenerationToolRuntimeTest {
         assertEquals("IMAGE_0003", exception.getCode());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

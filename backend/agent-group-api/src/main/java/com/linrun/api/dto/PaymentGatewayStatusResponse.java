@@ -39,3 +39,18 @@ public class PaymentGatewayStatusResponse implements Serializable {
         private String message;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

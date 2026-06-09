@@ -18,3 +18,18 @@ public class UserModelConfigRequest implements Serializable {
     private String imageApiKey;
     private String imageModel;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

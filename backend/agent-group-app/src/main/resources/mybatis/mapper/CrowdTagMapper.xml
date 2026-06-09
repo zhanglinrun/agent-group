@@ -170,3 +170,18 @@
           and batch_id = #{batchId}
     </update>
 </mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

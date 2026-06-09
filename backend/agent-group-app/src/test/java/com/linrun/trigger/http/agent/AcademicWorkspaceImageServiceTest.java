@@ -18,7 +18,7 @@ import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -66,7 +66,7 @@ class AcademicWorkspaceImageServiceTest {
             return new AcademicImageGenerationPort.AcademicImageGenerationResult(
                 true,
                 "mock-image",
-                "已生成拼团活动主图",
+                "已生成拼团活动主�?,
                 false,
                 List.of(AcademicToolFileRef.builder()
                         .artifactId("IMG-1")
@@ -121,12 +121,12 @@ class AcademicWorkspaceImageServiceTest {
         verify(userQuotaService).estimatePreCheckCost("workspace-image");
         verify(userQuotaService).assertEnoughQuota("U1001", BigDecimal.valueOf(4));
         verify(userQuotaService).consumeForAcademicTask(eq("U1001"), eq("S1001"),
-                startsWith("workspace-image-IMGREQ"), eq("workspace-image"), any(GuideTokenUsage.class),
+                startsWith("workspace-image-IMGREQ"), eq("workspace-image"), any(TokenUsageMetrics.class),
                 eq("workspace-image-tool"), anyLong());
         verify(ledgerService).recordToolFinish(eq("TOOL1001"), eq(AcademicAgentRun.STATUS_SUCCESS),
-                eq("已生成拼团活动主图"), anyString(), eq(0), eq(""), anyLong());
+                eq("已生成拼团活动主�?), anyString(), eq(0), eq(""), anyLong());
         verify(ledgerService).finishRun(eq(run), eq(AcademicAgentRun.STATUS_SUCCESS),
-                eq("已生成拼团活动主图"), eq(""), eq(""), anyLong());
+                eq("已生成拼团活动主�?), eq(""), eq(""), anyLong());
     }
 
     @Test
@@ -152,7 +152,7 @@ class AcademicWorkspaceImageServiceTest {
         run.setRequestId("IMGREQ1001");
         run.setTaskType("workspace-image");
         run.setQuestion("编辑拼团活动主图");
-        run.setFinalSummary("已生成 3 张图片");
+        run.setFinalSummary("已生�?3 张图�?);
         run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         AcademicRunDetailResponse detail = new AcademicRunDetailResponse();
         AcademicRunDetailResponse.ToolInvocation invocation = new AcademicRunDetailResponse.ToolInvocation();
@@ -200,3 +200,19 @@ class AcademicWorkspaceImageServiceTest {
         return run;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

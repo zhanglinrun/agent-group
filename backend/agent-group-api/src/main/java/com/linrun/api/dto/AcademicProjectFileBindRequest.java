@@ -14,3 +14,18 @@ public class AcademicProjectFileBindRequest implements Serializable {
     private String summary;
     private String contentPreview;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

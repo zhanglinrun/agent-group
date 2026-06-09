@@ -81,3 +81,18 @@ public class McpAdminController {
         return Response.success(mcpAdminHandler.callRegisteredTool(toolName, request), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

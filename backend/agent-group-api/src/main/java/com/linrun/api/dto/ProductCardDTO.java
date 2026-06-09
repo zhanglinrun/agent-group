@@ -28,3 +28,18 @@ public class ProductCardDTO implements Serializable {
     private Integer teamSize;
     private Integer remainingSeconds;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

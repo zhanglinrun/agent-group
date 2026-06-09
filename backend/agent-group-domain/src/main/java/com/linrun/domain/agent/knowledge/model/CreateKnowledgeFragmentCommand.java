@@ -93,3 +93,18 @@ public class CreateKnowledgeFragmentCommand {
         this.embeddingEnabled = embeddingEnabled;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

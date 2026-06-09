@@ -54,3 +54,18 @@ public interface GroupBuyOrderLockRepository {
         return new GroupBuyTeamStatistic();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

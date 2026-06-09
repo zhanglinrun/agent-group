@@ -17,12 +17,12 @@ public class KnowledgeKeywordService {
             "价格",
             "拼团",
             "成团",
-            "退款",
-            "退货",
+            "退�?,
+            "退�?,
             "售后",
             "额度",
             "余额",
-            "消耗",
+            "消�?,
             "Agent",
             "论文",
             "文献",
@@ -32,45 +32,45 @@ public class KnowledgeKeywordService {
             "汇报",
             "答辩",
             "图表",
-            "流程图",
-            "架构图",
+            "流程�?,
+            "架构�?,
             "Mermaid",
             "深度研究",
             "调研",
-            "技术路线",
-            "长报告",
+            "技术路�?,
+            "长报�?,
             "复现",
             "团队",
-            "实验室",
+            "实验�?,
             "对比",
-            "基础额度包",
-            "论文阅读额度包",
-            "PPT 创作额度包",
-            "图表重建额度包",
-            "深度研究额度包",
-            "团队拼团额度包",
-            "不建议",
+            "基础额度�?,
+            "论文阅读额度�?,
+            "PPT 创作额度�?,
+            "图表重建额度�?,
+            "深度研究额度�?,
+            "团队拼团额度�?,
+            "不建�?,
             "直接购买",
-            "直接买",
-            "额度包",
+            "直接�?,
+            "额度�?,
             "订单金额",
-            "支付单金额",
+            "支付单金�?,
             "前端金额",
             "价格篡改",
             "依据",
             "活动过期",
             "过期",
-            "隔很久",
+            "隔很�?,
             "队伍已满",
             "库存",
             "锁单",
             "支付成功",
             "支付平台",
-            "支付单",
+            "支付�?,
             "回调",
             "重复",
             "幂等",
-            "防重放",
+            "防重�?,
             "补偿",
             "outbox",
             "不能保证",
@@ -86,7 +86,7 @@ public class KnowledgeKeywordService {
         BUSINESS_KEYWORDS.stream()
                 .filter(normalized::contains)
                 .forEach(keywords::add);
-        for (String word : normalized.split("[\\s,，。！？!?；;、]+")) {
+        for (String word : normalized.split("[\\s,，。！�??�?、]+")) {
             if (word.length() >= 2 && word.length() <= 20) {
                 keywords.add(word);
             }
@@ -96,3 +96,18 @@ public class KnowledgeKeywordService {
                 .toList();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

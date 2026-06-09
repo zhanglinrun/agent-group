@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
-public class GuideDecisionSnapshot {
+public class QuotaOrderSnapshot {
 
     private static final DateTimeFormatter ID_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final int DEFAULT_QUOTE_TTL_MINUTES = 15;
@@ -25,13 +25,13 @@ public class GuideDecisionSnapshot {
     private LocalDateTime quoteExpireTime;
     private LocalDateTime createTime;
 
-    public static GuideDecisionSnapshot captureQuote(String sessionId,
+    public static QuotaOrderSnapshot captureQuote(String sessionId,
                                                      String requestId,
                                                      String userId,
                                                      String question,
-                                                     GuideProduct product) {
+                                                     QuotaProduct product) {
         LocalDateTime now = LocalDateTime.now();
-        GuideDecisionSnapshot snapshot = new GuideDecisionSnapshot();
+        QuotaOrderSnapshot snapshot = new QuotaOrderSnapshot();
         snapshot.setDecisionId(nextDecisionId(now));
         snapshot.setSessionId(sessionId);
         snapshot.setRequestId(requestId);
@@ -185,3 +185,19 @@ public class GuideDecisionSnapshot {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -36,3 +36,18 @@ public record AcademicToolRuntimeSummary(int totalCount,
         return counts == null ? Map.of() : new LinkedHashMap<>(counts);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

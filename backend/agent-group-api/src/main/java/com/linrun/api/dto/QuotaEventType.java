@@ -10,7 +10,7 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public enum GuideEventType {
+public enum QuotaEventType {
 
     ANSWER_DELTA("answer_delta"),
     REFERENCE_DELTA("reference_delta"),
@@ -26,3 +26,18 @@ public enum GuideEventType {
 
     private final String code;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

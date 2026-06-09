@@ -55,7 +55,7 @@ class AgentDiagnosisServiceTest {
         var report = service.diagnose(context);
         
         assertEquals(AgentDiagnosisService.DiagnosisLevel.WARNING, report.getLevel());
-        assertTrue(report.getSummary().contains("重规划次数过多"));
+        assertTrue(report.getSummary().contains("重规划次数过�?));
     }
 
     @Test
@@ -70,3 +70,18 @@ class AgentDiagnosisServiceTest {
         assertTrue(report.getSummary().contains("异常"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

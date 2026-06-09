@@ -60,3 +60,18 @@ public class GroupBuyTradeController {
         return Response.success(tradeRefundService.refundGroupBuy(request), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

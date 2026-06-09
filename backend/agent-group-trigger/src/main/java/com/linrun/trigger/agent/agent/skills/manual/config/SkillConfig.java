@@ -9,10 +9,10 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * 技能配置类。
+ * 技能配置类�?
  *
- * 通过 Builder API 配置文件系统技能目录，支持多个目录组合。
- * 后添加的目录会覆盖先添加的目录中的同名技能。
+ * 通过 Builder API 配置文件系统技能目录，支持多个目录组合�?
+ * 后添加的目录会覆盖先添加的目录中的同名技能�?
  *
  * @author bigchui
  * 
@@ -75,3 +75,18 @@ public class SkillConfig {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

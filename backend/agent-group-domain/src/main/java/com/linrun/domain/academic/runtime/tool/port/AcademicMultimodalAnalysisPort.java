@@ -23,3 +23,18 @@ public interface AcademicMultimodalAnalysisPort {
                                             String errorMessage) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

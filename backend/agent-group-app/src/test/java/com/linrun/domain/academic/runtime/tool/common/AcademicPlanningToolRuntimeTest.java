@@ -25,7 +25,7 @@ class AcademicPlanningToolRuntimeTest {
                 .arguments(Map.of(
                         "command", "create",
                         "title", "论文实验研究",
-                        "steps", List.of("读取论文摘要", "检查实验指标", "生成报告")))
+                        "steps", List.of("读取论文摘要", "检查实验指�?, "生成报告")))
                 .build());
 
         assertTrue(createResult.isSuccess());
@@ -38,7 +38,7 @@ class AcademicPlanningToolRuntimeTest {
                         "command", "mark_step",
                         "stepIndex", 0,
                         "status", AcademicPlanLifecycleService.STATUS_COMPLETED,
-                        "note", "论文摘要已确认"))
+                        "note", "论文摘要已确�?))
                 .build());
 
         AcademicToolCallResult updateResult = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.PLANNING)
@@ -60,7 +60,7 @@ class AcademicPlanningToolRuntimeTest {
                 .arguments(Map.of(
                         "command", "create",
                         "title", "顺序计划",
-                        "steps", List.of("第一步", "第二步")))
+                        "steps", List.of("第一�?, "第二�?)))
                 .build());
 
         AcademicToolCallResult result = AcademicToolRuntimeRegistryHolder.call(planningTool,
@@ -87,3 +87,18 @@ class AcademicPlanningToolRuntimeTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

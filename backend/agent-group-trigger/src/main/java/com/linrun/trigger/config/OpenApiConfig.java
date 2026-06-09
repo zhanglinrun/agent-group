@@ -23,3 +23,18 @@ public class OpenApiConfig {
                 .servers(List.of(new Server().url("/").description("current server")));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

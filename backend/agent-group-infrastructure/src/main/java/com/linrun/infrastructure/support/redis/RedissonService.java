@@ -110,3 +110,18 @@ public class RedissonService {
         return redissonClient.getLock(key).tryLock(waitTime, leaseTime, unit);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

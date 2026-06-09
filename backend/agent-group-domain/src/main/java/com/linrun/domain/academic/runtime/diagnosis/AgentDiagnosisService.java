@@ -9,7 +9,7 @@ import java.util.List;
  */
 public class AgentDiagnosisService {
 
-    private static final long SLOW_EXECUTION_THRESHOLD_MS = 30000; // 30秒
+    private static final long SLOW_EXECUTION_THRESHOLD_MS = 30000; // 30�?
     private static final double HIGH_QUOTA_THRESHOLD = 100.0;
     private static final int FREQUENT_REPLAN_THRESHOLD = 3;
 
@@ -24,22 +24,22 @@ public class AgentDiagnosisService {
             issues.add(new DiagnosisItem(
                     DiagnosisLevel.WARNING,
                     "SLOW_EXECUTION",
-                    String.format("执行耗时超过 %d 秒 (实际: %d ms)", 
+                    String.format("执行耗时超过 %d �?(实际: %d ms)", 
                             SLOW_EXECUTION_THRESHOLD_MS / 1000, 
                             context.getElapsedMs())
             ));
         }
 
-        // 2. 检查工具调用失败
+        // 2. 检查工具调用失�?
         if (context.getFailedToolCount() > 0) {
             issues.add(new DiagnosisItem(
                     DiagnosisLevel.ERROR,
                     "TOOL_FAILURE",
-                    String.format("%d 个工具调用失败", context.getFailedToolCount())
+                    String.format("%d 个工具调用失�?, context.getFailedToolCount())
             ));
         }
 
-        // 3. 检查额度消耗
+        // 3. 检查额度消�?
         if (context.getQuotaConsumed() > HIGH_QUOTA_THRESHOLD) {
             issues.add(new DiagnosisItem(
                     DiagnosisLevel.WARNING,
@@ -53,7 +53,7 @@ public class AgentDiagnosisService {
             issues.add(new DiagnosisItem(
                     DiagnosisLevel.WARNING,
                     "FREQUENT_REPLAN",
-                    String.format("重规划次数过多：%d 次", context.getReplanCount())
+                    String.format("重规划次数过多：%d �?, context.getReplanCount())
             ));
         }
 
@@ -62,7 +62,7 @@ public class AgentDiagnosisService {
             issues.add(new DiagnosisItem(
                     DiagnosisLevel.ERROR,
                     "EXCEPTION",
-                    "执行过程中出现异常: " + context.getExceptionMessage()
+                    "执行过程中出现异�? " + context.getExceptionMessage()
             ));
         }
 
@@ -94,7 +94,7 @@ public class AgentDiagnosisService {
     }
 
     /**
-     * Agent 运行上下文（用于诊断）
+     * Agent 运行上下文（用于诊断�?
      */
     public static class AgentRunContext {
         private final String runId;
@@ -193,7 +193,7 @@ public class AgentDiagnosisService {
     }
 
     /**
-     * 诊断项
+     * 诊断�?
      */
     public static class DiagnosisItem {
         private final DiagnosisLevel level;
@@ -226,3 +226,18 @@ public class AgentDiagnosisService {
         OK, WARNING, ERROR
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

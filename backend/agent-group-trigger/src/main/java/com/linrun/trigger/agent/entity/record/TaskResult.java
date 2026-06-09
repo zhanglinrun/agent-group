@@ -10,3 +10,18 @@ public record TaskResult(
         String error
 ) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

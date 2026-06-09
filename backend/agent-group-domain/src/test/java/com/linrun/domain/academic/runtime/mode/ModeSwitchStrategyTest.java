@@ -36,7 +36,7 @@ class ModeSwitchStrategyTest {
 
     @Test
     void testSelectMode_DeepResearch() {
-        var mode = strategy.selectMode("深度研究区块链技术", List.of());
+        var mode = strategy.selectMode("深度研究区块链技�?, List.of());
         
         assertEquals("plan-execute", mode.modeName());
     }
@@ -50,7 +50,7 @@ class ModeSwitchStrategyTest {
 
     @Test
     void testSelectMode_Skill() {
-        var mode = strategy.selectMode("/执行技能 数据分析", List.of());
+        var mode = strategy.selectMode("/执行技�?数据分析", List.of());
         
         assertEquals("skill-sop", mode.modeName());
     }
@@ -95,3 +95,18 @@ class ModeSwitchStrategyTest {
         public List<String> requiredTools() { return List.of(); }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

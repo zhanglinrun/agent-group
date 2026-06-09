@@ -113,3 +113,18 @@ public class TradeEventConsumeRecordPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -13,3 +13,18 @@ public interface IGroupBuyMarketSkuDao {
 
     List<GroupBuyMarketSkuPO> querySkuList(@Param("limit") int limit);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

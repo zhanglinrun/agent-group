@@ -12,10 +12,10 @@ import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
-import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotRepository;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.service.GuideDecisionSnapshotValidator;
+import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
+import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.CreateTradeOrderCommandEntity;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
@@ -47,7 +47,7 @@ public class GroupBuyLockOrderService {
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
-    private final GuideDataRepository guideDataRepository;
+    private final QuotaProductRepository QuotaProductRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final GroupBuyStockRepository groupBuyStockRepository;
@@ -55,35 +55,35 @@ public class GroupBuyLockOrderService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
-    private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
+    private final QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator;
     private final AgentObservabilityMetrics metrics;
     private final GroupBuyLockRuleChain groupBuyLockRuleChain;
     private final PaymentService paymentService;
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
                 GroupBuyStockRepository.noop(), GroupBuyTeamStockRepository.noop(),
                 tradeOrderRepository, tradeOrderService, tradeStatusFlowService);
     }
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
                 groupBuyStockRepository, GroupBuyTeamStockRepository.noop(),
                 tradeOrderRepository, tradeOrderService, tradeStatusFlowService);
     }
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -91,12 +91,12 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                GuideDecisionSnapshotRepository.noop());
+                QuotaOrderSnapshotRepository.noop());
     }
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -104,13 +104,13 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                                    QuotaOrderSnapshotRepository QuotaOrderSnapshotRepository) {
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository), AgentObservabilityMetrics.noop(), null);
+                new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository), AgentObservabilityMetrics.noop(), null);
     }
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -118,13 +118,13 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator) {
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                guideDecisionSnapshotValidator, AgentObservabilityMetrics.noop(), null);
+                QuotaOrderSnapshotValidator, AgentObservabilityMetrics.noop(), null);
     }
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -132,14 +132,14 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
                                     AgentObservabilityMetrics metrics) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                guideDecisionSnapshotValidator, metrics, null);
+                QuotaOrderSnapshotValidator, metrics, null);
     }
 
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -147,15 +147,15 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
                                     PaymentService paymentService) {
-        this(guideDataRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                guideDecisionSnapshotValidator, AgentObservabilityMetrics.noop(), paymentService);
+                QuotaOrderSnapshotValidator, AgentObservabilityMetrics.noop(), paymentService);
     }
 
     @Autowired
-    public GroupBuyLockOrderService(GuideDataRepository guideDataRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -163,10 +163,10 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
                                     AgentObservabilityMetrics metrics,
                                     PaymentService paymentService) {
-        this.guideDataRepository = guideDataRepository;
+        this.QuotaProductRepository = QuotaProductRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.groupBuyStockRepository = groupBuyStockRepository;
@@ -174,13 +174,13 @@ public class GroupBuyLockOrderService {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
-        this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
+        this.QuotaOrderSnapshotValidator = QuotaOrderSnapshotValidator;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
         this.paymentService = paymentService;
         this.groupBuyLockRuleChain = new GroupBuyLockRuleChain(
                 groupBuyOrderLockRepository,
                 groupBuyTeamStockRepository,
-                guideDecisionSnapshotValidator);
+                QuotaOrderSnapshotValidator);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -208,7 +208,7 @@ public class GroupBuyLockOrderService {
         if (repeatedLock != null) {
             validateRepeatedLock(request, repeatedLock);
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
-                    .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
+                    .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完�?));
             TradePayOrderAggregate tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
             CreatePaymentResponse payment = createGatewayPayment(
                     tradePayOrder.getTradeOrder(),
@@ -220,10 +220,10 @@ public class GroupBuyLockOrderService {
                     payment);
         }
 
-        GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
+        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         GroupBuyActivity activity = groupBuyActivityRepository.queryByActivityId(request.getActivityId())
-                .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存在"));
+                .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存�?));
 
         LocalDateTime now = LocalDateTime.now();
         GroupBuyLockContext lockContext = new GroupBuyLockContext(request, product, activity, now);
@@ -258,7 +258,7 @@ public class GroupBuyLockOrderService {
 
         GroupBuyTeam team = lockContext.getTeam();
         if (team == null) {
-            throw new AppException("GROUP_0003", "拼团队伍不存在");
+            throw new AppException("GROUP_0003", "拼团队伍不存�?);
         }
         try {
             groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
@@ -317,13 +317,13 @@ public class GroupBuyLockOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "额度包编号不能为空");
+            throw new AppException("0001", "额度包编号不能为�?);
         }
         if (!StringUtils.hasText(request.getActivityId())) {
             throw new AppException("0001", "活动编号不能为空");
         }
         if (!StringUtils.hasText(request.getIdempotentKey())) {
-            throw new AppException("0001", "幂等键不能为空");
+            throw new AppException("0001", "幂等键不能为�?);
         }
     }
 
@@ -331,12 +331,12 @@ public class GroupBuyLockOrderService {
         if (!request.getUserId().equals(repeatedLock.getUserId())
                 || !request.getGoodsId().equals(repeatedLock.getGoodsId())
                 || !request.getActivityId().equals(repeatedLock.getActivityId())) {
-            throw new AppException("GROUP_0020", "请勿重复提交不同的拼团订单");
+            throw new AppException("GROUP_0020", "请勿重复提交不同的拼团订�?);
         }
     }
 
     private TradePayOrderAggregate createTradePayOrder(LockGroupBuyOrderRequest request,
-                                              GuideProduct product,
+                                              QuotaProduct product,
                                               GroupBuyActivity activity,
                                               BigDecimal payAmount) {
         CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
@@ -362,10 +362,10 @@ public class GroupBuyLockOrderService {
 
     private TradePayOrderAggregate queryTradePayOrder(String orderId) {
         if (!StringUtils.hasText(orderId)) {
-            throw new AppException("GROUP_0010", "拼团锁单未关联交易订单");
+            throw new AppException("GROUP_0010", "拼团锁单未关联交易订�?);
         }
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
@@ -466,3 +466,18 @@ public class GroupBuyLockOrderService {
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

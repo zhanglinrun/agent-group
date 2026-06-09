@@ -19,7 +19,7 @@ public interface AiPptTemplateService extends IService<AiPptTemplate> {
     AiPptTemplate getByCode(String templateCode);
 
     /**
-     * 获取所有可用模板
+     * 获取所有可用模�?
      *
      * @return 模板列表
      */
@@ -33,3 +33,18 @@ public interface AiPptTemplateService extends IService<AiPptTemplate> {
      */
     List<AiPptTemplate> getByStyleTags(String styleTags);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

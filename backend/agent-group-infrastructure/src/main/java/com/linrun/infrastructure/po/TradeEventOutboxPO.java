@@ -140,3 +140,18 @@ public class TradeEventOutboxPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

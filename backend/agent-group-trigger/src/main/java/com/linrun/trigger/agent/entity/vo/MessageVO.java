@@ -27,17 +27,17 @@ public class MessageVO {
     private String answer;
 
     /**
-     * 思考过程
+     * 思考过�?
      */
     private String thinking;
 
     /**
-     * 使用的工具
+     * 使用的工�?
      */
     private String tools;
 
     /**
-     * 参考链接
+     * 参考链�?
      */
     private String reference;
 
@@ -47,7 +47,7 @@ public class MessageVO {
     private LocalDateTime createTime;
 
     /**
-     * 文件ID（关联文件或PPT）
+     * 文件ID（关联文件或PPT�?
      */
     private String fileid;
 
@@ -56,3 +56,18 @@ public class MessageVO {
      */
     private String recommend;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

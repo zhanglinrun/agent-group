@@ -41,14 +41,14 @@ public class GrepTool {
     private final Charset charset;
 
     /**
-     * 默认构造函数，自动检测 ripgrep
+     * 默认构造函数，自动检�?ripgrep
      */
     public GrepTool() {
         this(StandardCharsets.UTF_8);
     }
 
     /**
-     * 带字符集的构造函数
+     * 带字符集的构造函�?
      *
      * @param charset 文件编码
      */
@@ -63,11 +63,11 @@ public class GrepTool {
     }
 
     /**
-     * 创建 Grep 工具的 ToolCallback 数组（默认配置）
+     * 创建 Grep 工具�?ToolCallback 数组（默认配置）
      *
-     * 这是一个便捷方法，使用默认配置创建工具实例。
+     * 这是一个便捷方法，使用默认配置创建工具实例�?
      *
-     * @return ToolCallback 数组，包含 grep 工具
+     * @return ToolCallback 数组，包�?grep 工具
      */
     public static ToolCallback[] create() {
         return ToolCallbacks.from(new GrepTool());
@@ -89,51 +89,51 @@ public class GrepTool {
     }
 
     /**
-     * Grep 搜索主方法
+     * Grep 搜索主方�?
      *
-     * @param pattern 正则表达式模式
-     * @param path 搜索路径（文件或目录）
-     * @param glob 文件类型过滤（如 "*.java"）
+     * @param pattern 正则表达式模�?
+     * @param path 搜索路径（文件或目录�?
+     * @param glob 文件类型过滤（如 "*.java"�?
      * @param outputMode 输出模式：content/files_with_matches/count
-     * @param beforeContext 前置上下文行数（-B）
-     * @param afterContext 后置上下文行数（-A）
-     * @param ignoreCase 是否忽略大小写（-i）
-     * @param headLimit 最大输出行数
-     * @param offset 跳过前 N 行
+     * @param beforeContext 前置上下文行数（-B�?
+     * @param afterContext 后置上下文行数（-A�?
+     * @param ignoreCase 是否忽略大小写（-i�?
+     * @param headLimit 最大输出行�?
+     * @param offset 跳过�?N �?
      * @return 格式化的搜索结果
      */
     // @formatter:off
     @Tool(name = "grep", description = """
-            基于正则表达式的文件内容搜索工具。
+            基于正则表达式的文件内容搜索工具�?
 
             用法:
             - 始终优先使用本工具进行内容搜索，不要通过 bash 执行 grep 命令
-            - 支持完整正则语法（如 "log.*Error"、"function\\\\s+\\\\w+"）
-            - 通过 glob 参数按文件类型过滤（如 '*.java'、'*.tsx'）
+            - 支持完整正则语法（如 "log.*Error"�?function\\\\s+\\\\w+"�?
+            - 通过 glob 参数按文件类型过滤（�?'*.java'�?*.tsx'�?
             - 输出模式: 'content' 显示匹配行，'files_with_matches' 仅显示文件路径，'count' 显示匹配计数
-            - beforeContext/afterContext 参数控制上下文行数
-            - ignoreCase=true 忽略大小写
+            - beforeContext/afterContext 参数控制上下文行�?
+            - ignoreCase=true 忽略大小�?
             - headLimit/offset 支持分页
 
             示例:
             - 搜索 Java 文件中的 TODO: pattern='TODO', glob='*.java'
             - 查找函数定义: pattern='function\\\\s+\\\\w+', glob='*.js'
-            - 忽略大小写搜索: pattern='error', ignoreCase=true""")
+            - 忽略大小写搜�? pattern='error', ignoreCase=true""")
     public String grepContent(
             @ToolParam(description = "【必填】要搜索的正则表达式模式") String pattern,
-            @ToolParam(description = "搜索的文件或目录路径（默认为当前目录）", required = false) String path,
-            @ToolParam(description = "文件类型过滤（如 '*.java'、'*.tsx'）", required = false) String glob,
-            @ToolParam(description = "输出模式: 'content'（匹配行）、'files_with_matches'（文件路径）、'count'（匹配计数）", required = false) String outputMode,
+            @ToolParam(description = "搜索的文件或目录路径（默认为当前目录�?, required = false) String path,
+            @ToolParam(description = "文件类型过滤（如 '*.java'�?*.tsx'�?, required = false) String glob,
+            @ToolParam(description = "输出模式: 'content'（匹配行）�?files_with_matches'（文件路径）�?count'（匹配计数）", required = false) String outputMode,
             @ToolParam(description = "匹配行前显示的上下文行数", required = false) Integer beforeContext,
             @ToolParam(description = "匹配行后显示的上下文行数", required = false) Integer afterContext,
-            @ToolParam(description = "是否忽略大小写（默认 false）", required = false) Boolean ignoreCase,
+            @ToolParam(description = "是否忽略大小写（默认 false�?, required = false) Boolean ignoreCase,
             @ToolParam(description = "最大返回结果数", required = false) Integer headLimit,
-            @ToolParam(description = "跳过前 N 条结果", required = false) Integer offset) { // @formatter:on
+            @ToolParam(description = "跳过�?N 条结�?, required = false) Integer offset) { // @formatter:on
 
         log.debug("Grep called: pattern={}, path={}, glob={}, mode={}",
             pattern, path, glob, outputMode);
 
-        // 可选参数设置默认值，防止 LLM 不传时 NPE
+        // 可选参数设置默认值，防止 LLM 不传�?NPE
         if (outputMode == null || outputMode.isEmpty()) outputMode = "content";
         if (path == null || path.isEmpty()) path = ".";
         boolean ignoreCaseVal = Boolean.TRUE.equals(ignoreCase);
@@ -187,13 +187,13 @@ public class GrepTool {
             command.add(glob);
         }
 
-        // 上下文参数
+        // 上下文参�?
         if (beforeContext > 0 || afterContext > 0) {
             command.add("-C");
             command.add(String.valueOf(Math.max(beforeContext, afterContext)));
         }
 
-        // 忽略大小写
+        // 忽略大小�?
         if (ignoreCase) {
             command.add("-i");
         }
@@ -211,7 +211,7 @@ public class GrepTool {
                 break;
             case "content":
             default:
-                // content 模式不需要额外参数
+                // content 模式不需要额外参�?
                 break;
         }
 
@@ -228,7 +228,7 @@ public class GrepTool {
 
         process.waitFor();
 
-        // 应用 offset 和 headLimit
+        // 应用 offset �?headLimit
         List<String> result = lines;
         if (offset > 0 && offset < lines.size()) {
             result = lines.subList(offset, lines.size());
@@ -259,13 +259,13 @@ public class GrepTool {
             return "Error: Path does not exist: " + path;
         }
 
-        // 编译正则表达式
+        // 编译正则表达�?
         int flags = ignoreCase ? Pattern.CASE_INSENSITIVE : 0;
         Pattern regex = Pattern.compile(pattern, flags);
 
         List<String> resultLines = new ArrayList<>();
 
-        // 如果是单个文件
+        // 如果是单个文�?
         if (Files.isRegularFile(searchPath)) {
             if (matchesGlob(searchPath.getFileName().toString(), glob)) {
                 List<String> fileResults = searchFile(searchPath, regex,
@@ -288,7 +288,7 @@ public class GrepTool {
             }
         }
 
-        // 应用 offset 和 headLimit
+        // 应用 offset �?headLimit
         List<String> result = resultLines;
         if (offset > 0 && offset < result.size()) {
             result = result.subList(offset, result.size());
@@ -362,8 +362,8 @@ public class GrepTool {
     }
 
     /**
-     * 使用编码回退机制读取文件所有行。
-     * UTF-8 → GBK → ISO-8859-1，确保几乎任何编码的文件都能被读取。
+     * 使用编码回退机制读取文件所有行�?
+     * UTF-8 �?GBK �?ISO-8859-1，确保几乎任何编码的文件都能被读取�?
      */
     private List<String> readLinesWithFallback(Path file) throws IOException {
         // 1. 尝试 UTF-8
@@ -373,14 +373,14 @@ public class GrepTool {
             log.debug("File is not {} encoded, trying GBK: {}", charset.name(), file);
         }
 
-        // 2. 尝试 GBK（Windows 中文）
+        // 2. 尝试 GBK（Windows 中文�?
         try {
             return Files.readAllLines(file, Charset.forName("GBK"));
         } catch (Exception e) {
             log.debug("File is not GBK encoded, trying ISO-8859-1: {}", file);
         }
 
-        // 3. ISO-8859-1（单字节编码，不会抛异常）
+        // 3. ISO-8859-1（单字节编码，不会抛异常�?
         try {
             return Files.readAllLines(file, StandardCharsets.ISO_8859_1);
         } catch (Exception e) {
@@ -397,7 +397,7 @@ public class GrepTool {
             return true;
         }
 
-        // 将 glob 转换为正则表达式
+        // �?glob 转换为正则表达式
         String regex = glob
             .replace(".", "\\.")
             .replace("*", ".*")
@@ -406,7 +406,7 @@ public class GrepTool {
     }
 
     /**
-     * 格式化结果
+     * 格式化结�?
      */
     private String formatResult(List<String> lines, String outputMode) {
         if (lines.isEmpty()) {
@@ -436,3 +436,18 @@ public class GrepTool {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

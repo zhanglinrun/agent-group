@@ -86,3 +86,18 @@ public class CrowdTagPO {
         this.latestJobStatus = latestJobStatus;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

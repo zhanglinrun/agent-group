@@ -271,7 +271,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                     "", List.of(), response.body(), firstText(response.errorMessage(), errorMessage(response.body())));
         }
         return new AcademicFileToolResult(true, "upload", request == null ? "" : request.fileName(), "",
-                "文件已上传", fileRefs(List.of(response.body()), request == null ? "" : text(request.fileName())),
+                "文件已上�?, fileRefs(List.of(response.body()), request == null ? "" : text(request.fileName())),
                 response.body(), "");
     }
 
@@ -286,7 +286,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                     "", List.of(), response.body(), firstText(response.errorMessage(), errorMessage(response.body())));
         }
         return new AcademicFileToolResult(true, "get", request == null ? "" : request.fileName(), "",
-                "文件已读取", fileRefs(List.of(response.body()), request == null ? "" : text(request.fileName())),
+                "文件已读�?, fileRefs(List.of(response.body()), request == null ? "" : text(request.fileName())),
                 response.body(), "");
     }
 
@@ -790,3 +790,18 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

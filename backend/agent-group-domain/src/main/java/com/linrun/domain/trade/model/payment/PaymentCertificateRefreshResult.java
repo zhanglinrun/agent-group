@@ -9,3 +9,18 @@ public record PaymentCertificateRefreshResult(
         LocalDateTime refreshTime,
         String message) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -23,12 +23,12 @@ class AcademicAgentReasoningServiceTest {
 
     @Test
     void testAnalyzeTask_SimpleQuery() {
-        String query = "什么是AI？";
+        String query = "什么是AI�?;
         
         var result = service.analyzeTask(query);
         
         assertEquals(2, result.getEstimatedSteps());
-        assertEquals("简单", result.getDifficulty());
+        assertEquals("简�?, result.getDifficulty());
     }
 
     @Test
@@ -47,3 +47,18 @@ class AcademicAgentReasoningServiceTest {
         assertEquals("未知", result.getTaskType());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

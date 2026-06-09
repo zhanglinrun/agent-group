@@ -28,3 +28,18 @@ public class AcademicWorkspaceDataRunRequest implements Serializable {
     private Boolean includeAnalysis = true;
     private Map<String, Object> metadata = new LinkedHashMap<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

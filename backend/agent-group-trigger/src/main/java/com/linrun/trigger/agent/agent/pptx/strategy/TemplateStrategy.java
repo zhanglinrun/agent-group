@@ -30,10 +30,10 @@ public class TemplateStrategy implements PptStateStrategy {
 
         String requirement = inst.getRequirement();
 
-        // 获取所有可用模板
+        // 获取所有可用模�?
         List<AiPptTemplate> templates = context.getPptTemplateService().getAllTemplates();
 
-        // 构建模板信息字符串
+        // 构建模板信息字符�?
         StringBuilder templatesInfo = new StringBuilder();
         for (AiPptTemplate template : templates) {
             templatesInfo.append(String.format("""
@@ -67,7 +67,7 @@ public class TemplateStrategy implements PptStateStrategy {
             log.info("模板选择结果: templateCode={}, reason={}", result.getTemplateCode(), result.getReason());
 
             context.getPptInstService().updateTemplateCode(inst.getId(), result.getTemplateCode(), TARGET_STATUS);
-            sink.tryEmitNext(context.createThinkingResponse("✅ 模板设计完成，开始生成大纲\n"));
+            sink.tryEmitNext(context.createThinkingResponse("�?模板设计完成，开始生成大纲\n"));
             context.continueStateMachine(inst, sink, query, thinkingBuffer);
         } catch (Exception e) {
             log.error("模板选择异常", e);
@@ -84,3 +84,18 @@ public class TemplateStrategy implements PptStateStrategy {
         return TARGET_STATUS;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

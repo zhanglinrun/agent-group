@@ -33,7 +33,7 @@ class TradeOrderControllerTest {
     void shouldExposeReadableDisplayStatusForDirectAndGroupOrders() throws Exception {
         TradeOrderRepository tradeOrderRepository = mock(TradeOrderRepository.class);
         RefundOrderEntity timeoutRefund = new RefundOrderEntity();
-        timeoutRefund.setRefundReason("拼团未成团超时退款");
+        timeoutRefund.setRefundReason("拼团未成团超时退�?);
 
         when(tradeOrderRepository.queryTradeOrders(isNull(), eq(21), isNull(), isNull(), isNull()))
                 .thenReturn(List.of(
@@ -58,10 +58,10 @@ class TradeOrderControllerTest {
                         .contentType("application/json")
                         .content("{}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.orderList[0].displayStatus").value("已支付，额度已到账"))
-                .andExpect(jsonPath("$.data.orderList[1].displayStatus").value("支付成功，等待成团"))
-                .andExpect(jsonPath("$.data.orderList[2].displayStatus").value("拼团已成团，额度已到账"))
-                .andExpect(jsonPath("$.data.orderList[3].displayStatus").value("拼团未成团，已退款"));
+                .andExpect(jsonPath("$.data.orderList[0].displayStatus").value("已支付，额度已到�?))
+                .andExpect(jsonPath("$.data.orderList[1].displayStatus").value("支付成功，等待成�?))
+                .andExpect(jsonPath("$.data.orderList[2].displayStatus").value("拼团已成团，额度已到�?))
+                .andExpect(jsonPath("$.data.orderList[3].displayStatus").value("拼团未成团，已退�?));
     }
 
     private TradeOrderEntity order(Long id,
@@ -73,7 +73,7 @@ class TradeOrderControllerTest {
         order.setOrderId(orderId);
         order.setUserId("U1001");
         order.setGoodsId("G1001");
-        order.setGoodsName("基础额度包");
+        order.setGoodsName("基础额度�?);
         order.setBuyType(buyType);
         order.setOriginAmount(new BigDecimal("19.90"));
         order.setPayAmount(new BigDecimal("16.90"));
@@ -82,3 +82,18 @@ class TradeOrderControllerTest {
         return order;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

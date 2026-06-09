@@ -41,7 +41,7 @@ class KnowledgeVectorMaintenanceServiceTest {
         KnowledgeVectorMaintenanceService service = service(documentRepository, vectorRepository);
         service.rebuildVersion("v1");
 
-        KnowledgeVectorMaintenanceReport report = service.evaluateRecall("拼团退款规则", List.of("KF10002"), 2);
+        KnowledgeVectorMaintenanceReport report = service.evaluateRecall("拼团退款规�?, List.of("KF10002"), 2);
 
         assertEquals("RECALL_EVALUATE", report.getAction());
         assertEquals(new BigDecimal("100.00"), report.getRecallHitRate());
@@ -69,8 +69,8 @@ class KnowledgeVectorMaintenanceServiceTest {
     private static class FakeKnowledgeDocumentRepository implements KnowledgeDocumentRepository {
 
         private final List<KnowledgeFragment> fragments = List.of(
-                fragment("KF10001", "基础学术额度包适合论文摘要和普通问答。"),
-                fragment("KF10002", "拼团失败后系统自动退款。"));
+                fragment("KF10001", "基础学术额度包适合论文摘要和普通问答�?),
+                fragment("KF10002", "拼团失败后系统自动退款�?));
 
         @Override
         public void save(KnowledgeDocument document, List<KnowledgeFragment> fragments) {
@@ -125,7 +125,7 @@ class KnowledgeVectorMaintenanceServiceTest {
                 if (result.size() >= limit) {
                     break;
                 }
-                if (fragment.getContent().contains("退款") || fragment.getContent().contains("拼团")) {
+                if (fragment.getContent().contains("退�?) || fragment.getContent().contains("拼团")) {
                     result.add(fragment);
                 }
             }
@@ -133,3 +133,18 @@ class KnowledgeVectorMaintenanceServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

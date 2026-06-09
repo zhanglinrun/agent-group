@@ -33,3 +33,18 @@ public class LockGroupBuyOrderResponse implements Serializable {
     private String payChannel;
     private String gatewayTradeNo;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

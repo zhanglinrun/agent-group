@@ -1,8 +1,8 @@
-package com.linrun.domain.agent.conversation.model;
+package com.linrun.infrastructure.po;
 
 import java.math.BigDecimal;
 
-public class GuideProduct {
+public class QuotaProductPO {
 
     private String goodsId;
     private String goodsName;
@@ -131,3 +131,19 @@ public class GuideProduct {
         this.remainingSeconds = remainingSeconds;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

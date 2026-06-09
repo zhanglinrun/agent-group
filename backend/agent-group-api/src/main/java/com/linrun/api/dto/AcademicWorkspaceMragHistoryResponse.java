@@ -26,3 +26,18 @@ public class AcademicWorkspaceMragHistoryResponse implements Serializable {
         private Long durationMillis;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -111,9 +111,9 @@ class ReactorToolPortAdapterTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         server.expect(requestTo("http://127.0.0.1:1601/v1/tool/mragQuery"))
                 .andRespond(withSuccess("""
-                        data: {"choices":[{"delta":{"content":"命中图文片段。"},"index":0}]}
+                        data: {"choices":[{"delta":{"content":"命中图文片段�?},"index":0}]}
 
-                        data: {"choices":[{"delta":{"content":"生成最终回答。"},"index":0}]}
+                        data: {"choices":[{"delta":{"content":"生成最终回答�?},"index":0}]}
 
                         data: [DONE]
                         """, MediaType.TEXT_EVENT_STREAM));
@@ -125,7 +125,7 @@ class ReactorToolPortAdapterTest {
                         "分析图片", "", List.of("https://img.example.com/a.png"), List.of()));
 
         assertTrue(result.success());
-        assertEquals("命中图文片段。生成最终回答。", result.content());
+        assertEquals("命中图文片段。生成最终回答�?, result.content());
         server.verify();
     }
 
@@ -153,7 +153,7 @@ class ReactorToolPortAdapterTest {
 
         AcademicCodeInterpreterPort.AcademicCodeExecutionResult result = adapter.execute(
                 new AcademicCodeInterpreterPort.AcademicCodeExecutionRequest(
-                        "计算均值", "python", "print(20)", List.of("sales.csv"), "workspace"));
+                        "计算均�?, "python", "print(20)", List.of("sales.csv"), "workspace"));
 
         assertTrue(result.success());
         assertEquals(0, result.exitCode());
@@ -170,9 +170,9 @@ class ReactorToolPortAdapterTest {
                 .andRespond(withSuccess("""
                         data: {"requestId":"req-deep","query":"Agent 项目","searchResult":{"query":["Agent 项目亮点"],"docs":[[{"title":"项目说明","url":"https://example.com/a","content":"多智能体能力","source":"ddg"}]]},"isFinal":false,"messageType":"search"}
 
-                        data: {"requestId":"req-deep","query":"Agent 项目","answer":"第一段","isFinal":false,"messageType":"report"}
+                        data: {"requestId":"req-deep","query":"Agent 项目","answer":"第一�?,"isFinal":false,"messageType":"report"}
 
-                        data: {"requestId":"req-deep","query":"Agent 项目","answer":"第二段","isFinal":false,"messageType":"report"}
+                        data: {"requestId":"req-deep","query":"Agent 项目","answer":"第二�?,"isFinal":false,"messageType":"report"}
 
                         data: {"requestId":"req-deep","query":"Agent 项目","answer":"","isFinal":true,"messageType":"report"}
 
@@ -322,7 +322,7 @@ class ReactorToolPortAdapterTest {
                           "code": 200,
                           "data": [
                             {
-                              "query": "查询实验准确率",
+                              "query": "查询实验准确�?,
                               "nl2sql": "select * from experiment_result where metric_name = 'accuracy'"
                             }
                           ],
@@ -336,7 +336,7 @@ class ReactorToolPortAdapterTest {
 
         AcademicNl2SqlPort.AcademicNl2SqlResult result = adapter.convert(
                 new AcademicNl2SqlPort.AcademicNl2SqlRequest(
-                        "req-sql", "查询实验准确率", List.of("experiment_result"), List.of(),
+                        "req-sql", "查询实验准确�?, List.of("experiment_result"), List.of(),
                         "2026-06-05", "mysql", false, true, false));
 
         assertTrue(result.success());
@@ -364,7 +364,7 @@ class ReactorToolPortAdapterTest {
         AcademicDataAnalysisPort.AcademicDataAnalysisResult result = adapter.analyze(
                 new AcademicDataAnalysisPort.AcademicDataAnalysisRequest(
                         "req-data", "分析实验指标", List.of(), List.of(),
-                        List.of("experiment_result"), "关注准确率", 5, false));
+                        List.of("experiment_result"), "关注准确�?, 5, false));
 
         assertTrue(result.success());
         assertEquals("实验准确率均值为 92.4%", result.content());
@@ -448,3 +448,18 @@ class ReactorToolPortAdapterTest {
         server.verify();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

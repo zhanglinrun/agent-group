@@ -13,3 +13,18 @@ public class CreateDirectOrderRequest implements Serializable {
     private String idempotentKey;
     private String payChannel;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

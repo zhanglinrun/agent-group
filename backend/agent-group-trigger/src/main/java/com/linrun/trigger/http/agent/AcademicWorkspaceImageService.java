@@ -24,7 +24,7 @@ import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -70,7 +70,7 @@ public class AcademicWorkspaceImageService {
                 ? new AcademicWorkspaceImageGenerateRequest()
                 : request;
         if (!StringUtils.hasText(safeRequest.getPrompt())) {
-            throw new AppException("IMAGE_WORKSPACE_0001", "图像生成提示词不能为空");
+            throw new AppException("IMAGE_WORKSPACE_0001", "图像生成提示词不能为�?);
         }
         UserAccount user = userAccountService.requireUserByToken(token);
         String userId = user.getUserId();
@@ -134,7 +134,7 @@ public class AcademicWorkspaceImageService {
 
     private void consumeQuota(String userId, String sessionId, String requestId, long durationMillis) {
         userQuotaService.consumeForAcademicTask(userId, sessionId, TASK_TYPE + "-" + requestId, TASK_TYPE,
-                GuideTokenUsage.empty(), TASK_TYPE + "-tool", durationMillis);
+                TokenUsageMetrics.empty(), TASK_TYPE + "-tool", durationMillis);
     }
 
     private UserModelConfig runtimeModelConfig(String userId) {
@@ -558,3 +558,19 @@ public class AcademicWorkspaceImageService {
         return text.length() <= maxLength ? text : text.substring(0, maxLength);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -30,7 +30,7 @@ public class SearchStrategy implements PptStateStrategy {
         // 构建搜索提示
         String searchPrompt = context.enhancePrompt(PptBuilderPrompts.getSearchInfoPrompt(requirement));
 
-        // 获取 SimpleReactAgent 并注入 tavily 搜索工具
+        // 获取 SimpleReactAgent 并注�?tavily 搜索工具
         SimpleReactAgent agent = SimpleReactAgent.builder()
                 .chatModel(context.getChatModel())
                 .tools(context.getToolCallbacks())
@@ -45,11 +45,11 @@ public class SearchStrategy implements PptStateStrategy {
                     sink.tryEmitNext(context.createThinkingResponse(chunk));
                 })
                 .doOnComplete(() -> {
-                    log.info("信息收集完成，结果长度: {}", searchResultBuffer.length());
+                    log.info("信息收集完成，结果长�? {}", searchResultBuffer.length());
                     String searchResult = searchResultBuffer.toString();
                     // 去除think标签
                     searchResult = ThinkTagParser.stripThinkTags(searchResult);
-                    // 过滤掉工具调用标记等非内容部分
+                    // 过滤掉工具调用标记等非内容部�?
                     searchResult = cleanSearchResult(searchResult);
                     context.getPptInstService().updateSearchInfo(inst.getId(), searchResult, TARGET_STATUS);
                     sink.tryEmitNext(context.createThinkingResponse("\n✅相关信息收集完成，开始选择模板\n"));
@@ -66,7 +66,7 @@ public class SearchStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任务
+        // 保存 disposable 到任务管理器，用于停止任�?
         context.setDisposable(inst.getConversationId(), disposable);
     }
 
@@ -85,15 +85,30 @@ public class SearchStrategy implements PptStateStrategy {
 
         // 移除工具调用标记（如 <tool_calls> 等格式）
         String cleaned = result
-                // 移除常见的工具调用标记
+                // 移除常见的工具调用标�?
                 .replaceAll("<tool_calls>.*?</tool_calls>", "")
                 .replaceAll("\\[Tool Call.*?\\]", "")
                 .replaceAll("Tool call:.*?\\n", "")
                 .replaceAll("\\[TOOL_CALL\\].*?\\[\\/TOOL_CALL\\]", "")
-                // 清理多余的空行
+                // 清理多余的空�?
                 .replaceAll("\\n{3,}", "\n\n")
                 .trim();
 
         return cleaned;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

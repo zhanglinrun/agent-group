@@ -99,3 +99,18 @@ public class GroupBuyProgress {
         this.success = success;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -14,3 +14,18 @@ public class QuotaSummaryResponse implements Serializable {
     private UserMembershipDTO membership;
     private BillingPolicyDTO billingPolicy;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

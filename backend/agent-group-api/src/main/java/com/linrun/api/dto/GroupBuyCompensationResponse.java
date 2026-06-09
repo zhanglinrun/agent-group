@@ -23,3 +23,18 @@ public class GroupBuyCompensationResponse implements Serializable {
     private BigDecimal refundAmount;
     private LocalDateTime finishTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

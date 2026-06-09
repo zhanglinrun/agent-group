@@ -48,3 +48,18 @@ public record AcademicReActObservation(boolean success,
         return value == null ? "" : value.trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

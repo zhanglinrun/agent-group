@@ -32,3 +32,18 @@ public interface AcademicNl2SqlPort {
                                 String sql) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

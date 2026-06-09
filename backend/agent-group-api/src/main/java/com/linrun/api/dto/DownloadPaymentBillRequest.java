@@ -14,3 +14,18 @@ public class DownloadPaymentBillRequest implements Serializable {
     private boolean downloadContent;
     private String billFileUrl;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -12,3 +12,18 @@ public class WeixinSimulateScanRequest implements Serializable {
     private String openId;
     private String nickname;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,3 +15,18 @@ public class LockGroupBuyOrderRequest implements Serializable {
     private String idempotentKey;
     private String payChannel;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -76,25 +76,25 @@ public class GlobalExceptionHandler {
             return "拼团队伍名额已满";
         }
         if (lower.contains("group team not found") || lower.contains("group lock not found") || lower.contains("group order lock not found")) {
-            return "拼团队伍不存在或已失效";
+            return "拼团队伍不存在或已失�?;
         }
         if (lower.contains("idempotent key conflict")) {
-            return "请勿重复提交不同的拼团订单";
+            return "请勿重复提交不同的拼团订�?;
         }
         if (lower.contains("request activity does not match market trial activity")) {
             return "当前拼团活动已变化，请刷新后重试";
         }
         if (lower.contains("user cannot join this group activity")) {
-            return "当前账号暂不能参加这个拼团活动";
+            return "当前账号暂不能参加这个拼团活�?;
         }
         if (lower.contains("group buy market is downgraded")) {
-            return "拼团活动暂时不可用";
+            return "拼团活动暂时不可�?;
         }
         if (lower.contains("user is outside market cut range")) {
             return "当前账号暂不在活动范围内";
         }
         if (lower.contains("source and channel are blocked")) {
-            return "当前渠道暂不能参加活动";
+            return "当前渠道暂不能参加活�?;
         }
         if (lower.contains("product not found")) {
             return "额度包不存在或已下架";
@@ -103,43 +103,43 @@ public class GlobalExceptionHandler {
             return "支付单不存在";
         }
         if (lower.contains("refund order not found")) {
-            return "退款单不存在";
+            return "退款单不存�?;
         }
         if (lower.contains("order not found or user mismatch")) {
-            return "订单不存在或不属于当前用户";
+            return "订单不存在或不属于当前用�?;
         }
         if (lower.contains("order not found")) {
-            return "订单不存在";
+            return "订单不存�?;
         }
         if (lower.contains("cannot be blank") || lower.contains("cannot be empty") || lower.contains("is required")) {
-            return "请补全必要信息";
+            return "请补全必要信�?;
         }
         if (lower.contains("request cannot be null")) {
             return "请求参数不能为空";
         }
         if (lower.contains("group buy timeout unformed")) {
-            return "拼团超时未成团";
+            return "拼团超时未成�?;
         }
         if (lower.contains("too many requests")) {
             return "操作过于频繁，请稍后再试";
         }
         if (lower.contains("human approval required")) {
-            return "该操作需要人工确认";
+            return "该操作需要人工确�?;
         }
         if (lower.contains("human approval expired")) {
-            return "人工确认已过期";
+            return "人工确认已过�?;
         }
         if (lower.contains("human approval user mismatch")) {
-            return "人工确认用户不匹配";
+            return "人工确认用户不匹�?;
         }
         if (lower.contains("human approval is not approved")) {
             return "人工确认未通过";
         }
         if (lower.contains("human approval action mismatch") || lower.contains("human approval biz mismatch")) {
-            return "人工确认信息不匹配";
+            return "人工确认信息不匹�?;
         }
         if (lower.contains("human approval not found")) {
-            return "人工确认记录不存在";
+            return "人工确认记录不存�?;
         }
         if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
                 && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
@@ -148,3 +148,18 @@ public class GlobalExceptionHandler {
         return message;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -163,7 +163,7 @@ class TradeOrderServiceTest {
         CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId("U10001");
         command.setGoodsId("G10001");
-        command.setGoodsName("基础学术额度包");
+        command.setGoodsName("基础学术额度�?);
         command.setActivityId(activityId);
         command.setBuyType(buyType);
         command.setOriginAmount(new BigDecimal(originAmount));
@@ -171,3 +171,18 @@ class TradeOrderServiceTest {
         return command;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

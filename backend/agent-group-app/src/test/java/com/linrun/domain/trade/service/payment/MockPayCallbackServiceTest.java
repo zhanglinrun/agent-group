@@ -97,7 +97,7 @@ class MockPayCallbackServiceTest {
                 () -> service.paySuccess(request("O404", "T10001", PAY_TIME)));
 
         assertEquals("TRADE_0013", exception.getCode());
-        assertEquals("订单不存在", exception.getMessage());
+        assertEquals("订单不存�?, exception.getMessage());
     }
 
     @Test
@@ -138,7 +138,7 @@ class MockPayCallbackServiceTest {
         order.setOrderId("O10001");
         order.setUserId("U10001");
         order.setGoodsId("G10001");
-        order.setGoodsName("基础学术额度包");
+        order.setGoodsName("基础学术额度�?);
         order.setBuyType(TradeBuyTypeEnumVO.DIRECT);
         order.setOriginAmount(new BigDecimal("2399.00"));
         order.setPayAmount(new BigDecimal("2399.00"));
@@ -282,3 +282,18 @@ class MockPayCallbackServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

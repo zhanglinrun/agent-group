@@ -161,3 +161,18 @@ public class AcademicDeepSearchToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

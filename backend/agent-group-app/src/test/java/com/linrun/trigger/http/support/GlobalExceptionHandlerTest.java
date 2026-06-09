@@ -40,7 +40,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/biz-error").header(RequestTraceFilter.REQUEST_ID_HEADER, "REQ-10002"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(ResponseCode.BIZ_ERROR.getCode()))
-                .andExpect(jsonPath("$.info").value("活动已结束"))
+                .andExpect(jsonPath("$.info").value("活动已结�?))
                 .andExpect(jsonPath("$.requestId").value("REQ-10002"));
     }
 
@@ -72,7 +72,7 @@ class GlobalExceptionHandlerTest {
 
         @GetMapping("/test/biz-error")
         public Response<Void> bizError() {
-            throw new AppException(ResponseCode.BIZ_ERROR.getCode(), "活动已结束");
+            throw new AppException(ResponseCode.BIZ_ERROR.getCode(), "活动已结�?);
         }
 
         @GetMapping("/test/param-error")
@@ -86,3 +86,18 @@ class GlobalExceptionHandlerTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -14,3 +14,18 @@ public class RefreshPaymentCertificateResponse implements Serializable {
     private LocalDateTime refreshTime;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

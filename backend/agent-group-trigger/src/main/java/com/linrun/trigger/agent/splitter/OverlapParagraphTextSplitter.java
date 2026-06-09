@@ -22,7 +22,7 @@ public class OverlapParagraphTextSplitter extends TextSplitter {
             throw new IllegalArgumentException("chunkSize 必须大于 0");
         }
         if (overlap < 0) {
-            throw new IllegalArgumentException("overlap 不能为负数");
+            throw new IllegalArgumentException("overlap 不能为负�?);
         }
         if (overlap >= chunkSize) {
             throw new IllegalArgumentException("overlap 不能大于等于 chunkSize");
@@ -53,7 +53,7 @@ public class OverlapParagraphTextSplitter extends TextSplitter {
 
                 currentChunk.append(paragraph, start, end);
 
-                // 如果当前块已满，保存并生成新块
+                // 如果当前块已满，保存并生成新�?
                 if (currentChunk.length() >= chunkSize) {
                     allChunks.add(currentChunk.toString());
 
@@ -100,3 +100,18 @@ public class OverlapParagraphTextSplitter extends TextSplitter {
         return result;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

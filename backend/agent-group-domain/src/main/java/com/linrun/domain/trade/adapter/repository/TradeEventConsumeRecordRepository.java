@@ -18,3 +18,18 @@ public interface TradeEventConsumeRecordRepository {
 
     int updateStatusDeadLetter(TradeEventConsumeRecordEntity record);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

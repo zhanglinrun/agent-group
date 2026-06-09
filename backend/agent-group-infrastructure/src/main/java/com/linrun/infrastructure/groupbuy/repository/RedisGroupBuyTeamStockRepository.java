@@ -105,3 +105,18 @@ public class RedisGroupBuyTeamStockRepository implements GroupBuyTeamStockReposi
         return keyPrefix + ":group:team-stock:recovery-lock:" + orderId;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

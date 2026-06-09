@@ -35,7 +35,7 @@ import java.util.List;
 
 /**
  * 文件解析服务
- * 负责解析不同类型文件的内容
+ * 负责解析不同类型文件的内�?
  * - PDF: 使用 Apache PDFBox 解析
  * - DOC/DOCX: 使用 Apache POI 解析
  * - TXT/Markdown: 直接读取
@@ -46,15 +46,15 @@ import java.util.List;
 public class FileParserService {
 
     /**
-     * 最大文本内容长度限制
+     * 最大文本内容长度限�?
      */
     private static final int MAX_TEXT_LENGTH = 20000;
 
     /**
      * 解析上传的文件并返回文本内容
      *
-     * @param file 上传的文件
-     * @return 解析结果（包含全量文本和截断文本）
+     * @param file 上传的文�?
+     * @return 解析结果（包含全量文本和截断文本�?
      */
     public ParseResult parseFile(MultipartFile file) {
         String fullText = parseFileInternal(file);
@@ -82,14 +82,14 @@ public class FileParserService {
     /**
      * 内部方法：解析文件并返回完整文本内容
      *
-     * @param file 上传的文件
+     * @param file 上传的文�?
      * @return 解析后的完整文本内容
      */
     private String parseFileInternal(MultipartFile file) {
         String fileType = getFileType(file.getOriginalFilename());
         long fileSize = file.getSize();
 
-        log.info("开始解析文件: {} (类型: {}, 大小: {} bytes)", file.getOriginalFilename(), fileType, fileSize);
+        log.info("开始解析文�? {} (类型: {}, 大小: {} bytes)", file.getOriginalFilename(), fileType, fileSize);
 
         try {
             String content;
@@ -101,7 +101,7 @@ public class FileParserService {
                     content = parseDocx(file);
                     break;
                 case "doc":
-                    throw new IllegalArgumentException("暂不支持 .doc 格式，请转换为 .docx");
+                    throw new IllegalArgumentException("暂不支持 .doc 格式，请转换�?.docx");
                 case "txt":
                 case "md":
                 case "markdown":
@@ -111,7 +111,7 @@ public class FileParserService {
                     throw new IllegalArgumentException("不支持的文件类型: " + fileType);
             }
 
-            log.info("文件解析完成，内容长度: {} 字符", content.length());
+            log.info("文件解析完成，内容长�? {} 字符", content.length());
             return content;
         } catch (Exception e) {
             log.error("文件解析失败: {}", file.getOriginalFilename(), e);
@@ -127,7 +127,7 @@ public class FileParserService {
      */
     private String truncateIfNeeded(String content) {
         if (content.length() > MAX_TEXT_LENGTH) {
-            log.warn("文件内容过长，将截断至 {} 字符", MAX_TEXT_LENGTH);
+            log.warn("文件内容过长，将截断�?{} 字符", MAX_TEXT_LENGTH);
             return content.substring(0, MAX_TEXT_LENGTH) + "\n\n... (内容已截断，文件过长)";
         }
         return content;
@@ -143,7 +143,7 @@ public class FileParserService {
             stripper.setSortByPosition(true);
 
             String text = stripper.getText(document);
-            log.info("PDF 解析完成，页数: {}, 文本长度: {}",
+            log.info("PDF 解析完成，页�? {}, 文本长度: {}",
                     document.getNumberOfPages(), text.length());
 
             return text.trim();
@@ -180,13 +180,13 @@ public class FileParserService {
     private String parseTxt(MultipartFile file) throws Exception {
         try (InputStream is = file.getInputStream()) {
             String text = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            log.info("TXT 解析完成，文本长度: {}", text.length());
+            log.info("TXT 解析完成，文本长�? {}", text.length());
             return text.trim();
         }
     }
 
     /**
-     * 从文件名中提取文件类型
+     * 从文件名中提取文件类�?
      */
     private String getFileType(String fileName) {
         if (fileName == null || fileName.isEmpty()) {
@@ -199,3 +199,18 @@ public class FileParserService {
         return "unknown";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

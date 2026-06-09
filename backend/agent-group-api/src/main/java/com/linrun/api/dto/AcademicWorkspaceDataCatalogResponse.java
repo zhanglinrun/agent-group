@@ -31,3 +31,18 @@ public class AcademicWorkspaceDataCatalogResponse implements Serializable {
         private boolean metric;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

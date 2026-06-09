@@ -80,3 +80,18 @@ public class GoodsMarketResponse implements Serializable {
         private Integer allTeamUserCount = 0;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

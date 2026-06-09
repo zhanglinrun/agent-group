@@ -18,12 +18,12 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * 技能管理器。
+ * 技能管理器�?
  *
  * 统一管理技能相关的所有逻辑，包括：
- * - 获取技能列表
- * - 格式化技能提示
- * - 读取技能内容
+ * - 获取技能列�?
+ * - 格式化技能提�?
+ * - 读取技能内�?
  *
  * @author bigchui
  * 
@@ -197,15 +197,30 @@ public class SkillManager {
         messages.add(new ToolResponseMessage(List.of(tr)));
 
         messages.add(new UserMessage(String.format(
-                "【技能已加载】技能 \"%s\" 的内容已在上面的工具返回中。\n" +
-                "【重要】禁止再次调用 read_skill(\"%s\")。\n" +
+                "【技能已加载】技�?\"%s\" 的内容已在上面的工具返回中。\n" +
+                "【重要】禁止再次调�?read_skill(\"%s\")。\n" +
                 "【执行方式】除非缺少必要参数、素材或权限，否则不要询问用户是否继续，也不要只输出计划、当前进度、预计耗时或下一步说明；请连续调用工具，直到该技能要求的最终产物已经生成。\n" +
-                "【最终回答条件】如果技能要求 PDF、图片、文档或其他文件产物，必须在对应产物生成成功后才能结束本轮回答。\n" +
-                "【下一步】请直接按照上面返回的技能指令来完成任务。",
+                "【最终回答条件】如果技能要�?PDF、图片、文档或其他文件产物，必须在对应产物生成成功后才能结束本轮回答。\n" +
+                "【下一步】请直接按照上面返回的技能指令来完成任务�?,
                 skillName, skillName)));
 
         log.debug("Skill loaded: {} with {} chars", skillName, cleanedContent.length());
         return messages;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

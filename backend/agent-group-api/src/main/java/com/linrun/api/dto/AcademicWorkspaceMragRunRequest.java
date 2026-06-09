@@ -27,3 +27,18 @@ public class AcademicWorkspaceMragRunRequest implements Serializable {
     private Boolean useElastic = false;
     private Map<String, Object> metadata = new LinkedHashMap<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

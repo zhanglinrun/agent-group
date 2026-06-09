@@ -2,25 +2,25 @@ package com.linrun.domain.agent.conversation.model;
 
 import java.math.BigDecimal;
 
-public class GuideTokenUsage {
+public class TokenUsageMetrics {
 
     private long promptTokens;
     private long completionTokens;
     private long totalTokens;
     private BigDecimal estimatedCostYuan = BigDecimal.ZERO;
 
-    public GuideTokenUsage() {
+    public TokenUsageMetrics() {
     }
 
-    public GuideTokenUsage(long promptTokens, long completionTokens, long totalTokens, BigDecimal estimatedCostYuan) {
+    public TokenUsageMetrics(long promptTokens, long completionTokens, long totalTokens, BigDecimal estimatedCostYuan) {
         this.promptTokens = Math.max(0L, promptTokens);
         this.completionTokens = Math.max(0L, completionTokens);
         this.totalTokens = totalTokens > 0 ? totalTokens : this.promptTokens + this.completionTokens;
         this.estimatedCostYuan = estimatedCostYuan == null ? BigDecimal.ZERO : estimatedCostYuan;
     }
 
-    public static GuideTokenUsage empty() {
-        return new GuideTokenUsage();
+    public static TokenUsageMetrics empty() {
+        return new TokenUsageMetrics();
     }
 
     public long getPromptTokens() {
@@ -55,3 +55,18 @@ public class GuideTokenUsage {
         this.estimatedCostYuan = estimatedCostYuan == null ? BigDecimal.ZERO : estimatedCostYuan;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -38,7 +38,7 @@ import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.types.exception.AppException;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
@@ -452,8 +452,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private List<Map<String, Object>> agentExecutionModes() {
         return List.of(
                 agentExecutionMode("chat", "对话助手", "react", "ReAct", "通用问答、交易解释和轻量工具调用"),
-                agentExecutionMode("file", "文件问答", "react", "ReAct", "文件理解、引用回答和上下文追问"),
-                agentExecutionMode("ppt", "PPT生成", "flow", "Flow", "需求澄清、大纲、搜索、模板和渲染状态流转"),
+                agentExecutionMode("file", "文件问答", "react", "ReAct", "文件理解、引用回答和上下文追�?),
+                agentExecutionMode("ppt", "PPT生成", "flow", "Flow", "需求澄清、大纲、搜索、模板和渲染状态流�?),
                 agentExecutionMode("deep", "深度研究", "plan-execute", "Plan Execute", "计划拆解、分步执行、反思和动态重规划",
                         true,
                         List.of("plan_update/replan stream event",
@@ -461,10 +461,10 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                                 "AcademicAgentFallbackReplanStrategy default recovery",
                                 "planner history versions")),
                 agentExecutionMode("image", "图像生成", "react", "ReAct", "图像生成、图生图和多模态参考图处理"),
-                agentExecutionMode("data", "数据问答", "react", "ReAct", "数据分析、表格检索和自然语言转 SQL"),
-                agentExecutionMode("mrag", "MRAG 知识问答", "react", "ReAct", "多模态检索、知识库证据和资料交叉验证"),
-                agentExecutionMode("skills", "技能助手", "skill-sop", "Skill + SOP", "自动选择技能并执行标准流程"),
-                agentExecutionMode("manual-skills", "手动技能", "skill-sop", "Skill + SOP", "读取技能文件、检索技能目录和运行技能脚本")
+                agentExecutionMode("data", "数据问答", "react", "ReAct", "数据分析、表格检索和自然语言�?SQL"),
+                agentExecutionMode("mrag", "MRAG 知识问答", "react", "ReAct", "多模态检索、知识库证据和资料交叉验�?),
+                agentExecutionMode("skills", "技能助�?, "skill-sop", "Skill + SOP", "自动选择技能并执行标准流程"),
+                agentExecutionMode("manual-skills", "手动技�?, "skill-sop", "Skill + SOP", "读取技能文件、检索技能目录和运行技能脚�?)
         );
     }
 
@@ -522,34 +522,34 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         String description = compactSkillDescription(skill.description());
         return switch (skill.name()) {
             case "bilibili-recall-review" ->
-                    "用于对照原始字幕或转录文件，检查已经生成的 Bilibili 课程笔记、LaTeX 或 PDF 是否遗漏了重要、细节化、有教学价值的内容；只输出审查反馈，不直接修改笔记。";
+                    "用于对照原始字幕或转录文件，检查已经生成的 Bilibili 课程笔记、LaTeX �?PDF 是否遗漏了重要、细节化、有教学价值的内容；只输出审查反馈，不直接修改笔记�?;
             case "bilibili-render-pdf" ->
-                    "用于把 Bilibili 讲座、教程或技术分享生成专业、详细、配图丰富的中文 LaTeX 课程笔记和最终 PDF。会结合标题、章节、图表、公式、代码、字幕解释和视频封面，并在缺少中文字幕时回退到 Whisper 语音转写。";
+                    "用于�?Bilibili 讲座、教程或技术分享生成专业、详细、配图丰富的中文 LaTeX 课程笔记和最�?PDF。会结合标题、章节、图表、公式、代码、字幕解释和视频封面，并在缺少中文字幕时回退�?Whisper 语音转写�?;
             case "chart-visualization" ->
-                    "用于数据可视化任务。会从 26 种图表类型中选择合适方案，按规格提取参数，并通过 JavaScript 脚本生成图表图片。";
+                    "用于数据可视化任务。会�?26 种图表类型中选择合适方案，按规格提取参数，并通过 JavaScript 脚本生成图表图片�?;
             case "csdn-blog-publisher" ->
-                    "用于撰写 CSDN 技术博客，也可以执行发布流程。单篇文章走完整的撰写和发布流程，系列或批量文章默认只生成本地 Markdown，便于后续手动发布。";
+                    "用于撰写 CSDN 技术博客，也可以执行发布流程。单篇文章走完整的撰写和发布流程，系列或批量文章默认只生成本�?Markdown，便于后续手动发布�?;
             case "data-analysis" ->
-                    "用于分析 Excel 或 CSV 数据文件，生成统计结果、摘要、透视表、SQL 查询或结构化数据探索结果；支持多工作表、聚合、过滤、关联和导出 CSV、JSON、Markdown。";
+                    "用于分析 Excel �?CSV 数据文件，生成统计结果、摘要、透视表、SQL 查询或结构化数据探索结果；支持多工作表、聚合、过滤、关联和导出 CSV、JSON、Markdown�?;
             case "frontend-design" ->
-                    "用于创建有设计质量的前端界面，包括网页组件、页面、海报、应用、仪表盘、React 组件和 HTML/CSS 布局；适合需要美化或重新设计 Web UI 的任务。";
+                    "用于创建有设计质量的前端界面，包括网页组件、页面、海报、应用、仪表盘、React 组件�?HTML/CSS 布局；适合需要美化或重新设计 Web UI 的任务�?;
             case "github-deep-research" ->
-                    "用于围绕 GitHub 仓库或开源项目做多轮深度研究，输出结构化 Markdown 报告，包含摘要、时间线、指标分析和 Mermaid 图。";
+                    "用于围绕 GitHub 仓库或开源项目做多轮深度研究，输出结构化 Markdown 报告，包含摘要、时间线、指标分析和 Mermaid 图�?;
             case "gpt-image-2-style-library" ->
-                    "用于从 GPT-Image2 风格库中选择视觉风格和工业化提示词模板，帮助创建、改写、分类或优化图像生成提示词。";
+                    "用于�?GPT-Image2 风格库中选择视觉风格和工业化提示词模板，帮助创建、改写、分类或优化图像生成提示词�?;
             case "huchenfeng-perspective" -> description;
             case "markdown-to-word-mathtype" ->
-                    "用于把 Markdown 文件转换为带样式的 Word 文档，并通过 Microsoft Word 自动化把 TeX 公式转换为 MathType 公式对象；适合中文报告、论文和带公式的文档导出。";
+                    "用于�?Markdown 文件转换为带样式�?Word 文档，并通过 Microsoft Word 自动化把 TeX 公式转换�?MathType 公式对象；适合中文报告、论文和带公式的文档导出�?;
             case "ppt-agent" ->
-                    "用于完整的 AI PPT 生成流程，按需求调研、大纲规划、资料检索、策划稿和 SVG 设计生成 5 个步骤制作演示文稿。";
+                    "用于完整�?AI PPT 生成流程，按需求调研、大纲规划、资料检索、策划稿�?SVG 设计生成 5 个步骤制作演示文稿�?;
             case "ppt-generation" ->
-                    "用于生成 PPT 或 PPTX 演示文稿。会为每页生成视觉内容，再组合成 PowerPoint 文件。";
+                    "用于生成 PPT �?PPTX 演示文稿。会为每页生成视觉内容，再组合成 PowerPoint 文件�?;
             case "ppt-image2-editable-rebuild" ->
-                    "用于根据 image2 或图像生成参考图重建可编辑 PowerPoint 页面。适合先生成每页 PNG 参考图，再把标题、正文、表格、卡片、箭头、标签和结论条等元素重建为可编辑 PPT。";
+                    "用于根据 image2 或图像生成参考图重建可编�?PowerPoint 页面。适合先生成每�?PNG 参考图，再把标题、正文、表格、卡片、箭头、标签和结论条等元素重建为可编辑 PPT�?;
             case "tech-report" ->
-                    "用于把项目代码与实验结果整理成结构严谨、公式完备的中文技术报告，强调先定义再展开、公式与文字配合解释，并用定量数据支撑结论。";
+                    "用于把项目代码与实验结果整理成结构严谨、公式完备的中文技术报告，强调先定义再展开、公式与文字配合解释，并用定量数据支撑结论�?;
             case "vercel-deploy-claimable" ->
-                    "用于把应用或网站部署到 Vercel，生成预览地址和可认领的部署链接，适合部署上线、创建预览部署或获取演示链接。";
+                    "用于把应用或网站部署�?Vercel，生成预览地址和可认领的部署链接，适合部署上线、创建预览部署或获取演示链接�?;
             default -> description;
         };
     }
@@ -697,19 +697,19 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "multi-agent",
                         "多智能体协同",
                         "ready",
-                        "ReAct、Plan Execute、Flow 阶段推进、动态重规划和会话执行记忆已接入主链路。",
+                        "ReAct、Plan Execute、Flow 阶段推进、动态重规划和会话执行记忆已接入主链路�?,
                         List.of("chat/file/skills 使用 ReAct 链路", "AcademicReActExecutionService 记录 thought/action/observation",
                                 "deep 使用 Plan Execute", "实时流和回放输出 plan_delta/flow_delta",
-                                "flow_delta 支持 REPLANNED 状态", "plan_delta 支持 replan 计划版本",
-                                "AcademicAgentFallbackReplanStrategy 失败步骤恢复和依赖改写",
+                                "flow_delta 支持 REPLANNED 状�?, "plan_delta 支持 replan 计划版本",
+                                "AcademicAgentFallbackReplanStrategy 失败步骤恢复和依赖改�?,
                                 "同会话历史执行记忆会注入下一轮上下文"),
                         List.of()
                 ),
                 capabilityItem(
                         "tool-runtime",
-                        "工具运行时",
+                        "工具运行�?,
                         "ready",
-                        "统一工具注册、结构化输出、产物登记和运行账本已接入，外部端口未配置时按可用工具降级。",
+                        "统一工具注册、结构化输出、产物登记和运行账本已接入，外部端口未配置时按可用工具降级�?,
                         mergeEvidence(implementedTools, List.of("AcademicToolRuntimeSummary 统计 total/enabled/disabled/category/source")),
                         missingRuntimeTools
                 ),
@@ -717,16 +717,16 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "mcp",
                         "MCP 管理",
                         mcpReady ? "ready" : "degraded",
-                        "支持服务注册、启停、工具发现、缓存、后台配置导入和主 Agent 工具桥接。",
+                        "支持服务注册、启停、工具发现、缓存、后台配置导入和�?Agent 工具桥接�?,
                         List.of("管理接口: /api/v1/mcp/admin/**",
                                 "后台配置: agent.group.mcp.servers",
-                                "状态文件: agent.group.mcp.admin-state-file",
+                                "状态文�? agent.group.mcp.admin-state-file",
                                 "AcademicMcpCacheStatus 区分 empty/fresh/unbounded/expired/disabled",
-                                "MCP 健康状态: " + mcpOverallStatus,
+                                "MCP 健康状�? " + mcpOverallStatus,
                                 "MCP 服务: " + mcpEnabledServerCount + "/" + mcpServerCount,
                                 "MCP 可用服务: " + mcpReadyServerCount + "/" + mcpEnabledServerCount,
-                                "MCP 管理启用工具数: " + mcpEnabledToolCount,
-                                "已桥接到 Agent 的 MCP 工具数: " + mcpToolCount),
+                                "MCP 管理启用工具�? " + mcpEnabledToolCount,
+                                "已桥接到 Agent �?MCP 工具�? " + mcpToolCount),
                         mcpGaps(mcpOverallStatus, mcpServerCount, mcpEnabledServerCount,
                                 mcpEnabledToolCount, mcpToolCount)
                 ),
@@ -746,31 +746,31 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 ),
                 capabilityItem(
                         "workspace",
-                        "前端工作区",
+                        "前端工作�?,
                         "ready",
-                        "前端已提供 Agent、图像生成、数据问答、多模态知识问答和拼团交易工作区。",
+                        "前端已提�?Agent、图像生成、数据问答、多模态知识问答和拼团交易工作区�?,
                         List.of("/", "/workspace/image", "/workspace/data", "/workspace/mrag", "/workspace/trade"),
                         List.of()
                 ),
                 capabilityItem(
                         "skill-runtime",
-                        "Skill 与脚本",
+                        "Skill 与脚�?,
                         StringUtils.hasText(resolvedSkillsDirectory) ? "ready" : "degraded",
-                        "支持手动技能读取、技能目录文件检索、脚本定义和会话产物目录。",
+                        "支持手动技能读取、技能目录文件检索、脚本定义和会话产物目录�?,
                         List.of("manualSkillCount=" + manualSkillCount,
                                 "tools=read_skill/read_skill_file/grep_skill_files/glob_skill_files/list_skill_directory",
                                 "skillsDirectory=" + (resolvedSkillsDirectory == null ? "" : resolvedSkillsDirectory)),
-                        StringUtils.hasText(resolvedSkillsDirectory) ? List.of() : List.of("未配置 skills.directory")
+                        StringUtils.hasText(resolvedSkillsDirectory) ? List.of() : List.of("未配�?skills.directory")
                 ),
                 capabilityItem(
                         "trade-quota",
-                        "交易与额度闭环",
+                        "交易与额度闭�?,
                         "ready",
-                        "直接购买、拼团成团、支付状态、额度发放、任务扣减和退款回滚通过后端交易系统控制。",
+                        "直接购买、拼团成团、支付状态、额度发放、任务扣减和退款回滚通过后端交易系统控制�?,
                         List.of("额度扣减模式: spring-ai-usage-with-estimated-fallback",
                                 "直购 PAY_SUCCESS 后可发放额度",
-                                "拼团 GROUP_SETTLED/DEAL_DONE 后才可发放额度",
-                                "前端交易工作区: /workspace/trade"),
+                                "拼团 GROUP_SETTLED/DEAL_DONE 后才可发放额�?,
+                                "前端交易工作�? /workspace/trade"),
                         List.of()
                 )
         );
@@ -797,15 +797,15 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             gaps.add("MCP 管理器未加载");
         }
         if (serverCount == 0) {
-            gaps.add("还没有注册 MCP 服务");
+            gaps.add("还没有注�?MCP 服务");
         } else if (enabledServerCount == 0) {
             gaps.add("没有启用 MCP 服务");
         }
         if (enabledServerCount > 0 && enabledToolCount == 0) {
-            gaps.add("当前没有可供 Agent 使用的 MCP 工具");
+            gaps.add("当前没有可供 Agent 使用�?MCP 工具");
         }
         if (bridgedToolCount == 0) {
-            gaps.add("当前未发现或未缓存外部 MCP 工具");
+            gaps.add("当前未发现或未缓存外�?MCP 工具");
         }
         if (StringUtils.hasText(overallStatus)
                 && !"ready".equals(overallStatus)
@@ -822,22 +822,22 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         "直购支付成功",
                         "PAY_SUCCESS",
                         true,
-                        "直购订单支付成功后可以发放额度，但仍需以后端支付单和额度流水为准。"),
+                        "直购订单支付成功后可以发放额度，但仍需以后端支付单和额度流水为准�?),
                 tradeQuotaSettlementRule("group-pay-success",
-                        "拼团名额已支付",
+                        "拼团名额已支�?,
                         "PAY_SUCCESS",
                         false,
-                        "拼团支付成功只表示名额已支付，未成团前不能发放额度。"),
+                        "拼团支付成功只表示名额已支付，未成团前不能发放额度�?),
                 tradeQuotaSettlementRule("group-settled",
-                        "拼团已成团",
+                        "拼团已成�?,
                         "GROUP_SETTLED/DEAL_DONE",
                         true,
-                        "拼团已成团或交易完成后，才能给同团用户发放额度。"),
+                        "拼团已成团或交易完成后，才能给同团用户发放额度�?),
                 tradeQuotaSettlementRule("refund-success",
-                        "退款成功",
+                        "退款成�?,
                         "REFUND_SUCCESS/REFUNDED",
                         false,
-                        "退款或误发时必须记录额度流水并回滚余额。")
+                        "退款或误发时必须记录额度流水并回滚余额�?)
         );
     }
 
@@ -905,10 +905,10 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                         AcademicToolOutputNames.IMAGE_GENERATION), byName),
                 toolRuntimeFamily("report", "报告工具", List.of(
                         AcademicToolOutputNames.REPORT_TOOL), byName),
-                toolRuntimeFamily("code", "代码解释器", List.of(
+                toolRuntimeFamily("code", "代码解释�?, List.of(
                         AcademicToolOutputNames.CODE_INTERPRETER,
                         AcademicToolOutputNames.SCRIPT_RUNNER), byName),
-                toolRuntimeFamily("multimodal", "多模态", List.of(
+                toolRuntimeFamily("multimodal", "多模�?, List.of(
                         AcademicToolOutputNames.MULTIMODAL_AGENT,
                         AcademicToolOutputNames.FILE_TOOL), byName)
         );
@@ -947,16 +947,16 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         item.put("outputKinds", outputKinds);
         item.put("workspaces", workspaces);
         item.put("action", missingTools.isEmpty()
-                ? "核心工具已覆盖"
-                : "补齐 " + compactLabels(missingTools, 2) + " 工具运行时");
+                ? "核心工具已覆�?
+                : "补齐 " + compactLabels(missingTools, 2) + " 工具运行�?);
         return item;
     }
 
     private String toolRuntimeFamilyStatusLabel(String status) {
         return switch (status) {
-            case "ready" -> "已就绪";
+            case "ready" -> "已就�?;
             case "partial" -> "部分就绪";
-            default -> "未就绪";
+            default -> "未就�?;
         };
     }
 
@@ -1008,7 +1008,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 .toList();
 
         Map<String, Object> mcp = capabilityByKey(capabilityMatrix, "mcp");
-        List<String> mcpGaps = mcp.isEmpty() ? List.of("MCP 管理能力未上报") : stringValues(mcp.get("gaps"));
+        List<String> mcpGaps = mcp.isEmpty() ? List.of("MCP 管理能力未上�?) : stringValues(mcp.get("gaps"));
         String mcpStatus = defaultText(mcp.get("status"), mcpGaps.isEmpty() ? "ready" : "degraded");
 
         Map<String, Object> tradeQuota = capabilityByKey(capabilityMatrix, "trade-quota");
@@ -1029,16 +1029,16 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
         List<String> gaps = new ArrayList<>();
         if (!missingFamilies.isEmpty()) {
-            gaps.add("缺少执行族：" + String.join("、", missingFamilies));
+            gaps.add("缺少执行族：" + String.join("�?, missingFamilies));
         }
         if (replanModeCount == 0) {
             gaps.add("缺少动态重规划证据");
         }
         if (!missingTools.isEmpty()) {
-            gaps.add("工具运行时未全部就绪：" + compactLabels(missingTools, 4));
+            gaps.add("工具运行时未全部就绪�? + compactLabels(missingTools, 4));
         }
         if (!missingWorkspaces.isEmpty()) {
-            gaps.add("工作区入口未完整：" + String.join("、", missingWorkspaces));
+            gaps.add("工作区入口未完整�? + String.join("�?, missingWorkspaces));
         }
         gaps.addAll(mcpGaps);
         if (settlementRules.isEmpty()) {
@@ -1047,7 +1047,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
         List<String> actions = new ArrayList<>();
         if (!missingTools.isEmpty()) {
-            actions.add("启动或配置工具运行时：" + compactLabels(missingTools, 3));
+            actions.add("启动或配置工具运行时�? + compactLabels(missingTools, 3));
         }
         if (!mcpGaps.isEmpty()) {
             actions.add("注册、发现并缓存 MCP 工具");
@@ -1059,21 +1059,21 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             actions.add("补齐拼团额度发放规则");
         }
         if (ready) {
-            actions.add("Agent 与拼团交易闭环已具备完整演示面");
+            actions.add("Agent 与拼团交易闭环已具备完整演示�?);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", status);
         result.put("statusLabel", platformReadinessStatusLabel(status));
-        result.put("title", "Agent + 拼团交易系统就绪度");
+        result.put("title", "Agent + 拼团交易系统就绪�?);
         result.put("metrics", List.of(
-                readinessMetric("families", "执行族", coveredFamilies.size() + "/" + requiredFamilies.size(),
+                readinessMetric("families", "执行�?, coveredFamilies.size() + "/" + requiredFamilies.size(),
                         missingFamilies.isEmpty() ? "good" : "warn"),
-                readinessMetric("replan", "重规划", String.valueOf(replanModeCount),
+                readinessMetric("replan", "重规�?, String.valueOf(replanModeCount),
                         replanModeCount > 0 ? "good" : "warn"),
                 readinessMetric("tools", "工具", readyToolCount + "/" + orderedTools.size(),
                         missingTools.isEmpty() ? "good" : "warn"),
-                readinessMetric("workspaces", "工作区", coveredWorkspaces.size() + "/" + requiredWorkspaces.size(),
+                readinessMetric("workspaces", "工作�?, coveredWorkspaces.size() + "/" + requiredWorkspaces.size(),
                         missingWorkspaces.isEmpty() ? "good" : "warn"),
                 readinessMetric("tradeRules", "交易规则", String.valueOf(settlementRules.size()),
                         settlementRules.isEmpty() ? "warn" : "good")
@@ -1145,17 +1145,17 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private String toolRuntimeHint(String toolName) {
-        String base = "启动 tools/reactor-tool/start.ps1，并设置 AGENT_GROUP_REACTOR_TOOL_ENABLED=true、AGENT_GROUP_REACTOR_TOOL_BASE_URL=http://127.0.0.1:1801。";
+        String base = "启动 tools/reactor-tool/start.ps1，并设置 AGENT_GROUP_REACTOR_TOOL_ENABLED=true、AGENT_GROUP_REACTOR_TOOL_BASE_URL=http://127.0.0.1:1801�?;
         return switch (toolName) {
-            case AcademicToolOutputNames.IMAGE_GENERATION -> base + " 图像生成还需要在 reactor-tool 的 .env 中配置图像模型。";
+            case AcademicToolOutputNames.IMAGE_GENERATION -> base + " 图像生成还需要在 reactor-tool �?.env 中配置图像模型�?;
             case AcademicToolOutputNames.DATA_ANALYSIS,
                  AcademicToolOutputNames.TABLE_RAG,
-                 AcademicToolOutputNames.NL2SQL -> base + " 数据问答还需要配置表结构、数据库或向量检索相关环境变量。";
+                 AcademicToolOutputNames.NL2SQL -> base + " 数据问答还需要配置表结构、数据库或向量检索相关环境变量�?;
             case AcademicToolOutputNames.DEEP_SEARCH,
-                 AcademicToolOutputNames.WEB_FETCH -> base + " 深度搜索和网页抓取还需要配置搜索或联网能力。";
-            case AcademicToolOutputNames.MULTIMODAL_AGENT -> base + " 多模态问答还需要配置视觉模型和文档解析依赖。";
+                 AcademicToolOutputNames.WEB_FETCH -> base + " 深度搜索和网页抓取还需要配置搜索或联网能力�?;
+            case AcademicToolOutputNames.MULTIMODAL_AGENT -> base + " 多模态问答还需要配置视觉模型和文档解析依赖�?;
             case AcademicToolOutputNames.SCRIPT_RUNNER,
-                 AcademicToolOutputNames.CODE_INTERPRETER -> base + " 脚本和代码执行还需要确认 Python、Node 或系统命令可用。";
+                 AcademicToolOutputNames.CODE_INTERPRETER -> base + " 脚本和代码执行还需要确�?Python、Node 或系统命令可用�?;
             default -> base;
         };
     }
@@ -1205,9 +1205,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             item.put("userAgentExposure", "backend_only");
             item.put("settlementRules", tradeQuotaSettlementRules());
             item.put("guardrails", List.of(
-                    "前端和 Agent 不能直接决定额度到账",
-                    "拼团支付成功不等于额度到账",
-                    "高风险状态必须来自后端交易系统"));
+                    "前端�?Agent 不能直接决定额度到账",
+                    "拼团支付成功不等于额度到�?,
+                    "高风险状态必须来自后端交易系�?));
         }
         if ("tool-runtime".equals(key)) {
             List<String> implementedTools = evidence == null ? List.of() : evidence;
@@ -1295,7 +1295,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         int safeLimit = Math.max(1, limit);
         List<String> visible = cleanValues.stream().limit(safeLimit).toList();
         int more = Math.max(0, cleanValues.size() - visible.size());
-        return String.join("、", visible) + (more > 0 ? " 等 " + more + " 项" : "");
+        return String.join("�?, visible) + (more > 0 ? " �?" + more + " �? : "");
     }
 
     private Map<String, Object> readinessMetric(String key, String label, String value, String tone) {
@@ -1309,9 +1309,9 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private String platformReadinessStatusLabel(String status) {
         return switch (status) {
-            case "ready" -> "已就绪";
-            case "missing" -> "未接入";
-            default -> "待补齐";
+            case "ready" -> "已就�?;
+            case "missing" -> "未接�?;
+            default -> "待补�?;
         };
     }
 
@@ -1322,7 +1322,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private void initWebSearchToolCallbacks() {
         ToolCallback[] fallbackSearchTools = SearchTool.create(externalSearchService);
-        if (!StringUtils.hasText(tavilyApiKey) || tavilyApiKey.contains("XXXXX") || !StringUtils.hasText(tavilyMcpUrl)) {
+        if (!ApiKeyValidator.isValidApiKey(tavilyApiKey) || !StringUtils.hasText(tavilyMcpUrl)) {
             LOGGER.warn("bear-doctor tavily tool init skipped, reason=missing_config");
             webSearchToolCallbacks = fallbackSearchTools;
             webSearchStatus = fallbackSearchTools.length > 0 ? "direct-api" : "missing-config";
@@ -1626,59 +1626,34 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private String skillRuntimePrompt(String outputDirectory, boolean webSearchEnabled) {
         String webSearchRule = webSearchEnabled
-                ? "- 本轮已开启联网搜索；需要最新公开信息时可以调用搜索工具、网页抓取或深度搜索工具。"
-                : "- 本轮未开启联网搜索；不要调用搜索工具，也不要输出 ToolCall/search 文本。需要实时信息时请提示用户开启联网搜索后重试。";
+                ? "- 本轮已开启联网搜索；需要最新公开信息时可以调用搜索工具、网页抓取或深度搜索工具�?
+                : "- 本轮未开启联网搜索；不要调用搜索工具，也不要输出 ToolCall/search 文本。需要实时信息时请提示用户开启联网搜索后重试�?;
         return """
-                ## 技能产物输出规则
-                - 所有生成文件必须写入当前会话输出目录或它的子目录。当前会话输出目录是：%s
-                - 文件工具只允许访问当前会话输出目录；读取和写入时优先使用相对路径。
-                %s
-                - 普通用户环境没有 bash 和 grep 工具；需要抓取 Bilibili、抽帧或编译 LaTeX 时，使用 bilibili_fetch、extract_video_frames、compile_latex 这些专用工具。
-                - 选择了具体技能后，默认连续执行到技能要求的最终产物；不要在中途询问用户是否需要继续、是否需要概览，除非缺少必要参数、素材、登录权限或外部服务不可用。
-                - 禁止把“正在处理”“当前正在解析”“预计几分钟”“下一步将执行”这类进度播报当作最终回答；如果技能要求 PDF、图片、文档或其他文件产物，必须继续调用工具直到产物生成成功或明确失败。
-                - compile_latex 成功后会默认清理 source.mp4、audio.wav、video.m4s、audio.m4s 这类临时媒体文件；最终只应保留 PDF、LaTeX、字幕、封面和选中的截图等可交付文件。
-                - 不要把文件生成到项目根目录、后端 app 目录、用户目录或系统临时目录。
-                - 最终回答中不要暴露服务器本地绝对路径，例如 Windows 盘符路径或 Linux 绝对路径。
-                - 只需要说明文件已经生成，PDF、LaTeX、字幕等文件会由前端下载按钮提供给用户。
-                """.formatted(outputDirectory, webSearchRule);
+                ## 技能产物输出规�?                - 所有生成文件必须写入当前会话输出目录或它的子目录。当前会话输出目录是�?s
+                - 文件工具只允许访问当前会话输出目录；读取和写入时优先使用相对路径�?                %s
+                - 普通用户环境没�?bash �?grep 工具；需要抓�?Bilibili、抽帧或编译 LaTeX 时，使用 bilibili_fetch、extract_video_frames、compile_latex 这些专用工具�?                - 选择了具体技能后，默认连续执行到技能要求的最终产物；不要在中途询问用户是否需要继续、是否需要概览，除非缺少必要参数、素材、登录权限或外部服务不可用�?                - 禁止把“正在处理”“当前正在解析”“预计几分钟”“下一步将执行”这类进度播报当作最终回答；如果技能要�?PDF、图片、文档或其他文件产物，必须继续调用工具直到产物生成成功或明确失败�?                - compile_latex 成功后会默认清理 source.mp4、audio.wav、video.m4s、audio.m4s 这类临时媒体文件；最终只应保�?PDF、LaTeX、字幕、封面和选中的截图等可交付文件�?                - 不要把文件生成到项目根目录、后�?app 目录、用户目录或系统临时目录�?                - 最终回答中不要暴露服务器本地绝对路径，例如 Windows 盘符路径�?Linux 绝对路径�?                - 只需要说明文件已经生成，PDF、LaTeX、字幕等文件会由前端下载按钮提供给用户�?                """.formatted(outputDirectory, webSearchRule);
     }
 
     private String workspaceRuntimePrompt(String outputDirectory, boolean webSearchEnabled, String workspace) {
         String base = skillRuntimePrompt(outputDirectory, webSearchEnabled);
         if ("image".equals(workspace)) {
             return ("""
-                    ## 图像生成工作区
-                    - 优先使用 image_generation 工具生成图片，必要时可先用 planning 拆解画面。
-                    - 输出中要说明图像用途、画面要素、风格和可下载产物；不要只返回纯文本创意。
-                    - 如果外部图像工具未配置，明确说明当前缺少图像生成端口，并给出可直接复用的生成提示词。
-
+                    ## 图像生成工作�?                    - 优先使用 image_generation 工具生成图片，必要时可先�?planning 拆解画面�?                    - 输出中要说明图像用途、画面要素、风格和可下载产物；不要只返回纯文本创意�?                    - 如果外部图像工具未配置，明确说明当前缺少图像生成端口，并给出可直接复用的生成提示词�?
                     """ + base).trim();
         }
         if ("data".equals(workspace)) {
             return ("""
-                    ## 数据问答工作区
-                    - 优先使用 data_analysis、table_rag 或 nl2sql 工具处理论文表格、实验指标、引用网络和阅读笔记。
-                    - 结论要说明数据来源、统计口径、字段含义和不确定点，不要把模型猜测写成数据事实。
-                    - 如果没有接入真实学术数据源，要说明缺少数据端口，并输出可执行的分析口径、字段需求和校验步骤。
-
+                    ## 数据问答工作�?                    - 优先使用 data_analysis、table_rag �?nl2sql 工具处理论文表格、实验指标、引用网络和阅读笔记�?                    - 结论要说明数据来源、统计口径、字段含义和不确定点，不要把模型猜测写成数据事实�?                    - 如果没有接入真实学术数据源，要说明缺少数据端口，并输出可执行的分析口径、字段需求和校验步骤�?
                     """ + base).trim();
         }
         if ("mrag".equals(workspace)) {
             return ("""
                     ## MRAG 多模态知识问答工作区
-                    - 优先结合 file_tool、multimodal_agent、table_rag、deep_search 和 web_fetch 处理文档、图片、表格与外部资料。
-                    - 先说明使用了哪些资料来源，再给结论、证据和不确定点；不要把模型猜测写成系统事实。
-                    - 遇到论文结论、实验图表或引用关系时，要区分原文证据、表格计算结果和模型推断。
-                    """ + base).trim();
+                    - 优先结合 file_tool、multimodal_agent、table_rag、deep_search �?web_fetch 处理文档、图片、表格与外部资料�?                    - 先说明使用了哪些资料来源，再给结论、证据和不确定点；不要把模型猜测写成系统事实�?                    - 遇到论文结论、实验图表或引用关系时，要区分原文证据、表格计算结果和模型推断�?                    """ + base).trim();
         }
         if ("trade".equals(workspace)) {
             return ("""
-                    ## 拼团交易数据工作区
-                    - 优先使用 data_analysis、table_rag 或 nl2sql 分析交易表、额度流水和拼团状态数据。
-                    - 用户对话 Agent 只解释已有数据和规则，不替代后台查账；实时订单、额度余额、支付结果以后端交易系统为准。
-                    - 拼团支付成功不等于额度到账；只有成团结算或交易完成后才能发放额度。
-                    - 如果缺少真实数据源，要说明缺少的数据表、字段和后台核查步骤。
-                    """ + base).trim();
+                    ## 拼团交易数据工作�?                    - 优先使用 data_analysis、table_rag �?nl2sql 分析交易表、额度流水和拼团状态数据�?                    - 用户对话 Agent 只解释已有数据和规则，不替代后台查账；实时订单、额度余额、支付结果以后端交易系统为准�?                    - 拼团支付成功不等于额度到账；只有成团结算或交易完成后才能发放额度�?                    - 如果缺少真实数据源，要说明缺少的数据表、字段和后台核查步骤�?                    """ + base).trim();
         }
         return base;
     }
@@ -1687,32 +1662,28 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         String safeQuery = StringUtils.hasText(query) ? query.trim() : "";
         if ("image".equals(workspace)) {
             return """
-                    请按图像生成工作区处理下面需求。优先调用 image_generation 工具，生成可复用图像产物。
-
+                    请按图像生成工作区处理下面需求。优先调�?image_generation 工具，生成可复用图像产物�?
                     需求：
                     %s
                     """.formatted(safeQuery).trim();
         }
         if ("data".equals(workspace)) {
             return """
-                    请按数据问答工作区处理下面需求。优先调用 data_analysis、table_rag 或 nl2sql 工具分析学术表格、实验指标、引用网络或阅读笔记，并把查询口径、结果和校验点说明清楚。
-
+                    请按数据问答工作区处理下面需求。优先调�?data_analysis、table_rag �?nl2sql 工具分析学术表格、实验指标、引用网络或阅读笔记，并把查询口径、结果和校验点说明清楚�?
                     需求：
                     %s
                     """.formatted(safeQuery).trim();
         }
         if ("mrag".equals(workspace)) {
             return """
-                    请按 MRAG 多模态知识问答工作区处理下面需求。优先结合文件、图片、表格、知识检索和网页资料，输出结论、证据来源和不确定点。
-
+                    请按 MRAG 多模态知识问答工作区处理下面需求。优先结合文件、图片、表格、知识检索和网页资料，输出结论、证据来源和不确定点�?
                     需求：
                     %s
                     """.formatted(safeQuery).trim();
         }
         if ("trade".equals(workspace)) {
             return """
-                    请按拼团交易数据分析工作区处理下面需求。优先使用 data_analysis、table_rag 或 nl2sql 分析已有数据；必须区分订单状态、支付状态、拼团成团状态、额度流水、退款回滚和 Agent 消耗流水；不要把支付成功直接判断为额度已到账。
-
+                    请按拼团交易数据分析工作区处理下面需求。优先使�?data_analysis、table_rag �?nl2sql 分析已有数据；必须区分订单状态、支付状态、拼团成团状态、额度流水、退款回滚和 Agent 消耗流水；不要把支付成功直接判断为额度已到账�?
                     需求：
                     %s
                     """.formatted(safeQuery).trim();
@@ -1727,7 +1698,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         try {
             String safeAgentType = normalizeAgentType(agentType);
             String prompt = joinPrompts(
-                    agentAdminCategoryPrompt("system_prompt", "系统提示词", safeAgentType),
+                    agentAdminCategoryPrompt("system_prompt", "系统提示�?, safeAgentType),
                     agentAdminCategoryPrompt("advisor", "Advisor 配置", safeAgentType),
                     agentAdminCategoryPrompt("rag_order", "RAG 顺序", safeAgentType),
                     "image".equals(safeAgentType)
@@ -1821,10 +1792,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private String webSearchDisabledPrompt() {
         return """
-                ## 联网搜索状态
-                本轮未开启联网搜索。不要调用搜索工具，也不要输出 ToolCall/search 文本。
-                普通知识和上下文足够时直接回答；确实需要实时信息时，请提示用户开启联网搜索后重试。
-                """;
+                ## 联网搜索状�?                本轮未开启联网搜索。不要调用搜索工具，也不要输�?ToolCall/search 文本�?                普通知识和上下文足够时直接回答；确实需要实时信息时，请提示用户开启联网搜索后重试�?                """;
     }
 
     private String joinPrompts(String... prompts) {
@@ -1904,7 +1872,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
 
     private ChatModel customChatModel(String llmBaseUrl, String llmApiKey, String llmModel) {
         if (!StringUtils.hasText(llmBaseUrl) || !StringUtils.hasText(llmApiKey)) {
-            throw new AppException("AGENT_0010", "自定义模型配置不完整，请填写 API 地址和密钥");
+            throw new AppException("AGENT_0010", "自定义模型配置不完整，请填写 API 地址和密�?);
         }
         String baseUrl = normalizeCustomBaseUrl(llmBaseUrl);
         String model = StringUtils.hasText(llmModel) ? llmModel.trim() : defaultChatModel;
@@ -1933,12 +1901,12 @@ public class BearDoctorNativeAgentService implements InitializingBean {
         try {
             uri = URI.create(text);
         } catch (Exception e) {
-            throw new AppException("AGENT_0011", "自定义 API 地址格式不正确");
+            throw new AppException("AGENT_0011", "自定�?API 地址格式不正�?);
         }
         String scheme = uri.getScheme();
         String host = uri.getHost();
         if (!"https".equalsIgnoreCase(scheme) || !StringUtils.hasText(host)) {
-            throw new AppException("AGENT_0011", "自定义 API 地址仅支持 HTTPS");
+            throw new AppException("AGENT_0011", "自定�?API 地址仅支�?HTTPS");
         }
         String lowerHost = host.toLowerCase();
         if ("localhost".equals(lowerHost)
@@ -1947,7 +1915,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 || lowerHost.startsWith("10.")
                 || lowerHost.startsWith("192.168.")
                 || lowerHost.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\..*")) {
-            throw new AppException("AGENT_0011", "自定义 API 地址不能指向本地或内网地址");
+            throw new AppException("AGENT_0011", "自定�?API 地址不能指向本地或内网地址");
         }
         String normalized = text.replaceAll("/+$", "");
         return normalized.endsWith("/v1") ? normalized.substring(0, normalized.length() - 3) : normalized;
@@ -2001,8 +1969,8 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                               long latencyMillis,
                               BearDoctorTokenUsageRecorder.Snapshot tokenUsage,
                               boolean customModelUsed) {
-        GuideTokenUsage usage = hasRealUsage(tokenUsage)
-                ? new GuideTokenUsage(tokenUsage.promptTokens(), tokenUsage.completionTokens(),
+        TokenUsageMetrics usage = hasRealUsage(tokenUsage)
+                ? new TokenUsageMetrics(tokenUsage.promptTokens(), tokenUsage.completionTokens(),
                 tokenUsage.totalTokens(), BigDecimal.ZERO)
                 : estimateTokenUsage(query, observedContent);
         String model = hasRealUsage(tokenUsage) && StringUtils.hasText(tokenUsage.model())
@@ -2024,10 +1992,10 @@ public class BearDoctorNativeAgentService implements InitializingBean {
                 || hasRealUsage(tokenUsage);
     }
 
-    private GuideTokenUsage estimateTokenUsage(String query, String observedContent) {
+    private TokenUsageMetrics estimateTokenUsage(String query, String observedContent) {
         long promptTokens = estimateTokens(query);
         long completionTokens = estimateTokens(observedContent);
-        return new GuideTokenUsage(promptTokens, completionTokens, promptTokens + completionTokens, BigDecimal.ZERO);
+        return new TokenUsageMetrics(promptTokens, completionTokens, promptTokens + completionTokens, BigDecimal.ZERO);
     }
 
     private long estimateTokens(String text) {
@@ -2087,8 +2055,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     }
 
     private boolean isTavilyConfigured() {
-        return StringUtils.hasText(tavilyApiKey)
-                && !tavilyApiKey.contains("XXXXX");
+        return ApiKeyValidator.isValidApiKey(tavilyApiKey);
     }
 
     private String webSearchStatus() {
@@ -2115,7 +2082,7 @@ public class BearDoctorNativeAgentService implements InitializingBean {
             this.userId = userId;
         }
 
-        @Tool(description = "根据文件ID加载文件内容或进行RAG语义检索，仅允许访问当前登录用户自己的文件。")
+        @Tool(description = "根据文件ID加载文件内容或进行RAG语义检索，仅允许访问当前登录用户自己的文件�?)
         public String loadContent(
                 @ToolParam(description = "文件ID") String fileId,
                 @ToolParam(description = "用户的问题，用于语义检索（可选）") String question) {
@@ -2133,3 +2100,19 @@ public class BearDoctorNativeAgentService implements InitializingBean {
     private record RuntimeModelSelection(ChatModel chatModel, boolean customModelUsed) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

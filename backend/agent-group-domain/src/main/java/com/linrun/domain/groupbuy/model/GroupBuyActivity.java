@@ -205,3 +205,18 @@ public class GroupBuyActivity {
         this.enabled = enabled;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

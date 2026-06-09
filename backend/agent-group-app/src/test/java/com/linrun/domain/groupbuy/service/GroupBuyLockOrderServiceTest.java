@@ -32,8 +32,8 @@ import com.linrun.domain.groupbuy.model.GroupBuyStock;
 import com.linrun.domain.groupbuy.model.GroupBuyStockFlowType;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
@@ -53,8 +53,8 @@ import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
-import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotRepository;
-import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
+import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
+import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -210,7 +210,7 @@ class GroupBuyLockOrderServiceTest {
                 GroupBuyTeamStockRepository.noop(),
                 new FakeTradeOrderRepository(),
                 new FakeTradeStatusFlowRepository(),
-                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
                         "U10001", "G10001", "A20001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
                         LocalDateTime.now().plusMinutes(10))));
 
@@ -228,7 +228,7 @@ class GroupBuyLockOrderServiceTest {
                 GroupBuyTeamStockRepository.noop(),
                 new FakeTradeOrderRepository(),
                 new FakeTradeStatusFlowRepository(),
-                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
                         "U10001", "G10001", "A10001", new BigDecimal("2399.00"), new BigDecimal("1999.00"),
                         LocalDateTime.now().plusMinutes(10))));
 
@@ -476,7 +476,7 @@ class GroupBuyLockOrderServiceTest {
     @Test
     void shouldRejectEndedActivity() {
         GroupBuyLockOrderService service = new GroupBuyLockOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", LocalDateTime.now().minusHours(1))),
                 new FakeGroupBuyOrderLockRepository(),
                 GroupBuyStockRepository.noop(),
@@ -484,13 +484,13 @@ class GroupBuyLockOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.lock(request(null, "IDEM_10005")));
 
         assertEquals("GROUP_0008", exception.getCode());
-        assertEquals("拼团活动不可用", exception.getMessage());
+        assertEquals("拼团活动不可�?, exception.getMessage());
     }
 
     private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
@@ -518,7 +518,7 @@ class GroupBuyLockOrderServiceTest {
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository) {
         return service(lockRepository, stockRepository, teamStockRepository, tradeOrderRepository, flowRepository,
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
     }
 
     private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
@@ -526,9 +526,9 @@ class GroupBuyLockOrderServiceTest {
                                              GroupBuyTeamStockRepository teamStockRepository,
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository,
-                                             GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
+                                             QuotaOrderSnapshotRepository QuotaOrderSnapshotRepository) {
         return new GroupBuyLockOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", END_TIME)),
                 lockRepository,
                 stockRepository,
@@ -536,7 +536,7 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository),
-                guideDecisionSnapshotRepository);
+                QuotaOrderSnapshotRepository);
     }
 
     private LockGroupBuyOrderRequest request(String teamId, String idempotentKey) {
@@ -646,13 +646,13 @@ class GroupBuyLockOrderServiceTest {
         return team;
     }
 
-    private static GuideDecisionSnapshot decisionSnapshot(String userId,
+    private static QuotaOrderSnapshot decisionSnapshot(String userId,
                                                           String goodsId,
                                                           String activityId,
                                                           BigDecimal originAmount,
                                                           BigDecimal groupAmount,
                                                           LocalDateTime quoteExpireTime) {
-        GuideDecisionSnapshot snapshot = new GuideDecisionSnapshot();
+        QuotaOrderSnapshot snapshot = new QuotaOrderSnapshot();
         snapshot.setDecisionId("D10001");
         snapshot.setUserId(userId);
         snapshot.setGoodsId(goodsId);
@@ -663,16 +663,16 @@ class GroupBuyLockOrderServiceTest {
         return snapshot;
     }
 
-    private static class FakeGuideDataRepository implements GuideDataRepository {
+    private static class FakeQuotaProductRepository implements QuotaProductRepository {
 
         @Override
-        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
             return queryProductByGoodsId("G10001").stream().toList();
         }
 
         @Override
-        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
-            GuideProduct product = new GuideProduct();
+        public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
+            QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
             product.setGoodsName("???????");
             product.setOriginPrice(new BigDecimal("2399.00"));
@@ -700,26 +700,26 @@ class GroupBuyLockOrderServiceTest {
         }
     }
 
-    private static class FakeGuideDecisionSnapshotRepository implements GuideDecisionSnapshotRepository {
+    private static class FakeQuotaOrderSnapshotRepository implements QuotaOrderSnapshotRepository {
 
-        private final GuideDecisionSnapshot snapshot;
+        private final QuotaOrderSnapshot snapshot;
 
-        private FakeGuideDecisionSnapshotRepository() {
+        private FakeQuotaOrderSnapshotRepository() {
             this(decisionSnapshot(
                     "U10001", "G10001", "A10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
                     LocalDateTime.now().plusMinutes(10)));
         }
 
-        private FakeGuideDecisionSnapshotRepository(GuideDecisionSnapshot snapshot) {
+        private FakeQuotaOrderSnapshotRepository(QuotaOrderSnapshot snapshot) {
             this.snapshot = snapshot;
         }
 
         @Override
-        public void save(GuideDecisionSnapshot snapshot) {
+        public void save(QuotaOrderSnapshot snapshot) {
         }
 
         @Override
-        public Optional<GuideDecisionSnapshot> queryByDecisionId(String decisionId) {
+        public Optional<QuotaOrderSnapshot> queryByDecisionId(String decisionId) {
             return Optional.ofNullable(snapshot);
         }
     }
@@ -1039,3 +1039,18 @@ class GroupBuyLockOrderServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

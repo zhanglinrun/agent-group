@@ -46,3 +46,18 @@ public class KnowledgeVectorService {
         return knowledgeVectorRepository.searchSimilar(question, goodsId, safeLimit);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

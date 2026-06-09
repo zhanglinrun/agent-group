@@ -15,3 +15,18 @@ public interface ISourceChannelSkuActivityDao {
 
     List<SourceChannelSkuActivityPO> querySourceChannelList(@Param("limit") int limit);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

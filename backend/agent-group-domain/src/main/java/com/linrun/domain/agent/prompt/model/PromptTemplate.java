@@ -73,3 +73,18 @@ public class PromptTemplate {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

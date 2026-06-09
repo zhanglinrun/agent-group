@@ -1,15 +1,15 @@
 package com.linrun.domain.groupbuy.service.rules.lock;
 
 import cn.bugstack.wrench.design.framework.link.model2.handler.ILogicHandler;
-import com.linrun.domain.agent.conversation.service.GuideDecisionSnapshotValidator;
+import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
 import org.springframework.util.StringUtils;
 
 public class DecisionSnapshotLockRule implements ILogicHandler<GroupBuyLockContext, GroupBuyLockDynamicContext, GroupBuyLockContext> {
 
-    private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
+    private final QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator;
 
-    public DecisionSnapshotLockRule(GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
-        this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
+    public DecisionSnapshotLockRule(QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator) {
+        this.QuotaOrderSnapshotValidator = QuotaOrderSnapshotValidator;
     }
 
     @Override
@@ -17,7 +17,7 @@ public class DecisionSnapshotLockRule implements ILogicHandler<GroupBuyLockConte
         if (!StringUtils.hasText(context.getRequest().getDecisionId())) {
             return next(context, dynamicContext);
         }
-        guideDecisionSnapshotValidator.validateGroup(
+        QuotaOrderSnapshotValidator.validateGroup(
                 context.getRequest().getDecisionId(),
                 context.getRequest().getUserId(),
                 context.getRequest().getGoodsId(),
@@ -28,3 +28,18 @@ public class DecisionSnapshotLockRule implements ILogicHandler<GroupBuyLockConte
         return next(context, dynamicContext);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

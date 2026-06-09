@@ -145,3 +145,18 @@ public class KnowledgeDocument {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

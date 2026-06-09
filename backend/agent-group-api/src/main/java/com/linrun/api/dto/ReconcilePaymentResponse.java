@@ -20,3 +20,18 @@ public class ReconcilePaymentResponse implements Serializable {
     private boolean matched;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

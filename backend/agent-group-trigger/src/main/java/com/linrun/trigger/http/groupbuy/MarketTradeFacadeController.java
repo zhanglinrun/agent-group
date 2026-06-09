@@ -72,3 +72,18 @@ public class MarketTradeFacadeController {
         return Response.fail("0006", "接口限流", RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

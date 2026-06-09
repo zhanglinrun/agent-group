@@ -26,3 +26,18 @@ public class UploadKnowledgeDocumentResponse implements Serializable {
     private LocalDateTime createTime;
     private List<KnowledgeFragmentDTO> fragments = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

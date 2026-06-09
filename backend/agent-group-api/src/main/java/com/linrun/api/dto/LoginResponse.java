@@ -17,3 +17,18 @@ public class LoginResponse implements Serializable {
     private String role;
     private BigDecimal quotaBalance;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

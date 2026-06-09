@@ -108,3 +108,18 @@ public class TradeStatusFlowEntity {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

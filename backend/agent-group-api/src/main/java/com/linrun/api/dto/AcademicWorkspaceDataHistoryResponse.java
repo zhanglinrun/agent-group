@@ -26,3 +26,18 @@ public class AcademicWorkspaceDataHistoryResponse implements Serializable {
         private Long durationMillis;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

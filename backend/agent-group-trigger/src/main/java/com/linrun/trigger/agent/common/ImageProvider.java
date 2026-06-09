@@ -5,7 +5,7 @@ package com.linrun.trigger.agent.common;
  */
 public enum ImageProvider {
     /**
-     * 通义千问文生图
+     * 通义千问文生�?
      */
     QWEN,
     /**
@@ -13,3 +13,18 @@ public enum ImageProvider {
      */
     NANO_BANANA
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

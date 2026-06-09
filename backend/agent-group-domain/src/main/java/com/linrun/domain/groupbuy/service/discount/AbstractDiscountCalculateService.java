@@ -51,3 +51,18 @@ public abstract class AbstractDiscountCalculateService implements DiscountCalcul
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,3 +15,18 @@ public class LockMarketPayOrderResponse implements Serializable {
     private Integer tradeOrderStatus;
     private String teamId;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

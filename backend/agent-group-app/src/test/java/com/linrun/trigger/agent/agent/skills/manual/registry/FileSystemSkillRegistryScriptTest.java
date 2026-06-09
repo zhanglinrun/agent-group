@@ -26,8 +26,7 @@ class FileSystemSkillRegistryScriptTest {
         Files.createDirectories(skillDir.resolve("scripts"));
         Files.writeString(skillDir.resolve("SKILL.md"), """
                 ---
-                description: 分析 SQL 指标并生成报告
-                allowedTools:
+                description: 分析 SQL 指标并生成报�?                allowedTools:
                   - script_runner
                 ---
                 # SQL Analysis
@@ -49,7 +48,7 @@ class FileSystemSkillRegistryScriptTest {
 
         SkillMetadata metadata = registry.get("sql-analysis");
 
-        assertEquals("分析 SQL 指标并生成报告", metadata.description());
+        assertEquals("分析 SQL 指标并生成报�?, metadata.description());
         assertTrue(metadata.scripts().containsKey("summarize"));
         assertTrue(metadata.scripts().containsKey("build_report"));
         assertTrue(metadata.buildScriptSummaries().stream().anyMatch(line -> line.contains("build_report")));
@@ -62,8 +61,7 @@ class FileSystemSkillRegistryScriptTest {
         Files.createDirectories(skillDir);
         Files.writeString(skillDir.resolve("SKILL.md"), """
                 ---
-                description: 不安全脚本
-                ---
+                description: 不安全脚�?                ---
                 # Unsafe
                 """);
         Files.writeString(tempDir.resolve("outside.py"), "print('outside')");
@@ -81,3 +79,18 @@ class FileSystemSkillRegistryScriptTest {
         assertThrows(SkillLoadingException.class, registry::listAll);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

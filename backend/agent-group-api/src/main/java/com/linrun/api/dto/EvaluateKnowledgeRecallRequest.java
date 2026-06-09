@@ -12,3 +12,18 @@ public class EvaluateKnowledgeRecallRequest implements Serializable {
     private List<String> expectedFragmentIds;
     private Integer topK;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

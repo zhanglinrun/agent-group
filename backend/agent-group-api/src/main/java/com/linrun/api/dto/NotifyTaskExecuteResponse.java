@@ -12,3 +12,18 @@ public class NotifyTaskExecuteResponse implements Serializable {
     private int retryCount;
     private int errorCount;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

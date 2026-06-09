@@ -219,9 +219,9 @@ public class AgentAdminConfigHandler {
         result.put("runtimePolicies", runtimePolicies());
         result.put("sensitiveMasked", true);
         result.put("guardrails", List.of(
-                "交易、支付、拼团和额度事实必须来自后端服务。",
-                "模型只能生成解释和建议，不能决定额度到账。",
-                "MCP 工具和脚本工具必须先注册、发现并缓存后再进入 Agent 工具列表。"));
+                "交易、支付、拼团和额度事实必须来自后端服务�?,
+                "模型只能生成解释和建议，不能决定额度到账�?,
+                "MCP 工具和脚本工具必须先注册、发现并缓存后再进入 Agent 工具列表�?));
         return result;
     }
 
@@ -522,15 +522,15 @@ public class AgentAdminConfigHandler {
 
     private String assemblyStageHint(String category) {
         return switch (category) {
-            case "agent_client" -> "选择当前 Agent 的运行画像。";
-            case "api" -> "只保存环境变量名或连接模板，不保存密钥明文。";
-            case "model" -> "绑定聊天模型、向量模型或多模态模型。";
-            case "system_prompt" -> "注入业务边界，交易事实必须来自后端。";
-            case "advisor" -> "决定记忆、检索、反思等增强策略。";
-            case "rag_order" -> "决定查询改写、召回、重排和引用顺序。";
-            case "tool" -> "配置本地工具的调用顺序和启用状态。";
-            case "mcp_tool" -> "配置 MCP 工具发现、缓存和暴露顺序。";
-            case "draw_config" -> "配置图像或图表类输出策略。";
+            case "agent_client" -> "选择当前 Agent 的运行画像�?;
+            case "api" -> "只保存环境变量名或连接模板，不保存密钥明文�?;
+            case "model" -> "绑定聊天模型、向量模型或多模态模型�?;
+            case "system_prompt" -> "注入业务边界，交易事实必须来自后端�?;
+            case "advisor" -> "决定记忆、检索、反思等增强策略�?;
+            case "rag_order" -> "决定查询改写、召回、重排和引用顺序�?;
+            case "tool" -> "配置本地工具的调用顺序和启用状态�?;
+            case "mcp_tool" -> "配置 MCP 工具发现、缓存和暴露顺序�?;
+            case "draw_config" -> "配置图像或图表类输出策略�?;
             default -> "";
         };
     }
@@ -638,3 +638,18 @@ public class AgentAdminConfigHandler {
         return text.substring(0, Math.min(3, text.length())) + "******" + text.substring(text.length() - 2);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -4,3 +4,18 @@ public interface GroupBuySettlementRule {
 
     void apply(GroupBuySettlementContext context);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

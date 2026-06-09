@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.agent.repository;
 
-import com.linrun.domain.agent.conversation.adapter.GuideStreamControlRepository;
+import com.linrun.domain.agent.conversation.adapter.QuotaStreamControlRepository;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,16 +13,16 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
-public class RedisGuideStreamControlRepository implements GuideStreamControlRepository {
+public class RedisQuotaStreamControlRepository implements QuotaStreamControlRepository {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RedisGuideStreamControlRepository.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedisQuotaStreamControlRepository.class);
     private static final Duration STOP_TTL = Duration.ofMinutes(10);
 
     private final RedissonClient redissonClient;
     private final String keyPrefix;
     private final Map<String, Boolean> fallbackStops = new ConcurrentHashMap<>();
 
-    public RedisGuideStreamControlRepository(RedissonClient redissonClient,
+    public RedisQuotaStreamControlRepository(RedissonClient redissonClient,
                                              @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
         this.redissonClient = redissonClient;
         this.keyPrefix = StringUtils.hasText(keyPrefix) ? keyPrefix : "agent-group";
@@ -76,3 +76,18 @@ public class RedisGuideStreamControlRepository implements GuideStreamControlRepo
         return keyPrefix + ":guide:stop:topic";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -66,3 +66,18 @@ public class NotifyConfig {
         return notifyType.trim().toUpperCase(Locale.ROOT);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

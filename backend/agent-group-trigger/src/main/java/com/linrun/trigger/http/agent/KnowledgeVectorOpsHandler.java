@@ -63,3 +63,18 @@ public class KnowledgeVectorOpsHandler {
         return response;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

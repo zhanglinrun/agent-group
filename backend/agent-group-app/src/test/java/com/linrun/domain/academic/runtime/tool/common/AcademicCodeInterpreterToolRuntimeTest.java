@@ -108,3 +108,18 @@ class AcademicCodeInterpreterToolRuntimeTest {
         assertEquals("CODE_0003", exception.getCode());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

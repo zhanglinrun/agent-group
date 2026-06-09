@@ -3,8 +3,8 @@ package com.linrun.domain.agent.conversation.service;
 import com.linrun.domain.groupbuy.model.GroupBuyActivityStatus;
 import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
 import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.types.exception.AppException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,47 +17,47 @@ public class QuotaPackageCatalogService {
     private static final String QUOTA_PACKAGE = "QUOTA_PACKAGE";
     private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
-    private final GuideDataRepository guideDataRepository;
+    private final QuotaProductRepository QuotaProductRepository;
     private final GroupBuyActivityService groupBuyActivityService;
 
-    public QuotaPackageCatalogService(GuideDataRepository guideDataRepository,
+    public QuotaPackageCatalogService(QuotaProductRepository QuotaProductRepository,
                                       GroupBuyActivityService groupBuyActivityService) {
-        this.guideDataRepository = guideDataRepository;
+        this.QuotaProductRepository = QuotaProductRepository;
         this.groupBuyActivityService = groupBuyActivityService;
     }
 
-    public List<GuideProduct> listPackages(String keyword, int limit) {
+    public List<QuotaProduct> listPackages(String keyword, int limit) {
         int safeLimit = limit <= 0 ? 20 : Math.min(limit, 50);
         String query = StringUtils.hasText(keyword) ? keyword : "";
-        return guideDataRepository.queryCandidateProducts(query, safeLimit).stream()
+        return QuotaProductRepository.queryCandidateProducts(query, safeLimit).stream()
                 .filter(this::isUpgradeProduct)
                 .map(this::enrichGroupBuy)
                 .toList();
     }
 
-    public GuideProduct queryPackageDetail(String goodsId) {
+    public QuotaProduct queryPackageDetail(String goodsId) {
         if (!StringUtils.hasText(goodsId)) {
-            throw new AppException("0001", "额度包编号不能为空");
+            throw new AppException("0001", "额度包编号不能为�?);
         }
-        GuideProduct product = guideDataRepository.queryProductByGoodsId(goodsId)
+        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(goodsId)
                 .filter(this::isUpgradeProduct)
-                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下架"));
+                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下�?));
         return enrichGroupBuy(product);
     }
 
-    private boolean isUpgradeProduct(GuideProduct product) {
+    private boolean isUpgradeProduct(QuotaProduct product) {
         return isQuotaPackage(product) || isMembershipPlan(product);
     }
 
-    private boolean isQuotaPackage(GuideProduct product) {
+    private boolean isQuotaPackage(QuotaProduct product) {
         return product != null && QUOTA_PACKAGE.equals(product.getProductType());
     }
 
-    private boolean isMembershipPlan(GuideProduct product) {
+    private boolean isMembershipPlan(QuotaProduct product) {
         return product != null && MEMBERSHIP_PLAN.equals(product.getProductType());
     }
 
-    private GuideProduct enrichGroupBuy(GuideProduct product) {
+    private QuotaProduct enrichGroupBuy(QuotaProduct product) {
         if (product == null || !isUpgradeProduct(product) || !StringUtils.hasText(product.getGoodsId()) || groupBuyActivityService == null) {
             return product;
         }
@@ -77,3 +77,18 @@ public class QuotaPackageCatalogService {
         return product;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

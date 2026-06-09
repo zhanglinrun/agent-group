@@ -87,7 +87,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 .contains("AcademicReActExecutionService 记录 thought/action/observation"));
         assertTrue(((List<?>) multiAgent.get("evidence")).contains("plan_delta 支持 replan 计划版本"));
         assertTrue(((List<?>) multiAgent.get("evidence"))
-                .contains("AcademicAgentFallbackReplanStrategy 失败步骤恢复和依赖改写"));
+                .contains("AcademicAgentFallbackReplanStrategy 失败步骤恢复和依赖改�?));
 
         Map<String, Object> mcp = matrix.stream()
                 .filter(item -> "mcp".equals(item.get("key")))
@@ -95,10 +95,10 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 .orElseThrow();
         assertEquals("degraded", mcp.get("status"));
         assertTrue(((List<?>) mcp.get("evidence")).contains("后台配置: agent.group.mcp.servers"));
-        assertTrue(((List<?>) mcp.get("evidence")).contains("状态文件: agent.group.mcp.admin-state-file"));
+        assertTrue(((List<?>) mcp.get("evidence")).contains("状态文�? agent.group.mcp.admin-state-file"));
         assertTrue(((List<?>) mcp.get("evidence"))
                 .contains("AcademicMcpCacheStatus 区分 empty/fresh/unbounded/expired/disabled"));
-        assertTrue(((List<?>) mcp.get("evidence")).contains("MCP 健康状态: missing"));
+        assertTrue(((List<?>) mcp.get("evidence")).contains("MCP 健康状�? missing"));
         assertTrue(((List<?>) mcp.get("gaps")).contains("MCP 管理器未加载"));
 
         Map<String, Object> agentAdmin = matrix.stream()
@@ -129,23 +129,23 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertNotNull(capabilities.get("agentPlatformReadiness"));
         Map<String, Object> platformReadiness = (Map<String, Object>) capabilities.get("agentPlatformReadiness");
         assertEquals("partial", platformReadiness.get("status"));
-        assertEquals("待补齐", platformReadiness.get("statusLabel"));
-        assertEquals("Agent + 拼团交易系统就绪度", platformReadiness.get("title"));
+        assertEquals("待补�?, platformReadiness.get("statusLabel"));
+        assertEquals("Agent + 拼团交易系统就绪�?, platformReadiness.get("title"));
         assertTrue(((List<?>) platformReadiness.get("coveredFamilies")).containsAll(
                 List.of("react", "plan-execute", "flow", "skill-sop")));
         assertTrue(((List<?>) platformReadiness.get("missingFamilies")).isEmpty());
         assertEquals(1L, platformReadiness.get("replanModeCount"));
         assertTrue(((List<?>) platformReadiness.get("missingTools")).contains("code_interpreter"));
         assertTrue(((List<?>) platformReadiness.get("mcpGaps"))
-                .contains("当前未发现或未缓存外部 MCP 工具"));
+                .contains("当前未发现或未缓存外�?MCP 工具"));
         assertTrue(((List<?>) platformReadiness.get("mcpGaps")).contains("MCP 管理器未加载"));
         assertEquals(4, platformReadiness.get("settlementRuleCount"));
         assertEquals(2L, platformReadiness.get("blockedSettlementRuleCount"));
-        assertTrue(((List<?>) platformReadiness.get("tradeGuardrails")).contains("拼团支付成功不等于额度到账"));
+        assertTrue(((List<?>) platformReadiness.get("tradeGuardrails")).contains("拼团支付成功不等于额度到�?));
         List<Map<String, Object>> platformMetrics =
                 (List<Map<String, Object>>) platformReadiness.get("metrics");
         assertTrue(platformMetrics.stream().anyMatch(metric ->
-                "执行族".equals(metric.get("label")) && "4/4".equals(metric.get("value"))));
+                "执行�?.equals(metric.get("label")) && "4/4".equals(metric.get("value"))));
         assertTrue(((List<?>) platformReadiness.get("actions")).contains("注册、发现并缓存 MCP 工具"));
 
         Map<String, Object> tradeQuota = matrix.stream()
@@ -153,7 +153,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 .findFirst()
                 .orElseThrow();
         assertTrue(((List<?>) tradeQuota.get("authoritativeSources")).contains("quota_flow"));
-        assertTrue(((List<?>) tradeQuota.get("guardrails")).contains("拼团支付成功不等于额度到账"));
+        assertTrue(((List<?>) tradeQuota.get("guardrails")).contains("拼团支付成功不等于额度到�?));
         List<Map<String, Object>> settlementRules = (List<Map<String, Object>>) tradeQuota.get("settlementRules");
         Map<String, Object> groupPaySuccess = settlementRules.stream()
                 .filter(item -> "group-pay-success".equals(item.get("key")))
@@ -184,10 +184,10 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 (List<Map<String, Object>>) capabilities.get("toolRuntimeFamilies");
         assertEquals(6, toolRuntimeFamilies.size());
         Map<String, Object> codeFamily = toolRuntimeFamily(toolRuntimeFamilies, "code");
-        assertEquals("代码解释器", codeFamily.get("label"));
+        assertEquals("代码解释�?, codeFamily.get("label"));
         assertEquals(2, codeFamily.get("totalCount"));
         assertTrue(((List<?>) codeFamily.get("missingTools")).contains("code_interpreter"));
-        assertTrue(String.valueOf(codeFamily.get("action")).contains("工具运行时"));
+        assertTrue(String.valueOf(codeFamily.get("action")).contains("工具运行�?));
         Map<String, Object> dataFamily = toolRuntimeFamily(toolRuntimeFamilies, "data");
         assertTrue(((List<?>) dataFamily.get("tools")).contains("nl2sql"));
         assertTrue(((List<?>) dataFamily.get("outputKinds")).contains("table"));
@@ -299,7 +299,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals(implementedTools.size(), platformReadiness.get("requiredToolCount"));
         assertTrue(((List<?>) platformReadiness.get("mcpGaps")).contains("MCP 管理器未加载"));
         assertTrue(((List<?>) platformReadiness.get("mcpGaps"))
-                .contains("当前未发现或未缓存外部 MCP 工具"));
+                .contains("当前未发现或未缓存外�?MCP 工具"));
 
         List<Map<String, Object>> readiness = (List<Map<String, Object>>) capabilities.get("toolRuntimeReadiness");
         assertEquals(implementedTools.size(), readiness.size());
@@ -317,7 +317,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals(2, toolRuntimeFamily(toolRuntimeFamilies, "web").get("readyCount"));
         assertEquals(3, toolRuntimeFamily(toolRuntimeFamilies, "data").get("readyCount"));
         assertTrue(((List<?>) toolRuntimeFamily(toolRuntimeFamilies, "data").get("missingTools")).isEmpty());
-        assertEquals("核心工具已覆盖", toolRuntimeFamily(toolRuntimeFamilies, "image").get("action"));
+        assertEquals("核心工具已覆�?, toolRuntimeFamily(toolRuntimeFamilies, "image").get("action"));
 
         List<Map<String, Object>> workspaceProfiles = (List<Map<String, Object>>) capabilities.get("workspaceProfiles");
         Map<String, Object> agentWorkspace = workspace(workspaceProfiles, "agent");
@@ -385,13 +385,13 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
 
         assertEquals("ready", mcpAdminHealth.get("overallStatus"));
         assertEquals("ready", mcp.get("status"));
-        assertTrue(((List<?>) mcp.get("evidence")).contains("MCP 健康状态: ready"));
-        assertTrue(((List<?>) mcp.get("evidence")).contains("已桥接到 Agent 的 MCP 工具数: 1"));
+        assertTrue(((List<?>) mcp.get("evidence")).contains("MCP 健康状�? ready"));
+        assertTrue(((List<?>) mcp.get("evidence")).contains("已桥接到 Agent �?MCP 工具�? 1"));
         assertTrue(((List<?>) mcp.get("gaps")).isEmpty());
         assertEquals("ready", platformReadiness.get("status"));
         assertTrue(((List<?>) platformReadiness.get("mcpGaps")).isEmpty());
         assertTrue(((List<?>) platformReadiness.get("actions"))
-                .contains("Agent 与拼团交易闭环已具备完整演示面"));
+                .contains("Agent 与拼团交易闭环已具备完整演示�?));
     }
 
     @Test
@@ -584,3 +584,18 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         };
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

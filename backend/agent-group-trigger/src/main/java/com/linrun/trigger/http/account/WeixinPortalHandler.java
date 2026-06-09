@@ -225,3 +225,18 @@ public class WeixinPortalHandler {
         private LocalDateTime scanTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

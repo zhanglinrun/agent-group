@@ -23,3 +23,18 @@ public class TemplateSelectionResult {
         this.reason = reason;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

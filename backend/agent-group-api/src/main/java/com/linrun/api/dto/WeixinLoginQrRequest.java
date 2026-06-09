@@ -10,3 +10,18 @@ public class WeixinLoginQrRequest implements Serializable {
     private String userId;
     private String redirectUrl;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

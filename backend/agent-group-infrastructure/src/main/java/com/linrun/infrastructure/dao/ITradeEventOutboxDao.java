@@ -26,3 +26,18 @@ public interface ITradeEventOutboxDao {
 
     int updateStatusDeadLetter(TradeEventOutboxPO outbox);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

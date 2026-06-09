@@ -15,7 +15,7 @@ public interface AiPptInstService extends IService<AiPptInst> {
      * 创建新的PPT实例
      *
      * @param conversationId 会话ID
-     * @param query          用户原始需求
+     * @param query          用户原始需�?
      * @return PPT实例
      */
     AiPptInst createInst(String conversationId, String query);
@@ -45,20 +45,20 @@ public interface AiPptInstService extends IService<AiPptInst> {
     List<AiPptInst> getCompletedInsts(String conversationId);
 
     /**
-     * 更新PPT实例状态
+     * 更新PPT实例状�?
      *
      * @param id     实例ID
-     * @param status 新状态
+     * @param status 新状�?
      * @return 是否更新成功
      */
     boolean updateStatus(Long id, PptInstStatus status);
 
     /**
-     * 更新需求
+     * 更新需�?
      *
      * @param id          实例ID
-     * @param requirement 需求
-     * @param status      状态
+     * @param requirement 需�?
+     * @param status      状�?
      * @return 是否更新成功
      */
     boolean updateRequirement(Long id, String requirement, PptInstStatus status);
@@ -68,7 +68,7 @@ public interface AiPptInstService extends IService<AiPptInst> {
      *
      * @param id        实例ID
      * @param searchInfo 搜索信息
-     * @param status    状态
+     * @param status    状�?
      * @return 是否更新成功
      */
     boolean updateSearchInfo(Long id, String searchInfo, PptInstStatus status);
@@ -78,7 +78,7 @@ public interface AiPptInstService extends IService<AiPptInst> {
      *
      * @param id     实例ID
      * @param outline 大纲
-     * @param status 状态
+     * @param status 状�?
      * @return 是否更新成功
      */
     boolean updateOutline(Long id, String outline, PptInstStatus status);
@@ -88,7 +88,7 @@ public interface AiPptInstService extends IService<AiPptInst> {
      *
      * @param id           实例ID
      * @param templateCode 模板编码
-     * @param status       状态
+     * @param status       状�?
      * @return 是否更新成功
      */
     boolean updateTemplateCode(Long id, String templateCode, PptInstStatus status);
@@ -98,7 +98,7 @@ public interface AiPptInstService extends IService<AiPptInst> {
      *
      * @param id        实例ID
      * @param pptSchema PPT Schema JSON
-     * @param status    状态
+     * @param status    状�?
      * @return 是否更新成功
      */
     boolean updatePptSchema(Long id, String pptSchema, PptInstStatus status);
@@ -108,7 +108,7 @@ public interface AiPptInstService extends IService<AiPptInst> {
      *
      * @param id      实例ID
      * @param fileUrl 文件URL
-     * @param status  状态
+     * @param status  状�?
      * @return 是否更新成功
      */
     boolean updateFileUrl(Long id, String fileUrl, PptInstStatus status);
@@ -118,8 +118,23 @@ public interface AiPptInstService extends IService<AiPptInst> {
      *
      * @param id       实例ID
      * @param errorMsg 错误信息
-     * @param status   状态
+     * @param status   状�?
      * @return 是否更新成功
      */
     boolean updateError(Long id, String errorMsg, PptInstStatus status);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

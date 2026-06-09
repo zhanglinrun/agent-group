@@ -27,3 +27,18 @@ class VideoFrameToolTest {
         assertEquals(ffmpeg.toAbsolutePath().normalize().toString(), tool.resolveFfmpegCommand());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

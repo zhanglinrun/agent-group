@@ -1,10 +1,10 @@
 package com.linrun.infrastructure.agent.repository;
 
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
 import com.linrun.infrastructure.agent.converter.AgentPOConverter;
-import com.linrun.infrastructure.dao.IGuideDataDao;
+import com.linrun.infrastructure.dao.IQuotaProductDao;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
@@ -12,21 +12,21 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public class MyBatisGuideDataRepository implements GuideDataRepository {
+public class MyBatisQuotaProductRepository implements QuotaProductRepository {
 
-    private final IGuideDataDao guideDataDao;
+    private final IQuotaProductDao guideDataDao;
     private final KnowledgeKeywordService knowledgeKeywordService;
 
-    public MyBatisGuideDataRepository(IGuideDataDao guideDataDao,
+    public MyBatisQuotaProductRepository(IQuotaProductDao guideDataDao,
                                       KnowledgeKeywordService knowledgeKeywordService) {
         this.guideDataDao = guideDataDao;
         this.knowledgeKeywordService = knowledgeKeywordService;
     }
 
     @Override
-    public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+    public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
         int safeLimit = limit <= 0 ? 5 : limit;
-        return AgentPOConverter.toGuideProducts(
+        return AgentPOConverter.toQuotaProducts(
                         guideDataDao.queryCandidateProducts(knowledgeKeywordService.extractKeywords(question), safeLimit))
                 .stream()
                 .map(this::normalizeProduct)
@@ -35,12 +35,12 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
     }
 
     @Override
-    public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
-        GuideProduct product = AgentPOConverter.toEntity(guideDataDao.queryProductByGoodsId(goodsId));
+    public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
+        QuotaProduct product = AgentPOConverter.toEntity(guideDataDao.queryProductByGoodsId(goodsId));
         return normalizeProduct(product);
     }
 
-    private Optional<GuideProduct> normalizeProduct(GuideProduct product) {
+    private Optional<QuotaProduct> normalizeProduct(QuotaProduct product) {
         if (product == null) {
             return Optional.empty();
         }
@@ -56,3 +56,18 @@ public class MyBatisGuideDataRepository implements GuideDataRepository {
         return Optional.of(product);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

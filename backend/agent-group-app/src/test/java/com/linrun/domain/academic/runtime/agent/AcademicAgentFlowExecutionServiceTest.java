@@ -53,7 +53,7 @@ class AcademicAgentFlowExecutionServiceTest {
             }
             return AcademicAgentStepExecutionResult.success("done " + step.getStepId());
         }, request -> List.of(
-                step("R1", "改查实验结果表", 2),
+                step("R1", "改查实验结果�?, 2),
                 step("R2", "整理指标差异结论", 3, "R1")
         ));
 
@@ -75,3 +75,18 @@ class AcademicAgentFlowExecutionServiceTest {
                 .build();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

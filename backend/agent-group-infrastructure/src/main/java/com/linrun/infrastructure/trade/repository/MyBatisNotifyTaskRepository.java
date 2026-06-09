@@ -63,3 +63,18 @@ public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
         return notifyTaskDao.updateNotifyTaskStatusError(TradePOConverter.toPO(notifyTask));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

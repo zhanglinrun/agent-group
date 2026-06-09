@@ -1,7 +1,7 @@
 package com.linrun.domain.groupbuy.service.trial.node;
 
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyMarketRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyStockRepository;
@@ -32,7 +32,7 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyMarketRepository groupBuyMarketRepository;
-    private final GuideDataRepository guideDataRepository;
+    private final QuotaProductRepository QuotaProductRepository;
     private final GroupBuyStockRepository groupBuyStockRepository;
     private final Executor executor;
     private final Map<String, DiscountCalculateService> discountCalculateServiceMap;
@@ -40,24 +40,24 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     public MarketTrialNode(GroupBuyActivityRepository groupBuyActivityRepository,
                            GroupBuyMarketRepository groupBuyMarketRepository,
-                           GuideDataRepository guideDataRepository,
+                           QuotaProductRepository QuotaProductRepository,
                            GroupBuyStockRepository groupBuyStockRepository,
                            Map<String, DiscountCalculateService> discountCalculateServiceMap,
                            StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next) {
-        this(groupBuyActivityRepository, groupBuyMarketRepository, guideDataRepository, groupBuyStockRepository,
+        this(groupBuyActivityRepository, groupBuyMarketRepository, QuotaProductRepository, groupBuyStockRepository,
                 ForkJoinPool.commonPool(), discountCalculateServiceMap, next);
     }
 
     public MarketTrialNode(GroupBuyActivityRepository groupBuyActivityRepository,
                            GroupBuyMarketRepository groupBuyMarketRepository,
-                           GuideDataRepository guideDataRepository,
+                           QuotaProductRepository QuotaProductRepository,
                            GroupBuyStockRepository groupBuyStockRepository,
                            Executor executor,
                            Map<String, DiscountCalculateService> discountCalculateServiceMap,
                            StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next) {
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyMarketRepository = groupBuyMarketRepository;
-        this.guideDataRepository = guideDataRepository;
+        this.QuotaProductRepository = QuotaProductRepository;
         this.groupBuyStockRepository = groupBuyStockRepository == null ? GroupBuyStockRepository.noop() : groupBuyStockRepository;
         this.executor = executor == null ? ForkJoinPool.commonPool() : executor;
         this.discountCalculateServiceMap = discountCalculateServiceMap;
@@ -111,11 +111,11 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     private GroupBuyMarketSku resolveSku(String goodsId) {
         return groupBuyMarketRepository.querySkuByGoodsId(goodsId)
-                .or(() -> guideDataRepository.queryProductByGoodsId(goodsId).map(this::toSku))
+                .or(() -> QuotaProductRepository.queryProductByGoodsId(goodsId).map(this::toSku))
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
     }
 
-    private GroupBuyMarketSku toSku(GuideProduct product) {
+    private GroupBuyMarketSku toSku(QuotaProduct product) {
         GroupBuyMarketSku sku = new GroupBuyMarketSku();
         sku.setGoodsId(product.getGoodsId());
         sku.setGoodsName(product.getGoodsName());
@@ -202,3 +202,18 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

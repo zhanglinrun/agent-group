@@ -37,7 +37,7 @@ class AcademicAgentRunPlanFactoryTest {
         assertEquals("数据问答", plan.getTitle());
         assertEquals(5, plan.getSteps().size());
         assertEquals("S3", plan.getSteps().get(3).getDependencies().getFirst());
-        assertEquals("交易校验智能体", plan.getSteps().get(3).getAssignedAgent());
+        assertEquals("交易校验智能�?, plan.getSteps().get(3).getAssignedAgent());
         assertTrue(instructions.stream().anyMatch(text -> text.contains("额度")
                 && text.contains("订单")
                 && text.contains("拼团")));
@@ -49,3 +49,18 @@ class AcademicAgentRunPlanFactoryTest {
         assertEquals("数据问答", planFactory.build("workspace-trade", false).getTitle());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

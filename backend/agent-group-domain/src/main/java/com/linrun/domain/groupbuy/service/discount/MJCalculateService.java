@@ -28,3 +28,18 @@ public class MJCalculateService extends AbstractDiscountCalculateService {
         return originalPrice.subtract(reduction);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

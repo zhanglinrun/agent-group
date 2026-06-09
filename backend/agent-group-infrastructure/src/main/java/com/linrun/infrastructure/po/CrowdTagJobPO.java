@@ -95,3 +95,18 @@ public class CrowdTagJobPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -11,3 +11,18 @@ public class TradeConsistencyCheckRequest implements Serializable {
     private String userId;
     private Integer pageSize;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

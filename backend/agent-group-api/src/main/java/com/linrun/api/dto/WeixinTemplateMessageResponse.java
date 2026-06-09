@@ -14,3 +14,18 @@ public class WeixinTemplateMessageResponse implements Serializable {
     private String payload;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

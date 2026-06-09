@@ -92,3 +92,18 @@ public final class AcademicToolSchemaNormalizer {
         return schema;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

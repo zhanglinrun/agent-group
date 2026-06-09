@@ -144,3 +144,18 @@ public class AcademicImageGenerationToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

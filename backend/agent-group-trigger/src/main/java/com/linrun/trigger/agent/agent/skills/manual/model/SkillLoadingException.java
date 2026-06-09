@@ -3,9 +3,9 @@ package com.linrun.trigger.agent.agent.skills.manual.model;
 import java.io.IOException;
 
 /**
- * 技能加载异常。
+ * 技能加载异常�?
  *
- * 当技能加载、解析或读取失败时抛出此异常。
+ * 当技能加载、解析或读取失败时抛出此异常�?
  *
  * @author bigchui
  * 
@@ -50,3 +50,18 @@ public class SkillLoadingException extends RuntimeException {
         return skillName;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

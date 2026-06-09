@@ -9,7 +9,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * AI会话实体类
+ * AI会话实体�?
  * 对应数据库表 ai_session
  */
 @Data
@@ -29,7 +29,7 @@ public class AiSession {
     private String sessionId;
 
     /**
-     * 智能体类型（react/file/ppt）
+     * 智能体类型（react/file/ppt�?
      */
     @TableField("agent_type")
     private String agentType;
@@ -47,7 +47,7 @@ public class AiSession {
     private String answer;
 
     /**
-     * 涉及的执行工具名称（逗号分隔）
+     * 涉及的执行工具名称（逗号分隔�?
      */
     @TableField("tools")
     private String tools;
@@ -83,13 +83,13 @@ public class AiSession {
     private LocalDateTime updateTime;
 
     /**
-     * 思考过程
+     * 思考过�?
      */
     @TableField("thinking")
     private String thinking;
 
     /**
-     * 关联文件ID（用于关联ai_file_info或ai_ppt_inst）
+     * 关联文件ID（用于关联ai_file_info或ai_ppt_inst�?
      */
     @TableField("fileid")
     private String fileid;
@@ -100,3 +100,18 @@ public class AiSession {
     @TableField("recommend")
     private String recommend;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

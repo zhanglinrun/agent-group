@@ -96,3 +96,18 @@ public class UserMembershipAccountPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

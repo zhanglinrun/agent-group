@@ -113,3 +113,18 @@ public class GroupBuyStockFlowPO {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

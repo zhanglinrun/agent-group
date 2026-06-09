@@ -9,3 +9,18 @@ public record SearchResult(
         String content
 ) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

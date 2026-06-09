@@ -113,3 +113,18 @@ public class AcademicArtifactPO {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -149,3 +149,18 @@ abstract class SkillFileToolSupport {
     protected record ResolvedSkillPath(String skillName, Path skillRoot, Path path) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

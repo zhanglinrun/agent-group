@@ -59,3 +59,18 @@ public class StoredKnowledgeObject implements Serializable {
         this.objectSize = objectSize;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

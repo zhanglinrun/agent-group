@@ -37,7 +37,7 @@ public class AcademicExternalSearchService {
     }
 
     public boolean available() {
-        return StringUtils.hasText(tavilyApiKey) && !tavilyApiKey.contains("XXXXX");
+        return ApiKeyValidator.isValidApiKey(tavilyApiKey);
     }
 
     public List<SearchReference> search(String query, int limit) {
@@ -86,3 +86,18 @@ public class AcademicExternalSearchService {
     public record SearchReference(String title, String url, String content) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

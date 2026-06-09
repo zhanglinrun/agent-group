@@ -33,3 +33,18 @@ public class MyBatisGroupBuyActivityRepository implements GroupBuyActivityReposi
         return ActivityPOConverter.toActivities(groupBuyActivityDao.queryActivityList(Math.max(1, limit)));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

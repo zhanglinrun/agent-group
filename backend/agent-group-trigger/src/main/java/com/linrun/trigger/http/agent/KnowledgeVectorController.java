@@ -45,3 +45,18 @@ public class KnowledgeVectorController {
         return Response.success(knowledgeVectorOpsService.compensateFailedEmbedding(limit), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

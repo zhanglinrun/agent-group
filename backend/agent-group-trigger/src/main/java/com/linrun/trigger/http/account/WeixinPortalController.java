@@ -61,3 +61,18 @@ public class WeixinPortalController {
         return Response.success(weixinPortalHandler.sendTemplateMessage(request), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

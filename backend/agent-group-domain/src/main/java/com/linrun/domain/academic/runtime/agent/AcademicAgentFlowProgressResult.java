@@ -21,3 +21,18 @@ public class AcademicAgentFlowProgressResult {
         return currentStageIndex;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -30,3 +30,18 @@ public class AcademicWorkspaceMragRunResponse implements Serializable {
         private List<Map<String, Object>> fileRefs = new ArrayList<>();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

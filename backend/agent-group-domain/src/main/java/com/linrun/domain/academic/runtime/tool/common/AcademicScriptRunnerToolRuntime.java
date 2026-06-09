@@ -146,3 +146,18 @@ public class AcademicScriptRunnerToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

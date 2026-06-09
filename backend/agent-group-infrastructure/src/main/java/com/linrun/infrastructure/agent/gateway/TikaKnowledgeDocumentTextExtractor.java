@@ -43,7 +43,7 @@ public class TikaKnowledgeDocumentTextExtractor implements KnowledgeDocumentText
             if (StringUtils.hasText(fallback)) {
                 return fallback;
             }
-            throw new AppException("DOC_0001", "文档内容解析失败，请确认文件为可读取的 PDF、DOCX、TXT 或 Markdown");
+            throw new AppException("DOC_0001", "文档内容解析失败，请确认文件为可读取�?PDF、DOCX、TXT �?Markdown");
         }
     }
 
@@ -54,3 +54,18 @@ public class TikaKnowledgeDocumentTextExtractor implements KnowledgeDocumentText
         return StringUtils.hasText(text) ? text : "";
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

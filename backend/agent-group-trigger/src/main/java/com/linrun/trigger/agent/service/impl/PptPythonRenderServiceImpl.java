@@ -47,7 +47,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
         // ---------- 获取模板 ----------
         AiPptTemplate template = templateService.getByCode(inst.getTemplateCode());
         if (template == null) {
-            throw new RuntimeException("模板不存在: " + inst.getTemplateCode());
+            throw new RuntimeException("模板不存�? " + inst.getTemplateCode());
         }
 
         String pythonScriptPath = getPythonScriptPath();
@@ -61,7 +61,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
 
         File templateFile = new File(templateFilePath);
         if (!templateFile.exists()) {
-            throw new RuntimeException("模板文件不存在: " + templateFilePath);
+            throw new RuntimeException("模板文件不存�? " + templateFilePath);
         }
 
         // ---------- 构建命令 ----------
@@ -81,8 +81,8 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
 
         env.put("PYTHONIOENCODING", "utf-8");
 
-        // ---------- 处理 JSON 传递 ----------
-        // Windows 环境变量长度有限（32KB），大 JSON 会失败
+        // ---------- 处理 JSON 传�?----------
+        // Windows 环境变量长度有限�?2KB），�?JSON 会失�?
         // 超过 20KB 自动写入临时文件
         if (pptSchema.length() > 20000) {
 
@@ -90,7 +90,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
             Files.writeString(tempFile, pptSchema, StandardOpenOption.TRUNCATE_EXISTING);
 
             env.put("PPT_SCHEMA_FILE", tempFile.toAbsolutePath().toString());
-            log.info("JSON过大，使用临时文件传递: {}", tempFile);
+            log.info("JSON过大，使用临时文件传�? {}", tempFile);
 
         } else {
             env.put("PPT_SCHEMA", pptSchema);
@@ -112,7 +112,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
             }
         }
 
-        // ---------- 等待（最多5分钟） ----------
+        // ---------- 等待（最�?分钟�?----------
         long timeoutMs = 5 * 60 * 1000L;
         long startTime = System.currentTimeMillis();
         boolean finished = false;
@@ -128,7 +128,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
                 }
                 break;
             } catch (IllegalThreadStateException e) {
-                // 进程还在运行，继续等待
+                // 进程还在运行，继续等�?
                 Thread.sleep(1000);
             }
         }
@@ -145,10 +145,10 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
             throw new RuntimeException("Python脚本执行失败:\n" + output);
         }
 
-        // ---------- 检查输出 ----------
+        // ---------- 检查输�?----------
         File outputFile = new File(outputFilePath);
         if (!outputFile.exists()) {
-            throw new RuntimeException("PPT未生成: " + outputFilePath);
+            throw new RuntimeException("PPT未生�? " + outputFilePath);
         }
 
         // ---------- 上传到MinIO ----------
@@ -165,7 +165,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
         // ---------- 删除本地文件 ----------
         try {
             Files.deleteIfExists(outputFile.toPath());
-            log.info("本地PPT文件已删除: {}", outputFilePath);
+            log.info("本地PPT文件已删�? {}", outputFilePath);
         } catch (Exception e) {
             log.warn("删除本地文件失败: {}", outputFilePath, e);
         }
@@ -219,3 +219,18 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
         return outputDir;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

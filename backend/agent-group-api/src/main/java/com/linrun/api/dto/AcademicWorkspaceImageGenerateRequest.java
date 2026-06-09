@@ -21,3 +21,18 @@ public class AcademicWorkspaceImageGenerateRequest implements Serializable {
     private List<String> sourceImageUrls = new ArrayList<>();
     private List<String> maskImageUrls = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

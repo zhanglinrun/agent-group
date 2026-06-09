@@ -62,3 +62,18 @@ class AcademicToolSchemaNormalizerTest {
         assertEquals("object", definition.getInputSchema().get("type"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

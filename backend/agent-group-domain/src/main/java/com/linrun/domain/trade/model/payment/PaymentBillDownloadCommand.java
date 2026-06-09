@@ -9,3 +9,18 @@ public record PaymentBillDownloadCommand(
         boolean downloadContent,
         String billFileUrl) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

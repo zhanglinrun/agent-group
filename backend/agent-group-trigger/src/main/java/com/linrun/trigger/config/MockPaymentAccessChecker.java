@@ -23,3 +23,18 @@ public class MockPaymentAccessChecker {
                 .anyMatch(role -> "ROLE_ADMIN".equals(role) || "ROLE_OPERATOR".equals(role));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -16,3 +16,18 @@ public class CreatePayRequest implements Serializable {
     private String payChannel;
     private String idempotentKey;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

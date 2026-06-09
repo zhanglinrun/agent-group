@@ -154,7 +154,7 @@ public class AcademicFileUploadHandler {
         }
         String filename = safeFilename(file.getOriginalFilename());
         if (!StringUtils.hasText(filename) || filename.length() > MAX_FILENAME_LENGTH) {
-            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超过 160 个字符");
+            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超�?160 个字�?);
         }
         if (file.getSize() > maxFileSizeBytes) {
             throw new AppException("UPLOAD_0003", "上传文件超过大小限制");
@@ -178,7 +178,7 @@ public class AcademicFileUploadHandler {
         try {
             return file.getBytes();
         } catch (IOException e) {
-            throw new AppException("UPLOAD_0005", "上传文件读取失败：" + e.getMessage());
+            throw new AppException("UPLOAD_0005", "上传文件读取失败�? + e.getMessage());
         }
     }
 
@@ -230,3 +230,18 @@ public class AcademicFileUploadHandler {
         return prefix + UUID.randomUUID().toString().replace("-", "").substring(0, 18).toUpperCase();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

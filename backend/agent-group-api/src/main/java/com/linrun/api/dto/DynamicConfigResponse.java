@@ -13,3 +13,18 @@ public class DynamicConfigResponse implements Serializable {
     private String remark;
     private LocalDateTime updateTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

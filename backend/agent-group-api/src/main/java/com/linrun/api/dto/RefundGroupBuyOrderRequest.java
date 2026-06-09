@@ -12,3 +12,18 @@ public class RefundGroupBuyOrderRequest implements Serializable {
     private String refundReason;
     private LocalDateTime refundTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

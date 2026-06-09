@@ -9,3 +9,18 @@ public class BackupKnowledgeVectorRequest implements Serializable {
 
     private String knowledgeVersion;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

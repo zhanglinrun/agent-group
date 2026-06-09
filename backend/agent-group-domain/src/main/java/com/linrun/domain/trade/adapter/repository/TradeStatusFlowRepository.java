@@ -10,3 +10,18 @@ public interface TradeStatusFlowRepository {
 
     List<TradeStatusFlowEntity> queryByOrderId(String orderId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -11,3 +11,18 @@ public class ReconcilePaymentRequest implements Serializable {
     private String orderId;
     private LocalDate billDate;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -39,3 +39,18 @@ public class GroupBuyLockResult {
         this.repeated = repeated;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

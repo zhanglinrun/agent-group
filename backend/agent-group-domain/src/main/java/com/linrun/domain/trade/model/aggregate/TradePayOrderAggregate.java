@@ -24,3 +24,18 @@ public class TradePayOrderAggregate {
         this.payOrder = payOrder;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

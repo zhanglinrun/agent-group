@@ -47,3 +47,18 @@ public class MyBatisTradeEventConsumeRecordRepository implements TradeEventConsu
         return tradeEventConsumeRecordDao.updateStatusDeadLetter(TradePOConverter.toPO(record));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

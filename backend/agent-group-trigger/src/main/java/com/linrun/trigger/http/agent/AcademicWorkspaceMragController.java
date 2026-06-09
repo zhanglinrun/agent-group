@@ -38,3 +38,18 @@ public class AcademicWorkspaceMragController {
         return Response.success(workspaceMragService.history(token, sessionId, limit), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * 幻灯片图片信息
+ * 幻灯片图片信�?
  */
 @Data
 @Builder
@@ -29,12 +29,12 @@ public class SlideImage {
     private String url;
 
     /**
-     * 图片提示词（用于生成图片）
+     * 图片提示词（用于生成图片�?
      */
     private String imagePrompt;
 
     /**
-     * 图片在页面中的位置（可选，如"顶部"、"底部"、"左侧"、"右侧"）
+     * 图片在页面中的位置（可选，�?顶部"�?底部"�?左侧"�?右侧"�?
      */
     private String position;
 
@@ -44,14 +44,14 @@ public class SlideImage {
     private String description;
 
     /**
-     * 转换为JSON字符串
+     * 转换为JSON字符�?
      */
     public String toJson() {
         return JSONObject.toJSONString(this);
     }
 
     /**
-     * 从JSON字符串创建对象
+     * 从JSON字符串创建对�?
      */
     public static SlideImage fromJson(String json) {
         return JSONObject.parseObject(json, SlideImage.class);
@@ -65,9 +65,24 @@ public class SlideImage {
     }
 
     /**
-     * 转换为JSON字符串
+     * 转换为JSON字符�?
      */
     public static String toJson(List<SlideImage> images) {
         return JSONObject.toJSONString(images);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -14,3 +14,18 @@ public class AcademicSessionSummaryDTO implements Serializable {
     private String lastMessage;
     private LocalDateTime updateTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

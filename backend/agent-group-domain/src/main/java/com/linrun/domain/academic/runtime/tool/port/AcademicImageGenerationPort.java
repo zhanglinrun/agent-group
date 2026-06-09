@@ -56,3 +56,18 @@ public interface AcademicImageGenerationPort {
                                          String errorMessage) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

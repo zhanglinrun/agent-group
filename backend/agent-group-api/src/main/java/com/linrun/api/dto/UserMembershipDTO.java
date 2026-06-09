@@ -20,3 +20,18 @@ public class UserMembershipDTO implements Serializable {
     private LocalDateTime cycleEndTime;
     private boolean active;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,7 +1,7 @@
 package com.linrun.domain.agent.conversation.service;
 
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.service.GroupBuyActivityService;
@@ -19,10 +19,10 @@ class QuotaPackageCatalogServiceTest {
     @Test
     void shouldListPackagesWithGroupBuyTrialInfo() {
         QuotaPackageCatalogService service = new QuotaPackageCatalogService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new GroupBuyActivityService(new FakeGroupBuyActivityRepository()));
 
-        List<GuideProduct> packages = service.listPackages("", 10);
+        List<QuotaProduct> packages = service.listPackages("", 10);
 
         assertEquals(3, packages.size());
         assertEquals("A10001", packages.get(0).getActivityId());
@@ -38,22 +38,22 @@ class QuotaPackageCatalogServiceTest {
     @Test
     void shouldQueryPackageDetail() {
         QuotaPackageCatalogService service = new QuotaPackageCatalogService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new GroupBuyActivityService(new FakeGroupBuyActivityRepository()));
 
-        GuideProduct product = service.queryPackageDetail("G10002");
+        QuotaProduct product = service.queryPackageDetail("G10002");
 
         assertEquals("G10002", product.getGoodsId());
-        assertEquals("论文阅读额度包", product.getGoodsName());
+        assertEquals("论文阅读额度�?, product.getGoodsName());
     }
 
     @Test
     void shouldQueryMembershipPlanDetail() {
         QuotaPackageCatalogService service = new QuotaPackageCatalogService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new GroupBuyActivityService(new FakeGroupBuyActivityRepository()));
 
-        GuideProduct product = service.queryPackageDetail("MEMBER_PLUS_MONTH");
+        QuotaProduct product = service.queryPackageDetail("MEMBER_PLUS_MONTH");
 
         assertEquals("MEMBER_PLUS_MONTH", product.getGoodsId());
         assertEquals("Plus 会员", product.getGoodsName());
@@ -62,25 +62,25 @@ class QuotaPackageCatalogServiceTest {
         assertEquals(3, product.getTeamSize());
     }
 
-    private static class FakeGuideDataRepository implements GuideDataRepository {
+    private static class FakeQuotaProductRepository implements QuotaProductRepository {
 
         @Override
-        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
             return List.of(
-                    product("G10001", "基础额度包"),
-                    product("G10002", "论文阅读额度包"),
+                    product("G10001", "基础额度�?),
+                    product("G10002", "论文阅读额度�?),
                     membershipPlan("MEMBER_PLUS_MONTH", "Plus 会员"));
         }
 
         @Override
-        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+        public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
             return queryCandidateProducts(goodsId, 10).stream()
                     .filter(product -> goodsId.equals(product.getGoodsId()))
                     .findFirst();
         }
 
-        private GuideProduct product(String goodsId, String goodsName) {
-            GuideProduct product = new GuideProduct();
+        private QuotaProduct product(String goodsId, String goodsName) {
+            QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
             product.setGoodsName(goodsName);
             product.setOriginPrice(new BigDecimal("29.90"));
@@ -89,12 +89,12 @@ class QuotaPackageCatalogServiceTest {
             product.setProductType("QUOTA_PACKAGE");
             product.setSpecSummary("适合学术问答、论文摘要和资料整理");
             product.setRecommendReason("适合轻量学术任务");
-            product.setAfterSalePolicy("未使用额度可按规则退款");
+            product.setAfterSalePolicy("未使用额度可按规则退�?);
             return product;
         }
 
-        private GuideProduct membershipPlan(String goodsId, String goodsName) {
-            GuideProduct product = new GuideProduct();
+        private QuotaProduct membershipPlan(String goodsId, String goodsName) {
+            QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
             product.setGoodsName(goodsName);
             product.setOriginPrice(new BigDecimal("39.90"));
@@ -102,7 +102,7 @@ class QuotaPackageCatalogServiceTest {
             product.setProductType("MEMBERSHIP_PLAN");
             product.setSpecSummary("每月会员额度和自定义模型权益");
             product.setRecommendReason("适合高频使用学术助手");
-            product.setAfterSalePolicy("会员开通后按虚拟服务规则处理售后");
+            product.setAfterSalePolicy("会员开通后按虚拟服务规则处理售�?);
             return product;
         }
     }
@@ -128,3 +128,18 @@ class QuotaPackageCatalogServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

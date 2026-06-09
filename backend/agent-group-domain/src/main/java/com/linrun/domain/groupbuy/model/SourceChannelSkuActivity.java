@@ -48,3 +48,18 @@ public class SourceChannelSkuActivity {
         this.goodsId = goodsId;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

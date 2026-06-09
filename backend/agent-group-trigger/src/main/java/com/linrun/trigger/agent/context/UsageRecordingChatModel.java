@@ -36,3 +36,18 @@ public class UsageRecordingChatModel implements ChatModel {
         return delegate.getDefaultOptions();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

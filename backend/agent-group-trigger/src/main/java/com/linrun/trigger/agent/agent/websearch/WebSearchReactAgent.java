@@ -78,7 +78,7 @@ public class WebSearchReactAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
 
-        // 初始化工具记录集合
+        // 初始化工具记录集�?
         this.usedTools = new HashSet<>();
 
         initChatClient();
@@ -166,7 +166,7 @@ public class WebSearchReactAgent extends BaseAgent {
         messages.add(new UserMessage("<question>" + question + "</question>"));
         currentQuestion = question;
 
-        // 添加记忆并保存到数据库
+        // 添加记忆并保存到数据�?
         if (sessionService != null) {
             // 保存用户问题到数据库
             AiSession savedSession = sessionService.saveQuestion(
@@ -188,7 +188,7 @@ public class WebSearchReactAgent extends BaseAgent {
 
         // 收集最终答案（纯文本），存储memory
         StringBuilder finalAnswerBuffer = new StringBuilder();
-        // 收集思考过程
+        // 收集思考过�?
         StringBuilder thinkingBuffer = new StringBuilder();
 
         AgentState agentState = new AgentState();
@@ -198,7 +198,7 @@ public class WebSearchReactAgent extends BaseAgent {
         return sink.asFlux()
                 .doOnNext(chunk -> {
                     recordFirstResponse();
-                    // 解析 JSON，如果是 type=text，则只拼接 content；如果是 type=thinking，则拼接 thinking
+                    // 解析 JSON，如果是 type=text，则只拼�?content；如果是 type=thinking，则拼接 thinking
                     try {
                         JSONObject json = JSON.parseObject(chunk);
                         String type = json.getString("type");
@@ -208,7 +208,7 @@ public class WebSearchReactAgent extends BaseAgent {
                             thinkingBuffer.append(json.getString("content"));
                         }
                     } catch (Exception e) {
-                        // 解析失败，直接拼接
+                        // 解析失败，直接拼�?
                         finalAnswerBuffer.append(chunk);
                     }
                 })
@@ -219,14 +219,13 @@ public class WebSearchReactAgent extends BaseAgent {
                     }
                 })
                 .doFinally(signalType -> {
-                    log.info("最终答案: {}", finalAnswerBuffer);
-                    log.info("思考过程: {}", thinkingBuffer);
+                    log.info("最终答�? {}", finalAnswerBuffer);
+                    log.info("思考过�? {}", thinkingBuffer);
 
-                    // 保存结果到会话
+                    // 保存结果到会�?
                     saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer, agentState);
 
-                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消息
-                    if (taskManager != null) {
+                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消�?                    if (taskManager != null) {
                         taskManager.completeTask(conversationId);
                     }
                 });
@@ -295,7 +294,7 @@ public class WebSearchReactAgent extends BaseAgent {
         String text = gen.getOutput().getText();
         List<AssistantMessage.ToolCall> tc = gen.getOutput().getToolCalls();
 
-        // 一旦发现 tool_call，立即进入 TOOL_CALL 模式
+        // 一旦发�?tool_call，立即进�?TOOL_CALL 模式
         if (tc != null && !tc.isEmpty()) {
             state.mode = RoundMode.TOOL_CALL;
 
@@ -305,7 +304,7 @@ public class WebSearchReactAgent extends BaseAgent {
             return;
         }
 
-        // 还没出现 tool_call，使用 ThinkTagParser 解析 <think/> 标签
+        // 还没出现 tool_call，使�?ThinkTagParser 解析 <think/> 标签
         if (text != null) {
             ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(text, state.inThink);
             state.inThink = parseResult.inThink();
@@ -356,21 +355,20 @@ public class WebSearchReactAgent extends BaseAgent {
                 state.mode = RoundMode.TOOL_CALL;
                 state.toolCalls.add(pseudoCall);
             } else {
-                sink.tryEmitNext(createTextResponse("\n\n搜索工具调用格式不完整，请重新提问或换一个更具体的问题。"));
+                sink.tryEmitNext(createTextResponse("\n\n搜索工具调用格式不完整，请重新提问或换一个更具体的问题�?));
                 sink.tryEmitComplete();
                 hasSentFinalResult.set(true);
                 return;
             }
         }
 
-        // 如果整轮都没有 tool_call，才是最终答案
-        if (state.getMode() != RoundMode.TOOL_CALL) {
+        // 如果整轮都没�?tool_call，才是最终答�?        if (state.getMode() != RoundMode.TOOL_CALL) {
             flushPendingText(state, sink);
             String referenceJson = "";
             String toolsStr = getUsedToolsString();
             String finalText = state.textBuffer.toString();
 
-            // 输出参考链接
+            // 输出参考链�?
             if (!agentState.searchResults.isEmpty()) {
                 String reference = JSON.toJSONString(agentState.searchResults);
                 referenceJson = createReferenceResponse(reference);
@@ -381,7 +379,7 @@ public class WebSearchReactAgent extends BaseAgent {
             if (enableRecommendations) {
                 String recommendations = generateRecommendations(conversationId, currentQuestion, finalText);
                 if (recommendations != null) {
-                    currentRecommendations = recommendations; // 保存用于数据库存储
+                    currentRecommendations = recommendations; // 保存用于数据库存�?
                     String recommendJson = createRecommendResponse(recommendations);
                     sink.tryEmitNext(recommendJson);
                 }
@@ -415,7 +413,7 @@ public class WebSearchReactAgent extends BaseAgent {
         // 创建新的消息列表，确保系统提示词在最前面
         List<Message> newMessages = new ArrayList<>();
 
-        // 添加系统提示词
+        // 添加系统提示�?
         newMessages.add(new SystemMessage(ReactAgentPrompts.getWebSearchPrompt()));
         if (StringUtils.isNotBlank(systemPrompt)) {
             newMessages.add(new SystemMessage(systemPrompt));
@@ -430,18 +428,18 @@ public class WebSearchReactAgent extends BaseAgent {
 
         // 添加限制提示
         newMessages.add(new UserMessage("""
-                你已达到最大推理轮次限制。
+                你已达到最大推理轮次限制�?
                 请基于当前已有的上下文信息，
-                直接给出最终答案。
-                禁止再调用任何工具。
-                如果信息不完整，请合理总结和说明。
+                直接给出最终答案�?
+                禁止再调用任何工具�?
+                如果信息不完整，请合理总结和说明�?
                 """));
 
-        // 替换原消息列表
+        // 替换原消息列�?
         messages.clear();
         messages.addAll(newMessages);
 
-        // 收集最终文本
+        // 收集最终文�?
         StringBuilder finalTextBuffer = new StringBuilder();
 
         Disposable disposable = chatClient.prompt()
@@ -475,7 +473,7 @@ public class WebSearchReactAgent extends BaseAgent {
                     String referenceJson = "";
                     String finalText = finalTextBuffer.toString();
 
-                    // 输出参考链接
+                    // 输出参考链�?
                     if (!agentState.searchResults.isEmpty()) {
                         String reference = JSON.toJSONString(agentState.searchResults);
                         referenceJson = createReferenceResponse(reference);
@@ -486,7 +484,7 @@ public class WebSearchReactAgent extends BaseAgent {
                     if (enableRecommendations) {
                         String recommendations = generateRecommendations(conversationId, currentQuestion, finalText);
                         if (recommendations != null) {
-                            currentRecommendations = recommendations; // 保存用于数据库存储
+                            currentRecommendations = recommendations; // 保存用于数据库存�?
                             String recommendJson = createRecommendResponse(recommendations);
                             sink.tryEmitNext(recommendJson);
                         }
@@ -511,7 +509,7 @@ public class WebSearchReactAgent extends BaseAgent {
         AtomicInteger completedCount = new AtomicInteger(0);
         int totalToolCalls = toolCalls.size();
 
-        // 保证顺序一致性
+        // 保证顺序一致�?
         Map<String, ToolResponseMessage.ToolResponse> responseMap = new ConcurrentHashMap<>();
 
         for (AssistantMessage.ToolCall tc : toolCalls) {
@@ -535,7 +533,7 @@ public class WebSearchReactAgent extends BaseAgent {
                 if (toolName.contains("search")) {
                     JSONObject args = JSON.parseObject(argsJson);
                     String query = (String) args.get("query");
-                    // 发送 thinking 消息，表示正在搜索相关信息
+                    // 发�?thinking 消息，表示正在搜索相关信�?
                     String queryThink = StringUtils.isNotBlank(query) ? "🔍 正在搜索信息: " + query + "\n" : "🔍 正在搜索相关信息\n";
                     sink.tryEmitNext(createThinkingResponse(queryThink));
                 }
@@ -544,7 +542,7 @@ public class WebSearchReactAgent extends BaseAgent {
                     Object result = callback.call(argsJson);
                     String resultStr = result.toString();
 
-                    // 记录使用的工具
+                    // 记录使用的工�?
                     recordUsedTool(toolName);
 
                     // 解析搜索结果
@@ -552,13 +550,13 @@ public class WebSearchReactAgent extends BaseAgent {
                         parseSearchResult(resultStr, agentState);
                     }
 
-                    // 将结果放入 responseMap，key 为 toolCall.id()
+                    // 将结果放�?responseMap，key �?toolCall.id()
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
                             tc.id(), toolName, resultStr));
                 } catch (Exception ex) {
-                    // 工具执行失败时，也放入 responseMap
+                    // 工具执行失败时，也放�?responseMap
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }"));
+                            tc.id(), toolName, "{ \"error\": \"工具执行失败�? + ex.getMessage() + "\" }"));
                 } finally {
                     completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
                 }
@@ -573,14 +571,14 @@ public class WebSearchReactAgent extends BaseAgent {
                                   Runnable onComplete) {
         int current = completedCount.incrementAndGet();
         if (current >= total) {
-            // 按原始 toolCalls 的顺序重组结果
+            // 按原�?toolCalls 的顺序重组结�?
             List<ToolResponseMessage.ToolResponse> sortedResponses = new ArrayList<>();
             for (AssistantMessage.ToolCall tc : originalToolCalls) {
                 ToolResponseMessage.ToolResponse response = responseMap.get(tc.id());
                 if (response != null) {
                     sortedResponses.add(response);
                 } else {
-                    // 如果某个工具调用没有响应，添加一个错误响应
+                    // 如果某个工具调用没有响应，添加一个错误响�?
                     sortedResponses.add(new ToolResponseMessage.ToolResponse(
                             tc.id(), tc.name(), "{ \"error\": \"工具响应丢失\" }"));
                 }
@@ -816,10 +814,25 @@ public class WebSearchReactAgent extends BaseAgent {
 
         public WebSearchReactAgent build() {
             if (chatModel == null) {
-                throw new IllegalArgumentException("chatModel 不能为空！");
+                throw new IllegalArgumentException("chatModel 不能为空�?);
             }
             return new WebSearchReactAgent(name, chatModel, tools, systemPrompt, maxRounds, chatMemory, advisors, maxReflectionRounds, sessionService, taskManager);
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

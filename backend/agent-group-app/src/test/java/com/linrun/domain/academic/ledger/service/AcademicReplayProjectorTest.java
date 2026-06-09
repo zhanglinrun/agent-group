@@ -1,7 +1,7 @@
 package com.linrun.domain.academic.ledger.service;
 
 import com.linrun.api.dto.AcademicReplayResponse;
-import com.linrun.api.dto.GuideStreamEvent;
+import com.linrun.api.dto.QuotaStreamEvent;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
@@ -36,11 +36,11 @@ class AcademicReplayProjectorTest {
         toolInvocation.setToolCallId("CALL1001");
         toolInvocation.setToolName(AcademicToolOutputNames.REPORT_TOOL);
         toolInvocation.setStatus(AcademicAgentRun.STATUS_SUCCESS);
-        toolInvocation.setResultSummary("报告已生成");
+        toolInvocation.setResultSummary("报告已生�?);
         toolInvocation.setResultJson("""
                 {
                   "toolName": "report_tool",
-                  "summary": "报告已生成",
+                  "summary": "报告已生�?,
                   "fileRefs": [{"artifactId": "A2001", "fileName": "report.md"}]
                 }
                 """);
@@ -53,7 +53,7 @@ class AcademicReplayProjectorTest {
 
         AcademicReplayResponse response = projector.project(run, List.of(), List.of(toolInvocation), List.of(artifact));
 
-        GuideStreamEvent<Map<String, Object>> toolResult = response.getEvents().stream()
+        QuotaStreamEvent<Map<String, Object>> toolResult = response.getEvents().stream()
                 .filter(event -> "tool_result".equals(event.getEvent()))
                 .findFirst()
                 .orElseThrow();
@@ -152,3 +152,18 @@ class AcademicReplayProjectorTest {
         return invocation;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

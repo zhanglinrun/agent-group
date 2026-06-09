@@ -12,3 +12,18 @@ public class ApproveHumanApprovalRequest implements Serializable {
     private Boolean approved;
     private String reason;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -14,3 +14,18 @@ public class AcademicFileUploadResponse implements Serializable {
     private String summary;
     private String status;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

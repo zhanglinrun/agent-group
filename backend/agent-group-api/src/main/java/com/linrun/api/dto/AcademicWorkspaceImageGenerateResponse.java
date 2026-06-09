@@ -47,3 +47,18 @@ public class AcademicWorkspaceImageGenerateResponse implements Serializable {
         private String previewUrl;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

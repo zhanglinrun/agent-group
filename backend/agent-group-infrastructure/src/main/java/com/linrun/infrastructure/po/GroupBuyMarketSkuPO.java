@@ -59,3 +59,18 @@ public class GroupBuyMarketSkuPO {
         this.originalPrice = originalPrice;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -13,3 +13,18 @@ public class AcademicProjectPatchCreateRequest implements Serializable {
     private String beforeText;
     private String afterText;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

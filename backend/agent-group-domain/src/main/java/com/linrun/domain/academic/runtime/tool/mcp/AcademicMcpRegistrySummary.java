@@ -45,3 +45,18 @@ public record AcademicMcpRegistrySummary(int serverCount,
         return enabledToolCount > 0;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

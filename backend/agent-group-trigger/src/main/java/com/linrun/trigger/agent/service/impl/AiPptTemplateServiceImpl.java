@@ -39,3 +39,18 @@ public class AiPptTemplateServiceImpl extends ServiceImpl<AiPptTemplateMapper, A
         return list(wrapper);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

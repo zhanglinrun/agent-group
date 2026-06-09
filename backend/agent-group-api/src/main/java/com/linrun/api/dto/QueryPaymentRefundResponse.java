@@ -21,3 +21,18 @@ public class QueryPaymentRefundResponse implements Serializable {
     private String rawBody;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -8,8 +8,8 @@ import com.linrun.api.dto.AcademicReplayResponse;
 import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
 import com.linrun.api.dto.AcademicSessionSummaryDTO;
-import com.linrun.api.dto.GuideStreamEvent;
-import com.linrun.domain.agent.conversation.adapter.GuideStreamControlRepository;
+import com.linrun.api.dto.QuotaStreamEvent;
+import com.linrun.domain.agent.conversation.adapter.QuotaStreamControlRepository;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.common.Response;
 import org.springframework.http.MediaType;
@@ -43,14 +43,14 @@ import java.nio.file.Files;
 public class AcademicAgentController {
 
     private final AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler;
-    private final GuideStreamControlRepository guideStreamControlRepository;
+    private final QuotaStreamControlRepository QuotaStreamControlRepository;
     private final ObjectMapper objectMapper;
 
     public AcademicAgentController(AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler,
-                                   GuideStreamControlRepository guideStreamControlRepository,
+                                   QuotaStreamControlRepository QuotaStreamControlRepository,
                                    ObjectMapper objectMapper) {
         this.academicBearDoctorAgentHandler = academicBearDoctorAgentHandler;
-        this.guideStreamControlRepository = guideStreamControlRepository;
+        this.QuotaStreamControlRepository = QuotaStreamControlRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -75,7 +75,7 @@ public class AcademicAgentController {
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam String sessionId) {
         Map<String, Object> status = academicBearDoctorAgentHandler.queryTaskStatus(token, sessionId);
-        status.put("stopped", guideStreamControlRepository.isStopped(sessionId));
+        status.put("stopped", QuotaStreamControlRepository.isStopped(sessionId));
         return Response.success(status, RequestTraceContext.getRequestId());
     }
 
@@ -90,7 +90,7 @@ public class AcademicAgentController {
                 ? safeRequest.getSessionId()
                 : "AS" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
-        guideStreamControlRepository.clearStopped(sessionId);
+        QuotaStreamControlRepository.clearStopped(sessionId);
         return academicBearDoctorAgentHandler.backgroundStreamEventFlux(
                         token,
                         safeRequest,
@@ -105,7 +105,7 @@ public class AcademicAgentController {
         String sessionId = request == null ? "" : request.getSessionId();
         String requestId = UUID.randomUUID().toString();
         if (!StringUtils.hasText(sessionId)) {
-            return Flux.just(toJson(GuideStreamEvent.of("error", "", requestId, 1,
+            return Flux.just(toJson(QuotaStreamEvent.of("error", "", requestId, 1,
                     Map.of("code", "0001", "message", "会话编号不能为空"))));
         }
         return academicBearDoctorAgentHandler.attachEventFlux(token, sessionId, requestId)
@@ -125,7 +125,7 @@ public class AcademicAgentController {
         String sessionId = request == null ? "" : request.get("sessionId");
         boolean stopped = true;
         if (StringUtils.hasText(sessionId)) {
-            guideStreamControlRepository.markStopped(sessionId);
+            QuotaStreamControlRepository.markStopped(sessionId);
             stopped = academicBearDoctorAgentHandler.stop(token, sessionId);
         }
         return Response.success(stopped, RequestTraceContext.getRequestId());
@@ -215,11 +215,26 @@ public class AcademicAgentController {
         target.setOutputStyle(source.getOutputStyle());
     }
 
-    private String toJson(GuideStreamEvent<?> event) {
+    private String toJson(QuotaStreamEvent<?> event) {
         try {
             return objectMapper.writeValueAsString(event);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("学术智能体流事件序列化失败", e);
+            throw new IllegalStateException("学术智能体流事件序列化失�?, e);
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

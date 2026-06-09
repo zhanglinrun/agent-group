@@ -3,7 +3,7 @@ package com.linrun.trigger.agent.common;
 import java.io.Serializable;
 
 /**
- * 统一返回结果类
+ * 统一返回结果�?
  */
 public class BaseResult<T> implements Serializable {
 
@@ -37,7 +37,7 @@ public class BaseResult<T> implements Serializable {
     }
 
     /**
-     * 正常响应（链式），200
+     * 正常响应（链式）�?00
      */
     public BaseResult<T> ok(Object data, String msg) {
         this.code = CODE_SUCCESS;
@@ -58,7 +58,7 @@ public class BaseResult<T> implements Serializable {
     }
 
     /**
-     * 能响应但业务异常，240
+     * 能响应但业务异常�?40
      */
     public static <T> BaseResult<T> newException(String message) {
         return new BaseResult<>(CODE_SUCCESS_ERR, message, null);
@@ -87,18 +87,18 @@ public class BaseResult<T> implements Serializable {
      * 未认证，401
      */
     public static <T> BaseResult<T> newAuthError() {
-        return new BaseResult<>(CODE_NO_LOGIN, "未认证", null);
+        return new BaseResult<>(CODE_NO_LOGIN, "未认�?, null);
     }
 
     /**
-     * 请求禁止，403
+     * 请求禁止�?03
      */
     public static BaseResult forbidden(String message) {
         return fail(CODE_FORBIDDEN, message);
     }
 
     /**
-     * 未授权（业务权限不足），401 或 405 可按业务扩展
+     * 未授权（业务权限不足），401 �?405 可按业务扩展
      */
     public static BaseResult unauthorized(String message) {
         return fail(CODE_NO_LOGIN, message);
@@ -133,7 +133,7 @@ public class BaseResult<T> implements Serializable {
     }
 
     /**
-     * 正常响应，200
+     * 正常响应�?00
      */
     public static final Integer CODE_SUCCESS = 200;
     /**
@@ -145,7 +145,7 @@ public class BaseResult<T> implements Serializable {
      */
     public static final Integer CODE_SUCCESS_WARN = 230;
     /**
-     * 正常响应，但业务异常，240
+     * 正常响应，但业务异常�?40
      */
     public static final Integer CODE_SUCCESS_ERR = 240;
     /**
@@ -153,11 +153,11 @@ public class BaseResult<T> implements Serializable {
      */
     public static final Integer CODE_NO_LOGIN = 401;
     /**
-     * 请求禁止（XSS、CSRF等），403
+     * 请求禁止（XSS、CSRF等）�?03
      */
     public static final Integer CODE_FORBIDDEN = 403;
     /**
-     * 业务授权禁止，405
+     * 业务授权禁止�?05
      */
     public static final Integer CODE_NOT_ALLOWED = 405;
     /**
@@ -169,7 +169,22 @@ public class BaseResult<T> implements Serializable {
      */
     public static final Integer CODE_NO_REG_MODULE = 421;
     /**
-     * 服务异常，500
+     * 服务异常�?00
      */
     public static final Integer CODE_SERVER_ERROR = 500;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -11,3 +11,18 @@ public class QuotaGrantOrderRequest implements Serializable {
 
     private List<String> orderIds = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

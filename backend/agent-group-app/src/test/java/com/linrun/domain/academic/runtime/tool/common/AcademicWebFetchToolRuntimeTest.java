@@ -27,7 +27,7 @@ class AcademicWebFetchToolRuntimeTest {
             byte[] bytes = """
                     <html>
                     <head><title>Agent Group Article</title><style>.x{display:none}</style></head>
-                    <body><h1>拼团交易</h1><p>支付成功后等待成团，成团后发放额度。</p></body>
+                    <body><h1>拼团交易</h1><p>支付成功后等待成团，成团后发放额度�?/p></body>
                     </html>
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, bytes.length);
@@ -48,7 +48,7 @@ class AcademicWebFetchToolRuntimeTest {
             Map<String, Object> metadata = (Map<String, Object>) result.getResult().get("metadata");
             assertTrue(result.isSuccess());
             assertEquals("Agent Group Article", result.getResult().get("title"));
-            assertTrue(String.valueOf(result.getResult().get("content")).contains("成团后发放额度"));
+            assertTrue(String.valueOf(result.getResult().get("content")).contains("成团后发放额�?));
             assertEquals(200, metadata.get("statusCode"));
         } finally {
             server.stop(0);
@@ -67,3 +67,18 @@ class AcademicWebFetchToolRuntimeTest {
         assertEquals("WEB_FETCH_0001", exception.getCode());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

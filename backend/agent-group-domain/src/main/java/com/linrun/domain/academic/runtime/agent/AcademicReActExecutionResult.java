@@ -17,3 +17,18 @@ public record AcademicReActExecutionResult(List<AcademicReActTurn> turns,
         return value == null ? "" : value.trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

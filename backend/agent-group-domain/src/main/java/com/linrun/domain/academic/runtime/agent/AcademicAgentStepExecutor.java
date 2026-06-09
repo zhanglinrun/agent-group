@@ -6,3 +6,18 @@ public interface AcademicAgentStepExecutor {
     AcademicAgentStepExecutionResult execute(AcademicPlanStep step,
                                              AcademicAgentFlowExecutionContext context);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

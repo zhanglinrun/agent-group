@@ -8,3 +8,18 @@ public record PaymentGatewayErrorMapping(
         boolean retryable,
         String suggestion) {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

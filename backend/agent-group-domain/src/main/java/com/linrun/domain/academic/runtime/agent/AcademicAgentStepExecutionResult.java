@@ -14,3 +14,18 @@ public record AcademicAgentStepExecutionResult(boolean success, String note) {
         return value == null ? "" : value.trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

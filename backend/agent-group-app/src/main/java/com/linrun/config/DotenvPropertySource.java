@@ -59,8 +59,7 @@ final class DotenvPropertySource {
                 parseEnvLine(line, values);
             }
         } catch (IOException ignored) {
-            // 本地 .env 只作为开发期兜底，读取失败时继续走系统环境变量。
-        }
+            // 本地 .env 只作为开发期兜底，读取失败时继续走系统环境变量�?        }
     }
 
     private static void parseEnvLine(String line, Map<String, Object> values) {
@@ -94,3 +93,18 @@ final class DotenvPropertySource {
         return commentIndex >= 0 ? value.substring(0, commentIndex).trim() : value;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

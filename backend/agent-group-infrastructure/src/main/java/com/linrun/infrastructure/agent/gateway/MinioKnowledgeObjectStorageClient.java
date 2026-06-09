@@ -55,7 +55,7 @@ public class MinioKnowledgeObjectStorageClient implements KnowledgeObjectStorage
                     .build());
             return storedObject(originalFilename, safeContentType, content.length, objectKey);
         } catch (Exception e) {
-            throw new AppException("MINIO_0001", "知识文档写入对象存储失败：" + e.getMessage());
+            throw new AppException("MINIO_0001", "知识文档写入对象存储失败�? + e.getMessage());
         }
     }
 
@@ -111,3 +111,18 @@ public class MinioKnowledgeObjectStorageClient implements KnowledgeObjectStorage
         return StringUtils.hasText(normalized) ? normalized : fallback;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -62,12 +62,12 @@ public class PaymentWebhookReplayGuard {
     private LocalDateTime validateWebhookTime(PaymentWebhookResult result) {
         LocalDateTime webhookTime = result.getWebhookTime();
         if (webhookTime == null) {
-            throw new AppException("PAY_0008", "真实支付回调缺少时间戳");
+            throw new AppException("PAY_0008", "真实支付回调缺少时间�?);
         }
         LocalDateTime now = LocalDateTime.now();
         long ageSeconds = Math.abs(Duration.between(webhookTime, now).toSeconds());
         if (ageSeconds > replayWindowSeconds) {
-            throw new AppException("PAY_0009", "支付回调已超过防重放时间窗");
+            throw new AppException("PAY_0009", "支付回调已超过防重放时间�?);
         }
         return now;
     }
@@ -84,3 +84,18 @@ public class PaymentWebhookReplayGuard {
                 Duration.between(entry.getValue(), now).toSeconds() > replayWindowSeconds);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

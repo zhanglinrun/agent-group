@@ -30,3 +30,18 @@ public interface KnowledgeDocumentRepository {
                                                    boolean enabled) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

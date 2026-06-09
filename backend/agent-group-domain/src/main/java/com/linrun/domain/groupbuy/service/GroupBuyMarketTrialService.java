@@ -1,6 +1,6 @@
 package com.linrun.domain.groupbuy.service;
 
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
 import com.linrun.domain.support.config.service.DynamicConfigService;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyMarketRepository;
@@ -29,18 +29,18 @@ public class GroupBuyMarketTrialService {
 
     public GroupBuyMarketTrialService(GroupBuyActivityRepository groupBuyActivityRepository,
                                       GroupBuyMarketRepository groupBuyMarketRepository,
-                                      GuideDataRepository guideDataRepository,
+                                      QuotaProductRepository QuotaProductRepository,
                                       DynamicConfigService dynamicConfigService,
                                       Map<String, DiscountCalculateService> discountCalculateServiceMap) {
         this(groupBuyActivityRepository, groupBuyMarketRepository, GroupBuyStockRepository.noop(),
-                guideDataRepository, dynamicConfigService, discountCalculateServiceMap);
+                QuotaProductRepository, dynamicConfigService, discountCalculateServiceMap);
     }
 
     @Autowired
     public GroupBuyMarketTrialService(GroupBuyActivityRepository groupBuyActivityRepository,
                                       GroupBuyMarketRepository groupBuyMarketRepository,
                                       GroupBuyStockRepository groupBuyStockRepository,
-                                      GuideDataRepository guideDataRepository,
+                                      QuotaProductRepository QuotaProductRepository,
                                       DynamicConfigService dynamicConfigService,
                                       Map<String, DiscountCalculateService> discountCalculateServiceMap) {
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> endNode =
@@ -48,7 +48,7 @@ public class GroupBuyMarketTrialService {
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> tagNode =
                 new TagTrialNode(groupBuyMarketRepository, endNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> marketNode =
-                new MarketTrialNode(groupBuyActivityRepository, groupBuyMarketRepository, guideDataRepository,
+                new MarketTrialNode(groupBuyActivityRepository, groupBuyMarketRepository, QuotaProductRepository,
                         groupBuyStockRepository, discountCalculateServiceMap, tagNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> switchNode =
                 new SwitchTrialNode(dynamicConfigService, marketNode);
@@ -66,3 +66,18 @@ public class GroupBuyMarketTrialService {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

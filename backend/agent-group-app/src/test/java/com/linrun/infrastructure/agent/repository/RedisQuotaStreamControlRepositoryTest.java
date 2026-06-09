@@ -12,7 +12,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class RedisGuideStreamControlRepositoryTest {
+class RedisQuotaStreamControlRepositoryTest {
 
     @Test
     void shouldStoreStopFlagInRedis() {
@@ -22,7 +22,7 @@ class RedisGuideStreamControlRepositoryTest {
         RTopic topic = mock(RTopic.class);
         when(redissonClient.<String>getBucket("test-agent:guide:stop:S10001")).thenReturn(bucket);
         when(redissonClient.getTopic("test-agent:guide:stop:topic")).thenReturn(topic);
-        RedisGuideStreamControlRepository repository = new RedisGuideStreamControlRepository(redissonClient, "test-agent");
+        RedisQuotaStreamControlRepository repository = new RedisQuotaStreamControlRepository(redissonClient, "test-agent");
 
         repository.markStopped("S10001");
 
@@ -37,8 +37,23 @@ class RedisGuideStreamControlRepositoryTest {
         RBucket<String> bucket = mock(RBucket.class);
         when(redissonClient.<String>getBucket("test-agent:guide:stop:S10001")).thenReturn(bucket);
         when(bucket.isExists()).thenReturn(true);
-        RedisGuideStreamControlRepository repository = new RedisGuideStreamControlRepository(redissonClient, "test-agent");
+        RedisQuotaStreamControlRepository repository = new RedisQuotaStreamControlRepository(redissonClient, "test-agent");
 
         assertTrue(repository.isStopped("S10001"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -46,3 +46,18 @@ class AcademicToolArtifactRegistryTest {
         return artifact;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

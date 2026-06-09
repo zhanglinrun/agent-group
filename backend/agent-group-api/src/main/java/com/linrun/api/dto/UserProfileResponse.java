@@ -18,3 +18,18 @@ public class UserProfileResponse implements Serializable {
     private BigDecimal frozenQuota;
     private BigDecimal usedQuota;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

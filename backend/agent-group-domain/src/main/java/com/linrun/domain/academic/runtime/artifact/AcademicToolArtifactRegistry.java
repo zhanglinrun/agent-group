@@ -72,3 +72,18 @@ public class AcademicToolArtifactRegistry {
                 && Objects.equals(left.getArtifactType(), right.getArtifactType());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

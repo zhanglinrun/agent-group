@@ -159,3 +159,18 @@ public class GroupBuyActivityPO {
         this.enabled = enabled;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

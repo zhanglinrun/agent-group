@@ -10,3 +10,18 @@ public class UpdateOperationalRuleRequest implements Serializable {
     private String ruleKey;
     private String ruleValue;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

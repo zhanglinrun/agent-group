@@ -1,7 +1,7 @@
 package com.linrun.domain.groupbuy.service.rules.lock;
 
 import com.linrun.api.dto.LockGroupBuyOrderRequest;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 
@@ -10,14 +10,14 @@ import java.time.LocalDateTime;
 public class GroupBuyLockContext {
 
     private final LockGroupBuyOrderRequest request;
-    private final GuideProduct product;
+    private final QuotaProduct product;
     private final GroupBuyActivity activity;
     private final LocalDateTime now;
     private GroupBuyTeam team;
     private boolean teamStockOccupied;
 
     public GroupBuyLockContext(LockGroupBuyOrderRequest request,
-                               GuideProduct product,
+                               QuotaProduct product,
                                GroupBuyActivity activity,
                                LocalDateTime now) {
         this.request = request;
@@ -30,7 +30,7 @@ public class GroupBuyLockContext {
         return request;
     }
 
-    public GuideProduct getProduct() {
+    public QuotaProduct getProduct() {
         return product;
     }
 
@@ -58,3 +58,18 @@ public class GroupBuyLockContext {
         this.teamStockOccupied = teamStockOccupied;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

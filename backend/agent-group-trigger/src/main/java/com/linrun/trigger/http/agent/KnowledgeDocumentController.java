@@ -80,3 +80,18 @@ public class KnowledgeDocumentController {
         return Response.success(knowledgeDocumentAdminHandler.disableDocument(documentId), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

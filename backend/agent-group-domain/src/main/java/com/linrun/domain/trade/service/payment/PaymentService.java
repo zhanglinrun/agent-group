@@ -171,7 +171,7 @@ public class PaymentService {
                 return existingResponse;
             }
             metrics.recordPaymentWebhook(payChannel.name(), "processing_conflict", elapsedMillis(startNanos));
-            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重试");
+            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重�?);
         }
 
         boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, webhookResult);
@@ -548,7 +548,7 @@ public class PaymentService {
 
     private PaymentRefundQueryCommand toRefundQueryCommand(QueryPaymentRefundRequest request) {
         if (request == null) {
-            throw new AppException("0001", "退款查询参数不能为空");
+            throw new AppException("0001", "退款查询参数不能为�?);
         }
         if (StringUtils.hasText(request.getOrderId())) {
             TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
@@ -761,7 +761,7 @@ public class PaymentService {
 
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
     }
 
     private PayOrderEntity queryPayOrder(String orderId) {
@@ -823,10 +823,25 @@ public class PaymentService {
     }
 
     private String resolveRefundReason(RefundPaymentRequest request) {
-        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退款";
+        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退�?;
     }
 
     private long elapsedMillis(long startNanos) {
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

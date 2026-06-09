@@ -8,3 +8,18 @@ public interface DocumentSplitStrategy {
 
     List<String> split(String content);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

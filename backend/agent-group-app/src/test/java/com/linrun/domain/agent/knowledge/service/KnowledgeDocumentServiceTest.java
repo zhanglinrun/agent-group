@@ -25,12 +25,12 @@ class KnowledgeDocumentServiceTest {
         KnowledgeDocumentService service = new KnowledgeDocumentService();
 
         KnowledgeDocumentBuildResult result = service.createParsedDocument(documentCommand(), List.of(
-                fragmentCommand("G10001", "基础额度包适合论文摘要和普通问答。", 1),
-                fragmentCommand("G10001", "拼团价比原价低 300 元。", 2)));
+                fragmentCommand("G10001", "基础额度包适合论文摘要和普通问答�?, 1),
+                fragmentCommand("G10001", "拼团价比原价�?300 元�?, 2)));
 
         KnowledgeDocument document = result.getDocument();
         assertTrue(document.getDocumentId().startsWith("DOC"));
-        assertEquals("基础额度包说明", document.getDocumentName());
+        assertEquals("基础额度包说�?, document.getDocumentName());
         assertEquals("额度说明", document.getDocumentType());
         assertEquals("v2", document.getKnowledgeVersion());
         assertEquals("OPERATOR_UPLOAD", document.getSourceType());
@@ -110,7 +110,7 @@ class KnowledgeDocumentServiceTest {
 
     private CreateKnowledgeDocumentCommand documentCommand() {
         CreateKnowledgeDocumentCommand command = new CreateKnowledgeDocumentCommand();
-        command.setDocumentName("基础额度包说明");
+        command.setDocumentName("基础额度包说�?);
         command.setDocumentType("额度说明");
         command.setKnowledgeVersion("v2");
         command.setSourceType("OPERATOR_UPLOAD");
@@ -126,3 +126,18 @@ class KnowledgeDocumentServiceTest {
         return command;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

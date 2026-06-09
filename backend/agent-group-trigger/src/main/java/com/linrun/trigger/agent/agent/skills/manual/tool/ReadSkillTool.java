@@ -12,10 +12,10 @@ import org.springframework.ai.tool.function.FunctionToolCallback;
 import java.util.function.Function;
 
 /**
- * 读取技能内容的工具。
+ * 读取技能内容的工具�?
  *
- * 当模型需要使用某个技能时，调用此工具获取完整的 SKILL.md 内容。
- * 工具返回的技能内容会被 Agent 自动注入到下一轮对话中。
+ * 当模型需要使用某个技能时，调用此工具获取完整�?SKILL.md 内容�?
+ * 工具返回的技能内容会�?Agent 自动注入到下一轮对话中�?
  *
  * @author bigchui
  * 
@@ -25,21 +25,21 @@ public class ReadSkillTool implements Function<ReadSkillTool.Request, ReadSkillT
     private static final Logger log = LoggerFactory.getLogger(ReadSkillTool.class);
 
     public static final String DESCRIPTION = """
-            加载指定技能的完整内容。
+            加载指定技能的完整内容�?
 
-            当你需要某个技能的详细指令时使用此工具。系统提示中的技能列表只包含简要描述。
+            当你需要某个技能的详细指令时使用此工具。系统提示中的技能列表只包含简要描述�?
 
-            【重要】调用此工具后，技能内容会包含 <command-name>...</command-name> 标签。
-            当你看到这个标签时，说明技能已加载：
+            【重要】调用此工具后，技能内容会包含 <command-name>...</command-name> 标签�?
+            当你看到这个标签时，说明技能已加载�?
             - 禁止再次调用 read_skill
             - 直接按照技能指令来完成任务
             - 不要把技能名称当作工具来调用
 
-            用法：read_skill(技能名称)
+            用法：read_skill(技能名�?
 
-            示例：
-            - read_skill("pdf-extractor") - 加载 PDF 提取技能
-            - read_skill("code-review") - 加载代码审查技能
+            示例�?
+            - read_skill("pdf-extractor") - 加载 PDF 提取技�?
+            - read_skill("code-review") - 加载代码审查技�?
             """;
 
     private final SkillRegistry skillRegistry;
@@ -49,7 +49,7 @@ public class ReadSkillTool implements Function<ReadSkillTool.Request, ReadSkillT
     }
 
     /**
-     * 创建 ToolCallback。
+     * 创建 ToolCallback�?
      *
      * @param skillRegistry 技能注册表
      * @return ToolCallback 实例
@@ -93,3 +93,18 @@ public class ReadSkillTool implements Function<ReadSkillTool.Request, ReadSkillT
             String error
     ) {}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

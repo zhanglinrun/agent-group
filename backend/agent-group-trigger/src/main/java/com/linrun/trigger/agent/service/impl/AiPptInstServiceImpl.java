@@ -138,3 +138,18 @@ public class AiPptInstServiceImpl extends ServiceImpl<AiPptInstMapper, AiPptInst
         return updateById(inst);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

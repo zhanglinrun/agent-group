@@ -27,3 +27,18 @@ public interface AcademicDataAnalysisPort {
                                       String errorMessage) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

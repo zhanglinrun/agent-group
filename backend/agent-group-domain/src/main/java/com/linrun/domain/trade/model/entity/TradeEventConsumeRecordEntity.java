@@ -135,3 +135,18 @@ public class TradeEventConsumeRecordEntity {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

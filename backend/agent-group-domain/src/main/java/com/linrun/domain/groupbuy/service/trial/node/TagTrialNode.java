@@ -55,3 +55,18 @@ public class TagTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialComm
         return scopes.length < 2 || !"2".equals(scopes[1].trim());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

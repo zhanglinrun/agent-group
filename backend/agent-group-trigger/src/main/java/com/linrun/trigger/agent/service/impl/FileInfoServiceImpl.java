@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 文件信息服务实现类
+ * 文件信息服务实现�?
  */
 @Service
 @Slf4j
@@ -27,7 +27,7 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         this.save(entity);
-        log.info("文件信息已保存: fileId={}", fileInfo.getFileId());
+        log.info("文件信息已保�? fileId={}", fileInfo.getFileId());
     }
 
     @Override
@@ -54,7 +54,7 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
         QueryWrapper<AiFileInfo> wrapper = new QueryWrapper<>();
         wrapper.eq("file_id", fileInfo.getFileId());
         this.update(entity, wrapper);
-        log.info("文件信息已更新: fileId={}", fileInfo.getFileId());
+        log.info("文件信息已更�? fileId={}", fileInfo.getFileId());
     }
 
     @Override
@@ -62,7 +62,7 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
         QueryWrapper<AiFileInfo> wrapper = new QueryWrapper<>();
         wrapper.eq("file_id", fileId);
         this.remove(wrapper);
-        log.info("文件信息已删除: fileId={}", fileId);
+        log.info("文件信息已删�? fileId={}", fileId);
     }
 
     @Override
@@ -87,7 +87,7 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
     }
 
     /**
-     * 将DTO转换为实体
+     * 将DTO转换为实�?
      */
     private AiFileInfo convertToEntity(FileInfo fileInfo) {
         AiFileInfo entity = new AiFileInfo();
@@ -102,15 +102,30 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
     private FileInfo convertToDto(AiFileInfo entity) {
         FileInfo fileInfo = new FileInfo();
         BeanUtils.copyProperties(entity, fileInfo);
-        // 转换状态字符串为枚举
+        // 转换状态字符串为枚�?
         if (entity.getStatus() != null) {
             try {
                 fileInfo.setStatus(FileInfo.FileStatus.valueOf(entity.getStatus()));
             } catch (IllegalArgumentException e) {
-                log.warn("无法识别的文件状态: {}, 使用默认状态PENDING", entity.getStatus());
+                log.warn("无法识别的文件状�? {}, 使用默认状态PENDING", entity.getStatus());
                 fileInfo.setStatus(FileInfo.FileStatus.PENDING);
             }
         }
         return fileInfo;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

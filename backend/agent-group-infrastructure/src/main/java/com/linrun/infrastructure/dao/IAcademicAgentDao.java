@@ -77,3 +77,18 @@ public interface IAcademicAgentDao {
 
     List<AcademicArtifactPO> queryArtifactsByRun(@Param("runId") String runId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

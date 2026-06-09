@@ -12,3 +12,18 @@ public class MockPayCallbackRequest implements Serializable {
     private String outTradeNo;
     private LocalDateTime payTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

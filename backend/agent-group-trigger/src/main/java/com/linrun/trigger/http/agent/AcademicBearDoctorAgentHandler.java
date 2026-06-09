@@ -13,7 +13,7 @@ import com.linrun.api.dto.AcademicReplayResponse;
 import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
 import com.linrun.api.dto.AcademicSessionSummaryDTO;
-import com.linrun.api.dto.GuideStreamEvent;
+import com.linrun.api.dto.QuotaStreamEvent;
 import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
@@ -100,7 +100,7 @@ public class AcademicBearDoctorAgentHandler {
         this.objectMapper = objectMapper;
     }
 
-    public Flux<GuideStreamEvent<?>> backgroundStreamEventFlux(String token,
+    public Flux<QuotaStreamEvent<?>> backgroundStreamEventFlux(String token,
                                                                AcademicAgentStreamRequest request,
                                                                String sessionId,
                                                                String requestId) {
@@ -110,7 +110,7 @@ public class AcademicBearDoctorAgentHandler {
                 () -> streamEventFlux(token, request, sessionId, requestId));
     }
 
-    public Flux<GuideStreamEvent<?>> attachEventFlux(String token,
+    public Flux<QuotaStreamEvent<?>> attachEventFlux(String token,
                                                      String sessionId,
                                                      String requestId) {
         UserAccount user = userAccountService.requireUserByToken(token);
@@ -123,7 +123,7 @@ public class AcademicBearDoctorAgentHandler {
         return bearDoctorNativeAgentService.capabilities();
     }
 
-    public Flux<GuideStreamEvent<?>> streamEventFlux(String token,
+    public Flux<QuotaStreamEvent<?>> streamEventFlux(String token,
                                                      AcademicAgentStreamRequest request,
                                                      String sessionId,
                                                      String requestId) {
@@ -178,7 +178,7 @@ public class AcademicBearDoctorAgentHandler {
         request.setSessionId(sessionId);
         request.setTaskType(toFrontendTaskType(latest.getAgentType()));
         request.setFileId(nullToBlank(latest.getFileid()));
-        request.setQuestion("请从上次停止处继续完成这个任务，避免重复已经完成的内容。");
+        request.setQuestion("请从上次停止处继续完成这个任务，避免重复已经完成的内容�?);
         return request;
     }
 
@@ -313,7 +313,7 @@ public class AcademicBearDoctorAgentHandler {
         return academicArtifactService.resolveDownload(artifactId);
     }
 
-    private List<GuideStreamEvent<?>> toEvents(String raw,
+    private List<QuotaStreamEvent<?>> toEvents(String raw,
                                                String sessionId,
                                                String requestId,
                                                AtomicInteger sequence,
@@ -344,11 +344,11 @@ public class AcademicBearDoctorAgentHandler {
         }
     }
 
-    private List<GuideStreamEvent<?>> startEvents(RunState runState,
+    private List<QuotaStreamEvent<?>> startEvents(RunState runState,
                                                   String sessionId,
                                                   String requestId,
                                                   AtomicInteger sequence) {
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         events.add(event("run_start", sessionId, requestId, sequence, runStart(runState.run)));
         if (!runState.projectContext.isEmpty()) {
             events.add(event("project_context", sessionId, requestId, sequence, runState.projectContext));
@@ -360,7 +360,7 @@ public class AcademicBearDoctorAgentHandler {
         return events;
     }
 
-    private List<GuideStreamEvent<?>> replanEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> replanEvents(JsonNode node,
                                                    String sessionId,
                                                    String requestId,
                                                    AtomicInteger sequence,
@@ -368,7 +368,7 @@ public class AcademicBearDoctorAgentHandler {
         return planChangeEvents(node, sessionId, requestId, sequence, runState, true);
     }
 
-    private List<GuideStreamEvent<?>> planUpdateEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> planUpdateEvents(JsonNode node,
                                                        String sessionId,
                                                        String requestId,
                                                        AtomicInteger sequence,
@@ -376,7 +376,7 @@ public class AcademicBearDoctorAgentHandler {
         return planChangeEvents(node, sessionId, requestId, sequence, runState, false);
     }
 
-    private List<GuideStreamEvent<?>> planChangeEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> planChangeEvents(JsonNode node,
                                                        String sessionId,
                                                        String requestId,
                                                        AtomicInteger sequence,
@@ -385,9 +385,9 @@ public class AcademicBearDoctorAgentHandler {
         AcademicAgentPlan previousPlan = runState.executionPlan;
         AcademicAgentPlan replannedPlan = replannedPlan(node, runState.executionPlan);
         String reason = firstText(node, "reason", "message", "content", "detail");
-        String prefix = replanned ? "计划已重规划" : "计划已更新";
-        String message = StringUtils.hasText(reason) ? prefix + "：" + reason : prefix;
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        String prefix = replanned ? "计划已重规划" : "计划已更�?;
+        String message = StringUtils.hasText(reason) ? prefix + "�? + reason : prefix;
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         events.add(event("task_status", sessionId, requestId, sequence, status(replanned ? "REPLAN" : "PLAN", message)));
         if (replanned) {
             AcademicAgentFlowProgressResult progress = flowProgressProjector.markReplanned(
@@ -403,7 +403,7 @@ public class AcademicBearDoctorAgentHandler {
         return events;
     }
 
-    private List<GuideStreamEvent<?>> answerEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> answerEvents(JsonNode node,
                                                    String sessionId,
                                                    String requestId,
                                                    AtomicInteger sequence,
@@ -413,7 +413,7 @@ public class AcademicBearDoctorAgentHandler {
         return List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", content)));
     }
 
-    private List<GuideStreamEvent<?>> rawAnswerEvent(String raw,
+    private List<QuotaStreamEvent<?>> rawAnswerEvent(String raw,
                                                      String sessionId,
                                                      String requestId,
                                                      AtomicInteger sequence,
@@ -423,7 +423,7 @@ public class AcademicBearDoctorAgentHandler {
         return List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", content)));
     }
 
-    private List<GuideStreamEvent<?>> toolStartEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> toolStartEvents(JsonNode node,
                                                       String sessionId,
                                                       String requestId,
                                                       AtomicInteger sequence,
@@ -435,7 +435,7 @@ public class AcademicBearDoctorAgentHandler {
         String invocationId = academicExecutionLedgerService.recordToolStart(
                 runState.ledgerContext, toolCallId, toolName, action, argumentsJson);
         runState.toolInvocations.put(toolKey(toolCallId, toolName), invocationId);
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         AcademicAgentFlowProgressResult progress = flowProgressProjector.advanceToTool(
                 runState.executionPlan, runState.currentFlowStageIndex, toolName);
         runState.currentFlowStageIndex = progress.getCurrentStageIndex();
@@ -447,7 +447,7 @@ public class AcademicBearDoctorAgentHandler {
         return events;
     }
 
-    private List<GuideStreamEvent<?>> toolEndEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> toolEndEvents(JsonNode node,
                                                     String sessionId,
                                                     String requestId,
                                                     AtomicInteger sequence,
@@ -469,15 +469,15 @@ public class AcademicBearDoctorAgentHandler {
             academicExecutionLedgerService.recordToolArtifacts(
                     runState.ledgerContext, invocationId, toolName, structuredOutput);
         }
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         events.add(event("task_status", sessionId, requestId, sequence,
-                status("TOOL", "工具调用完成：" + nullToBlank(toolName))));
+                status("TOOL", "工具调用完成�? + nullToBlank(toolName))));
         events.add(event("tool_result", sessionId, requestId, sequence,
                 toolResult(invocationId, toolCallId, toolName, status, resultText, structuredOutput, errorMessage, latencyMillis)));
         return events;
     }
 
-    private List<GuideStreamEvent<?>> errorEvents(String sessionId,
+    private List<QuotaStreamEvent<?>> errorEvents(String sessionId,
                                                   String requestId,
                                                   AtomicInteger sequence,
                                                   Throwable error,
@@ -491,7 +491,7 @@ public class AcademicBearDoctorAgentHandler {
                 customModel, message, durationMillis);
         academicExecutionLedgerService.finishRun(runState.run, AcademicAgentRun.STATUS_FAILED,
                 runState.answer.toString(), code, message, durationMillis);
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         AcademicAgentFlowProgressResult progress = flowProgressProjector.blockCurrent(
                 runState.executionPlan, runState.currentFlowStageIndex,
                 normalizeErrorMessage(message, customModel));
@@ -502,14 +502,14 @@ public class AcademicBearDoctorAgentHandler {
         return events;
     }
 
-    private List<GuideStreamEvent<?>> completionEvents(UserAccount user,
+    private List<QuotaStreamEvent<?>> completionEvents(UserAccount user,
                                                        String sessionId,
                                                        String requestId,
                                                        AtomicInteger sequence,
                                                        String taskType,
                                                        long startedAt,
                                                        RunState runState) {
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         if ("ppt".equals(taskType)) {
             pptArtifact(user, sessionId).ifPresent(artifact -> {
                 academicArtifactService.saveArtifactRecord(user.getUserId(), sessionId, artifact,
@@ -590,8 +590,8 @@ public class AcademicBearDoctorAgentHandler {
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("toolName", AcademicToolOutputNames.QUOTA_USAGE);
         output.put("title", "额度对账快照");
-        output.put("summary", "本次 Agent 运行完成后记录额度余额和预估消耗");
-        output.put("content", "额度只能以账户流水和后端交易状态为准；该快照用于历史回放和运行对账。");
+        output.put("summary", "本次 Agent 运行完成后记录额度余额和预估消�?);
+        output.put("content", "额度只能以账户流水和后端交易状态为准；该快照用于历史回放和运行对账�?);
         output.put("metadata", metadata);
         return output;
     }
@@ -741,7 +741,7 @@ public class AcademicBearDoctorAgentHandler {
         return data;
     }
 
-    private List<GuideStreamEvent<?>> flowProgressEvents(AcademicAgentFlowProgressResult progress,
+    private List<QuotaStreamEvent<?>> flowProgressEvents(AcademicAgentFlowProgressResult progress,
                                                          String sessionId,
                                                          String requestId,
                                                          AtomicInteger sequence,
@@ -749,7 +749,7 @@ public class AcademicBearDoctorAgentHandler {
         if (progress == null || progress.getEvents().isEmpty()) {
             return List.of();
         }
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         for (AcademicAgentFlowProgress item : progress.getEvents()) {
             events.add(event("flow_delta", sessionId, requestId, sequence, flowProgress(runState, item)));
         }
@@ -826,13 +826,13 @@ public class AcademicBearDoctorAgentHandler {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("artifactId", String.valueOf(inst.getId()));
         data.put("artifactType", "PPTX");
-        data.put("title", "生成的演示文稿");
+        data.put("title", "生成的演示文�?);
         data.put("content", inst.getFileUrl());
         data.put("downloadUrl", inst.getFileUrl());
         return java.util.Optional.of(data);
     }
 
-    private List<GuideStreamEvent<?>> referenceEvents(JsonNode node,
+    private List<QuotaStreamEvent<?>> referenceEvents(JsonNode node,
                                                       String sessionId,
                                                       String requestId,
                                                       AtomicInteger sequence) {
@@ -840,13 +840,13 @@ public class AcademicBearDoctorAgentHandler {
         if (content == null || content.isNull()) {
             return List.of();
         }
-        List<GuideStreamEvent<?>> events = new ArrayList<>();
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
         if (content.isTextual()) {
             try {
                 content = objectMapper.readTree(content.asText());
             } catch (Exception ignored) {
                 events.add(event("reference_delta", sessionId, requestId, sequence,
-                        Map.of("title", "参考资料", "content", content.asText())));
+                        Map.of("title", "参考资�?, "content", content.asText())));
                 return events;
             }
         }
@@ -875,14 +875,14 @@ public class AcademicBearDoctorAgentHandler {
         return data;
     }
 
-    private GuideStreamEvent<?> errorEvent(String sessionId,
+    private QuotaStreamEvent<?> errorEvent(String sessionId,
                                            String requestId,
                                            AtomicInteger sequence,
                                            Throwable error) {
         return errorEvent(sessionId, requestId, sequence, error, false);
     }
 
-    private GuideStreamEvent<?> errorEvent(String sessionId,
+    private QuotaStreamEvent<?> errorEvent(String sessionId,
                                            String requestId,
                                            AtomicInteger sequence,
                                            Throwable error,
@@ -893,12 +893,12 @@ public class AcademicBearDoctorAgentHandler {
                         customModel));
     }
 
-    private GuideStreamEvent<?> event(String event,
+    private QuotaStreamEvent<?> event(String event,
                                       String sessionId,
                                       String requestId,
                                       AtomicInteger sequence,
                                       Object data) {
-        return GuideStreamEvent.of(event, sessionId, requestId, sequence.getAndIncrement(), data);
+        return QuotaStreamEvent.of(event, sessionId, requestId, sequence.getAndIncrement(), data);
     }
 
     private Map<String, String> status(String stage, String message) {
@@ -941,7 +941,7 @@ public class AcademicBearDoctorAgentHandler {
             return "本次请求已处理，请勿重复提交或刷新后重试";
         }
         if (isContentInspectionMessage(lower)) {
-            return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试。";
+            return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试�?;
         }
         if ((lower.contains("401 unauthorized") || lower.contains("unauthorized"))
                 && (lower.contains("dashscope")
@@ -949,15 +949,15 @@ public class AcademicBearDoctorAgentHandler {
                 || lower.contains("openai")
                 || lower.contains("api key"))) {
             if (customModel || !lower.contains("dashscope")) {
-                return "自定义模型接口认证失败，请检查模型配置里的 API 地址、密钥和模型名";
+                return "自定义模型接口认证失败，请检查模型配置里�?API 地址、密钥和模型�?;
             }
-            return "模型密钥无效或权限不足，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+            return "模型密钥无效或权限不足，请检�?.env 中的 DashScope API Key，或在模型配置里填写可用�?API 地址和密�?;
         }
         if (lower.contains("api key") && (lower.contains("invalid") || lower.contains("not configured"))) {
             if (customModel || !lower.contains("dashscope")) {
-                return "自定义模型配置不可用，请检查模型配置里的 API 地址、密钥和模型名";
+                return "自定义模型配置不可用，请检查模型配置里�?API 地址、密钥和模型�?;
             }
-            return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+            return "模型密钥未配置或不可用，请检�?.env 中的 DashScope API Key，或在模型配置里填写可用�?API 地址和密�?;
         }
         return message;
     }
@@ -1037,12 +1037,12 @@ public class AcademicBearDoctorAgentHandler {
                     .append("\n\n");
         }
         if (isContentInspectionMessage(run.getErrorMessage())) {
-            builder.append("本次生成失败，模型服务内容安全检查拦截了本次请求。");
+            builder.append("本次生成失败，模型服务内容安全检查拦截了本次请求�?);
         } else {
-            builder.append("本次生成失败，模型服务返回错误，请检查模型配置或稍后重试。");
+            builder.append("本次生成失败，模型服务返回错误，请检查模型配置或稍后重试�?);
         }
         if (StringUtils.hasText(errorMessage)) {
-            builder.append("\n\n错误信息：").append(limit(errorMessage, 500));
+            builder.append("\n\n错误信息�?).append(limit(errorMessage, 500));
         }
         return builder.toString();
     }
@@ -1225,29 +1225,29 @@ public class AcademicBearDoctorAgentHandler {
             return normalizePptQuery(question);
         }
         if ("image".equals(taskType) && !StringUtils.hasText(question)) {
-            return "请生成一张适合项目展示的智能体平台概念图。";
+            return "请生成一张适合项目展示的智能体平台概念图�?;
         }
         if ("data".equals(taskType) && !StringUtils.hasText(question)) {
-            return "请分析近五年 RAG 相关论文发表趋势、主要方法和实验指标差异。";
+            return "请分析近五年 RAG 相关论文发表趋势、主要方法和实验指标差异�?;
         }
         if (StringUtils.hasText(question)) {
             return question;
         }
         if (StringUtils.hasText(request == null ? "" : request.getFileId())) {
-            return "请分析这个文件";
+            return "请分析这个文�?;
         }
         return "你好";
     }
 
     private String normalizePptQuery(String question) {
-        String topic = StringUtils.hasText(question) ? question : "请生成一份演示文稿";
+        String topic = StringUtils.hasText(question) ? question : "请生成一份演示文�?;
         String normalized = topic.strip();
         boolean hasPageCount = normalized.matches("(?s).*\\d+\\s*(页|p|P|slides?|Slides?).*");
         StringBuilder builder = new StringBuilder(normalized);
-        builder.append("\n\n请直接生成PPT，不要再追问用户。");
-        builder.append("\n默认补齐以下生成信息：");
-        builder.append("\n- 页数：").append(hasPageCount ? "按用户要求" : "5页");
-        builder.append("\n- 风格建议：科技感、简洁商务蓝，适合技术项目汇报");
+        builder.append("\n\n请直接生成PPT，不要再追问用户�?);
+        builder.append("\n默认补齐以下生成信息�?);
+        builder.append("\n- 页数�?).append(hasPageCount ? "按用户要�? : "5�?);
+        builder.append("\n- 风格建议：科技感、简洁商务蓝，适合技术项目汇�?);
         builder.append("\n- 受众群体：计算机硕士秋招技术岗面试官和HR");
         builder.append("\n- 输出要求：生成可下载的真实PPTX文件");
         builder.append("\n- 系统能力：后端会使用python-pptx渲染真实PPTX并上传到MinIO，请不要声称当前环境无法生成二进制PPTX文件");
@@ -1264,9 +1264,9 @@ public class AcademicBearDoctorAgentHandler {
             case "deep" -> "深度研究";
             case "image" -> "图像生成";
             case "data" -> "数据问答";
-            case "skills" -> "技能助手";
-            case "manual-skills" -> "手动技能";
-            default -> "新对话";
+            case "skills" -> "技能助�?;
+            case "manual-skills" -> "手动技�?;
+            default -> "新对�?;
         };
     }
 
@@ -1472,3 +1472,18 @@ public class AcademicBearDoctorAgentHandler {
         return nullToBlank(request.getFileId()).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -11,3 +11,18 @@ public interface GroupBuyRefundStrategy {
 
     GroupBuyCompensationResponse refund(RefundGroupBuyOrderRequest request);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

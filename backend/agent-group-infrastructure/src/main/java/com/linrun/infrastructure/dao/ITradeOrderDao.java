@@ -72,3 +72,18 @@ public interface ITradeOrderDao {
                                         @Param("goodsId") String goodsId,
                                         @Param("buyType") String buyType);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

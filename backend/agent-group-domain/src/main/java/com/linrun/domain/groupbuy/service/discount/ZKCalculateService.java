@@ -19,3 +19,18 @@ public class ZKCalculateService extends AbstractDiscountCalculateService {
         return originalPrice.multiply(marketExpr(discount)).setScale(0, RoundingMode.DOWN);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

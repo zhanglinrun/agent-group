@@ -11,3 +11,18 @@ public class QueryRefundOrderListRequest implements Serializable {
     private String refundStatus;
     private Integer pageSize;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

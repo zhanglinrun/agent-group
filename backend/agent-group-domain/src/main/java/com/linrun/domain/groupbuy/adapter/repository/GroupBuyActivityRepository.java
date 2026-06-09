@@ -15,3 +15,18 @@ public interface GroupBuyActivityRepository {
         return List.of();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

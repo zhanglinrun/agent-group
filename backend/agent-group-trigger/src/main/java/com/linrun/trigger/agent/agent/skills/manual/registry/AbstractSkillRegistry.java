@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 技能注册表抽象基类。
+ * 技能注册表抽象基类�?
  *
- * 提供技能元数据和内容的缓存功能，子类只需实现具体的加载逻辑。
+ * 提供技能元数据和内容的缓存功能，子类只需实现具体的加载逻辑�?
  *
  * @author bigchui
  * 
@@ -119,3 +119,18 @@ public abstract class AbstractSkillRegistry implements SkillRegistry {
         return cacheEnabled;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

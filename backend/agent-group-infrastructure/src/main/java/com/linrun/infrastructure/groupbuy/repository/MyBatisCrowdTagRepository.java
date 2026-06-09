@@ -71,3 +71,18 @@ public class MyBatisCrowdTagRepository implements CrowdTagRepository {
         crowdTagDao.updateJobStatus(tagId, batchId, status);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

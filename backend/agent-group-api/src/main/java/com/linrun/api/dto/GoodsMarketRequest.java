@@ -12,3 +12,18 @@ public class GoodsMarketRequest implements Serializable {
     private String channel;
     private String goodsId;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,3 +15,18 @@ public class SettlementMarketPayOrderRequest implements Serializable {
     private String hitlApprovalId;
     private LocalDateTime outTradeTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

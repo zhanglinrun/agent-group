@@ -8,9 +8,9 @@ import com.linrun.domain.account.model.UserMembershipAccount;
 import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.domain.account.model.UserQuotaFlow;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
@@ -39,9 +39,9 @@ class UserQuotaServiceTest {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
         UserQuotaService service = new UserQuotaService(
                 quotaRepository,
-                mock(GuideDataRepository.class),
+                mock(QuotaProductRepository.class),
                 mock(TradeOrderRepository.class));
-        GuideTokenUsage usage = new GuideTokenUsage(10L, 20L, 30L, BigDecimal.ZERO);
+        TokenUsageMetrics usage = new TokenUsageMetrics(10L, 20L, 30L, BigDecimal.ZERO);
 
         service.consumeForAcademicTask("U10001", "AS1780458958046", "chat", usage, "test-model", 100L);
         service.consumeForAcademicTask("U10001", "AS1780458958046", "chat", usage, "test-model", 120L);
@@ -56,7 +56,7 @@ class UserQuotaServiceTest {
     void tradeAuditPreCheckUsesTradeTaskCost() {
         UserQuotaService service = new UserQuotaService(
                 new InMemoryQuotaRepository(BigDecimal.TEN),
-                mock(GuideDataRepository.class),
+                mock(QuotaProductRepository.class),
                 mock(TradeOrderRepository.class));
 
         assertEquals(new BigDecimal("0.20"), service.estimatePreCheckCost("trade-audit"));
@@ -67,7 +67,7 @@ class UserQuotaServiceTest {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
         UserQuotaService service = new UserQuotaService(
                 quotaRepository,
-                mock(GuideDataRepository.class),
+                mock(QuotaProductRepository.class),
                 mock(TradeOrderRepository.class));
         ReflectionTestUtils.setField(service, "modelConfigCryptoSecret", "test-model-config-secret");
 
@@ -109,9 +109,9 @@ class UserQuotaServiceTest {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
         UserQuotaService service = new UserQuotaService(
                 quotaRepository,
-                mock(GuideDataRepository.class),
+                mock(QuotaProductRepository.class),
                 mock(TradeOrderRepository.class));
-        GuideTokenUsage usage = new GuideTokenUsage(500L, 500L, 1000L, BigDecimal.ZERO);
+        TokenUsageMetrics usage = new TokenUsageMetrics(500L, 500L, 1000L, BigDecimal.ZERO);
 
         service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 100L);
         service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 120L);
@@ -128,9 +128,9 @@ class UserQuotaServiceTest {
         quotaRepository.upsertMembership(activeMembership("U10001", new BigDecimal("10.00")));
         UserQuotaService service = new UserQuotaService(
                 quotaRepository,
-                mock(GuideDataRepository.class),
+                mock(QuotaProductRepository.class),
                 mock(TradeOrderRepository.class));
-        GuideTokenUsage usage = new GuideTokenUsage(500L, 500L, 1000L, BigDecimal.ZERO);
+        TokenUsageMetrics usage = new TokenUsageMetrics(500L, 500L, 1000L, BigDecimal.ZERO);
 
         service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 100L);
         service.consumeForAcademicTask("U10001", "AS10001", "REQ10001", "chat", usage, "test-model", 120L);
@@ -198,21 +198,21 @@ class UserQuotaServiceTest {
         assertEquals(TradeOrderStatusEnumVO.DEAL_DONE, order.getOrderStatus());
     }
 
-    private static UserQuotaService serviceWithProduct(InMemoryQuotaRepository quotaRepository, GuideProduct product) {
-        GuideDataRepository guideDataRepository = mock(GuideDataRepository.class);
-        when(guideDataRepository.queryProductByGoodsId(product.getGoodsId())).thenReturn(Optional.of(product));
-        return new UserQuotaService(quotaRepository, guideDataRepository, mock(TradeOrderRepository.class));
+    private static UserQuotaService serviceWithProduct(InMemoryQuotaRepository quotaRepository, QuotaProduct product) {
+        QuotaProductRepository QuotaProductRepository = mock(QuotaProductRepository.class);
+        when(QuotaProductRepository.queryProductByGoodsId(product.getGoodsId())).thenReturn(Optional.of(product));
+        return new UserQuotaService(quotaRepository, QuotaProductRepository, mock(TradeOrderRepository.class));
     }
 
-    private static GuideProduct quotaProduct(String goodsId, BigDecimal quotaAmount) {
-        GuideProduct product = new GuideProduct();
+    private static QuotaProduct quotaProduct(String goodsId, BigDecimal quotaAmount) {
+        QuotaProduct product = new QuotaProduct();
         product.setGoodsId(goodsId);
         product.setQuotaAmount(quotaAmount);
         return product;
     }
 
-    private static GuideProduct membershipProduct(String goodsId, String goodsName, BigDecimal monthlyQuota) {
-        GuideProduct product = quotaProduct(goodsId, monthlyQuota);
+    private static QuotaProduct membershipProduct(String goodsId, String goodsName, BigDecimal monthlyQuota) {
+        QuotaProduct product = quotaProduct(goodsId, monthlyQuota);
         product.setGoodsName(goodsName);
         product.setProductType("MEMBERSHIP_PLAN");
         return product;
@@ -349,3 +349,19 @@ class UserQuotaServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

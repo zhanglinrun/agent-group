@@ -113,3 +113,18 @@ public class RabbitTradeEventConfiguration {
         return new Jackson2JsonMessageConverter();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

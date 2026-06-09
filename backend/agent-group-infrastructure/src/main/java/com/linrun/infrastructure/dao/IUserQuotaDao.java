@@ -44,3 +44,18 @@ public interface IUserQuotaDao {
 
     void upsertModelConfig(UserModelConfigPO modelConfig);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

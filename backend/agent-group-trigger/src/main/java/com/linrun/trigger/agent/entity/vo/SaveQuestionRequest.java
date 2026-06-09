@@ -39,3 +39,18 @@ public class SaveQuestionRequest {
      */
     private Long firstResponseTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

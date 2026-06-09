@@ -147,3 +147,18 @@ public class AcademicNl2SqlToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

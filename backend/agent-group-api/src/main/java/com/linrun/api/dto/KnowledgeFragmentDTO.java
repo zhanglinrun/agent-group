@@ -22,3 +22,18 @@ public class KnowledgeFragmentDTO implements Serializable {
     private Boolean embeddingEnabled;
     private String fragmentStatus;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

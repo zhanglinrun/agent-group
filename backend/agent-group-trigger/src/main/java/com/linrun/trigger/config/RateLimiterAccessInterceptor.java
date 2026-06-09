@@ -19,3 +19,18 @@ public @interface RateLimiterAccessInterceptor {
 
     long blacklistSeconds() default 300L;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

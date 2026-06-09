@@ -18,3 +18,18 @@ public class TradeStatusFlowDTO implements Serializable {
     private String remark;
     private LocalDateTime createTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

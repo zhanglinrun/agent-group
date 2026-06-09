@@ -32,3 +32,18 @@ public interface CrowdTagRepository {
 
     void updateJobStatus(String tagId, String batchId, int status);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

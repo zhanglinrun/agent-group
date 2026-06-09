@@ -6,3 +6,18 @@ public interface KnowledgeObjectStorageClient {
 
     StoredKnowledgeObject store(String originalFilename, String contentType, byte[] content);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

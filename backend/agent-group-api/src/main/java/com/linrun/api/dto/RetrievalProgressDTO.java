@@ -31,3 +31,18 @@ public class RetrievalProgressDTO implements Serializable {
         return dto;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

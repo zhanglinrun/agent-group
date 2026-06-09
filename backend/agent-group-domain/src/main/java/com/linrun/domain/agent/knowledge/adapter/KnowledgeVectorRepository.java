@@ -14,3 +14,18 @@ public interface KnowledgeVectorRepository {
         return searchSimilar(question, limit);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

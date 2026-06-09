@@ -13,3 +13,18 @@ public class AcademicProjectCreateRequest implements Serializable {
     private String writingStatus;
     private String progressNote;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

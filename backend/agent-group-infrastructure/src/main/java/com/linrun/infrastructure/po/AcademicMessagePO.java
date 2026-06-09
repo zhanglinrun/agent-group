@@ -68,3 +68,18 @@ public class AcademicMessagePO {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

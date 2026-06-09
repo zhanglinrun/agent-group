@@ -12,3 +12,18 @@ public interface PromptTemplateRepository {
 
     List<PromptTemplate> queryEnabledTemplates();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

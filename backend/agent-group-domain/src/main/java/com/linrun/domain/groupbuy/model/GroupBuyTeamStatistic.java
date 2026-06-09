@@ -30,3 +30,18 @@ public class GroupBuyTeamStatistic {
         this.allTeamUserCount = allTeamUserCount;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

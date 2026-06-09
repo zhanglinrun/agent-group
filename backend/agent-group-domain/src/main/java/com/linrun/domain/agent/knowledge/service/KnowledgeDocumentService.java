@@ -104,3 +104,18 @@ public class KnowledgeDocumentService {
         return prefix + timePart + randomPart;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

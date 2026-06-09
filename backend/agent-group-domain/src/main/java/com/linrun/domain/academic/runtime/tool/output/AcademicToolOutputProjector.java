@@ -181,3 +181,18 @@ public final class AcademicToolOutputProjector {
         return text.length() <= 180 ? text : text.substring(0, 180);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

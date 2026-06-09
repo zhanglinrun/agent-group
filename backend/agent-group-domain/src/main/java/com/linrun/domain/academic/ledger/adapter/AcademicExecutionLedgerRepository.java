@@ -38,3 +38,18 @@ public interface AcademicExecutionLedgerRepository {
 
     List<AcademicArtifact> queryArtifactsByRun(String runId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

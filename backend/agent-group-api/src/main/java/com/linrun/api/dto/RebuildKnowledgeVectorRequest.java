@@ -9,3 +9,18 @@ public class RebuildKnowledgeVectorRequest implements Serializable {
 
     private String knowledgeVersion;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

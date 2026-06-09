@@ -118,3 +118,18 @@ public class TradeEventMessageEntity implements Serializable {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

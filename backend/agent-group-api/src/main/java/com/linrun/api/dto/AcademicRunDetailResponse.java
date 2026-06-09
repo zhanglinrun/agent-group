@@ -71,3 +71,18 @@ public class AcademicRunDetailResponse implements Serializable {
         private Long latencyMillis;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

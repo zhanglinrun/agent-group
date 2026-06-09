@@ -28,3 +28,18 @@ public class KnowledgeDocumentBuildResult {
         this.fragments = fragments;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

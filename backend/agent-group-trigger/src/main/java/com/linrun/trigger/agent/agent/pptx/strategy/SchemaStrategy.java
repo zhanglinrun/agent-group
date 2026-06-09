@@ -77,19 +77,19 @@ public class SchemaStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任务
+        // 保存 disposable 到任务管理器，用于停止任�?
         context.setDisposable(inst.getConversationId(), disposable);
     }
 
     /**
-     * 执行 Schema 策略，支持修改模式
+     * 执行 Schema 策略，支持修改模�?
      *
      * @param inst PPT 实例
      * @param sink 输出 sink
      * @param query 用户查询
-     * @param thinkingBuffer 思考缓冲
-     * @param context 策略上下文
-     * @param modifyPrompt 修改提示词，如果为 null 表示正常流程
+     * @param thinkingBuffer 思考缓�?
+     * @param context 策略上下�?
+     * @param modifyPrompt 修改提示词，如果�?null 表示正常流程
      */
     public void executeWithModifyPrompt(AiPptInst inst, Sinks.Many<String> sink, String query,
                                         StringBuilder thinkingBuffer, PptStateStrategyContext context,
@@ -123,7 +123,7 @@ public class SchemaStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任务
+        // 保存 disposable 到任务管理器，用于停止任�?
         context.setDisposable(inst.getConversationId(), disposable);
     }
 
@@ -321,7 +321,7 @@ public class SchemaStrategy implements PptStateStrategy {
     }
 
     private String joinBullets(List<String> values) {
-        return "• " + String.join("\n• ", values);
+        return "�?" + String.join("\n�?", values);
     }
 
     private int defaultFontLimit(String key, String pageType, int templatePageIndex) {
@@ -378,7 +378,7 @@ public class SchemaStrategy implements PptStateStrategy {
                     continue;
                 }
 
-                // url为空，需要用content作为提示词生成图片
+                // url为空，需要用content作为提示词生成图�?
                 String prompt = fieldData.getContent();
                 if (prompt == null || prompt.isEmpty()) {
                     continue;
@@ -395,7 +395,7 @@ public class SchemaStrategy implements PptStateStrategy {
         int total = tasks.size();
         sink.tryEmitNext(context.createThinkingResponse("✅PPT内容设计完成，开始生成图片素材\n"));
 
-        sink.tryEmitNext(context.createThinkingResponse("共需生成 " + total + " 张图片，开始生成...\n"));
+        sink.tryEmitNext(context.createThinkingResponse("共需生成 " + total + " 张图片，开始生�?..\n"));
 
         // 逐个生成图片
         for (int i = 0; i < tasks.size(); i++) {
@@ -419,20 +419,20 @@ public class SchemaStrategy implements PptStateStrategy {
                     // 更新schema中的url为MinIO地址
                     task.fieldData.setUrl(minioUrl);
 
-                    sink.tryEmitNext(context.createThinkingResponse("✅ 图片生成完成 (" + current + "/" + total + ")\n"));
+                    sink.tryEmitNext(context.createThinkingResponse("�?图片生成完成 (" + current + "/" + total + ")\n"));
                     log.info("图片已上传到MinIO: {} -> {}", task.key, minioUrl);
                 } else {
                     throw new RuntimeException("图片下载失败");
                 }
 
             } catch (Exception e) {
-                log.error("图片生成或上传失败: {}", task.prompt, e);
-                sink.tryEmitNext(context.createThinkingResponse("⚠ 图片生成失败 (" + current + "/" + total + "): \n" + task.key));
+                log.error("图片生成或上传失�? {}", task.prompt, e);
+                sink.tryEmitNext(context.createThinkingResponse("�?图片生成失败 (" + current + "/" + total + "): \n" + task.key));
                 // 使用空字符串
                 task.fieldData.setUrl("");
             }
         }
-        sink.tryEmitNext(context.createThinkingResponse("✅ 所有图片生成完成\n"));
+        sink.tryEmitNext(context.createThinkingResponse("�?所有图片生成完成\n"));
         sink.tryEmitNext(context.createThinkingResponse("✅素材准备就绪，开始渲染PPT\n"));
     }
 
@@ -475,3 +475,18 @@ public class SchemaStrategy implements PptStateStrategy {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

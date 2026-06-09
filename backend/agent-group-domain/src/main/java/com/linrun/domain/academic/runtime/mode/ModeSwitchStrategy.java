@@ -3,8 +3,8 @@ package com.linrun.domain.academic.runtime.mode;
 import java.util.List;
 
 /**
- * 模式动态切换策略
- * 根据任务特征自动选择最优执行模式
+ * 模式动态切换策�?
+ * 根据任务特征自动选择最优执行模�?
  */
 public class ModeSwitchStrategy {
 
@@ -15,7 +15,7 @@ public class ModeSwitchStrategy {
     }
 
     /**
-     * 选择最优执行模式
+     * 选择最优执行模�?
      */
     public AgentExecutionMode selectMode(String userQuery, List<Object> attachments) {
         AgentExecutionMode.ExecutionContext context = new AgentExecutionMode.ExecutionContext(
@@ -30,31 +30,31 @@ public class ModeSwitchStrategy {
     public AgentExecutionMode selectMode(AgentExecutionMode.ExecutionContext context) {
         String userQuery = context.getUserQuery();
         
-        // 1. 文件上传 → ReAct 模式（优先级：高）
+        // 1. 文件上传 �?ReAct 模式（优先级：高�?
         if (context.hasAttachments()) {
             return registry.getMode("react")
                     .orElse(registry.selectMode(context));
         }
         
-        // 2. 包含"深度研究"、"调研"关键词 → Plan-Execute 模式（优先级：高）
+        // 2. 包含"深度研究"�?调研"关键�?�?Plan-Execute 模式（优先级：高�?
         if (containsDeepResearchKeywords(userQuery)) {
             return registry.getMode("plan-execute")
                     .orElse(registry.selectMode(context));
         }
         
-        // 3. 包含"生成 PPT"、"制作幻灯片" → Flow 模式（优先级：中）
+        // 3. 包含"生成 PPT"�?制作幻灯�? �?Flow 模式（优先级：中�?
         if (containsPPTKeywords(userQuery)) {
             return registry.getMode("flow")
                     .orElse(registry.selectMode(context));
         }
         
-        // 4. 技能调用 → Skill-SOP 模式（优先级：中）
+        // 4. 技能调�?�?Skill-SOP 模式（优先级：中�?
         if (isSkillInvocation(userQuery)) {
             return registry.getMode("skill-sop")
                     .orElse(registry.selectMode(context));
         }
         
-        // 5. 默认 → ReAct 模式
+        // 5. 默认 �?ReAct 模式
         return registry.getMode("react")
                 .orElse(registry.selectMode(context));
     }
@@ -76,7 +76,7 @@ public class ModeSwitchStrategy {
     }
 
     /**
-     * 检查是否包含 PPT 关键词
+     * 检查是否包�?PPT 关键�?
      */
     private boolean containsPPTKeywords(String query) {
         if (query == null || query.trim().isEmpty()) {
@@ -85,13 +85,13 @@ public class ModeSwitchStrategy {
         
         String lower = query.toLowerCase();
         return lower.contains("ppt") 
-            || lower.contains("幻灯片")
+            || lower.contains("幻灯�?)
             || lower.contains("演示文稿")
             || lower.contains("powerpoint");
     }
 
     /**
-     * 检查是否是技能调用
+     * 检查是否是技能调�?
      */
     private boolean isSkillInvocation(String query) {
         if (query == null || query.trim().isEmpty()) {
@@ -100,8 +100,8 @@ public class ModeSwitchStrategy {
         
         String lower = query.toLowerCase();
         return lower.startsWith("/") 
-            || lower.contains("执行技能")
-            || lower.contains("运行技能");
+            || lower.contains("执行技�?)
+            || lower.contains("运行技�?);
     }
 
     /**
@@ -169,3 +169,18 @@ public class ModeSwitchStrategy {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

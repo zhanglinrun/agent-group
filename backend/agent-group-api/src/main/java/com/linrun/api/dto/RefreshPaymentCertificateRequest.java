@@ -9,3 +9,18 @@ public class RefreshPaymentCertificateRequest implements Serializable {
 
     private String payChannel;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

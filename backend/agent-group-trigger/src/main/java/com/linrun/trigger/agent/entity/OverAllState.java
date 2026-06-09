@@ -43,7 +43,7 @@ public class OverAllState {
      * 用于 generatePlan 阶段
      */
     public String renderFullContext() {
-        // 先找到最近一次 Critique Feedback 的索引
+        // 先找到最近一�?Critique Feedback 的索�?
         int lastCritiqueIndex = findLastCritiqueIndex();
 
         StringBuilder sb = new StringBuilder();
@@ -51,8 +51,8 @@ public class OverAllState {
             Message m = messages.get(i);
             String text = m.getText();
 
-            // 如果这是之前轮次的 Critique Feedback，跳过
-            if (i < lastCritiqueIndex && text != null && text.contains("【Critique Feedback】")) {
+            // 如果这是之前轮次�?Critique Feedback，跳�?
+            if (i < lastCritiqueIndex && text != null && text.contains("【Critique Feedback�?)) {
                 continue;
             }
 
@@ -63,14 +63,14 @@ public class OverAllState {
     }
 
     /**
-     * 提取所有工具执行结果
+     * 提取所有工具执行结�?
      * 用于 summarize 阶段生成报告
      */
     public String extractToolResults() {
         StringBuilder sb = new StringBuilder();
         for (Message m : messages) {
             String text = m.getText();
-            if (text != null && text.contains("【Completed Task Result】")) {
+            if (text != null && text.contains("【Completed Task Result�?)) {
                 sb.append(text).append("\n\n");
             }
         }
@@ -78,7 +78,7 @@ public class OverAllState {
     }
 
     /**
-     * 获取最近一次批判反馈
+     * 获取最近一次批判反�?
      */
     public String getLastCritique() {
         int index = findLastCritiqueIndex();
@@ -89,15 +89,30 @@ public class OverAllState {
     }
 
     /**
-     * 找到最近一次 Critique Feedback 的索引
+     * 找到最近一�?Critique Feedback 的索�?
      */
     private int findLastCritiqueIndex() {
         for (int i = messages.size() - 1; i >= 0; i--) {
             String text = messages.get(i).getText();
-            if (text != null && text.contains("【Critique Feedback】")) {
+            if (text != null && text.contains("【Critique Feedback�?)) {
                 return i;
             }
         }
         return -1;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

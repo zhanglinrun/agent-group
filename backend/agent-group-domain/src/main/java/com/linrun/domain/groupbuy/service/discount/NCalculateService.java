@@ -18,3 +18,18 @@ public class NCalculateService extends AbstractDiscountCalculateService {
         return marketExpr(discount);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

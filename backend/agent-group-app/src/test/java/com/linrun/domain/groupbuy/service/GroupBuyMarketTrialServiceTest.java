@@ -16,8 +16,8 @@ import com.linrun.domain.groupbuy.service.discount.MJCalculateService;
 import com.linrun.domain.groupbuy.service.discount.NCalculateService;
 import com.linrun.domain.groupbuy.service.discount.ZJCalculateService;
 import com.linrun.domain.groupbuy.service.discount.ZKCalculateService;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -78,7 +78,7 @@ class GroupBuyMarketTrialServiceTest {
         return new GroupBuyMarketTrialService(
                 activityRepository,
                 marketRepository,
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new DynamicConfigService(new FakeDynamicConfigRepository()),
                 discountServices);
     }
@@ -171,15 +171,15 @@ class GroupBuyMarketTrialServiceTest {
         }
     }
 
-    private static class FakeGuideDataRepository implements GuideDataRepository {
+    private static class FakeQuotaProductRepository implements QuotaProductRepository {
 
         @Override
-        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
             return List.of();
         }
 
         @Override
-        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+        public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
             return Optional.empty();
         }
     }
@@ -196,3 +196,18 @@ class GroupBuyMarketTrialServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

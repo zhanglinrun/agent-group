@@ -62,7 +62,7 @@ public class MockPayCallbackService {
         }
 
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(request.getOrderId())
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(request.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
@@ -142,3 +142,18 @@ public class MockPayCallbackService {
         return response;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

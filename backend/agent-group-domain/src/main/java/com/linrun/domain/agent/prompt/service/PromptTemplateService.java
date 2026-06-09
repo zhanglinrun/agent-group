@@ -26,3 +26,18 @@ public class PromptTemplateService {
         return promptTemplateRepository.queryEnabledTemplates();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

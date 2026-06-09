@@ -4,10 +4,10 @@ import com.linrun.api.dto.CreateDirectOrderRequest;
 import com.linrun.api.dto.CreateDirectOrderResponse;
 import com.linrun.api.dto.CreatePaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
-import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotRepository;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.service.GuideDecisionSnapshotValidator;
+import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
+import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.CreateTradeOrderCommandEntity;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
@@ -30,51 +30,51 @@ public class DirectBuyOrderService {
 
     private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
-    private final GuideDataRepository guideDataRepository;
+    private final QuotaProductRepository QuotaProductRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
-    private final GuideDecisionSnapshotValidator guideDecisionSnapshotValidator;
+    private final QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator;
     private final PaymentService paymentService;
 
-    public DirectBuyOrderService(GuideDataRepository guideDataRepository,
+    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService) {
-        this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new GuideDecisionSnapshotValidator(GuideDecisionSnapshotRepository.noop()), null);
+        this(QuotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository.noop()), null);
     }
 
-    public DirectBuyOrderService(GuideDataRepository guideDataRepository,
+    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 GuideDecisionSnapshotRepository guideDecisionSnapshotRepository) {
-        this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new GuideDecisionSnapshotValidator(guideDecisionSnapshotRepository), null);
+                                 QuotaOrderSnapshotRepository QuotaOrderSnapshotRepository) {
+        this(QuotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository), null);
     }
 
-    public DirectBuyOrderService(GuideDataRepository guideDataRepository,
+    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 GuideDecisionSnapshotValidator guideDecisionSnapshotValidator) {
-        this(guideDataRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                guideDecisionSnapshotValidator, null);
+                                 QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator) {
+        this(QuotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                QuotaOrderSnapshotValidator, null);
     }
 
     @Autowired
-    public DirectBuyOrderService(GuideDataRepository guideDataRepository,
+    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 GuideDecisionSnapshotValidator guideDecisionSnapshotValidator,
+                                 QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
                                  PaymentService paymentService) {
-        this.guideDataRepository = guideDataRepository;
+        this.QuotaProductRepository = QuotaProductRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
-        this.guideDecisionSnapshotValidator = guideDecisionSnapshotValidator;
+        this.QuotaOrderSnapshotValidator = QuotaOrderSnapshotValidator;
         this.paymentService = paymentService;
     }
 
@@ -87,10 +87,10 @@ public class DirectBuyOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "额度包编号不能为空");
+            throw new AppException("0001", "额度包编号不能为�?);
         }
         if (!StringUtils.hasText(request.getIdempotentKey())) {
-            throw new AppException("0001", "幂等键不能为空");
+            throw new AppException("0001", "幂等键不能为�?);
         }
         TradeOrderEntity existed = tradeOrderRepository.queryTradeOrderByIdempotentKey(request.getIdempotentKey())
                 .orElse(null);
@@ -102,10 +102,10 @@ public class DirectBuyOrderService {
             return toResponse(existed, existingPayOrder, request.getDecisionId(), payment);
         }
 
-        GuideProduct product = guideDataRepository.queryProductByGoodsId(request.getGoodsId())
+        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         if (StringUtils.hasText(request.getDecisionId())) {
-            guideDecisionSnapshotValidator.validateDirect(
+            QuotaOrderSnapshotValidator.validateDirect(
                     request.getDecisionId(),
                     request.getUserId(),
                     request.getGoodsId(),
@@ -138,7 +138,7 @@ public class DirectBuyOrderService {
         if (!request.getUserId().equals(existed.getUserId())
                 || !request.getGoodsId().equals(existed.getGoodsId())
                 || !TradeBuyTypeEnumVO.DIRECT.equals(existed.getBuyType())) {
-            throw new AppException("TRADE_0017", "幂等键已被其他下单请求使用");
+            throw new AppException("TRADE_0017", "幂等键已被其他下单请求使�?);
         }
     }
 
@@ -226,3 +226,18 @@ public class DirectBuyOrderService {
         return StringUtils.hasText(value) && value.toLowerCase().contains("<form");
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

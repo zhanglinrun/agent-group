@@ -19,3 +19,18 @@ public interface ITradeEventConsumeRecordDao {
 
     int updateStatusDeadLetter(TradeEventConsumeRecordPO record);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

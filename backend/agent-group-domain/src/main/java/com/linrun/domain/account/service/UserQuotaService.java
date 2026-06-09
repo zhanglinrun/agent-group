@@ -13,9 +13,9 @@ import com.linrun.domain.account.model.UserMembershipAccount;
 import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.model.UserQuotaAccount;
 import com.linrun.domain.account.model.UserQuotaFlow;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.domain.support.config.service.DynamicConfigService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
@@ -61,7 +61,7 @@ public class UserQuotaService {
     private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
     private final UserQuotaRepository userQuotaRepository;
-    private final GuideDataRepository guideDataRepository;
+    private final QuotaProductRepository QuotaProductRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final DynamicConfigService dynamicConfigService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -70,18 +70,18 @@ public class UserQuotaService {
     private String modelConfigCryptoSecret = "";
 
     public UserQuotaService(UserQuotaRepository userQuotaRepository,
-                            GuideDataRepository guideDataRepository,
+                            QuotaProductRepository QuotaProductRepository,
                             TradeOrderRepository tradeOrderRepository) {
-        this(userQuotaRepository, guideDataRepository, tradeOrderRepository, null);
+        this(userQuotaRepository, QuotaProductRepository, tradeOrderRepository, null);
     }
 
     @Autowired
     public UserQuotaService(UserQuotaRepository userQuotaRepository,
-                            GuideDataRepository guideDataRepository,
+                            QuotaProductRepository QuotaProductRepository,
                             TradeOrderRepository tradeOrderRepository,
                             DynamicConfigService dynamicConfigService) {
         this.userQuotaRepository = userQuotaRepository;
-        this.guideDataRepository = guideDataRepository;
+        this.QuotaProductRepository = QuotaProductRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.dynamicConfigService = dynamicConfigService;
     }
@@ -251,7 +251,7 @@ public class UserQuotaService {
                 .map(UserMembershipAccount::remainingQuota)
                 .orElse(BigDecimal.ZERO));
         if (available.compareTo(safeAmount) < 0) {
-            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会员");
+            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会�?);
         }
     }
 
@@ -260,7 +260,7 @@ public class UserQuotaService {
     }
 
     public BigDecimal estimatePreCheckCost(String taskType, boolean customModelUsed) {
-        GuideTokenUsage sampleUsage = new GuideTokenUsage(500L, 500L, 1000L, BigDecimal.ZERO);
+        TokenUsageMetrics sampleUsage = new TokenUsageMetrics(500L, 500L, 1000L, BigDecimal.ZERO);
         return estimateTaskCost(sampleUsage, customModelUsed, false);
     }
 
@@ -268,7 +268,7 @@ public class UserQuotaService {
     public QuotaAccountResponse consumeForAcademicTask(String userId,
                                                        String sessionId,
                                                        String taskType,
-                                                       GuideTokenUsage tokenUsage,
+                                                       TokenUsageMetrics tokenUsage,
                                                        String model,
                                                        long latencyMillis) {
         return consumeForAcademicTask(userId, sessionId, buildTaskConsumeBizId(sessionId), taskType,
@@ -279,7 +279,7 @@ public class UserQuotaService {
     public QuotaAccountResponse consumeForAcademicTask(String userId,
                                                        String sessionId,
                                                        String taskType,
-                                                       GuideTokenUsage tokenUsage,
+                                                       TokenUsageMetrics tokenUsage,
                                                        String model,
                                                        long latencyMillis,
                                                        boolean customModelUsed) {
@@ -292,7 +292,7 @@ public class UserQuotaService {
                                                        String sessionId,
                                                        String taskConsumeBizId,
                                                        String taskType,
-                                                       GuideTokenUsage tokenUsage,
+                                                       TokenUsageMetrics tokenUsage,
                                                        String model,
                                                        long latencyMillis) {
         return consumeForAcademicTask(userId, sessionId, taskConsumeBizId, taskType,
@@ -304,7 +304,7 @@ public class UserQuotaService {
                                                        String sessionId,
                                                        String taskConsumeBizId,
                                                        String taskType,
-                                                       GuideTokenUsage tokenUsage,
+                                                       TokenUsageMetrics tokenUsage,
                                                        String model,
                                                        long latencyMillis,
                                                        boolean customModelUsed) {
@@ -328,11 +328,11 @@ public class UserQuotaService {
         BigDecimal accountDebit = normalizeAmount(quotaCost.subtract(memberDebit));
         if (accountDebit.compareTo(BigDecimal.ZERO) > 0) {
             if (before.getQuotaBalance().compareTo(accountDebit) < 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会员");
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会�?);
             }
             int affected = userQuotaRepository.decreaseQuota(userId, accountDebit);
             if (affected <= 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会员");
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会�?);
             }
             UserQuotaAccount after = queryAccount(userId);
             userQuotaRepository.saveFlow(flow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId,
@@ -361,7 +361,7 @@ public class UserQuotaService {
             markDealDoneIfNeeded(tradeOrder);
             return;
         }
-        GuideProduct product = resolveOrderProduct(tradeOrder);
+        QuotaProduct product = resolveOrderProduct(tradeOrder);
         if (isMembershipPlan(product)) {
             grantMembershipForPaidOrder(tradeOrder, product);
             return;
@@ -385,7 +385,7 @@ public class UserQuotaService {
         markDealDoneIfNeeded(tradeOrder);
     }
 
-    private void grantMembershipForPaidOrder(TradeOrderEntity tradeOrder, GuideProduct product) {
+    private void grantMembershipForPaidOrder(TradeOrderEntity tradeOrder, QuotaProduct product) {
         userQuotaRepository.createAccountIfAbsent(tradeOrder.getUserId());
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
         UserMembershipAccount membership = buildMembership(tradeOrder.getUserId(), product);
@@ -443,7 +443,7 @@ public class UserQuotaService {
                 grantFlow.getQuotaAmount().negate(),
                 before.getQuotaBalance(),
                 after.getQuotaBalance(),
-                "订单退款回滚额度"));
+                "订单退款回滚额�?));
     }
 
     private BigDecimal debitMembership(String userId, BigDecimal quotaCost, UserMembershipAccount membership) {
@@ -459,11 +459,11 @@ public class UserQuotaService {
         return affected > 0 ? debit : BigDecimal.ZERO;
     }
 
-    private BigDecimal estimateTaskCost(GuideTokenUsage usage, boolean customModelUsed, boolean activeMember) {
+    private BigDecimal estimateTaskCost(TokenUsageMetrics usage, boolean customModelUsed, boolean activeMember) {
         if (customModelUsed && activeMember) {
             return BigDecimal.ZERO;
         }
-        GuideTokenUsage safeUsage = usage == null ? GuideTokenUsage.empty() : usage;
+        TokenUsageMetrics safeUsage = usage == null ? TokenUsageMetrics.empty() : usage;
         long promptTokens = Math.max(0L, safeUsage.getPromptTokens());
         long completionTokens = Math.max(0L, safeUsage.getCompletionTokens());
         long totalTokens = Math.max(0L, safeUsage.getTotalTokens());
@@ -529,18 +529,18 @@ public class UserQuotaService {
         tradeOrderRepository.updateDealDone(tradeOrder);
     }
 
-    private GuideProduct resolveOrderProduct(TradeOrderEntity tradeOrder) {
+    private QuotaProduct resolveOrderProduct(TradeOrderEntity tradeOrder) {
         if (tradeOrder == null || !StringUtils.hasText(tradeOrder.getGoodsId())) {
             return null;
         }
-        return guideDataRepository.queryProductByGoodsId(tradeOrder.getGoodsId()).orElse(null);
+        return QuotaProductRepository.queryProductByGoodsId(tradeOrder.getGoodsId()).orElse(null);
     }
 
     private BigDecimal resolveOrderQuota(TradeOrderEntity tradeOrder) {
         return resolveOrderQuota(tradeOrder, resolveOrderProduct(tradeOrder));
     }
 
-    private BigDecimal resolveOrderQuota(TradeOrderEntity tradeOrder, GuideProduct product) {
+    private BigDecimal resolveOrderQuota(TradeOrderEntity tradeOrder, QuotaProduct product) {
         if (product != null && product.getQuotaAmount() != null && product.getQuotaAmount().compareTo(BigDecimal.ZERO) > 0) {
             return product.getQuotaAmount();
         }
@@ -548,11 +548,11 @@ public class UserQuotaService {
         return payAmount.multiply(BigDecimal.valueOf(20)).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private boolean isMembershipPlan(GuideProduct product) {
+    private boolean isMembershipPlan(QuotaProduct product) {
         return product != null && MEMBERSHIP_PLAN.equals(product.getProductType());
     }
 
-    private UserMembershipAccount buildMembership(String userId, GuideProduct product) {
+    private UserMembershipAccount buildMembership(String userId, QuotaProduct product) {
         LocalDateTime now = LocalDateTime.now();
         UserMembershipAccount existing = userQuotaRepository.queryMembership(userId).orElse(null);
         LocalDateTime cycleStart = now;
@@ -590,19 +590,19 @@ public class UserQuotaService {
     }
 
     private String consumeRemark(String taskType, BigDecimal quotaCost, BigDecimal memberDebit, boolean customModelUsed) {
-        String source = customModelUsed ? "自定义模型" : "平台模型";
+        String source = customModelUsed ? "自定义模�? : "平台模型";
         if (memberDebit.compareTo(BigDecimal.ZERO) > 0) {
-            return "任务按 token 扣费：" + safe(taskType) + "，" + source
-                    + "，会员额度抵扣 " + memberDebit.stripTrailingZeros().toPlainString()
-                    + "，总费用 " + quotaCost.stripTrailingZeros().toPlainString();
+            return "任务�?token 扣费�? + safe(taskType) + "�? + source
+                    + "，会员额度抵�?" + memberDebit.stripTrailingZeros().toPlainString()
+                    + "，总费�?" + quotaCost.stripTrailingZeros().toPlainString();
         }
-        return "任务按 token 扣费：" + safe(taskType) + "，" + source
-                + "，费用 " + quotaCost.stripTrailingZeros().toPlainString();
+        return "任务�?token 扣费�? + safe(taskType) + "�? + source
+                + "，费�?" + quotaCost.stripTrailingZeros().toPlainString();
     }
 
     private UserQuotaAccount queryAccount(String userId) {
         return userQuotaRepository.queryAccount(userId)
-                .orElseThrow(() -> new AppException("QUOTA_0002", "额度账户不存在"));
+                .orElseThrow(() -> new AppException("QUOTA_0002", "额度账户不存�?));
     }
 
     private UserQuotaFlow flow(String userId,
@@ -628,11 +628,11 @@ public class UserQuotaService {
     private ModelUsageRecord usage(String userId,
                                    String sessionId,
                                    String taskType,
-                                   GuideTokenUsage tokenUsage,
+                                   TokenUsageMetrics tokenUsage,
                                    String model,
                                    BigDecimal quotaCost,
                                    long latencyMillis) {
-        GuideTokenUsage safeUsage = tokenUsage == null ? GuideTokenUsage.empty() : tokenUsage;
+        TokenUsageMetrics safeUsage = tokenUsage == null ? TokenUsageMetrics.empty() : tokenUsage;
         ModelUsageRecord usage = new ModelUsageRecord();
         usage.setUsageId("MU" + UUID.randomUUID().toString().replace("-", "").substring(0, 18).toUpperCase());
         usage.setUserId(userId);
@@ -676,7 +676,7 @@ public class UserQuotaService {
         UserMembershipDTO dto = new UserMembershipDTO();
         dto.setUserId(userId);
         dto.setPlanCode(membership == null ? "FREE" : firstText(membership.getPlanCode(), "FREE"));
-        dto.setPlanName(membership == null ? "免费版" : firstText(membership.getPlanName(), "免费版"));
+        dto.setPlanName(membership == null ? "免费�? : firstText(membership.getPlanName(), "免费�?));
         dto.setStatus(membership == null ? "INACTIVE" : firstText(membership.getStatus(), "INACTIVE"));
         dto.setMonthlyQuota(normalizeAmount(membership == null ? BigDecimal.ZERO : membership.getMonthlyQuota()));
         dto.setMonthlyUsedQuota(normalizeAmount(membership == null ? BigDecimal.ZERO : membership.getMonthlyUsedQuota()));
@@ -729,12 +729,12 @@ public class UserQuotaService {
         try {
             uri = URI.create(text);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0002", "自定义模型 API 地址格式不正确");
+            throw new AppException("MODEL_CONFIG_0002", "自定义模�?API 地址格式不正�?);
         }
         String scheme = uri.getScheme();
         String host = uri.getHost();
         if (!"https".equalsIgnoreCase(scheme) || !StringUtils.hasText(host)) {
-            throw new AppException("MODEL_CONFIG_0002", "自定义模型 API 地址仅支持 HTTPS");
+            throw new AppException("MODEL_CONFIG_0002", "自定义模�?API 地址仅支�?HTTPS");
         }
         String lowerHost = host.toLowerCase();
         if ("localhost".equals(lowerHost)
@@ -743,7 +743,7 @@ public class UserQuotaService {
                 || lowerHost.startsWith("10.")
                 || lowerHost.startsWith("192.168.")
                 || lowerHost.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\..*")) {
-            throw new AppException("MODEL_CONFIG_0002", "自定义模型 API 地址不能指向本地或内网地址");
+            throw new AppException("MODEL_CONFIG_0002", "自定义模�?API 地址不能指向本地或内网地址");
         }
         return text.replaceAll("/+$", "");
     }
@@ -756,7 +756,7 @@ public class UserQuotaService {
 
     private String encryptApiKey(String apiKey) {
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
+            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密�?);
         }
         try {
             byte[] iv = new byte[12];
@@ -767,7 +767,7 @@ public class UserQuotaService {
             return "v1:" + Base64.getEncoder().encodeToString(iv)
                     + ":" + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0004", "自定义模型密钥加密失败");
+            throw new AppException("MODEL_CONFIG_0004", "自定义模型密钥加密失�?);
         }
     }
 
@@ -776,7 +776,7 @@ public class UserQuotaService {
             return "";
         }
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
+            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密�?);
         }
         String[] parts = encryptedApiKey.split(":", 3);
         if (parts.length != 3 || !"v1".equals(parts[0])) {
@@ -789,7 +789,7 @@ public class UserQuotaService {
             cipher.init(Cipher.DECRYPT_MODE, secretKey(), new GCMParameterSpec(128, iv));
             return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0005", "自定义模型密钥解密失败");
+            throw new AppException("MODEL_CONFIG_0005", "自定义模型密钥解密失�?);
         }
     }
 
@@ -848,3 +848,19 @@ public class UserQuotaService {
                                  BigDecimal customModelServiceRate) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

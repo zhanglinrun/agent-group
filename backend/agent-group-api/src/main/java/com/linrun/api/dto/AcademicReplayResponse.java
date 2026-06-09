@@ -13,5 +13,20 @@ public class AcademicReplayResponse implements Serializable {
     private String sessionId;
     private String runId;
     private String status;
-    private List<GuideStreamEvent<Map<String, Object>>> events = new ArrayList<>();
+    private List<QuotaStreamEvent<Map<String, Object>>> events = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

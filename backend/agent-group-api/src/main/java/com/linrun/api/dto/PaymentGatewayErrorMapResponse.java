@@ -14,3 +14,18 @@ public class PaymentGatewayErrorMapResponse implements Serializable {
     private boolean retryable;
     private String suggestion;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

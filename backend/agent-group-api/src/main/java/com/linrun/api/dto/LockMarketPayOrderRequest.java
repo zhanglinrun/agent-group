@@ -27,3 +27,18 @@ public class LockMarketPayOrderRequest implements Serializable {
         private String notifyUrl;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

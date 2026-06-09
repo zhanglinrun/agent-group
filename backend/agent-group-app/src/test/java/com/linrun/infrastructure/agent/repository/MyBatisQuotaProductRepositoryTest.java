@@ -1,9 +1,9 @@
 package com.linrun.infrastructure.agent.repository;
 
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
-import com.linrun.infrastructure.dao.IGuideDataDao;
-import com.linrun.infrastructure.po.GuideProductPO;
+import com.linrun.infrastructure.dao.IQuotaProductDao;
+import com.linrun.infrastructure.po.QuotaProductPO;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -12,16 +12,16 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class MyBatisGuideDataRepositoryTest {
+class MyBatisQuotaProductRepositoryTest {
 
     @Test
     void shouldQueryCandidateProductsByExtractedKeywords() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
-        MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
+        MyBatisQuotaProductRepository repository = new MyBatisQuotaProductRepository(
                 guideDataDao,
                 new KnowledgeKeywordService());
 
-        List<GuideProduct> products = repository.queryCandidateProducts("paper reading", 5);
+        List<QuotaProduct> products = repository.queryCandidateProducts("paper reading", 5);
 
         assertEquals(1, products.size());
         assertEquals("G10002", products.getFirst().getGoodsId());
@@ -32,39 +32,39 @@ class MyBatisGuideDataRepositoryTest {
     @Test
     void shouldNormalizeProductDefaults() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
-        guideDataDao.detail = FakeGuideDataDao.product("G10001", "基础额度包");
+        guideDataDao.detail = FakeGuideDataDao.product("G10001", "基础额度�?);
         guideDataDao.detail.setGroupPrice(null);
-        MyBatisGuideDataRepository repository = new MyBatisGuideDataRepository(
+        MyBatisQuotaProductRepository repository = new MyBatisQuotaProductRepository(
                 guideDataDao,
                 new KnowledgeKeywordService());
 
-        GuideProduct product = repository.queryProductByGoodsId("G10001").orElseThrow();
+        QuotaProduct product = repository.queryProductByGoodsId("G10001").orElseThrow();
 
         assertEquals(new BigDecimal("29.90"), product.getGroupPrice());
         assertEquals(1, product.getTeamSize());
         assertEquals(1800, product.getRemainingSeconds());
     }
 
-    private static class FakeGuideDataDao implements IGuideDataDao {
+    private static class FakeGuideDataDao implements IQuotaProductDao {
 
         private List<String> keywords = List.of();
         private int limit;
-        private GuideProductPO detail;
+        private QuotaProductPO detail;
 
         @Override
-        public List<GuideProductPO> queryCandidateProducts(List<String> keywords, int limit) {
+        public List<QuotaProductPO> queryCandidateProducts(List<String> keywords, int limit) {
             this.keywords = keywords;
             this.limit = limit;
-            return List.of(product("G10002", "论文阅读额度包"));
+            return List.of(product("G10002", "论文阅读额度�?));
         }
 
         @Override
-        public GuideProductPO queryProductByGoodsId(String goodsId) {
+        public QuotaProductPO queryProductByGoodsId(String goodsId) {
             return detail;
         }
 
-        private static GuideProductPO product(String goodsId, String goodsName) {
-            GuideProductPO product = new GuideProductPO();
+        private static QuotaProductPO product(String goodsId, String goodsName) {
+            QuotaProductPO product = new QuotaProductPO();
             product.setGoodsId(goodsId);
             product.setGoodsName(goodsName);
             product.setOriginPrice(new BigDecimal("29.90"));
@@ -72,3 +72,18 @@ class MyBatisGuideDataRepositoryTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

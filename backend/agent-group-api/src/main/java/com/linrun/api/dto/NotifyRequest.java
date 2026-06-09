@@ -11,3 +11,18 @@ public class NotifyRequest implements Serializable {
     private String teamId;
     private List<String> outTradeNoList;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

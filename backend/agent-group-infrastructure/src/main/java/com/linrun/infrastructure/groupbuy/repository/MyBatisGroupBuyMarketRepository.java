@@ -74,3 +74,18 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
         return ActivityPOConverter.toSourceChannels(sourceChannelSkuActivityDao.querySourceChannelList(Math.max(1, limit)));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

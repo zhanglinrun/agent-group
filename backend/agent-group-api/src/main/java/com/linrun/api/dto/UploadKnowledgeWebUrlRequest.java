@@ -13,3 +13,18 @@ public class UploadKnowledgeWebUrlRequest implements Serializable {
     private String documentType;
     private String knowledgeVersion;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

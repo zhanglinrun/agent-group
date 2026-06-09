@@ -48,3 +48,18 @@ public class GroupBuyMarketTrialCommand {
         this.activityId = activityId;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

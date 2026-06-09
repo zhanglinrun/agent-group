@@ -4,9 +4,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 上下文压缩策略配置。
+ * 上下文压缩策略配置�?
  *
- * 控制 Agent 循环中上下文压缩的行为，包括 token 阈值、保留数量、保护工具列表等。
+ * 控制 Agent 循环中上下文压缩的行为，包括 token 阈值、保留数量、保护工具列表等�?
  */
 public record ContextPolicy(
         int tokenThreshold,
@@ -15,11 +15,11 @@ public record ContextPolicy(
         Set<String> protectedTools
 ) {
 
-    /** 默认 token 阈值 */
+    /** 默认 token 阈�?*/
     public static final int DEFAULT_TOKEN_THRESHOLD = 60000;
-    /** 默认保留最近工具调用轮数 */
+    /** 默认保留最近工具调用轮�?*/
     public static final int DEFAULT_KEEP_RECENT_TOOLS = 4;
-    /** 默认工具内容压缩阈值（ToolResponse 和 ToolCall args 统一使用） */
+    /** 默认工具内容压缩阈值（ToolResponse �?ToolCall args 统一使用�?*/
     public static final int DEFAULT_MAX_TOOL_LENGTH = 200;
     /** 内置保护工具 */
     private static final Set<String> BUILTIN_PROTECTED_TOOLS = Set.of("Skill");
@@ -83,3 +83,18 @@ public record ContextPolicy(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

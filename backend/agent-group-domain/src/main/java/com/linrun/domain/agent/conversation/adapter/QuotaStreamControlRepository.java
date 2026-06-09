@@ -1,6 +1,6 @@
 package com.linrun.domain.agent.conversation.adapter;
 
-public interface GuideStreamControlRepository {
+public interface QuotaStreamControlRepository {
 
     void markStopped(String sessionId);
 
@@ -8,3 +8,18 @@ public interface GuideStreamControlRepository {
 
     void clearStopped(String sessionId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

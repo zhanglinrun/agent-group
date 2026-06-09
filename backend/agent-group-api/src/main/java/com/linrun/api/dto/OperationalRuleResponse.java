@@ -14,3 +14,18 @@ public class OperationalRuleResponse implements Serializable {
     private String description;
     private LocalDateTime updateTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

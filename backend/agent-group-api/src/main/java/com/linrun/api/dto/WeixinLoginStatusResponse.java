@@ -16,3 +16,18 @@ public class WeixinLoginStatusResponse implements Serializable {
     private LocalDateTime expireTime;
     private LocalDateTime scanTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

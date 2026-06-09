@@ -59,3 +59,18 @@ public class DynamicConfigPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

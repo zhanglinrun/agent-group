@@ -72,22 +72,22 @@ public class HumanApprovalHandler {
         }
         HumanApprovalRecord record = queryRecord(request.getApprovalId());
         if (record.expired(LocalDateTime.now())) {
-            throw new AppException("HITL_0002", "人工确认已过期");
+            throw new AppException("HITL_0002", "人工确认已过�?);
         }
         if (StringUtils.hasText(request.getUserId()) && !request.getUserId().equals(record.getUserId())) {
-            throw new AppException("HITL_0003", "人工确认用户不匹配");
+            throw new AppException("HITL_0003", "人工确认用户不匹�?);
         }
         record.setStatus(Boolean.TRUE.equals(request.getApproved())
                 ? HumanApprovalRecord.STATUS_APPROVED
                 : HumanApprovalRecord.STATUS_REJECTED);
         record.setReason(request.getReason());
         save(record);
-        return toResponse(record, Boolean.TRUE.equals(request.getApproved()) ? "已通过" : "已拒绝");
+        return toResponse(record, Boolean.TRUE.equals(request.getApproved()) ? "已通过" : "已拒�?);
     }
 
     public HumanApprovalResponse queryApproval(String approvalId) {
         HumanApprovalRecord record = queryRecord(approvalId);
-        return toResponse(record, record.expired(LocalDateTime.now()) ? "已过期" : "正常");
+        return toResponse(record, record.expired(LocalDateTime.now()) ? "已过�? : "正常");
     }
 
     public void assertApproved(String approvalId, String userId, String action, String bizId) {
@@ -95,24 +95,24 @@ public class HumanApprovalHandler {
             return;
         }
         if (!StringUtils.hasText(approvalId)) {
-            throw new AppException("HITL_0004", "该操作需要人工确认");
+            throw new AppException("HITL_0004", "该操作需要人工确�?);
         }
         HumanApprovalRecord record = queryRecord(approvalId);
         LocalDateTime now = LocalDateTime.now();
         if (record.expired(now)) {
-            throw new AppException("HITL_0002", "人工确认已过期");
+            throw new AppException("HITL_0002", "人工确认已过�?);
         }
         if (!HumanApprovalRecord.STATUS_APPROVED.equals(record.getStatus())) {
             throw new AppException("HITL_0005", "人工确认未通过");
         }
         if (StringUtils.hasText(userId) && !userId.equals(record.getUserId())) {
-            throw new AppException("HITL_0003", "人工确认用户不匹配");
+            throw new AppException("HITL_0003", "人工确认用户不匹�?);
         }
         if (StringUtils.hasText(action) && !action.equals(record.getAction())) {
-            throw new AppException("HITL_0006", "人工确认操作不匹配");
+            throw new AppException("HITL_0006", "人工确认操作不匹�?);
         }
         if (StringUtils.hasText(bizId) && StringUtils.hasText(record.getBizId()) && !bizId.equals(record.getBizId())) {
-            throw new AppException("HITL_0007", "人工确认业务编号不匹配");
+            throw new AppException("HITL_0007", "人工确认业务编号不匹�?);
         }
         record.setStatus(HumanApprovalRecord.STATUS_CONSUMED);
         save(record);
@@ -133,7 +133,7 @@ public class HumanApprovalHandler {
         }
         HumanApprovalRecord record = read(approvalId);
         if (record == null) {
-            throw new AppException("HITL_0008", "人工确认记录不存在");
+            throw new AppException("HITL_0008", "人工确认记录不存�?);
         }
         return record;
     }
@@ -185,3 +185,18 @@ public class HumanApprovalHandler {
         return response;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

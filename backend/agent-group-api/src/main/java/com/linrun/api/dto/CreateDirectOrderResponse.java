@@ -28,3 +28,18 @@ public class CreateDirectOrderResponse implements Serializable {
     private String gatewayTradeNo;
     private LocalDateTime createTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

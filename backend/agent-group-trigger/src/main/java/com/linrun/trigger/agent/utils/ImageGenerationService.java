@@ -32,9 +32,9 @@ public class ImageGenerationService {
     private static final String GRS_AI_GENERATION_URL = "https://grsai.dakka.com.cn/v1/draw/nano-banana";
 
     /**
-     * 生成图像（默认使用qwen）
+     * 生成图像（默认使用qwen�?
      *
-     * @param prompt 提示词
+     * @param prompt 提示�?
      * @return 图像URL
      */
     public String generateImage(String prompt) {
@@ -44,8 +44,8 @@ public class ImageGenerationService {
     /**
      * 生成图像
      *
-     * @param prompt   提示词
-     * @param provider 图像生成服务提供商
+     * @param prompt   提示�?
+     * @param provider 图像生成服务提供�?
      * @return 图像URL
      */
     public String generateImage(String prompt, ImageProvider provider) {
@@ -57,7 +57,7 @@ public class ImageGenerationService {
     }
 
     /**
-     * 使用通义千问生成图像（multimodal-generation 同步接口）
+     * 使用通义千问生成图像（multimodal-generation 同步接口�?
      */
     private String generateWithQwen(String prompt) {
         try {
@@ -78,7 +78,7 @@ public class ImageGenerationService {
             requestBody.put("input", input);
 
             Map<String, Object> parameters = new HashMap<>();
-            parameters.put("negative_prompt", "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲。");
+            parameters.put("negative_prompt", "低分辨率，低画质，肢体畸形，手指畸形，画面过饱和，蜡像感，人脸无细节，过度光滑，画面具有AI感。构图混乱。文字模糊，扭曲�?);
             parameters.put("prompt_extend", true);
             parameters.put("watermark", false);
             parameters.put("size", "1664*928");
@@ -89,17 +89,17 @@ public class ImageGenerationService {
                     .uri(URI.create(QWEN_API_URL))
                     .timeout(Duration.ofMinutes(5));
 
-            // 添加请求头
+            // 添加请求�?
             requestBuilder.header("Content-Type", "application/json");
             requestBuilder.header("Authorization", "Bearer " + apiKey);
 
-            // 添加请求体
+            // 添加请求�?
             String bodyStr = JSON.toJSONString(requestBody);
             requestBuilder.POST(HttpRequest.BodyPublishers.ofString(bodyStr));
 
             HttpRequest request = requestBuilder.build();
 
-            // 发送请求
+            // 发送请�?
             HttpResponse<String> response = HTTP_CLIENT.send(request,
                     HttpResponse.BodyHandlers.ofString());
 
@@ -148,7 +148,7 @@ public class ImageGenerationService {
             requestBody.put("aspectRatio", "16:9");
             requestBody.put("imageSize", "1K");
 
-            // 设置请求头
+            // 设置请求�?
             Map<String, String> headers = new HashMap<>();
             headers.put("Content-Type", "application/json");
             headers.put("Authorization", "Bearer " + grsAiApiKey);
@@ -158,12 +158,12 @@ public class ImageGenerationService {
                     .uri(URI.create(GRS_AI_GENERATION_URL))
                     .timeout(Duration.ofMinutes(5));
 
-            // 添加请求头
+            // 添加请求�?
             for (Map.Entry<String, String> header : headers.entrySet()) {
                 requestBuilder.header(header.getKey(), header.getValue());
             }
 
-            // 添加请求体
+            // 添加请求�?
             String bodyStr = JSON.toJSONString(requestBody);
             requestBuilder.POST(HttpRequest.BodyPublishers.ofString(bodyStr));
 
@@ -180,7 +180,7 @@ public class ImageGenerationService {
                     while ((line = reader.readLine()) != null) {
                         line = line.trim();
 
-                        // 检查是否是数据行 (data: ...)
+                        // 检查是否是数据�?(data: ...)
                         if (line.startsWith("data: ")) {
                             String jsonData = line.substring(6).trim();
 
@@ -188,7 +188,7 @@ public class ImageGenerationService {
                                 try {
                                     JSONObject jsonObject = JSON.parseObject(jsonData);
 
-                                    // 检查是否完成
+                                    // 检查是否完�?
                                     if ("succeeded".equals(jsonObject.getString("status"))) {
                                         if (jsonObject.containsKey("results") &&
                                             !jsonObject.getJSONArray("results").isEmpty()) {
@@ -236,3 +236,18 @@ public class ImageGenerationService {
             .connectTimeout(Duration.ofSeconds(30))
             .build();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

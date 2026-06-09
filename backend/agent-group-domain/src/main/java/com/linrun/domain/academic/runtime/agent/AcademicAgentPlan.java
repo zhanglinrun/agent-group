@@ -90,3 +90,18 @@ public class AcademicAgentPlan {
         return value == null ? "" : value.trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -40,3 +40,18 @@ public class AcademicWorkspaceImageController {
         return Response.success(workspaceImageService.history(token, sessionId, limit), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -28,3 +28,18 @@ public interface AcademicTableRagPort {
                                     List<Map<String, Object>> schemaList) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

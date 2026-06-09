@@ -12,3 +12,18 @@ public class RegisterRequest implements Serializable {
     private String nickname;
     private String email;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

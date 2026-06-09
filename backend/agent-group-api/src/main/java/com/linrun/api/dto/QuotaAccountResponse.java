@@ -13,3 +13,18 @@ public class QuotaAccountResponse implements Serializable {
     private BigDecimal frozenQuota;
     private BigDecimal usedQuota;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -11,3 +11,18 @@ public class CloseUnpaidGroupBuyOrderRequest implements Serializable {
     private String orderId;
     private LocalDateTime closeTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

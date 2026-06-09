@@ -27,3 +27,18 @@ public class MyBatisTradeStatusFlowRepository implements TradeStatusFlowReposito
         return TradePOConverter.toTradeStatusFlowEntities(tradeStatusFlowDao.queryByOrderId(orderId));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

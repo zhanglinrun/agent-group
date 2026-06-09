@@ -4,3 +4,18 @@ public interface KnowledgeDocumentTextExtractor {
 
     String extract(String fileName, String contentType, byte[] content);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

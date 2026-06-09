@@ -66,3 +66,18 @@ public class UserBearerTokenAuthenticationFilter extends OncePerRequestFilter {
         return normalized.startsWith("ROLE_") ? normalized : "ROLE_" + normalized;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,13 +1,13 @@
 package com.linrun.infrastructure.agent.converter;
 
-import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragmentStatus;
-import com.linrun.infrastructure.po.GuideDecisionSnapshotPO;
-import com.linrun.infrastructure.po.GuideProductPO;
+import com.linrun.infrastructure.po.QuotaOrderSnapshotPO;
+import com.linrun.infrastructure.po.QuotaProductPO;
 import com.linrun.infrastructure.po.KnowledgeDocumentPO;
 import com.linrun.infrastructure.po.KnowledgeFragmentPO;
 import org.springframework.beans.BeanUtils;
@@ -19,34 +19,34 @@ public final class AgentPOConverter {
     private AgentPOConverter() {
     }
 
-    public static GuideDecisionSnapshotPO toPO(GuideDecisionSnapshot entity) {
+    public static QuotaOrderSnapshotPO toPO(QuotaOrderSnapshot entity) {
         if (entity == null) {
             return null;
         }
-        GuideDecisionSnapshotPO po = new GuideDecisionSnapshotPO();
+        QuotaOrderSnapshotPO po = new QuotaOrderSnapshotPO();
         BeanUtils.copyProperties(entity, po);
         return po;
     }
 
-    public static GuideDecisionSnapshot toEntity(GuideDecisionSnapshotPO po) {
+    public static QuotaOrderSnapshot toEntity(QuotaOrderSnapshotPO po) {
         if (po == null) {
             return null;
         }
-        GuideDecisionSnapshot entity = new GuideDecisionSnapshot();
+        QuotaOrderSnapshot entity = new QuotaOrderSnapshot();
         BeanUtils.copyProperties(po, entity);
         return entity;
     }
 
-    public static GuideProduct toEntity(GuideProductPO po) {
+    public static QuotaProduct toEntity(QuotaProductPO po) {
         if (po == null) {
             return null;
         }
-        GuideProduct entity = new GuideProduct();
+        QuotaProduct entity = new QuotaProduct();
         BeanUtils.copyProperties(po, entity);
         return entity;
     }
 
-    public static List<GuideProduct> toGuideProducts(List<GuideProductPO> poList) {
+    public static List<QuotaProduct> toQuotaProducts(List<QuotaProductPO> poList) {
         if (poList == null || poList.isEmpty()) {
             return List.of();
         }
@@ -122,3 +122,18 @@ public final class AgentPOConverter {
         return value == null ? null : Enum.valueOf(enumType, value);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

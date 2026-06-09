@@ -93,7 +93,7 @@ public class TradeCompensationService {
         for (String orderId : orderIds) {
             RefundPaymentRequest request = new RefundPaymentRequest();
             request.setOrderId(orderId);
-            request.setRefundReason("拼团超时未成团");
+            request.setRefundReason("拼团超时未成�?);
             if (paymentService == null) {
                 tradeRefundService.refund(request);
             } else {
@@ -187,7 +187,7 @@ public class TradeCompensationService {
 
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
     }
 
     private PayOrderEntity queryPayOrder(String orderId) {
@@ -195,3 +195,18 @@ public class TradeCompensationService {
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

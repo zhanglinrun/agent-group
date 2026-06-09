@@ -6,3 +6,18 @@ public interface AcademicReActActionExecutor {
     AcademicReActObservation act(AcademicReActDecision decision,
                                  AcademicReActExecutionContext context);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -59,3 +59,18 @@ class AcademicAgentFlowProgressProjectorTest {
         assertEquals(List.of("R1"), restarted.getEvents().getFirst().getStage().stepIds());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -123,3 +123,18 @@ public class AcademicToolCollection {
     public record TaskScopedStateSnapshot(String currentTask, Map<String, String> toolRoles) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -38,3 +38,18 @@ public interface AcademicAgentRepository {
 
     List<AcademicArtifact> queryArtifacts(String userId, String sessionId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -14,3 +14,18 @@ public class BillingPolicyDTO implements Serializable {
     private boolean memberCustomModelFree;
     private String unit;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

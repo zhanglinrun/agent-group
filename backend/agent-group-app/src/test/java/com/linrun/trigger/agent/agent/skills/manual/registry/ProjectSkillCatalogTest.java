@@ -42,3 +42,18 @@ class ProjectSkillCatalogTest {
                 .orElseThrow(() -> new IllegalStateException("project skills directory not found"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

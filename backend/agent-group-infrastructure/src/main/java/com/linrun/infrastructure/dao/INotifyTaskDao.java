@@ -27,3 +27,18 @@ public interface INotifyTaskDao {
 
     int updateNotifyTaskStatusError(NotifyTaskPO notifyTask);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

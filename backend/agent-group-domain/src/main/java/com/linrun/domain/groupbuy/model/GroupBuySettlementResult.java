@@ -39,3 +39,18 @@ public class GroupBuySettlementResult {
         this.repeated = repeated;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

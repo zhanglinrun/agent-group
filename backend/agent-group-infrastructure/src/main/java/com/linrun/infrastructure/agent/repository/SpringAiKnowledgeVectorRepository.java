@@ -125,7 +125,7 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
         fragment.setFragmentId(text(metadata, "fragmentId", document.getId()));
         fragment.setDocumentId(text(metadata, "documentId", ""));
         fragment.setGoodsId(text(metadata, "goodsId", ""));
-        fragment.setDocumentType(text(metadata, "documentType", "Spring AI 向量检索"));
+        fragment.setDocumentType(text(metadata, "documentType", "Spring AI 向量检�?));
         fragment.setKnowledgeVersion(text(metadata, "knowledgeVersion", "v1"));
         fragment.setContent(document.getText());
         fragment.setRankNo(rank);
@@ -168,3 +168,18 @@ public class SpringAiKnowledgeVectorRepository implements KnowledgeVectorReposit
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

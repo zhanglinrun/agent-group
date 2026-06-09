@@ -66,3 +66,18 @@ public class AppContextClient {
         return getEnvProperty("spring.application.name");
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

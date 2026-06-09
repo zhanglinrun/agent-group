@@ -20,9 +20,7 @@ public class ReadSkillFileTool extends SkillFileToolSupport
 
     public static final String NAME = "read_skill_file";
     public static final String DESCRIPTION = """
-            读取已注册技能目录内的文本文件，支持按行截取。
-            只能访问 skill 对应目录下已经存在的文件，不能读取技能目录外的路径。
-            """;
+            读取已注册技能目录内的文本文件，支持按行截取�?            只能访问 skill 对应目录下已经存在的文件，不能读取技能目录外的路径�?            """;
 
     public ReadSkillFileTool(SkillRegistry skillRegistry) {
         super(skillRegistry);
@@ -71,19 +69,19 @@ public class ReadSkillFileTool extends SkillFileToolSupport
 
     public record Request(
             @JsonProperty(value = "skill", required = true)
-            @JsonPropertyDescription("技能名称")
+            @JsonPropertyDescription("技能名�?)
             String skill,
 
             @JsonProperty(value = "path", required = true)
-            @JsonPropertyDescription("技能目录内的相对路径，也兼容技能目录下的绝对路径")
+            @JsonPropertyDescription("技能目录内的相对路径，也兼容技能目录下的绝对路�?)
             String path,
 
             @JsonProperty("start_line")
-            @JsonPropertyDescription("起始行号，默认 1")
+            @JsonPropertyDescription("起始行号，默�?1")
             Integer startLine,
 
             @JsonProperty("line_count")
-            @JsonPropertyDescription("读取行数，默认 80，最多 300")
+            @JsonPropertyDescription("读取行数，默�?80，最�?300")
             Integer lineCount
     ) {
     }
@@ -113,3 +111,18 @@ public class ReadSkillFileTool extends SkillFileToolSupport
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

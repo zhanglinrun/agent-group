@@ -57,3 +57,18 @@ public interface IGroupBuyOrderLockDao {
 
     GroupBuyTeamStatisticPO queryTeamStatisticByActivityId(@Param("activityId") String activityId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

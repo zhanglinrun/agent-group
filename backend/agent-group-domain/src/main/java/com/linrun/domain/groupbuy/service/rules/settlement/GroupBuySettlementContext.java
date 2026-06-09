@@ -44,3 +44,18 @@ public class GroupBuySettlementContext {
         this.stopped = true;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

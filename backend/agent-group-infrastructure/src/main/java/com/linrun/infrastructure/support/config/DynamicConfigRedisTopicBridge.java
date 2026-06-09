@@ -81,3 +81,18 @@ public class DynamicConfigRedisTopicBridge {
     private record TopicMessage(String nodeId, String configKey, String configValue) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

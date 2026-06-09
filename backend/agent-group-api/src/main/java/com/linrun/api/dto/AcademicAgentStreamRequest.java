@@ -26,3 +26,18 @@ public class AcademicAgentStreamRequest implements Serializable {
     private String llmApiKey;
     private String llmModel;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

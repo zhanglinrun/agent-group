@@ -9,3 +9,18 @@ public interface IGroupBuyDiscountDao {
 
     GroupBuyDiscountPO queryByDiscountId(@Param("discountId") String discountId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

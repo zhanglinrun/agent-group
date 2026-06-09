@@ -163,3 +163,18 @@ public class TradeConsistencyCheckService {
                 || TradeOrderStatusEnumVO.DEAL_DONE.equals(order.getOrderStatus());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

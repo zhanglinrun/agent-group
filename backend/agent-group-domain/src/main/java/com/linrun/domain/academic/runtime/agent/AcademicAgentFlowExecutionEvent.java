@@ -50,3 +50,18 @@ public class AcademicAgentFlowExecutionEvent {
         return value == null ? "" : value.trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

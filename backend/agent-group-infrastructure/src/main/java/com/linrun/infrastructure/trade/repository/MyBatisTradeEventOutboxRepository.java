@@ -58,3 +58,18 @@ public class MyBatisTradeEventOutboxRepository implements TradeEventOutboxReposi
         return tradeEventOutboxDao.updateStatusDeadLetter(TradePOConverter.toPO(outbox));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

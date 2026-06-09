@@ -33,3 +33,18 @@ public interface UserQuotaRepository {
     Optional<UserModelConfig> queryModelConfig(String userId);
     void upsertModelConfig(UserModelConfig modelConfig);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

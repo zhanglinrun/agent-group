@@ -4,3 +4,18 @@ public interface StrategyHandler<T, D, R> {
 
     R apply(T request, D dynamicContext);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -10,3 +10,18 @@ public class ExecuteCrowdTagJobRequest implements Serializable {
     private String tagId;
     private String batchId;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

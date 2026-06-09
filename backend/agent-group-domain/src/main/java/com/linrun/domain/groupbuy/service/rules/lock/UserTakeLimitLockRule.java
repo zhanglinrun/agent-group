@@ -30,3 +30,18 @@ public class UserTakeLimitLockRule implements ILogicHandler<GroupBuyLockContext,
         return next(context, dynamicContext);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

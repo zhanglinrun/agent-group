@@ -15,3 +15,18 @@ public class CreateHumanApprovalRequest implements Serializable {
     private String riskLevel;
     private BigDecimal amount;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

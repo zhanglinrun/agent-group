@@ -83,3 +83,18 @@ public class GroupBuyDiscount {
         this.tagId = tagId;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -191,3 +191,18 @@ public class AcademicPlanningToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

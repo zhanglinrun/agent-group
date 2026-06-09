@@ -52,3 +52,18 @@ public class AcademicToolArtifactSource {
         return value == null ? "" : value.trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

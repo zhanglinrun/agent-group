@@ -6,18 +6,18 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class GuideDecisionSnapshotTest {
+class QuotaOrderSnapshotTest {
 
     @Test
     void shouldUseDatabaseSafeDefaultsWhenActivityMissing() {
-        GuideProduct product = new GuideProduct();
+        QuotaProduct product = new QuotaProduct();
         product.setGoodsId("G10001");
-        product.setGoodsName("基础学术额度包");
+        product.setGoodsName("基础学术额度�?);
         product.setOriginPrice(new BigDecimal("2399.00"));
         product.setGroupPrice(new BigDecimal("2399.00"));
 
-        GuideDecisionSnapshot snapshot = GuideDecisionSnapshot.captureQuote(
-                "S10001", "R10001", "U10001", "推荐额度包", product);
+        QuotaOrderSnapshot snapshot = QuotaOrderSnapshot.captureQuote(
+                "S10001", "R10001", "U10001", "推荐额度�?, product);
 
         assertEquals("", snapshot.getActivityId());
         assertEquals("G10001", snapshot.getGoodsId());
@@ -26,3 +26,18 @@ class GuideDecisionSnapshotTest {
         assertEquals("", snapshot.getToolNames());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

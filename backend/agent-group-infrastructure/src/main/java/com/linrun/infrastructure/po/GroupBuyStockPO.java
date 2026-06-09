@@ -86,3 +86,18 @@ public class GroupBuyStockPO {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

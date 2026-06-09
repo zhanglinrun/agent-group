@@ -14,3 +14,18 @@ public class QueryOrderListRequest implements Serializable {
     private String orderStatus;
     private String keyword;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

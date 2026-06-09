@@ -192,3 +192,18 @@ public class KnowledgeFragment {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

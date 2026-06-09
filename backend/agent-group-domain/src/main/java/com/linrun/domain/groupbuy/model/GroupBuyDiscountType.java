@@ -25,3 +25,18 @@ public enum GroupBuyDiscountType {
         throw new IllegalArgumentException("unsupported discount type: " + code);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

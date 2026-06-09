@@ -1,7 +1,7 @@
 package com.linrun.trigger.agent.entity.event;
 
 /**
- * Agent 流式事件。
+ * Agent 流式事件�?
  *
  * @author bigchui
  */
@@ -14,7 +14,7 @@ public sealed interface AgentStreamEvent permits
         AgentStreamEvent.Complete {
 
     /**
-     * LLM 思考过程
+     * LLM 思考过�?
      */
     record Thinking(String content) implements AgentStreamEvent {
         @Override
@@ -24,7 +24,7 @@ public sealed interface AgentStreamEvent permits
     }
 
     /**
-     * LLM 正常文本输出。
+     * LLM 正常文本输出�?
      */
     record Text(String content) implements AgentStreamEvent {
         @Override
@@ -34,7 +34,7 @@ public sealed interface AgentStreamEvent permits
     }
 
     /**
-     * 工具即将执行。
+     * 工具即将执行�?
      */
     record ToolStart(String toolName, String toolCallId, String arguments) implements AgentStreamEvent {
         @Override
@@ -46,7 +46,7 @@ public sealed interface AgentStreamEvent permits
     }
 
     /**
-     * 工具执行完成。
+     * 工具执行完成�?
      */
     record ToolEnd(String toolName, String toolCallId, String result) implements AgentStreamEvent {
         @Override
@@ -58,7 +58,7 @@ public sealed interface AgentStreamEvent permits
     }
 
     /**
-     * 错误事件。
+     * 错误事件�?
      */
     record Error(String code, String message, String detail) implements AgentStreamEvent {
         @Override
@@ -70,7 +70,7 @@ public sealed interface AgentStreamEvent permits
     }
 
     /**
-     * Agent 执行完成。
+     * Agent 执行完成�?
      */
     record Complete() implements AgentStreamEvent {
         @Override
@@ -80,12 +80,12 @@ public sealed interface AgentStreamEvent permits
     }
 
     /**
-     * 序列化为 JSON 字符串。
+     * 序列化为 JSON 字符串�?
      */
     String toJSON();
 
     /**
-     * JSON 字符串转义。
+     * JSON 字符串转义�?
      */
     static String escapeJson(String value) {
         if (value == null) return "null";
@@ -112,3 +112,18 @@ public sealed interface AgentStreamEvent permits
         return sb.toString();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

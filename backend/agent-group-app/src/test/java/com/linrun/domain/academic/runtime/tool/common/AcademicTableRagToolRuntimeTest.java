@@ -54,3 +54,18 @@ class AcademicTableRagToolRuntimeTest {
         assertEquals("TABLE_RAG_0001", exception.getCode());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

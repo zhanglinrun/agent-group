@@ -100,3 +100,18 @@ public class AcademicMultimodalAgentToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

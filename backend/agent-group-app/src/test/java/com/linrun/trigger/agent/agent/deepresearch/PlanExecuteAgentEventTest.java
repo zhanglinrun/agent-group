@@ -16,7 +16,7 @@ class PlanExecuteAgentEventTest {
     @Test
     void shouldCreateInitialPlanUpdateEvent() throws Exception {
         String event = PlanExecuteAgent.createPlanUpdateEvent(1, List.of(
-                new PlanTask("S1", "检索论文摘要", 1),
+                new PlanTask("S1", "检索论文摘�?, 1),
                 new PlanTask("S2", "分析实验指标", 2)
         ));
 
@@ -32,13 +32,28 @@ class PlanExecuteAgentEventTest {
     @Test
     void shouldCreateReplanEventAfterFirstRound() throws Exception {
         String event = PlanExecuteAgent.createPlanUpdateEvent(2, List.of(
-                new PlanTask("R1", "改查实验结果表", 1)
+                new PlanTask("R1", "改查实验结果�?, 1)
         ));
 
         JsonNode root = objectMapper.readTree(event);
 
         assertEquals("replan", root.path("type").asText());
-        assertEquals("第 2 轮补充执行计划", root.path("title").asText());
+        assertEquals("�?2 轮补充执行计�?, root.path("title").asText());
         assertEquals("R1", root.path("structuredSteps").get(0).path("stepId").asText());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

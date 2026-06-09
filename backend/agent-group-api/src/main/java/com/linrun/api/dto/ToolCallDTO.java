@@ -30,3 +30,18 @@ public class ToolCallDTO implements Serializable {
     private String resultDigest;
     private List<String> citationIds = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

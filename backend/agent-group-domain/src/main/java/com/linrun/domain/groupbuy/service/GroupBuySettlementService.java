@@ -62,3 +62,18 @@ public class GroupBuySettlementService {
         return settlementRuleChain.settlePaySuccess(tradeOrder);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

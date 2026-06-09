@@ -12,3 +12,18 @@ public class TradeEventOutboxDispatchResponse implements Serializable {
     private int retryCount;
     private int deadLetterCount;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

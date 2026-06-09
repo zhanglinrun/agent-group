@@ -8,9 +8,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 技能元数据。
- * 包含技能的基本信息，用于在系统提示中展示技能列表。
- * 完整的技能内容通过 SkillRegistry 按需加载。
+ * 技能元数据�?
+ * 包含技能的基本信息，用于在系统提示中展示技能列表�?
+ * 完整的技能内容通过 SkillRegistry 按需加载�?
  */
 public record SkillMetadata(
         String name,
@@ -28,11 +28,11 @@ public record SkillMetadata(
 
     public enum SkillSource {
         /**
-         * 项目技能目录
+         * 项目技能目�?
          */
         PROJECT,
         /**
-         * 用户技能目录
+         * 用户技能目�?
          */
         USER
     }
@@ -152,3 +152,18 @@ public record SkillMetadata(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

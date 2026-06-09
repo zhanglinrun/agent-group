@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 需求澄清策略
+ * 需求澄清策�?
  */
 @Slf4j
 public class RequirementStrategy implements PptStateStrategy {
@@ -27,7 +27,7 @@ public class RequirementStrategy implements PptStateStrategy {
     @Override
     public void execute(AiPptInst inst, Sinks.Many<String> sink, String query,
                         StringBuilder thinkingBuffer, PptStateStrategyContext context) {
-        sink.tryEmitNext(context.createThinkingResponse("正在分析您的需求...\n"));
+        sink.tryEmitNext(context.createThinkingResponse("正在分析您的需�?..\n"));
 
         List<Message> messages = new ArrayList<>();
         String prompt = PptBuilderPrompts.REQUIREMENT_PROMPT;
@@ -58,13 +58,13 @@ public class RequirementStrategy implements PptStateStrategy {
                     sink.tryEmitNext(context.createThinkingResponse(chunk));
                 })
                 .doOnComplete(() -> {
-                    log.info("需求分析完成: {}", responseBuffer);
+                    log.info("需求分析完�? {}", responseBuffer);
                     String response = ThinkTagParser.stripThinkTags(responseBuffer.toString());
 
                     if (context.shouldContinueToNextStep(response)) {
                         // 信息完整，继续下一步：信息收集
                         context.getPptInstService().updateRequirement(inst.getId(), response, TARGET_STATUS);
-                        sink.tryEmitNext(context.createThinkingResponse("\n✅ 需求已确认，开始收集相关信息\n"));
+                        sink.tryEmitNext(context.createThinkingResponse("\n�?需求已确认，开始收集相关信息\n"));
                         context.continueStateMachine(inst, sink, query, thinkingBuffer);
                     } else {
                         // 信息不足，保存当前状态，转到 FAILED 策略统一输出
@@ -80,17 +80,17 @@ public class RequirementStrategy implements PptStateStrategy {
                     }
                 })
                 .doOnError(err -> {
-                    log.error("需求分析异常", err);
+                    log.error("需求分析异�?, err);
                     // 失败时不回退状态，只更新错误信息，转到 FAILED
                     context.getPptInstService().updateError(inst.getId(),
-                            "需求分析失败: " + err.getMessage(), PptInstStatus.REQUIREMENT);
+                            "需求分析失�? " + err.getMessage(), PptInstStatus.REQUIREMENT);
                     // 转到 FAILED 策略
                     PptStateStrategyFactory.getInstance().executeFailedState(inst, sink, query, thinkingBuffer, context);
                 })
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任务
+        // 保存 disposable 到任务管理器，用于停止任�?
         context.setDisposable(conversationId, disposable);
     }
 
@@ -99,3 +99,18 @@ public class RequirementStrategy implements PptStateStrategy {
         return TARGET_STATUS;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

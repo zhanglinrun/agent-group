@@ -14,10 +14,10 @@ import com.linrun.domain.trade.service.task.NotifyTaskService;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.api.dto.CreateDirectOrderRequest;
 import com.linrun.api.dto.CreateDirectOrderResponse;
-import com.linrun.domain.agent.conversation.adapter.GuideDecisionSnapshotRepository;
-import com.linrun.domain.agent.conversation.adapter.GuideDataRepository;
-import com.linrun.domain.agent.conversation.model.GuideDecisionSnapshot;
-import com.linrun.domain.agent.conversation.model.GuideProduct;
+import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
+import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
+import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
+import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
@@ -48,11 +48,11 @@ class DirectBuyOrderServiceTest {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -65,7 +65,7 @@ class DirectBuyOrderServiceTest {
         assertTrue(response.getPayOrderId().startsWith("P"));
         assertEquals("U10001", response.getUserId());
         assertEquals("G10001", response.getGoodsId());
-        assertEquals("基础学术额度包", response.getGoodsName());
+        assertEquals("基础学术额度�?, response.getGoodsName());
         assertEquals(TradeBuyTypeEnumVO.DIRECT.name(), response.getBuyType());
         assertEquals(TradeOrderStatusEnumVO.PAY_WAIT.name(), response.getOrderStatus());
         assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
@@ -86,11 +86,11 @@ class DirectBuyOrderServiceTest {
     void shouldUseRequestPayChannelWhenProvided() {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -106,11 +106,11 @@ class DirectBuyOrderServiceTest {
     @Test
     void shouldThrowWhenProductMissing() {
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new EmptyGuideDataRepository(),
+                new EmptyQuotaProductRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10099");
@@ -126,11 +126,11 @@ class DirectBuyOrderServiceTest {
     @Test
     void shouldThrowWhenUserIdIsBlank() {
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setGoodsId("G10001");
         request.setDecisionId("D10001");
@@ -145,11 +145,11 @@ class DirectBuyOrderServiceTest {
     @Test
     void shouldCreateOrderWithoutDecisionId() {
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -164,11 +164,11 @@ class DirectBuyOrderServiceTest {
     @Test
     void shouldRejectExpiredDecisionSnapshot() {
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
                         "U10001", "G10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
                         LocalDateTime.now().minusMinutes(1))));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
@@ -185,11 +185,11 @@ class DirectBuyOrderServiceTest {
     @Test
     void shouldRejectChangedDirectPrice() {
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository(decisionSnapshot(
+                new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
                         "U10001", "G10001", new BigDecimal("2299.00"), new BigDecimal("2099.00"),
                         LocalDateTime.now().plusMinutes(10))));
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
@@ -207,11 +207,11 @@ class DirectBuyOrderServiceTest {
     void shouldReturnExistingOrderForSameIdempotentKey() {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         DirectBuyOrderService service = new DirectBuyOrderService(
-                new FakeGuideDataRepository(),
+                new FakeQuotaProductRepository(),
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeGuideDecisionSnapshotRepository());
+                new FakeQuotaOrderSnapshotRepository());
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -226,12 +226,12 @@ class DirectBuyOrderServiceTest {
         assertEquals(1, tradeOrderRepository.saveCount);
     }
 
-    private static GuideDecisionSnapshot decisionSnapshot(String userId,
+    private static QuotaOrderSnapshot decisionSnapshot(String userId,
                                                           String goodsId,
                                                           BigDecimal originAmount,
                                                           BigDecimal groupAmount,
                                                           LocalDateTime quoteExpireTime) {
-        GuideDecisionSnapshot snapshot = new GuideDecisionSnapshot();
+        QuotaOrderSnapshot snapshot = new QuotaOrderSnapshot();
         snapshot.setDecisionId("D10001");
         snapshot.setUserId(userId);
         snapshot.setGoodsId(goodsId);
@@ -241,59 +241,59 @@ class DirectBuyOrderServiceTest {
         return snapshot;
     }
 
-    private static class FakeGuideDataRepository implements GuideDataRepository {
+    private static class FakeQuotaProductRepository implements QuotaProductRepository {
 
         @Override
-        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
             return queryProductByGoodsId("G10001").stream().toList();
         }
 
         @Override
-        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
-            GuideProduct product = new GuideProduct();
+        public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
+            QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
-            product.setGoodsName("基础学术额度包");
+            product.setGoodsName("基础学术额度�?);
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
-            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整理");
-            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更高");
+            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整�?);
+            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更�?);
             return Optional.of(product);
         }
     }
 
-    private static class EmptyGuideDataRepository implements GuideDataRepository {
+    private static class EmptyQuotaProductRepository implements QuotaProductRepository {
 
         @Override
-        public List<GuideProduct> queryCandidateProducts(String question, int limit) {
+        public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
             return List.of();
         }
 
         @Override
-        public Optional<GuideProduct> queryProductByGoodsId(String goodsId) {
+        public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
             return Optional.empty();
         }
     }
 
-    private static class FakeGuideDecisionSnapshotRepository implements GuideDecisionSnapshotRepository {
+    private static class FakeQuotaOrderSnapshotRepository implements QuotaOrderSnapshotRepository {
 
-        private final GuideDecisionSnapshot snapshot;
+        private final QuotaOrderSnapshot snapshot;
 
-        private FakeGuideDecisionSnapshotRepository() {
+        private FakeQuotaOrderSnapshotRepository() {
             this(decisionSnapshot(
                     "U10001", "G10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
                     LocalDateTime.now().plusMinutes(10)));
         }
 
-        private FakeGuideDecisionSnapshotRepository(GuideDecisionSnapshot snapshot) {
+        private FakeQuotaOrderSnapshotRepository(QuotaOrderSnapshot snapshot) {
             this.snapshot = snapshot;
         }
 
         @Override
-        public void save(GuideDecisionSnapshot snapshot) {
+        public void save(QuotaOrderSnapshot snapshot) {
         }
 
         @Override
-        public Optional<GuideDecisionSnapshot> queryByDecisionId(String decisionId) {
+        public Optional<QuotaOrderSnapshot> queryByDecisionId(String decisionId) {
             return Optional.ofNullable(snapshot);
         }
     }
@@ -381,3 +381,18 @@ class DirectBuyOrderServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

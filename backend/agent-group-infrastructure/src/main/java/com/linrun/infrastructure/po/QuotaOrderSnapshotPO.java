@@ -3,7 +3,7 @@ package com.linrun.infrastructure.po;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class GuideDecisionSnapshotPO {
+public class QuotaOrderSnapshotPO {
 
     private String decisionId;
     private String sessionId;
@@ -132,3 +132,18 @@ public class GuideDecisionSnapshotPO {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

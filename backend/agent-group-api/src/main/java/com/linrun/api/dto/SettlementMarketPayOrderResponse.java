@@ -12,3 +12,18 @@ public class SettlementMarketPayOrderResponse implements Serializable {
     private String activityId;
     private String outTradeNo;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

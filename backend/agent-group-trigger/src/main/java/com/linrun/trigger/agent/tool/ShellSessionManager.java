@@ -73,7 +73,7 @@ public class ShellSessionManager {
             session.lastDirectory = directory;
         }
 
-        // Windows 环境命令警告检测
+        // Windows 环境命令警告检�?
         warnIfWindowsPatternIssue(command);
 
         // 执行命令
@@ -93,14 +93,14 @@ public class ShellSessionManager {
 
         String trimmedCommand = command.trim();
 
-        // 检测 mkdir -p 问题
+        // 检�?mkdir -p 问题
         if (trimmedCommand.contains("mkdir") && trimmedCommand.contains("-p")) {
             log.warn("⚠️ WARNING: 'mkdir -p' detected on Windows! This will create a directory named '-p'.");
             log.warn("   Use 'mkdir' without -p instead (Windows automatically creates parent directories)");
             log.warn("   Command: {}", command);
         }
 
-        // 检测 touch 命令问题
+        // 检�?touch 命令问题
         if (trimmedCommand.startsWith("touch ")) {
             log.warn("⚠️ WARNING: 'touch' command detected on Windows! This command doesn't exist.");
             log.warn("   Use 'type nul > filename' or 'copy nul filename' instead");
@@ -153,7 +153,7 @@ public class ShellSessionManager {
                 // 合并模式：只读取 stdout
                 exitCode = readOutput(process.getInputStream(), output, null);
             } else {
-                // 分离模式：读取 stdout 和 stderr
+                // 分离模式：读�?stdout �?stderr
                 Thread outputThread = new Thread(() ->
                     readStream(process.getInputStream(), output));
                 Thread errorThread = new Thread(() ->
@@ -178,7 +178,7 @@ public class ShellSessionManager {
                 errorThread.join(1000);
             }
 
-            // 更新会话的最后工作目录
+            // 更新会话的最后工作目�?
             updateLastDirectory(session, command, workingDir, exitCode);
 
             String stdOut = truncateOutput(output.toString());
@@ -252,7 +252,7 @@ public class ShellSessionManager {
     private File determineWorkingDirectory(ShellSession session, String command) {
         String targetDir = session.lastDirectory;
 
-        // 如果命令包含 cd，尝试从命令中提取目录
+        // 如果命令包含 cd，尝试从命令中提取目�?
         if (command.trim().startsWith("cd ")) {
             String dir = command.trim().substring(3).trim();
             if (!dir.isEmpty()) {
@@ -300,7 +300,7 @@ public class ShellSessionManager {
     }
 
     /**
-     * 读取输出流
+     * 读取输出�?
      */
     private int readStream(java.io.InputStream stream, StringBuilder output) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, charset))) {
@@ -331,7 +331,7 @@ public class ShellSessionManager {
     }
 
     /**
-     * 更新最后工作目录
+     * 更新最后工作目�?
      */
     private void updateLastDirectory(ShellSession session, String command, File workingDir, int exitCode) {
         if (command.trim().startsWith("cd ") && exitCode == 0) {
@@ -357,7 +357,7 @@ public class ShellSessionManager {
             return "";
         }
 
-        // 检查行数限制
+        // 检查行数限�?
         String[] lines = output.split("\n");
         if (lines.length > maxLines) {
             String truncated = String.join("\n",
@@ -398,7 +398,7 @@ public class ShellSessionManager {
     }
 
     /**
-     * 获取所有会话
+     * 获取所有会�?
      *
      * @return 会话映射
      */
@@ -511,9 +511,9 @@ public class ShellSessionManager {
         private String initialDirectory;
 
         /**
-         * 设置最大行数限制
+         * 设置最大行数限�?
          *
-         * @param maxLines 最大行数
+         * @param maxLines 最大行�?
          * @return this
          */
         public Builder maxLines(int maxLines) {
@@ -555,7 +555,7 @@ public class ShellSessionManager {
         }
 
         /**
-         * 设置是否合并标准输出和错误输出
+         * 设置是否合并标准输出和错误输�?
          *
          * @param mergeOutput 是否合并
          * @return this
@@ -580,3 +580,18 @@ public class ShellSessionManager {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

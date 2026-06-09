@@ -33,3 +33,18 @@ public interface AcademicDeepSearchPort {
                                       String source) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

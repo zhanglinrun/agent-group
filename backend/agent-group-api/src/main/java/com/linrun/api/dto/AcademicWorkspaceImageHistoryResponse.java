@@ -37,3 +37,18 @@ public class AcademicWorkspaceImageHistoryResponse implements Serializable {
         private List<AcademicWorkspaceImageGenerateResponse.ArtifactRef> images = new ArrayList<>();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

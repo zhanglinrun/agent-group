@@ -21,3 +21,18 @@ public class KnowledgeDocumentFullContentResponse implements Serializable {
     private String content;
     private List<KnowledgeFragmentDTO> fragments = new ArrayList<>();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

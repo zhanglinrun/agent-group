@@ -101,3 +101,18 @@ public class GroupBuyMarketTrialContext {
         this.enable = enable;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -30,3 +30,18 @@ public interface AcademicReportPort {
                                 String errorMessage) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

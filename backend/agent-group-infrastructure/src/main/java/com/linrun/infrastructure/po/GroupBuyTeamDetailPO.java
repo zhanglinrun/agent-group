@@ -86,3 +86,18 @@ public class GroupBuyTeamDetailPO {
         this.outTradeNo = outTradeNo;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

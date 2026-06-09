@@ -15,3 +15,18 @@ public interface IGroupBuyActivityDao {
 
     List<GroupBuyActivityPO> queryActivityList(@Param("limit") int limit);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

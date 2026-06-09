@@ -48,3 +48,18 @@ public class CreateKnowledgeDocumentCommand {
         this.sourceName = sourceName;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -15,3 +15,18 @@ public interface IDynamicConfigDao {
 
     void saveOrUpdate(DynamicConfigPO config);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -45,3 +45,18 @@ public class AcademicWorkspaceDataController {
         return Response.success(workspaceDataService.catalog(token), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

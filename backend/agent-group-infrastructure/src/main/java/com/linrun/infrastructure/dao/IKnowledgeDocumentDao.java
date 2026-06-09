@@ -29,3 +29,18 @@ public interface IKnowledgeDocumentDao {
                                           @Param("fragmentStatus") String fragmentStatus,
                                           @Param("enabled") boolean enabled);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

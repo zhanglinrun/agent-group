@@ -13,7 +13,7 @@ import reactor.core.Disposable;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * 失败状态策略
+ * 失败状态策�?
  */
 @Slf4j
 public class FailedStrategy implements PptStateStrategy {
@@ -23,7 +23,7 @@ public class FailedStrategy implements PptStateStrategy {
     @Override
     public void execute(AiPptInst inst, Sinks.Many<String> sink, String query,
                         StringBuilder thinkingBuffer, PptStateStrategyContext context) {
-        log.info("执行失败状态策略: status={}, errorMsg={}", inst.getStatusEnum(), inst.getErrorMsg());
+        log.info("执行失败状态策�? status={}, errorMsg={}", inst.getStatusEnum(), inst.getErrorMsg());
 
         // 获取错误信息
         String errorMsg = inst.getErrorMsg();
@@ -32,16 +32,16 @@ public class FailedStrategy implements PptStateStrategy {
         String prompt;
         if (StringUtils.hasText(thinkingBuffer)) {
             String question = """
-                    # 上一轮遇到的问题：
+                    # 上一轮遇到的问题�?
                     %s
                                         
-                    # 本轮遇到的问题
+                    # 本轮遇到的问�?
                     %s
                     """.formatted(errorMsg, thinkingBuffer);
 
             prompt = PptBuilderPrompts.getFailurePrompt(question);
         } else {
-            prompt = PptBuilderPrompts.getFailurePrompt("PPT生成过程中遇到未知错误");
+            prompt = PptBuilderPrompts.getFailurePrompt("PPT生成过程中遇到未知错�?);
         }
 
         prompt = context.enhancePrompt(prompt);
@@ -73,7 +73,7 @@ public class FailedStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任务
+        // 保存 disposable 到任务管理器，用于停止任�?
         context.setDisposable(inst.getConversationId(), disposable);
     }
 
@@ -83,7 +83,7 @@ public class FailedStrategy implements PptStateStrategy {
     }
 
     /**
-     * 保存结果到会话
+     * 保存结果到会�?
      */
     private void saveResultToSession(PptStateStrategyContext context, AiPptInst inst,
                                      String result, StringBuilder thinkingBuffer) {
@@ -101,7 +101,22 @@ public class FailedStrategy implements PptStateStrategy {
             String conversationId = inst != null ? inst.getConversationId() : context.getCurrentConversationId();
             log.info("PPT生成失败结果已保存到会话: conversationId={}", conversationId);
         } catch (Exception e) {
-            log.error("保存结果到会话失败", e);
+            log.error("保存结果到会话失�?, e);
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

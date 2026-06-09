@@ -44,3 +44,18 @@ public class RabbitTradeEventPublisher implements TradeEventPublisher {
         return TradeEventMessageEntity.defaultRoutingKey(message.getBizType(), message.getEventType());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -8,3 +8,18 @@ public interface DiscountCalculateService {
 
     BigDecimal calculate(String userId, BigDecimal originalPrice, GroupBuyDiscount discount);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

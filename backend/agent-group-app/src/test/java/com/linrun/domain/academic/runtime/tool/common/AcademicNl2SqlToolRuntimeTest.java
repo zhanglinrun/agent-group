@@ -59,3 +59,18 @@ class AcademicNl2SqlToolRuntimeTest {
         assertEquals("NL2SQL_0003", exception.getCode());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

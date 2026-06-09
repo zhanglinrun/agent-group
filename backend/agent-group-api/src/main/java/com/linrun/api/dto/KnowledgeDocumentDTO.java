@@ -20,3 +20,18 @@ public class KnowledgeDocumentDTO implements Serializable {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

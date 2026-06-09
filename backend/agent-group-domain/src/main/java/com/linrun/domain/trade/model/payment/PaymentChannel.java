@@ -24,3 +24,18 @@ public enum PaymentChannel {
         throw new AppException("PAY_0001", "不支持的支付渠道");
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

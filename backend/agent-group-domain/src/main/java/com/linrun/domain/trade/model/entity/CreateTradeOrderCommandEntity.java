@@ -79,3 +79,18 @@ public class CreateTradeOrderCommandEntity {
         this.payAmount = payAmount;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,6 +1,6 @@
 package com.linrun.trigger.http.agent;
 
-import com.linrun.api.dto.GuideStreamEvent;
+import com.linrun.api.dto.QuotaStreamEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -18,7 +18,7 @@ public class AcademicBackgroundStreamService {
 
     private final Map<String, BackgroundTask> tasks = new ConcurrentHashMap<>();
 
-    public Flux<GuideStreamEvent<?>> startOrAttach(String taskKey, Supplier<Flux<GuideStreamEvent<?>>> sourceFactory) {
+    public Flux<QuotaStreamEvent<?>> startOrAttach(String taskKey, Supplier<Flux<QuotaStreamEvent<?>>> sourceFactory) {
         BackgroundTask existing = tasks.get(taskKey);
         if (existing != null && existing.isRunning()) {
             return existing.flux();
@@ -44,7 +44,7 @@ public class AcademicBackgroundStreamService {
         return task.flux();
     }
 
-    public Flux<GuideStreamEvent<?>> attach(String taskKey) {
+    public Flux<QuotaStreamEvent<?>> attach(String taskKey) {
         BackgroundTask task = tasks.get(taskKey);
         if (task == null || !task.isRunning()) {
             return Flux.empty();
@@ -58,7 +58,7 @@ public class AcademicBackgroundStreamService {
     }
 
     private static class BackgroundTask {
-        private final Sinks.Many<GuideStreamEvent<?>> sink = Sinks.many().replay().limit(REPLAY_LIMIT);
+        private final Sinks.Many<QuotaStreamEvent<?>> sink = Sinks.many().replay().limit(REPLAY_LIMIT);
         private final AtomicBoolean running = new AtomicBoolean(true);
         private Disposable disposable;
 
@@ -66,7 +66,7 @@ public class AcademicBackgroundStreamService {
             this.disposable = disposable;
         }
 
-        void emit(GuideStreamEvent<?> event) {
+        void emit(QuotaStreamEvent<?> event) {
             sink.tryEmitNext(event);
         }
 
@@ -84,8 +84,23 @@ public class AcademicBackgroundStreamService {
             return running.get() && (disposable == null || !disposable.isDisposed());
         }
 
-        Flux<GuideStreamEvent<?>> flux() {
+        Flux<QuotaStreamEvent<?>> flux() {
             return sink.asFlux();
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

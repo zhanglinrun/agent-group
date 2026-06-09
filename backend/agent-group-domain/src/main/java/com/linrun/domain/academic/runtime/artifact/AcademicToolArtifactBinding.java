@@ -31,3 +31,18 @@ public class AcademicToolArtifactBinding {
                 || "INTERNAL".equalsIgnoreCase(artifact.getSourceType());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

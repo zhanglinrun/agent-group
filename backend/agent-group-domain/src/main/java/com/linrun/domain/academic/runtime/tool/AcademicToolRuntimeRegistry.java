@@ -175,3 +175,18 @@ public class AcademicToolRuntimeRegistry {
                                   Function<AcademicToolCallCommand, Map<String, Object>> handler) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -13,3 +13,18 @@ public interface ITradeStatusFlowDao {
 
     List<TradeStatusFlowPO> queryByOrderId(@Param("orderId") String orderId);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

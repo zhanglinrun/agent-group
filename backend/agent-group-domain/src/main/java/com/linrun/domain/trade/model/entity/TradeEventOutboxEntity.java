@@ -180,3 +180,18 @@ public class TradeEventOutboxEntity {
         this.updateTime = updateTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -13,3 +13,18 @@ public class QueryPaymentRefundRequest implements Serializable {
     private String gatewayTradeNo;
     private String refundId;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -81,7 +81,7 @@ public class ToolExecutor {
                 recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
                         "tool execution failed", digest(e), attempt - 1, e.getMessage(), latencyMillis);
                 return ToolExecution.failure(toolName, action,
-                        "工具执行失败：" + e.getMessage(), latencyMillis, e,
+                        "工具执行失败�? + e.getMessage(), latencyMillis, e,
                         toolCallId, attempt - 1, digest(e));
             }
         }
@@ -135,3 +135,18 @@ public class ToolExecutor {
         return digest.length() <= 180 ? digest : digest.substring(0, 180);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

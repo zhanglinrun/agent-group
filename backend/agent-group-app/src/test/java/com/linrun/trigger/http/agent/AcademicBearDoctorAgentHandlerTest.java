@@ -3,7 +3,7 @@ package com.linrun.trigger.http.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
-import com.linrun.api.dto.GuideStreamEvent;
+import com.linrun.api.dto.QuotaStreamEvent;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
@@ -52,11 +52,11 @@ class AcademicBearDoctorAgentHandlerTest {
         run.setStatus(AcademicAgentRun.STATUS_RUNNING);
         AcademicAgentPlan plan = new AcademicAgentRunPlanFactory().build("workspace-trade", false);
 
-        List<GuideStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "startEvents",
+        List<QuotaStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "startEvents",
                 runState(run, plan), "S1000", "REQ1000", new AtomicInteger(1));
 
         assertEquals(List.of("run_start", "plan_delta", "flow_delta"),
-                events.stream().map(GuideStreamEvent::getEvent).toList());
+                events.stream().map(QuotaStreamEvent::getEvent).toList());
         Map<String, Object> planData = (Map<String, Object>) events.get(1).getData();
         List<Map<String, Object>> structuredSteps = (List<Map<String, Object>>) planData.get("structuredSteps");
         List<Map<String, Object>> flowStages = (List<Map<String, Object>>) planData.get("flowStages");
@@ -166,7 +166,7 @@ class AcademicBearDoctorAgentHandlerTest {
         run.setQuestion("复核论文实验指标");
         run.setModelName("test-model");
         run.setStatus(AcademicAgentRun.STATUS_RUNNING);
-        AcademicAgentPlan plan = new AcademicAgentPlan("原计划", List.of(
+        AcademicAgentPlan plan = new AcademicAgentPlan("原计�?, List.of(
                 AcademicPlanStep.builder("S1", "读取论文摘要").order(1).build(),
                 AcademicPlanStep.builder("S2", "查询实验结果").order(2).dependencies(List.of("S1")).build()
         ));
@@ -178,17 +178,17 @@ class AcademicBearDoctorAgentHandlerTest {
                   "reason": "引用数据不足，改查实验结果表",
                   "title": "补救计划",
                   "structuredSteps": [
-                    {"stepId": "R1", "instruction": "查询实验结果表", "order": 1, "assignedAgent": "data"},
+                    {"stepId": "R1", "instruction": "查询实验结果�?, "order": 1, "assignedAgent": "data"},
                     {"stepId": "R2", "instruction": "整理指标差异", "order": 2, "dependencies": ["R1"]}
                   ]
                 }
                 """;
 
-        List<GuideStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "toEvents",
+        List<QuotaStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "toEvents",
                 raw, "S1001", "REQ1001", new AtomicInteger(1), runState);
 
         assertEquals(List.of("task_status", "flow_delta", "plan_delta", "flow_delta"),
-                events.stream().map(GuideStreamEvent::getEvent).toList());
+                events.stream().map(QuotaStreamEvent::getEvent).toList());
         Map<String, Object> oldFlowData = (Map<String, Object>) events.get(1).getData();
         assertEquals("REPLANNED", oldFlowData.get("status"));
 
@@ -223,12 +223,12 @@ class AcademicBearDoctorAgentHandlerTest {
                   "type": "plan_update",
                   "title": "深度研究执行计划",
                   "structuredSteps": [
-                    {"stepId": "S1", "instruction": "检索拼团交易资料", "order": 1}
+                    {"stepId": "S1", "instruction": "检索拼团交易资�?, "order": 1}
                   ]
                 }
                 """;
 
-        List<GuideStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "toEvents",
+        List<QuotaStreamEvent<?>> events = ReflectionTestUtils.invokeMethod(handler, "toEvents",
                 raw, "S1002", "REQ1002", new AtomicInteger(1), runState);
 
         Map<String, Object> taskStatus = (Map<String, Object>) events.get(0).getData();
@@ -236,7 +236,7 @@ class AcademicBearDoctorAgentHandlerTest {
 
         assertEquals("PLAN", taskStatus.get("stage"));
         assertEquals("RUNNING", flowData.get("status"));
-        assertTrue(String.valueOf(flowData.get("message")).contains("计划已更新"));
+        assertTrue(String.valueOf(flowData.get("message")).contains("计划已更�?));
     }
 
     private Object runState(AcademicAgentRun run, AcademicAgentPlan plan) throws Exception {
@@ -260,3 +260,18 @@ class AcademicBearDoctorAgentHandlerTest {
                 plan);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

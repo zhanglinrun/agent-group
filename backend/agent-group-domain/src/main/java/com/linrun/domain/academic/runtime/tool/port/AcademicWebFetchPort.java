@@ -25,3 +25,18 @@ public interface AcademicWebFetchPort {
                                   String errorMessage) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

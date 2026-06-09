@@ -17,11 +17,26 @@ class FileParserServiceTest {
                 "file",
                 "drawio.md",
                 "text/markdown",
-                "# Drawio 图\n\n这个文件包含 draw.io 说明。".getBytes(StandardCharsets.UTF_8));
+                "# Drawio 图\n\n这个文件包含 draw.io 说明�?.getBytes(StandardCharsets.UTF_8));
 
         FileParserService.ParseResult result = fileParserService.parseFile(file);
 
-        assertTrue(result.getFullText().contains("Drawio 图"));
+        assertTrue(result.getFullText().contains("Drawio �?));
         assertTrue(result.getTruncatedText().contains("draw.io"));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

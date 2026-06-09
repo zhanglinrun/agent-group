@@ -16,7 +16,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
-import com.linrun.domain.agent.conversation.model.GuideTokenUsage;
+import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -105,7 +105,7 @@ class AcademicWorkspaceDataServiceTest {
         verify(userQuotaService).estimatePreCheckCost("workspace-data");
         verify(userQuotaService).assertEnoughQuota("U1001", BigDecimal.valueOf(3));
         verify(userQuotaService).consumeForAcademicTask(eq("U1001"), eq("D1001"),
-                startsWith("workspace-data-DATAREQ"), eq("workspace-data"), any(GuideTokenUsage.class),
+                startsWith("workspace-data-DATAREQ"), eq("workspace-data"), any(TokenUsageMetrics.class),
                 eq("workspace-data-tools"), anyLong());
         verify(ledgerService).finishRun(eq(run), eq(AcademicAgentRun.STATUS_SUCCESS),
                 anyString(), eq(""), eq(""), anyLong());
@@ -172,3 +172,19 @@ class AcademicWorkspaceDataServiceTest {
         return run;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

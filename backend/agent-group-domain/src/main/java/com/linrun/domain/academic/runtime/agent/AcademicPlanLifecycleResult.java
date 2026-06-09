@@ -40,3 +40,18 @@ public class AcademicPlanLifecycleResult {
         return autoFinished;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

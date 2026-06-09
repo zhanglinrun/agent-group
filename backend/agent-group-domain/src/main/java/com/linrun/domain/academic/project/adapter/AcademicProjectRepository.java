@@ -26,3 +26,18 @@ public interface AcademicProjectRepository {
 
     void touchProject(String userId, String projectId, LocalDateTime updateTime);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

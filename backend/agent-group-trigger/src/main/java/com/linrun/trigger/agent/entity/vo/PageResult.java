@@ -17,7 +17,7 @@ public class PageResult<T> {
     private Integer pageNum;
 
     /**
-     * 页大小
+     * 页大�?
      */
     private Integer pageSize;
 
@@ -31,3 +31,18 @@ public class PageResult<T> {
      */
     private List<T> records;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

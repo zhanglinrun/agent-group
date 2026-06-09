@@ -104,3 +104,18 @@ public class GroupBuyTeamPO {
         this.createTime = createTime;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

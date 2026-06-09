@@ -15,3 +15,18 @@ public class SelfCheckDTO implements Serializable {
     private Boolean passed;
     private String message;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

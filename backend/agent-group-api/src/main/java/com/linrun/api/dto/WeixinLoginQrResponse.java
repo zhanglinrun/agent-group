@@ -17,3 +17,18 @@ public class WeixinLoginQrResponse implements Serializable {
     private String status;
     private boolean officialConfigured;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

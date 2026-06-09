@@ -26,3 +26,18 @@ public class PgVectorJdbcTemplateConfig {
         return new JdbcTemplate(dataSource);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

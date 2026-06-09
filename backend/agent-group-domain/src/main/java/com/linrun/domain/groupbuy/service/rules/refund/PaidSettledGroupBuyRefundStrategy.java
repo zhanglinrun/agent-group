@@ -21,3 +21,18 @@ public class PaidSettledGroupBuyRefundStrategy extends PaidUnsettledGroupBuyRefu
                 || TradeOrderStatusEnumVO.DEAL_DONE.equals(tradeOrder.getOrderStatus()));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

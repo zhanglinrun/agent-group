@@ -44,7 +44,7 @@ class GroupBuyActivityServiceTest {
 
         assertEquals(GroupBuyActivityStatus.NOT_STARTED, result.getStatus());
         assertFalse(result.isAvailable());
-        assertEquals("拼团活动未开始", result.getMessage());
+        assertEquals("拼团活动未开�?, result.getMessage());
     }
 
     @Test
@@ -56,7 +56,7 @@ class GroupBuyActivityServiceTest {
         assertEquals(GroupBuyActivityStatus.ENDED, result.getStatus());
         assertEquals(0, result.getRemainingSeconds());
         assertFalse(result.isAvailable());
-        assertEquals("拼团活动已结束", result.getMessage());
+        assertEquals("拼团活动已结�?, result.getMessage());
     }
 
     @Test
@@ -67,7 +67,7 @@ class GroupBuyActivityServiceTest {
 
         assertEquals(GroupBuyActivityStatus.DISABLED, result.getStatus());
         assertFalse(result.isAvailable());
-        assertEquals("拼团活动已停用", result.getMessage());
+        assertEquals("拼团活动已停�?, result.getMessage());
     }
 
     @Test
@@ -79,7 +79,7 @@ class GroupBuyActivityServiceTest {
         assertEquals("G10099", result.getGoodsId());
         assertEquals(GroupBuyActivityStatus.MISSING, result.getStatus());
         assertFalse(result.isAvailable());
-        assertEquals("当前额度包没有配置拼团活动", result.getMessage());
+        assertEquals("当前额度包没有配置拼团活�?, result.getMessage());
     }
 
     @Test
@@ -89,7 +89,7 @@ class GroupBuyActivityServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.trial(" "));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("额度包编号不能为空", exception.getMessage());
+        assertEquals("额度包编号不能为�?, exception.getMessage());
     }
 
     private GroupBuyActivity activity(boolean enabled, LocalDateTime startTime, LocalDateTime endTime) {
@@ -118,3 +118,18 @@ class GroupBuyActivityServiceTest {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

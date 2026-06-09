@@ -39,7 +39,7 @@ public class KnowledgeVectorMaintenanceService {
 
         KnowledgeVectorMaintenanceReport report = baseReport("REBUILD", version, fragments);
         report.setSuccessCount(fragments.size());
-        report.setMessage("知识版本向量已重建");
+        report.setMessage("知识版本向量已重�?);
         return report;
     }
 
@@ -50,7 +50,7 @@ public class KnowledgeVectorMaintenanceService {
         KnowledgeVectorMaintenanceReport report = baseReport("BACKUP", version, fragments);
         report.setSuccessCount(fragments.size());
         report.setSnapshotId("KV" + LocalDateTime.now().format(SNAPSHOT_FORMATTER));
-        report.setMessage("知识版本备份快照已生成，可用于后续离线导出");
+        report.setMessage("知识版本备份快照已生成，可用于后续离线导�?);
         return report;
     }
 
@@ -147,3 +147,18 @@ public class KnowledgeVectorMaintenanceService {
                 .divide(BigDecimal.valueOf(total), 2, RoundingMode.HALF_UP);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

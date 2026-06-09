@@ -27,3 +27,18 @@ public record AcademicMcpCacheStatus(String serverId,
         return serverEnabled && (STATUS_EMPTY.equals(cacheStatus) || STATUS_EXPIRED.equals(cacheStatus));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

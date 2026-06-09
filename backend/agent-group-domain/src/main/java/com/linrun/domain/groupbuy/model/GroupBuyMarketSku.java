@@ -59,3 +59,18 @@ public class GroupBuyMarketSku {
         this.originalPrice = originalPrice;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -33,3 +33,18 @@ public class TradeEventOutboxController {
         return Response.success(tradeEventOutboxDispatchService.queryStatus(), RequestTraceContext.getRequestId());
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

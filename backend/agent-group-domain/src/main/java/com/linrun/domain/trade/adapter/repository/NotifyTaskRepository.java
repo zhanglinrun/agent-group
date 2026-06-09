@@ -27,3 +27,18 @@ public interface NotifyTaskRepository {
 
     int updateNotifyTaskStatusError(NotifyTask notifyTask);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
