@@ -114,7 +114,7 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
     }
 
     /**
-     * 获取失败步骤之后的所有步�?
+     * 获取失败步骤之后的所有步验
      */
     private List<AcademicPlanStep> getRemainingSteps(AcademicAgentPlan plan, AcademicPlanStep failedStep) {
         List<AcademicPlanStep> remaining = new ArrayList<>();
@@ -136,7 +136,7 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
      * 调整步骤使用替代工具
      */
     private AcademicPlanStep adjustStepForAlternativeTool(AcademicPlanStep failedStep) {
-        String newInstruction = failedStep.getInstruction() + "（使用替代方法或工具�?;
+        String newInstruction = failedStep.getInstruction() + "（使用替代方法或工具）;
         return AcademicPlanStep.builder(
                 failedStep.getStepId() + "_retry",
                 newInstruction)
@@ -146,7 +146,7 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
     }
 
     /**
-     * 简化步�?
+     * 简化步验
      */
     private AcademicPlanStep simplifyStep(AcademicPlanStep failedStep) {
         String newInstruction = failedStep.getInstruction() + "（简化版本）";

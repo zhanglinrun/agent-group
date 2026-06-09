@@ -94,7 +94,7 @@ public class AgentDiagnosisService {
     }
 
     /**
-     * Agent 运行上下文（用于诊断�?
+     * Agent 运行上下文（用于诊断）
      */
     public static class AgentRunContext {
         private final String runId;

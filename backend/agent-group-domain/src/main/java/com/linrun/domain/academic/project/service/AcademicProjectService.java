@@ -108,7 +108,7 @@ public class AcademicProjectService {
         }
         boolean fileExists = project.getFiles().stream().anyMatch(file -> fileId.equals(file.getFileId()));
         if (!fileExists) {
-            throw new AppException("ACADEMIC_PROJECT_0004", "文件不属于当前项�?);
+            throw new AppException("ACADEMIC_PROJECT_0004", "文件不属于当前项目);
         }
         AcademicProjectPatch patch = new AcademicProjectPatch();
         patch.setPatchId(nextId("PATCH"));
@@ -240,7 +240,7 @@ public class AcademicProjectService {
 
     private void validateUserId(String userId) {
         if (!StringUtils.hasText(userId)) {
-            throw new AppException("AUTH_0001", "用户未登�?);
+            throw new AppException("AUTH_0001", "用户未登当);
         }
     }
 

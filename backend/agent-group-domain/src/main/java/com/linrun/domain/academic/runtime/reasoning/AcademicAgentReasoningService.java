@@ -55,7 +55,7 @@ public class AcademicAgentReasoningService {
     }
     
     /**
-     * 推断是否需要多信息�?
+     * 推断是否需要多信息源
      */
     private boolean inferNeedsMultipleSources(String question) {
         String lower = question.toLowerCase();
@@ -110,7 +110,7 @@ public class AcademicAgentReasoningService {
         }
 
         public String getSummary() {
-            return String.format("任务类型�?s | 预估步骤�?d | 难度�?s", 
+            return String.format("任务类型）s | 预估步骤）d | 难度）s", 
                     taskType, estimatedSteps, difficulty);
         }
     }

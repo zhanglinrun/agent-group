@@ -66,7 +66,7 @@ public class AcademicAgentReflectionService {
         }
 
         if (plan.getSteps().size() > 8) {
-            improvements.add("计划步骤过多�? + plan.getSteps().size() + "步），可以合并相似步�?);
+            improvements.add("计划步骤过多） + plan.getSteps().size() + "步），可以合并相似步验);
         }
 
         long emptyOutputSteps = completedSteps.stream()
@@ -85,7 +85,7 @@ public class AcademicAgentReflectionService {
     private String generateReflectionSummary(double quality, List<String> improvements, boolean needReplan) {
         StringBuilder summary = new StringBuilder();
         
-        summary.append("执行质量评分�?).append(String.format("%.1f", quality * 100)).append("/100\n");
+        summary.append("执行质量评分）).append(String.format("%.1f", quality * 100)).append("/100\n");
         
         if (quality >= 0.9) {
             summary.append("质量等级：优秀\n");
@@ -105,16 +105,16 @@ public class AcademicAgentReflectionService {
         }
 
         if (needReplan) {
-            summary.append("\n建议：根据反思结果调整后续计�?);
+            summary.append("\n建议：根数据反思结果调整后续计�?);
         } else {
-            summary.append("\n建议：当前计划执行良好，可继续按原计划进�?);
+            summary.append("\n建议：当前计划执行良好，可继续按原计划进行);
         }
 
         return summary.toString();
     }
 
     /**
-     * 反思结�?
+     * 反思结构
      */
     public static class ReflectionResult {
         private final double quality;
@@ -131,7 +131,7 @@ public class AcademicAgentReflectionService {
         }
 
         public static ReflectionResult empty() {
-            return new ReflectionResult(0.0, new ArrayList<>(), false, "无数�?);
+            return new ReflectionResult(0.0, new ArrayList<>(), false, "无数据);
         }
 
         public double getQuality() {

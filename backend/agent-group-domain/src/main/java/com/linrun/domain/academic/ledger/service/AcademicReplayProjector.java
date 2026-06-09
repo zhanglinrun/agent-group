@@ -129,7 +129,7 @@ public class AcademicReplayProjector {
         data.put("revision", Math.max(1, revision));
         data.put("changeType", revision > 1 ? "replan" : "initial");
         data.put("replanReason", safe(replanReason));
-        data.put("title", revision > 1 ? executionPlan.getTitle() + "（重规划 " + revision + "�? : executionPlan.getTitle());
+        data.put("title", revision > 1 ? executionPlan.getTitle() + "（重规划 " + revision + "） : executionPlan.getTitle());
         data.put("steps", executionPlan.getSteps().stream()
                 .map(AcademicPlanStep::getInstruction)
                 .toList());
@@ -186,12 +186,12 @@ public class AcademicReplayProjector {
 
     private List<String> planSteps(String taskType, boolean webSearchUsed) {
         return switch (safe(taskType)) {
-            case "file" -> List.of("读取文件", "检索相关内�?, "生成回答");
+            case "file" -> List.of("读取文件", "检索相关内容, "生成回答");
             case "ppt" -> List.of("拆解主题", webSearchUsed ? "搜索资料" : "整理素材", "生成演示文稿");
-            case "deep" -> List.of("拆解问题", webSearchUsed ? "搜索资料" : "梳理已有信息", "汇总结�?);
+            case "deep" -> List.of("拆解问题", webSearchUsed ? "搜索资料" : "梳理已有信息", "汇总结论);
             case "image" -> List.of("拆解画面", "调用图像工具", "整理图像产物");
-            case "data" -> List.of("确认口径", "查询或分析数�?, "输出结论");
-            case "skills", "manual-skills" -> List.of("选择技�?, "执行工具", "整理产物");
+            case "data" -> List.of("确认口径", "查询或分析数据, "输出结论");
+            case "skills", "manual-skills" -> List.of("选择技能, "执行工具", "整理产物");
             default -> List.of("理解问题", webSearchUsed ? "检索或搜索" : "组织回答", "生成回答");
         };
     }
@@ -227,9 +227,9 @@ public class AcademicReplayProjector {
             reason = safe(invocation.getResultSummary());
         }
         if (reason.isEmpty()) {
-            reason = "工具执行失败后切换后续步�?;
+            reason = "工具执行失败后切换后续步验;
         }
-        return toolName.isEmpty() ? "计划已重规划�? + reason : "计划已重规划�? + toolName + " 失败�? + reason;
+        return toolName.isEmpty() ? "计划已重规划） + reason : "计划已重规划） + toolName + " 失败） + reason;
     }
 
     private Map<String, Object> toolCall(AcademicToolInvocation invocation) {

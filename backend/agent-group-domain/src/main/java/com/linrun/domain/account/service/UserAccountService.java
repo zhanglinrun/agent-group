@@ -107,10 +107,10 @@ public class UserAccountService {
             throw new AppException("AUTH_0001", "请先登录");
         }
         UserLoginSession session = userAccountRepository.querySessionByToken(cleanToken(token))
-                .orElseThrow(() -> new AppException("AUTH_0001", "登录已失效，请重新登�?));
+                .orElseThrow(() -> new AppException("AUTH_0001", "登录已失效，请重新登当));
         if (!SESSION_ACTIVE.equals(session.getStatus()) || session.getExpireTime() == null
                 || session.getExpireTime().isBefore(LocalDateTime.now())) {
-            throw new AppException("AUTH_0001", "登录已失效，请重新登�?);
+            throw new AppException("AUTH_0001", "登录已失效，请重新登当);
         }
         return userAccountRepository.queryByUserId(session.getUserId())
                 .orElseThrow(() -> new AppException("AUTH_0006", "用户不存�?));
@@ -181,7 +181,7 @@ public class UserAccountService {
             throw new AppException("0001", "账号不能为空");
         }
         if (!StringUtils.hasText(request.getPassword()) || request.getPassword().length() < 6) {
-            throw new AppException("0001", "密码长度不能少于 6 �?);
+            throw new AppException("0001", "密码长度不能少于 6 位);
         }
     }
 

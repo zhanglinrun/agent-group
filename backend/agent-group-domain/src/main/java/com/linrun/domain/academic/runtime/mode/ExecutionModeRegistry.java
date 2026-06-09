@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 执行模式注册�?
+ * 执行模式注册行
  * 管理所有可用的执行模式，支持模式注册、查询和自动选择
  */
 public class ExecutionModeRegistry {
@@ -23,7 +23,7 @@ public class ExecutionModeRegistry {
     }
 
     /**
-     * 根据名称获取模式
+     * 根数据名称获取模式
      */
     public Optional<AgentExecutionMode> getMode(String modeName) {
         return Optional.ofNullable(modes.get(modeName));
@@ -40,7 +40,7 @@ public class ExecutionModeRegistry {
     }
 
     /**
-     * 获取默认模式（ReAct�?
+     * 获取默认模式（ReAct）
      */
     private AgentExecutionMode getDefaultMode() {
         return modes.get("react");

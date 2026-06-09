@@ -202,16 +202,16 @@ public class AcademicReportToolRuntime {
         }
         StringBuilder builder = new StringBuilder();
         if (StringUtils.hasText(title)) {
-            builder.append("标题�?).append(title).append("\n");
+            builder.append("标题）).append(title).append("\n");
         }
         if (StringUtils.hasText(summary)) {
-            builder.append("摘要�?).append(summary).append("\n");
+            builder.append("摘要）).append(summary).append("\n");
         }
         for (ReportSection section : sections) {
-            builder.append(section.heading()).append("�?).append(section.content()).append("\n");
+            builder.append(section.heading()).append("）).append(section.content()).append("\n");
         }
         if (!evidence.isEmpty()) {
-            builder.append("依据�?).append(String.join("�?, evidence));
+            builder.append("依数据）).append(String.join("）, evidence));
         }
         return builder.toString().trim();
     }
