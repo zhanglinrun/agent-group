@@ -66,7 +66,7 @@ public class TradeOrderEntity {
         }
         if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
                 && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)) {
-            throw new AppException("TRADE_0010", "当前订单状态不能完成交�?);
+            throw new AppException("TRADE_0010", "当前订单状态不能完成交明);
         }
         this.orderStatus = TradeOrderStatusEnumVO.DEAL_DONE;
     }

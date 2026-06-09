@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 public final class AcademicAgentExecutorSupport {
 
     public static final String BUSY_CODE = "AGENT_BUSY";
-    public static final String BUSY_MESSAGE = "系统繁忙，请稍后重试";
+    public static final String BUSY_MESSAGE = "系系统繁忙，请稍后重试";
 
     private AcademicAgentExecutorSupport() {
     }

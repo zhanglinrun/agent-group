@@ -66,7 +66,7 @@ class AcademicWorkspaceImageServiceTest {
             return new AcademicImageGenerationPort.AcademicImageGenerationResult(
                 true,
                 "mock-image",
-                "已生成拼团活动主�?,
+                "已生成拼团活动主回,
                 false,
                 List.of(AcademicToolFileRef.builder()
                         .artifactId("IMG-1")
@@ -124,9 +124,9 @@ class AcademicWorkspaceImageServiceTest {
                 startsWith("workspace-image-IMGREQ"), eq("workspace-image"), any(TokenUsageMetrics.class),
                 eq("workspace-image-tool"), anyLong());
         verify(ledgerService).recordToolFinish(eq("TOOL1001"), eq(AcademicAgentRun.STATUS_SUCCESS),
-                eq("已生成拼团活动主�?), anyString(), eq(0), eq(""), anyLong());
+                eq("已生成拼团活动主回), anyString(), eq(0), eq(""), anyLong());
         verify(ledgerService).finishRun(eq(run), eq(AcademicAgentRun.STATUS_SUCCESS),
-                eq("已生成拼团活动主�?), eq(""), eq(""), anyLong());
+                eq("已生成拼团活动主回), eq(""), eq(""), anyLong());
     }
 
     @Test
@@ -152,7 +152,7 @@ class AcademicWorkspaceImageServiceTest {
         run.setRequestId("IMGREQ1001");
         run.setTaskType("workspace-image");
         run.setQuestion("编辑拼团活动主图");
-        run.setFinalSummary("已生成3 张图�?);
+        run.setFinalSummary("已生成3 张图版);
         run.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         AcademicRunDetailResponse detail = new AcademicRunDetailResponse();
         AcademicRunDetailResponse.ToolInvocation invocation = new AcademicRunDetailResponse.ToolInvocation();

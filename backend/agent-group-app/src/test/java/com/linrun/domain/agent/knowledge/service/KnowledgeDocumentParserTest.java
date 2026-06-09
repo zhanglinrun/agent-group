@@ -18,13 +18,13 @@ class KnowledgeDocumentParserTest {
 
         List<CreateKnowledgeFragmentCommand> fragments = parser.parse(
                 "G10001",
-                "第一段额度说明。\n\n第二段退款规则�?);
+                "第一段额度说明。\n\n第二段退款规则。);
 
         assertEquals(2, fragments.size());
         assertEquals("G10001", fragments.get(0).getGoodsId());
-        assertEquals("第一段额度说明�?, fragments.get(0).getContent());
+        assertEquals("第一段额度说明。, fragments.get(0).getContent());
         assertEquals(1, fragments.get(0).getRankNo());
-        assertEquals("第二段退款规则�?, fragments.get(1).getContent());
+        assertEquals("第二段退款规则。, fragments.get(1).getContent());
         assertEquals(2, fragments.get(1).getRankNo());
     }
 

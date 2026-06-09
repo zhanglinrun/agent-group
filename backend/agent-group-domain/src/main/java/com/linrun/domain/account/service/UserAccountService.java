@@ -167,7 +167,7 @@ public class UserAccountService {
         registerRequest.setEmail("demo@example.com");
         register(registerRequest);
         return userAccountRepository.queryByUsername("demo")
-                .orElseThrow(() -> new AppException("AUTH_0006", "演示用户初始化失�?));
+                .orElseThrow(() -> new AppException("AUTH_0006", "演示用户初始化失败));
     }
 
     private UserQuotaAccount emptyQuota(String userId) {

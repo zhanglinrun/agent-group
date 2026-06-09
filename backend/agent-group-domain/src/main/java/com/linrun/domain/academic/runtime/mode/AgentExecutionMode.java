@@ -5,7 +5,7 @@ import java.util.Map;
 
 /**
  * Agent 执行模式接口
- * 定义统一的执行模式抽象，支持 ReAct、Plan-Execute、Flow、Skill-SOP 四种模式
+ * 定义系统一的执行模式抽象，支持 ReAct、Plan-Execute、Flow、Skill-SOP 四种模式
  */
 public interface AgentExecutionMode {
 

@@ -42,7 +42,7 @@ public class GroupBuyRefundRuleChain {
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new AppException("TRADE_0021", "拼团退款处理失�?);
+            throw new AppException("TRADE_0021", "拼团退款处理失败);
         }
     }
 

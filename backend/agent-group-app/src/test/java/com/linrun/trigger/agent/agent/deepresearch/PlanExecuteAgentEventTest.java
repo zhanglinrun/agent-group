@@ -16,7 +16,7 @@ class PlanExecuteAgentEventTest {
     @Test
     void shouldCreateInitialPlanUpdateEvent() throws Exception {
         String event = PlanExecuteAgent.createPlanUpdateEvent(1, List.of(
-                new PlanTask("S1", "检索论文摘�?, 1),
+                new PlanTask("S1", "检索论文摘要, 1),
                 new PlanTask("S2", "分析实验指标", 2)
         ));
 

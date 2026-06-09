@@ -62,7 +62,7 @@ public class PaymentWebhookReplayGuard {
     private LocalDateTime validateWebhookTime(PaymentWebhookResult result) {
         LocalDateTime webhookTime = result.getWebhookTime();
         if (webhookTime == null) {
-            throw new AppException("PAY_0008", "真实支付回调缺少时间�?);
+            throw new AppException("PAY_0008", "真实支付回调缺少时间成);
         }
         LocalDateTime now = LocalDateTime.now();
         long ageSeconds = Math.abs(Duration.between(webhookTime, now).toSeconds());

@@ -121,7 +121,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(((List<?>) toolRuntime.get("evidence")).contains("data_analysis"));
         assertTrue(((List<?>) toolRuntime.get("evidence")).contains("code_interpreter"));
         assertTrue(((List<?>) toolRuntime.get("evidence"))
-                .contains("AcademicToolRuntimeSummary 统计 total/enabled/disabled/category/source"));
+                .contains("AcademicToolRuntimeSummary 系统计 total/enabled/disabled/category/source"));
         assertTrue(((List<?>) toolRuntime.get("runtimeEnabledTools")).contains("data_analysis"));
         assertTrue(((List<?>) toolRuntime.get("missingRuntimeTools")).contains("code_interpreter"));
         assertTrue(((List<?>) toolRuntime.get("gaps")).isEmpty());
@@ -130,7 +130,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         Map<String, Object> platformReadiness = (Map<String, Object>) capabilities.get("agentPlatformReadiness");
         assertEquals("partial", platformReadiness.get("status"));
         assertEquals("待补�?, platformReadiness.get("statusLabel"));
-        assertEquals("Agent + 拼团交易系统就绪�?, platformReadiness.get("title"));
+        assertEquals("Agent + 拼团交易系系统就绪�?, platformReadiness.get("title"));
         assertTrue(((List<?>) platformReadiness.get("coveredFamilies")).containsAll(
                 List.of("react", "plan-execute", "flow", "skill-sop")));
         assertTrue(((List<?>) platformReadiness.get("missingFamilies")).isEmpty());
@@ -141,11 +141,11 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertTrue(((List<?>) platformReadiness.get("mcpGaps")).contains("MCP 管理器未加载"));
         assertEquals(4, platformReadiness.get("settlementRuleCount"));
         assertEquals(2L, platformReadiness.get("blockedSettlementRuleCount"));
-        assertTrue(((List<?>) platformReadiness.get("tradeGuardrails")).contains("拼团支付成功不等于额度到�?));
+        assertTrue(((List<?>) platformReadiness.get("tradeGuardrails")).contains("拼团支付成功不等于额度到败));
         List<Map<String, Object>> platformMetrics =
                 (List<Map<String, Object>>) platformReadiness.get("metrics");
         assertTrue(platformMetrics.stream().anyMatch(metric ->
-                "执行�?.equals(metric.get("label")) && "4/4".equals(metric.get("value"))));
+                "执行时.equals(metric.get("label")) && "4/4".equals(metric.get("value"))));
         assertTrue(((List<?>) platformReadiness.get("actions")).contains("注册、发现并缓存 MCP 工具"));
 
         Map<String, Object> tradeQuota = matrix.stream()
@@ -153,7 +153,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
                 .findFirst()
                 .orElseThrow();
         assertTrue(((List<?>) tradeQuota.get("authoritativeSources")).contains("quota_flow"));
-        assertTrue(((List<?>) tradeQuota.get("guardrails")).contains("拼团支付成功不等于额度到�?));
+        assertTrue(((List<?>) tradeQuota.get("guardrails")).contains("拼团支付成功不等于额度到败));
         List<Map<String, Object>> settlementRules = (List<Map<String, Object>>) tradeQuota.get("settlementRules");
         Map<String, Object> groupPaySuccess = settlementRules.stream()
                 .filter(item -> "group-pay-success".equals(item.get("key")))
@@ -187,7 +187,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals("代码解释�?, codeFamily.get("label"));
         assertEquals(2, codeFamily.get("totalCount"));
         assertTrue(((List<?>) codeFamily.get("missingTools")).contains("code_interpreter"));
-        assertTrue(String.valueOf(codeFamily.get("action")).contains("工具运行�?));
+        assertTrue(String.valueOf(codeFamily.get("action")).contains("工具运行时));
         Map<String, Object> dataFamily = toolRuntimeFamily(toolRuntimeFamilies, "data");
         assertTrue(((List<?>) dataFamily.get("tools")).contains("nl2sql"));
         assertTrue(((List<?>) dataFamily.get("outputKinds")).contains("table"));
@@ -317,7 +317,7 @@ class BearDoctorNativeAgentServiceCapabilitiesTest {
         assertEquals(2, toolRuntimeFamily(toolRuntimeFamilies, "web").get("readyCount"));
         assertEquals(3, toolRuntimeFamily(toolRuntimeFamilies, "data").get("readyCount"));
         assertTrue(((List<?>) toolRuntimeFamily(toolRuntimeFamilies, "data").get("missingTools")).isEmpty());
-        assertEquals("核心工具已覆�?, toolRuntimeFamily(toolRuntimeFamilies, "image").get("action"));
+        assertEquals("核心工具已覆目, toolRuntimeFamily(toolRuntimeFamilies, "image").get("action"));
 
         List<Map<String, Object>> workspaceProfiles = (List<Map<String, Object>>) capabilities.get("workspaceProfiles");
         Map<String, Object> agentWorkspace = workspace(workspaceProfiles, "agent");

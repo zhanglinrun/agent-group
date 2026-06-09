@@ -41,7 +41,7 @@ public class QuotaPackageCatalogService {
         }
         QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(goodsId)
                 .filter(this::isUpgradeProduct)
-                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下�?));
+                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下构));
         return enrichGroupBuy(product);
     }
 

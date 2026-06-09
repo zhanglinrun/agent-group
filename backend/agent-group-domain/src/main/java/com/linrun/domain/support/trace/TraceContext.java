@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 链路追踪上下�?
+ * 链路追踪上下方
  * 支持 TraceId �?SpanId 传播，用于全链路追踪
  */
 public class TraceContext {
@@ -93,7 +93,7 @@ public class TraceContext {
     }
 
     /**
-     * 清理上下�?
+     * 清理上下方
      */
     public static void clear() {
         TRACE_ID.remove();

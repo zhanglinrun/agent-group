@@ -18,7 +18,7 @@ public class KnowledgeKeywordService {
             "拼团",
             "成团",
             "退�?,
-            "退�?,
+            "退败,
             "售后",
             "额度",
             "余额",
@@ -32,16 +32,16 @@ public class KnowledgeKeywordService {
             "汇报",
             "答辩",
             "图表",
-            "流程�?,
-            "架构�?,
+            "流程回,
+            "架构回,
             "Mermaid",
             "深度研究",
             "调研",
             "技术路�?,
-            "长报�?,
+            "长报告,
             "复现",
             "团队",
-            "实验�?,
+            "实验容,
             "对比",
             "基础额度�?,
             "论文阅读额度�?,
@@ -49,12 +49,12 @@ public class KnowledgeKeywordService {
             "图表重建额度�?,
             "深度研究额度�?,
             "团队拼团额度�?,
-            "不建�?,
+            "不建论,
             "直接购买",
             "直接�?,
             "额度�?,
             "订单金额",
-            "支付单金�?,
+            "支付单金预,
             "前端金额",
             "价格篡改",
             "依据",
@@ -86,7 +86,7 @@ public class KnowledgeKeywordService {
         BUSINESS_KEYWORDS.stream()
                 .filter(normalized::contains)
                 .forEach(keywords::add);
-        for (String word : normalized.split("[\\s,，。！�??�?、]+")) {
+        for (String word : normalized.split("[\\s,，。！）?）、]+")) {
             if (word.length() >= 2 && word.length() <= 20) {
                 keywords.add(word);
             }

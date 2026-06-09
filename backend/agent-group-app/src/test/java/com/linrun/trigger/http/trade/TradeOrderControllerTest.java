@@ -58,9 +58,9 @@ class TradeOrderControllerTest {
                         .contentType("application/json")
                         .content("{}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.orderList[0].displayStatus").value("已支付，额度已到�?))
-                .andExpect(jsonPath("$.data.orderList[1].displayStatus").value("支付成功，等待成�?))
-                .andExpect(jsonPath("$.data.orderList[2].displayStatus").value("拼团已成团，额度已到�?))
+                .andExpect(jsonPath("$.data.orderList[0].displayStatus").value("已支付，额度已到败))
+                .andExpect(jsonPath("$.data.orderList[1].displayStatus").value("支付成功，等待成回))
+                .andExpect(jsonPath("$.data.orderList[2].displayStatus").value("拼团已成团，额度已到败))
                 .andExpect(jsonPath("$.data.orderList[3].displayStatus").value("拼团未成团，已退�?));
     }
 

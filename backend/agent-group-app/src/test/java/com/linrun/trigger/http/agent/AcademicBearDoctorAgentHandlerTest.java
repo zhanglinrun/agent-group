@@ -223,7 +223,7 @@ class AcademicBearDoctorAgentHandlerTest {
                   "type": "plan_update",
                   "title": "深度研究执行计划",
                   "structuredSteps": [
-                    {"stepId": "S1", "instruction": "检索拼团交易资�?, "order": 1}
+                    {"stepId": "S1", "instruction": "检索拼团交易资方, "order": 1}
                   ]
                 }
                 """;
@@ -236,7 +236,7 @@ class AcademicBearDoctorAgentHandlerTest {
 
         assertEquals("PLAN", taskStatus.get("stage"));
         assertEquals("RUNNING", flowData.get("status"));
-        assertTrue(String.valueOf(flowData.get("message")).contains("计划已更�?));
+        assertTrue(String.valueOf(flowData.get("message")).contains("计划已更方));
     }
 
     private Object runState(AcademicAgentRun run, AcademicAgentPlan plan) throws Exception {

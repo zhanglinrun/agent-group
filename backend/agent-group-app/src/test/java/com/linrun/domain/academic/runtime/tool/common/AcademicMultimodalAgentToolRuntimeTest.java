@@ -24,7 +24,7 @@ class AcademicMultimodalAgentToolRuntimeTest {
                 new AcademicMultimodalAnalysisPort.AcademicMultimodalAnalysisResult(
                         true,
                         "识别到一张交易流程图",
-                        "图中包含支付、成团、额度发放三个节点�?,
+                        "图中包含支付、成团、额度发放三个节点。,
                         Map.of("diagramType", "trade_flow"),
                         List.of(),
                         "");
@@ -34,7 +34,7 @@ class AcademicMultimodalAgentToolRuntimeTest {
 
         AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.MULTIMODAL_AGENT)
                 .arguments(Map.of(
-                        "task", "分析交易流程�?,
+                        "task", "分析交易流程回,
                         "text", "请检查流程是否缺少退�?,
                         "imageUrls", List.of("/files/flow.png")))
                 .build());

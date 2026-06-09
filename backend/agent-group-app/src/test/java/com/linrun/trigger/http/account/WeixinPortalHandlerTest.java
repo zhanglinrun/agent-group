@@ -40,7 +40,7 @@ class WeixinPortalHandlerTest {
         WeixinTemplateMessageRequest request = new WeixinTemplateMessageRequest();
         request.setOpenId("mock_openid_U10001");
         request.setTemplateId("demo_template_id");
-        request.setTitle("拼团状态更�?);
+        request.setTitle("拼团状态更方);
         request.setRemark("订单状态已更新");
 
         WeixinTemplateMessageResponse response = handler.sendTemplateMessage(request);

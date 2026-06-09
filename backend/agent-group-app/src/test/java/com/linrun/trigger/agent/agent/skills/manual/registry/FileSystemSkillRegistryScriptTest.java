@@ -61,7 +61,7 @@ class FileSystemSkillRegistryScriptTest {
         Files.createDirectories(skillDir);
         Files.writeString(skillDir.resolve("SKILL.md"), """
                 ---
-                description: 不安全脚�?                ---
+                description: 不安全脚本                ---
                 # Unsafe
                 """);
         Files.writeString(tempDir.resolve("outside.py"), "print('outside')");

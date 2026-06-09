@@ -93,7 +93,7 @@ public class TradeCompensationService {
         for (String orderId : orderIds) {
             RefundPaymentRequest request = new RefundPaymentRequest();
             request.setOrderId(orderId);
-            request.setRefundReason("拼团超时未成�?);
+            request.setRefundReason("拼团超时未成回);
             if (paymentService == null) {
                 tradeRefundService.refund(request);
             } else {

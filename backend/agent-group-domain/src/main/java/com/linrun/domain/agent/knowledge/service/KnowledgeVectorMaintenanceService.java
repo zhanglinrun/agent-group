@@ -50,7 +50,7 @@ public class KnowledgeVectorMaintenanceService {
         KnowledgeVectorMaintenanceReport report = baseReport("BACKUP", version, fragments);
         report.setSuccessCount(fragments.size());
         report.setSnapshotId("KV" + LocalDateTime.now().format(SNAPSHOT_FORMATTER));
-        report.setMessage("知识版本备份快照已生成，可用于后续离线导�?);
+        report.setMessage("知识版本备份快照已生成，可用于后继续离线导�?);
         return report;
     }
 

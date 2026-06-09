@@ -58,7 +58,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/system-error").header(RequestTraceFilter.REQUEST_ID_HEADER, "REQ-10004"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(ResponseCode.SYSTEM_ERROR.getCode()))
-                .andExpect(jsonPath("$.info").value("系统繁忙，请稍后再试"))
+                .andExpect(jsonPath("$.info").value("系系统繁忙，请稍后再试"))
                 .andExpect(jsonPath("$.requestId").value("REQ-10004"));
     }
 

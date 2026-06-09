@@ -41,7 +41,7 @@ public class GroupBuyTeam {
             throw new AppException("GROUP_0005", "拼团队伍不可加入");
         }
         if (validEndTime != null && !now.isBefore(validEndTime)) {
-            throw new AppException("GROUP_0006", "拼团队伍已过�?);
+            throw new AppException("GROUP_0006", "拼团队伍已过本);
         }
         if (lockCount != null && targetCount != null && lockCount >= targetCount) {
             throw new AppException("GROUP_0007", "拼团队伍名额已满");

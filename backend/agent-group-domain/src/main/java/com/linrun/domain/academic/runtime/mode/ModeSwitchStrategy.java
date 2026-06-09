@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * 模式动态切换策�?
- * 根数据任务特征自动选择最优执行模�?
+ * 根数据任务特征自动选择最优执行模开
  */
 public class ModeSwitchStrategy {
 
@@ -15,7 +15,7 @@ public class ModeSwitchStrategy {
     }
 
     /**
-     * 选择最优执行模�?
+     * 选择最优执行模开
      */
     public AgentExecutionMode selectMode(String userQuery, List<Object> attachments) {
         AgentExecutionMode.ExecutionContext context = new AgentExecutionMode.ExecutionContext(
@@ -36,13 +36,13 @@ public class ModeSwitchStrategy {
                     .orElse(registry.selectMode(context));
         }
         
-        // 2. 包含"深度研究"�?调研"关键�?�?Plan-Execute 模式（优先级：高）
+        // 2. 包含"深度研究"。调研"关键读�?Plan-Execute 模式（优先级：高）
         if (containsDeepResearchKeywords(userQuery)) {
             return registry.getMode("plan-execute")
                     .orElse(registry.selectMode(context));
         }
         
-        // 3. 包含"生成 PPT"�?制作幻灯版 �?Flow 模式（优先级：中）
+        // 3. 包含"生成 PPT"。制作幻灯版 �?Flow 模式（优先级：中）
         if (containsPPTKeywords(userQuery)) {
             return registry.getMode("flow")
                     .orElse(registry.selectMode(context));
@@ -71,12 +71,12 @@ public class ModeSwitchStrategy {
         return lower.contains("深度研究") 
             || lower.contains("深度调研")
             || lower.contains("全面分析")
-            || lower.contains("系统研究")
+            || lower.contains("系系统研究")
             || (lower.contains("研究") && lower.length() > 20);
     }
 
     /**
-     * 检查是否包�?PPT 关键�?
+     * 检查是否包�?PPT 关键读
      */
     private boolean containsPPTKeywords(String query) {
         if (query == null || query.trim().isEmpty()) {

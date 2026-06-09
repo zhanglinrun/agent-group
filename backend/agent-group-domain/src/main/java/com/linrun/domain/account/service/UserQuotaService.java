@@ -251,7 +251,7 @@ public class UserQuotaService {
                 .map(UserMembershipAccount::remainingQuota)
                 .orElse(BigDecimal.ZERO));
         if (available.compareTo(safeAmount) < 0) {
-            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会�?);
+            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告);
         }
     }
 
@@ -328,11 +328,11 @@ public class UserQuotaService {
         BigDecimal accountDebit = normalizeAmount(quotaCost.subtract(memberDebit));
         if (accountDebit.compareTo(BigDecimal.ZERO) > 0) {
             if (before.getQuotaBalance().compareTo(accountDebit) < 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会�?);
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告);
             }
             int affected = userQuotaRepository.decreaseQuota(userId, accountDebit);
             if (affected <= 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会�?);
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告);
             }
             UserQuotaAccount after = queryAccount(userId);
             userQuotaRepository.saveFlow(flow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId,
@@ -592,11 +592,11 @@ public class UserQuotaService {
     private String consumeRemark(String taskType, BigDecimal quotaCost, BigDecimal memberDebit, boolean customModelUsed) {
         String source = customModelUsed ? "自定义模�? : "平台模型";
         if (memberDebit.compareTo(BigDecimal.ZERO) > 0) {
-            return "任务�?token 扣费�? + safe(taskType) + "�? + source
+            return "任务�?token 扣费） + safe(taskType) + "） + source
                     + "，会员额度抵�?" + memberDebit.stripTrailingZeros().toPlainString()
                     + "，总费�?" + quotaCost.stripTrailingZeros().toPlainString();
         }
-        return "任务�?token 扣费�? + safe(taskType) + "�? + source
+        return "任务�?token 扣费） + safe(taskType) + "） + source
                 + "，费�?" + quotaCost.stripTrailingZeros().toPlainString();
     }
 
@@ -676,7 +676,7 @@ public class UserQuotaService {
         UserMembershipDTO dto = new UserMembershipDTO();
         dto.setUserId(userId);
         dto.setPlanCode(membership == null ? "FREE" : firstText(membership.getPlanCode(), "FREE"));
-        dto.setPlanName(membership == null ? "免费�? : firstText(membership.getPlanName(), "免费�?));
+        dto.setPlanName(membership == null ? "免费版 : firstText(membership.getPlanName(), "免费版));
         dto.setStatus(membership == null ? "INACTIVE" : firstText(membership.getStatus(), "INACTIVE"));
         dto.setMonthlyQuota(normalizeAmount(membership == null ? BigDecimal.ZERO : membership.getMonthlyQuota()));
         dto.setMonthlyUsedQuota(normalizeAmount(membership == null ? BigDecimal.ZERO : membership.getMonthlyUsedQuota()));
@@ -767,7 +767,7 @@ public class UserQuotaService {
             return "v1:" + Base64.getEncoder().encodeToString(iv)
                     + ":" + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0004", "自定义模型密钥加密失�?);
+            throw new AppException("MODEL_CONFIG_0004", "自定义模型密钥加密失败);
         }
     }
 
@@ -789,7 +789,7 @@ public class UserQuotaService {
             cipher.init(Cipher.DECRYPT_MODE, secretKey(), new GCMParameterSpec(128, iv));
             return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0005", "自定义模型密钥解密失�?);
+            throw new AppException("MODEL_CONFIG_0005", "自定义模型密钥解密失败);
         }
     }
 

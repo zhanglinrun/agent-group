@@ -171,7 +171,7 @@ public class PaymentService {
                 return existingResponse;
             }
             metrics.recordPaymentWebhook(payChannel.name(), "processing_conflict", elapsedMillis(startNanos));
-            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重�?);
+            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重读);
         }
 
         boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, webhookResult);

@@ -38,7 +38,7 @@ class AcademicPlanningToolRuntimeTest {
                         "command", "mark_step",
                         "stepIndex", 0,
                         "status", AcademicPlanLifecycleService.STATUS_COMPLETED,
-                        "note", "论文摘要已确�?))
+                        "note", "论文摘要已确论))
                 .build());
 
         AcademicToolCallResult updateResult = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.PLANNING)

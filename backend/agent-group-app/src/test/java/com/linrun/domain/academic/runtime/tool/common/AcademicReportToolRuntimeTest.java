@@ -23,10 +23,10 @@ class AcademicReportToolRuntimeTest {
         AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.REPORT_TOOL)
                 .arguments(Map.of(
                         "title", "论文实验指标分析报告",
-                        "summary", "不同方法在同一数据集上的准确率存在差异�?,
+                        "summary", "不同方法在同一数据集上的准确率存在差异。,
                         "sections", List.of(
-                                Map.of("heading", "实验设置", "content", "统一比较同一数据集上的指标�?),
-                                Map.of("heading", "结果分析", "content", "补充消融实验说明指标差异�?)),
+                                Map.of("heading", "实验设置", "content", "系统一比较同一数据集上的指标。),
+                                Map.of("heading", "结果分析", "content", "补充消融实验说明指标差异。)),
                         "evidence", List.of("实验指标来自 experiment_result 行)))
                 .build());
 

@@ -62,7 +62,7 @@ public class AcademicAgentReflectionService {
                 .filter(s -> AcademicPlanLifecycleService.STATUS_BLOCKED.equals(s.getStatus()))
                 .count();
         if (failedSteps > 0) {
-            improvements.add("�?" + failedSteps + " 个步骤执行失败，需要调整策�?);
+            improvements.add("本" + failedSteps + " 个步骤执行失败，需要调整策�?);
         }
 
         if (plan.getSteps().size() > 8) {
@@ -73,7 +73,7 @@ public class AcademicAgentReflectionService {
                 .filter(s -> s.getNote() == null || s.getNote().trim().isEmpty())
                 .count();
         if (emptyOutputSteps > completedSteps.size() / 2) {
-            improvements.add("超过半数步骤缺少输出，可能需要调整执行方�?);
+            improvements.add("超过半数步骤缺少输出，可能需要调整执行方开);
         }
 
         return improvements;
@@ -105,9 +105,9 @@ public class AcademicAgentReflectionService {
         }
 
         if (needReplan) {
-            summary.append("\n建议：根数据反思结果调整后续计�?);
+            summary.append("\n建议：根数据反思结果调整后继续计�?);
         } else {
-            summary.append("\n建议：当前计划执行良好，可继续按原计划进行);
+            summary.append("\n建议：当前计划执行良好，可继继续按原计划进行);
         }
 
         return summary.toString();

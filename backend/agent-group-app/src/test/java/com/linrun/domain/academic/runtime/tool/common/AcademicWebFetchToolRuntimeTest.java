@@ -27,7 +27,7 @@ class AcademicWebFetchToolRuntimeTest {
             byte[] bytes = """
                     <html>
                     <head><title>Agent Group Article</title><style>.x{display:none}</style></head>
-                    <body><h1>拼团交易</h1><p>支付成功后等待成团，成团后发放额度�?/p></body>
+                    <body><h1>拼团交易</h1><p>支付成功后等待成团，成团后发放额度。/p></body>
                     </html>
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, bytes.length);

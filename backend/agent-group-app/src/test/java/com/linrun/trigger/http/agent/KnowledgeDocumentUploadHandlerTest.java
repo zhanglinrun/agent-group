@@ -51,7 +51,7 @@ class KnowledgeDocumentUploadHandlerTest {
         UploadKnowledgeDocumentResponse response = service.uploadText(request());
 
         assertTrue(response.getDocumentId().startsWith("DOC"));
-        assertEquals("额度包使用说�?, response.getDocumentName());
+        assertEquals("额度包使用说明, response.getDocumentName());
         assertEquals("额度规则", response.getDocumentType());
         assertEquals("v3", response.getKnowledgeVersion());
         assertEquals("OPERATOR_UPLOAD", response.getSourceType());
@@ -79,7 +79,7 @@ class KnowledgeDocumentUploadHandlerTest {
 
         assertEquals("v1", response.getKnowledgeVersion());
         assertEquals("OPERATOR_UPLOAD", response.getSourceType());
-        assertEquals("额度包使用说�?, response.getSourceName());
+        assertEquals("额度包使用说明, response.getSourceName());
     }
 
     @Test
@@ -104,7 +104,7 @@ class KnowledgeDocumentUploadHandlerTest {
                 "file",
                 "quota-rule.md",
                 "text/markdown",
-                "基础额度包适合论文阅读。\n\n未成团自动退款�?.getBytes(StandardCharsets.UTF_8));
+                "基础额度包适合论文阅读。\n\n未成团自动退款。.getBytes(StandardCharsets.UTF_8));
 
         UploadKnowledgeDocumentResponse response = service.uploadFile(file, "G10001", "", "拼团规则", "v5");
 
@@ -130,7 +130,7 @@ class KnowledgeDocumentUploadHandlerTest {
                 repository,
                 new KnowledgeVectorService(vectorRepository),
                 storageClient,
-                (fileName, contentType, content) -> "解析后的 PDF 额度说明。\n\n解析后的退款规则�?);
+                (fileName, contentType, content) -> "解析后的 PDF 额度说明。\n\n解析后的退款规则。);
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "quota-rule.pdf",
@@ -140,8 +140,8 @@ class KnowledgeDocumentUploadHandlerTest {
         service.uploadFile(file, "G10001", "", "额度资料", "v6");
 
         assertEquals(2, repository.fragments.size());
-        assertEquals("解析后的 PDF 额度说明�?, repository.fragments.get(0).getContent());
-        assertEquals("解析后的退款规则�?, repository.fragments.get(1).getContent());
+        assertEquals("解析后的 PDF 额度说明。, repository.fragments.get(0).getContent());
+        assertEquals("解析后的退款规则。, repository.fragments.get(1).getContent());
     }
 
     @Test
@@ -196,13 +196,13 @@ class KnowledgeDocumentUploadHandlerTest {
 
     private UploadKnowledgeDocumentRequest request() {
         UploadKnowledgeDocumentRequest request = new UploadKnowledgeDocumentRequest();
-        request.setDocumentName("额度包使用说�?);
+        request.setDocumentName("额度包使用说明);
         request.setDocumentType("额度规则");
         request.setKnowledgeVersion("v3");
         request.setSourceType("OPERATOR_UPLOAD");
         request.setSourceName("after-sale.md");
         request.setGoodsId("G10001");
-        request.setContent("额度到账后可用于学术 Agent。\n\n未成团订单自动退款�?);
+        request.setContent("额度到账后可用于学术 Agent。\n\n未成团订单自动退款。);
         return request;
     }
 

@@ -126,8 +126,8 @@ public class OrderStatusToolService {
             case CREATE -> "待创建支付单";
             case PAY_WAIT -> "待支�?;
             case PAY_SUCCESS -> "已支�?;
-            case GROUP_SETTLED -> "拼团已成�?;
-            case DEAL_DONE -> "交易已完�?;
+            case GROUP_SETTLED -> "拼团已成回;
+            case DEAL_DONE -> "交易已完成;
             case CLOSED -> "已关�?;
             case WAIT_REFUND -> "退款处理中";
             case REFUNDED -> "已退�?;

@@ -227,7 +227,7 @@ public class AcademicReplayProjector {
             reason = safe(invocation.getResultSummary());
         }
         if (reason.isEmpty()) {
-            reason = "工具执行失败后切换后续步验;
+            reason = "工具执行失败后切换后继续步验;
         }
         return toolName.isEmpty() ? "计划已重规划） + reason : "计划已重规划） + toolName + " 失败） + reason;
     }

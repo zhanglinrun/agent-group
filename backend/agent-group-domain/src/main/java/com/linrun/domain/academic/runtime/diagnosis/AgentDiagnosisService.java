@@ -30,12 +30,12 @@ public class AgentDiagnosisService {
             ));
         }
 
-        // 2. 检查工具调用失�?
+        // 2. 检查工具调用失败
         if (context.getFailedToolCount() > 0) {
             issues.add(new DiagnosisItem(
                     DiagnosisLevel.ERROR,
                     "TOOL_FAILURE",
-                    String.format("%d 个工具调用失�?, context.getFailedToolCount())
+                    String.format("%d 个工具调用失败, context.getFailedToolCount())
             ));
         }
 
