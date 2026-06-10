@@ -17,7 +17,7 @@ import java.util.List;
 public class ImageToPptService {
 
     /**
-     * PPT尺寸�?6:9�?
+     * PPT尺寸??6:9??
      */
     private static final int WIDTH = 1280;
     private static final int HEIGHT = 720;
@@ -25,7 +25,7 @@ public class ImageToPptService {
     /**
      * 多图片转PPT
      *
-     * @param images 图片二进制列表（PNG/JPG�?
+     * @param images 图片二进制列表（PNG/JPG??
      */
     public byte[] convertImagesToPpt(List<byte[]> images) {
 
@@ -64,7 +64,7 @@ public class ImageToPptService {
     }
 
     /**
-     * 自动检测图片类型（PNG / JPG�?
+     * 自动检测图片类型（PNG / JPG??
      */
     private PictureData.PictureType detectImageType(byte[] image) {
 

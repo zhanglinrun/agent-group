@@ -28,7 +28,7 @@ public class TeamStockOccupyLockRule implements ILogicHandler<GroupBuyLockContex
 
         GroupBuyActivity activity = context.getActivity();
         GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(teamId)
-                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存在"));
         team.assertCanJoin(activity.getActivityId(), activity.getGoodsId(), context.getNow());
         boolean teamStockOccupied = groupBuyTeamStockRepository.occupyTeamStock(
                 activity.getActivityId(), teamId, team.getTargetCount(), team.getValidEndTime());

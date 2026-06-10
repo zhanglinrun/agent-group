@@ -65,7 +65,7 @@ class DirectBuyOrderServiceTest {
         assertTrue(response.getPayOrderId().startsWith("P"));
         assertEquals("U10001", response.getUserId());
         assertEquals("G10001", response.getGoodsId());
-        assertEquals("基础学术额度�?, response.getGoodsName());
+        assertEquals("基础学术额度包", response.getGoodsName());
         assertEquals(TradeBuyTypeEnumVO.DIRECT.name(), response.getBuyType());
         assertEquals(TradeOrderStatusEnumVO.PAY_WAIT.name(), response.getOrderStatus());
         assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
@@ -120,7 +120,7 @@ class DirectBuyOrderServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
         assertEquals("DATA_0003", exception.getCode());
-        assertEquals("额度包不存在或已下架", exception.getMessage());
+        assertEquals("棰濆害鍖呬笉瀛樺湪鎴栧凡涓嬫灦", exception.getMessage());
     }
 
     @Test
@@ -139,7 +139,7 @@ class DirectBuyOrderServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("用户编号不能为空", exception.getMessage());
+        assertEquals("鐢ㄦ埛缂栧彿涓嶈兘涓虹┖", exception.getMessage());
     }
 
     @Test
@@ -252,11 +252,11 @@ class DirectBuyOrderServiceTest {
         public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
             QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
-            product.setGoodsName("基础学术额度�?);
+            product.setGoodsName("基础学术额度包");
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
-            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整理);
-            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更�?);
+            product.setSpecSummary("40 次普通学术问答额度，适合摘要和资料整理");
+            product.setRecommendReason("预算有限、普通学术问答和资料整理场景下性价比更高");
             return Optional.of(product);
         }
     }

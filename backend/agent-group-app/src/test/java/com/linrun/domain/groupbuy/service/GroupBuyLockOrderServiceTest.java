@@ -137,7 +137,7 @@ class GroupBuyLockOrderServiceTest {
                 () -> service.lock(request("T10001", "IDEM_10003")));
 
         assertEquals("GROUP_0007", exception.getCode());
-        assertEquals("拼团队伍名额已满", exception.getMessage());
+        assertEquals("鎷煎洟闃熶紞鍚嶉宸叉弧", exception.getMessage());
     }
 
     @Test
@@ -490,7 +490,7 @@ class GroupBuyLockOrderServiceTest {
                 () -> service.lock(request(null, "IDEM_10005")));
 
         assertEquals("GROUP_0008", exception.getCode());
-        assertEquals("拼团活动不可�?, exception.getMessage());
+        assertEquals("拼团活动不可用", exception.getMessage());
     }
 
     private GroupBuyLockOrderService service(FakeGroupBuyOrderLockRepository lockRepository,
@@ -898,7 +898,7 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public GroupBuyStock lockStock(String activityId, String goodsId, String orderId, String teamId) {
             if (stock.getAvailableStock() <= 0) {
-                throw new AppException("GROUP_0012", "拼团库存不足");
+                throw new AppException("GROUP_0012", "鎷煎洟搴撳瓨涓嶈冻");
             }
             stock.setAvailableStock(stock.getAvailableStock() - 1);
             stock.setLockedStock(stock.getLockedStock() + 1);

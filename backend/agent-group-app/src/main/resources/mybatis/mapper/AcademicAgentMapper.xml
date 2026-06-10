@@ -397,6 +397,43 @@
         where run_id = #{runId}
         order by create_time asc, id asc
     </select>
+
+    <delete id="deleteArtifactsSince">
+        delete from academic_agent_artifact
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+          and (
+            create_time &gt;= #{startedAt}
+            or run_id in (
+              select run_id
+              from academic_agent_run
+              where user_id = #{userId}
+                and session_id = #{sessionId}
+                and started_at &gt;= #{startedAt}
+            )
+          )
+    </delete>
+
+    <delete id="deleteLlmInvocationsSince">
+        delete from academic_llm_invocation
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+          and started_at &gt;= #{startedAt}
+    </delete>
+
+    <delete id="deleteToolInvocationsSince">
+        delete from academic_tool_invocation
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+          and started_at &gt;= #{startedAt}
+    </delete>
+
+    <delete id="deleteRunsSince">
+        delete from academic_agent_run
+        where user_id = #{userId}
+          and session_id = #{sessionId}
+          and started_at &gt;= #{startedAt}
+    </delete>
 </mapper>
 
 

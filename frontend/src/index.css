@@ -1316,7 +1316,7 @@ body {
   }
 }
 
-/* 熊博士 Agent shell */
+/* Agent workspace shell */
 .bear-doctor-app {
   --primary-color: #8b5cf6;
   --primary-light: #a78bfa;
@@ -2284,6 +2284,94 @@ body {
   line-height: 1.35;
 }
 
+.bear-doctor-app .agent-diagnosis-panel {
+  margin-bottom: 14px;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.bear-doctor-app .agent-diagnosis-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bear-doctor-app .agent-diagnosis-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.bear-doctor-app .agent-diagnosis-head strong {
+  color: var(--text-primary);
+}
+
+.bear-doctor-app .agent-diagnosis-head span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.bear-doctor-app .agent-diagnosis-list {
+  display: grid;
+  gap: 10px;
+}
+
+.bear-doctor-app .agent-diagnosis-card {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.bear-doctor-app .agent-diagnosis-card.warning {
+  border-color: rgba(245, 158, 11, 0.48);
+}
+
+.bear-doctor-app .agent-diagnosis-card.error {
+  border-color: rgba(239, 68, 68, 0.48);
+}
+
+.bear-doctor-app .agent-diagnosis-card > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.bear-doctor-app .agent-diagnosis-card strong {
+  color: var(--text-primary);
+}
+
+.bear-doctor-app .agent-diagnosis-card span,
+.bear-doctor-app .agent-diagnosis-card small,
+.bear-doctor-app .agent-diagnosis-card li {
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .agent-diagnosis-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bear-doctor-app .agent-diagnosis-metrics span {
+  padding: 3px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.bear-doctor-app .agent-diagnosis-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .bear-doctor-app .agent-config-row {
   align-items: flex-start;
 }
@@ -2902,11 +2990,23 @@ body {
   color: var(--app-muted, var(--text-secondary));
 }
 
+.bear-doctor-app .academic-project-panel.compact {
+  width: min(720px, calc(100% - 36px));
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
 .bear-doctor-app .academic-project-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+}
+
+.bear-doctor-app .academic-project-panel.compact .academic-project-head {
+  align-items: center;
 }
 
 .bear-doctor-app .academic-project-head > div:first-child {
@@ -2921,11 +3021,19 @@ body {
   font-weight: 700;
 }
 
+.bear-doctor-app .academic-project-panel.compact .academic-project-kicker {
+  font-size: 11px;
+}
+
 .bear-doctor-app .academic-project-head strong {
   color: var(--app-text, var(--text-primary));
   font-size: 16px;
   line-height: 1.35;
   overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .academic-project-panel.compact .academic-project-head strong {
+  font-size: 14px;
 }
 
 .bear-doctor-app .academic-project-head em {
@@ -2934,6 +3042,13 @@ body {
   font-style: normal;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .academic-project-panel.compact .academic-project-head em {
+  max-width: 560px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bear-doctor-app .academic-project-actions {
@@ -2999,6 +3114,10 @@ body {
   margin-top: 12px;
 }
 
+.bear-doctor-app .academic-project-panel.compact .academic-project-metrics {
+  margin-top: 8px;
+}
+
 .bear-doctor-app .academic-project-metrics span {
   min-height: 30px;
   padding: 0 10px;
@@ -3010,6 +3129,12 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 12px;
+}
+
+.bear-doctor-app .academic-project-panel.compact .academic-project-metrics span {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
 }
 
 .bear-doctor-app .academic-project-metrics b {
@@ -4728,6 +4853,63 @@ body {
   white-space: pre-wrap;
 }
 
+.bear-doctor-app .timeline-reasoning,
+.bear-doctor-app .timeline-routing,
+.bear-doctor-app .timeline-replan,
+.bear-doctor-app .timeline-diagnosis {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.72);
+  font-size: 12px;
+}
+
+.bear-doctor-app .timeline-reasoning strong,
+.bear-doctor-app .timeline-routing strong,
+.bear-doctor-app .timeline-replan strong,
+.bear-doctor-app .timeline-diagnosis strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.bear-doctor-app .timeline-reasoning span,
+.bear-doctor-app .timeline-routing small,
+.bear-doctor-app .timeline-replan span,
+.bear-doctor-app .timeline-replan small,
+.bear-doctor-app .timeline-diagnosis small {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .timeline-reasoning em {
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.bear-doctor-app .timeline-routing > div,
+.bear-doctor-app .timeline-diagnosis > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bear-doctor-app .timeline-routing > div span,
+.bear-doctor-app .timeline-diagnosis > div span {
+  padding: 3px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
 .bear-doctor-app .timeline-tool,
 .bear-doctor-app .timeline-run,
 .bear-doctor-app .timeline-llm,
@@ -4863,6 +5045,373 @@ body {
 .bear-doctor-app .timeline-tool-name {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.bear-doctor-app .timeline-tool-io {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-top: 4px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.bear-doctor-app .timeline-tool-io summary {
+  cursor: pointer;
+  padding: 6px 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bear-doctor-app .timeline-tool-io pre {
+  max-height: 180px;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.bear-doctor-app .assistant-reasoning {
+  margin: 0 0 14px;
+  color: #4b5563;
+}
+
+.bear-doctor-app .assistant-reasoning-toggle {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #4b5563;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.bear-doctor-app .assistant-reasoning-toggle:hover {
+  color: #1f2937;
+}
+
+.bear-doctor-app .assistant-reasoning-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+}
+
+.bear-doctor-app .assistant-reasoning.running .assistant-reasoning-icon svg {
+  animation: bearDoctorReasoningSpin 1.1s linear infinite;
+}
+
+.bear-doctor-app .assistant-reasoning.attention .assistant-reasoning-icon {
+  color: #b45309;
+}
+
+.bear-doctor-app .assistant-reasoning-title {
+  color: #374151;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bear-doctor-app .assistant-reasoning-meta {
+  min-width: 0;
+  color: #6b7280;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bear-doctor-app .assistant-reasoning-caret {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.bear-doctor-app .assistant-reasoning-body {
+  margin-top: 10px;
+  margin-left: 9px;
+  padding-left: 16px;
+  border-left: 1px solid #d9dee8;
+  color: #4b5563;
+}
+
+.bear-doctor-app .assistant-reasoning-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.bear-doctor-app .assistant-reasoning-metrics span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.bear-doctor-app .assistant-reasoning-metrics b {
+  color: #374151;
+  font-weight: 600;
+}
+
+.bear-doctor-app .assistant-reasoning-metrics .good b {
+  color: #047857;
+}
+
+.bear-doctor-app .assistant-reasoning-metrics .warn b {
+  color: #b45309;
+}
+
+.bear-doctor-app .assistant-reasoning-highlights {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+}
+
+.bear-doctor-app .assistant-reasoning-highlights p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .assistant-reasoning-plans {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.bear-doctor-app .assistant-reasoning-subtitle {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bear-doctor-app .assistant-reasoning-plan {
+  display: grid;
+  gap: 3px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.bear-doctor-app .assistant-reasoning-plan strong {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bear-doctor-app .assistant-reasoning-plan small,
+.bear-doctor-app .assistant-reasoning-plan em {
+  color: #6b7280;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-content {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-item {
+  gap: 10px;
+  padding: 0 0 10px;
+  padding-left: 0;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-item:not(:last-child)::after {
+  left: 3px;
+  top: 16px;
+  bottom: -2px;
+  width: 1px;
+  background: #e5e7eb;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 8px;
+  border: 0;
+  background: #9ca3af;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-dot.completed,
+.bear-doctor-app .assistant-reasoning .timeline-dot.tool,
+.bear-doctor-app .assistant-reasoning .timeline-dot.run,
+.bear-doctor-app .assistant-reasoning .timeline-dot.plan,
+.bear-doctor-app .assistant-reasoning .timeline-dot.llm {
+  background: #22c55e;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-dot.running {
+  background: #2563eb;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-dot.blocked,
+.bear-doctor-app .assistant-reasoning .timeline-dot.error {
+  background: #f59e0b;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-thinking {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-reasoning,
+.bear-doctor-app .assistant-reasoning .timeline-routing,
+.bear-doctor-app .assistant-reasoning .timeline-replan,
+.bear-doctor-app .assistant-reasoning .timeline-diagnosis,
+.bear-doctor-app .assistant-reasoning .timeline-flow-stage {
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-reasoning strong,
+.bear-doctor-app .assistant-reasoning .timeline-routing strong,
+.bear-doctor-app .assistant-reasoning .timeline-replan strong,
+.bear-doctor-app .assistant-reasoning .timeline-diagnosis strong,
+.bear-doctor-app .assistant-reasoning .timeline-plan strong,
+.bear-doctor-app .assistant-reasoning .timeline-tool-name {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-reasoning span,
+.bear-doctor-app .assistant-reasoning .timeline-reasoning small,
+.bear-doctor-app .assistant-reasoning .timeline-routing small,
+.bear-doctor-app .assistant-reasoning .timeline-replan span,
+.bear-doctor-app .assistant-reasoning .timeline-replan small,
+.bear-doctor-app .assistant-reasoning .timeline-diagnosis small,
+.bear-doctor-app .assistant-reasoning .timeline-tool small,
+.bear-doctor-app .assistant-reasoning .timeline-run small,
+.bear-doctor-app .assistant-reasoning .timeline-llm small,
+.bear-doctor-app .assistant-reasoning .timeline-flow small,
+.bear-doctor-app .assistant-reasoning .timeline-flow em {
+  color: #6b7280;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-reasoning em,
+.bear-doctor-app .assistant-reasoning .timeline-routing > div span,
+.bear-doctor-app .assistant-reasoning .timeline-diagnosis > div span,
+.bear-doctor-app .assistant-reasoning .timeline-plan span,
+.bear-doctor-app .assistant-reasoning .timeline-inline-status,
+.bear-doctor-app .assistant-reasoning .timeline-flow-status {
+  border: 0;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-plan {
+  gap: 6px;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-flow-stage {
+  padding-left: 10px;
+  border-left: 1px solid #e5e7eb;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-tool-io {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-tool-io summary {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.bear-doctor-app .assistant-reasoning .timeline-tool-io pre {
+  color: #374151;
+}
+
+@keyframes bearDoctorReasoningSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-toggle {
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-toggle:hover,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-title,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-metrics b,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-plan strong,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-reasoning strong,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-routing strong,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-replan strong,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-diagnosis strong,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-plan strong,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-tool-name {
+  color: rgba(248, 250, 252, 0.92);
+}
+
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-meta,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-caret,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-highlights p,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-plan small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-plan em,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-thinking,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-reasoning span,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-reasoning small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-routing small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-replan span,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-replan small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-diagnosis small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-tool small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-run small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-llm small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-flow small,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-flow em {
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning-body,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-item:not(:last-child)::after,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-flow-stage {
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-reasoning em,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-routing > div span,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-diagnosis > div span,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-plan span,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-inline-status,
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-flow-status {
+  background: rgba(148, 163, 184, 0.14);
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.bear-doctor-app[data-theme="dark"] .assistant-reasoning .timeline-tool-io {
+  border-color: rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.58);
 }
 
 .bear-doctor-app .thinking-loading {
@@ -5702,6 +6251,168 @@ body {
 
 .bear-doctor-app .copy-btn-user {
   margin-top: 12px;
+}
+
+.bear-doctor-app .message {
+  width: 100%;
+  gap: 0;
+  margin-bottom: 46px;
+}
+
+.bear-doctor-app .message.user {
+  justify-content: flex-end;
+}
+
+.bear-doctor-app .message.assistant {
+  justify-content: flex-start;
+}
+
+.bear-doctor-app .message-avatar {
+  display: none;
+}
+
+.bear-doctor-app .message-content {
+  flex: 0 1 auto;
+  padding-top: 0;
+  min-width: 0;
+}
+
+.bear-doctor-app .message.user .message-content {
+  max-width: min(72%, 620px);
+}
+
+.bear-doctor-app .message.assistant .message-content {
+  width: min(760px, 100%);
+}
+
+.bear-doctor-app .user-message-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.bear-doctor-app .user-message {
+  max-width: 100%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  background: #f3f4f6;
+  color: #111827;
+  box-shadow: none;
+  line-height: 1.65;
+}
+
+.bear-doctor-app .ai-message {
+  max-width: 100%;
+}
+
+.bear-doctor-app .message-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #6b7280;
+}
+
+.bear-doctor-app .user-actions {
+  justify-content: flex-end;
+  padding-right: 4px;
+}
+
+.bear-doctor-app .assistant-actions {
+  justify-content: flex-start;
+}
+
+.bear-doctor-app .message-icon-btn {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.bear-doctor-app .message-icon-btn:hover:not(:disabled) {
+  background: rgba(107, 114, 128, 0.14);
+  color: var(--text-primary);
+}
+
+.bear-doctor-app .message-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bear-doctor-app .user-message-editor {
+  width: min(520px, 100%);
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+.bear-doctor-app .user-message-editor textarea {
+  width: 100%;
+  min-height: 74px;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #111827;
+  font: inherit;
+  line-height: 1.65;
+}
+
+.bear-doctor-app .user-message-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bear-doctor-app .user-message-editor-actions button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.bear-doctor-app .user-message-editor-actions button.primary {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.bear-doctor-app[data-theme="dark"] .user-message {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.bear-doctor-app[data-theme="dark"] .message-actions {
+  color: rgba(226, 232, 240, 0.68);
+}
+
+.bear-doctor-app[data-theme="dark"] .user-message-editor {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.bear-doctor-app[data-theme="dark"] .user-message-editor textarea {
+  color: var(--text-primary);
+}
+
+.bear-doctor-app[data-theme="dark"] .user-message-editor-actions button {
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--text-primary);
 }
 
 .bear-doctor-app .input-area {
@@ -6909,6 +7620,66 @@ body {
   padding-left: 2px;
 }
 
+.bear-doctor-app .composer-mode-intent {
+  width: min(860px, 100%);
+  margin: 8px auto 0;
+  display: grid;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.bear-doctor-app .composer-mode-intent-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bear-doctor-app .composer-mode-intent span {
+  color: #0f172a;
+  font-weight: 650;
+}
+
+.bear-doctor-app .composer-mode-intent em {
+  font-style: normal;
+  color: #2563eb;
+}
+
+.bear-doctor-app .composer-mode-intent small {
+  color: #64748b;
+}
+
+.bear-doctor-app .composer-mode-intent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.bear-doctor-app .composer-mode-intent-grid div {
+  min-height: 42px;
+  padding: 7px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.84);
+  display: grid;
+  gap: 3px;
+}
+
+.bear-doctor-app .composer-mode-intent-grid b {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.bear-doctor-app .composer-mode-intent-grid span {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .bear-doctor-app .composer-ppt-skill-note {
   width: min(860px, 100%);
   margin: 10px auto 0;
@@ -7782,6 +8553,18 @@ body {
   font-weight: 500;
 }
 
+.bear-doctor-app .pkg-token-estimate {
+  display: inline-flex;
+  width: fit-content;
+  margin: -6px 0 14px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 650;
+}
+
 .bear-doctor-app .plan-features {
   display: grid;
   gap: 13px;
@@ -8508,6 +9291,10 @@ body {
     padding: 20px 24px;
   }
 
+  .bear-doctor-app .composer-mode-intent-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .bear-doctor-app .input-area {
     padding-bottom: 18px;
   }
@@ -8907,6 +9694,93 @@ body[data-theme="light"] {
   box-shadow: none;
 }
 
+.bear-doctor-app[data-theme] .message {
+  width: 100%;
+  margin-bottom: 52px;
+}
+
+.bear-doctor-app[data-theme] .message.user {
+  justify-content: flex-end;
+}
+
+.bear-doctor-app[data-theme] .message.assistant {
+  justify-content: flex-start;
+}
+
+.bear-doctor-app[data-theme] .message-content {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-top: 0;
+}
+
+.bear-doctor-app[data-theme] .message.user .message-content {
+  width: auto;
+  max-width: min(54%, 620px);
+}
+
+.bear-doctor-app[data-theme] .message.assistant .message-content {
+  width: min(760px, 100%);
+}
+
+.bear-doctor-app[data-theme] .user-message-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.bear-doctor-app[data-theme] .user-message {
+  max-width: 100%;
+  padding: 10px 15px;
+  border-radius: 18px;
+  background: #f3f4f6;
+  color: #111827;
+  box-shadow: none;
+  line-height: 1.65;
+}
+
+.bear-doctor-app[data-theme] .ai-message {
+  max-width: 100%;
+}
+
+.bear-doctor-app[data-theme] .message-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #6b7280;
+}
+
+.bear-doctor-app[data-theme] .user-actions {
+  justify-content: flex-end;
+  padding-right: 4px;
+}
+
+.bear-doctor-app[data-theme] .assistant-actions {
+  justify-content: flex-start;
+}
+
+.bear-doctor-app[data-theme] .message-icon-btn {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bear-doctor-app[data-theme] .message-icon-btn:hover:not(:disabled) {
+  background: rgba(107, 114, 128, 0.14);
+  color: var(--app-text);
+}
+
+.bear-doctor-app[data-theme="dark"] .user-message {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--app-text);
+}
+
 .bear-doctor-app[data-theme] .result-panel {
   background: var(--app-surface);
   border-color: var(--app-border);
@@ -9138,6 +10012,35 @@ body[data-theme="light"] {
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
 }
 
+.bear-doctor-app[data-theme] .composer-mode-intent {
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .composer-mode-intent span {
+  color: var(--app-text);
+}
+
+.bear-doctor-app[data-theme] .composer-mode-intent em {
+  color: var(--app-primary);
+}
+
+.bear-doctor-app[data-theme] .composer-mode-intent small {
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .composer-mode-intent-grid div {
+  background: var(--app-surface-subtle);
+  border-color: var(--app-border);
+}
+
+.bear-doctor-app[data-theme] .composer-mode-intent-grid b {
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .composer-mode-intent-grid span {
+  color: var(--app-text);
+}
+
 .bear-doctor-app[data-theme] .composer-ppt-skill-note > div {
   color: var(--app-primary);
 }
@@ -9360,6 +10263,11 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .membership-plan-price em,
 .bear-doctor-app[data-theme] .upgrade-plan-card p {
   color: #64748b;
+}
+
+.bear-doctor-app[data-theme] .pkg-token-estimate {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
 }
 
 .bear-doctor-app[data-theme] .upgrade-plan-card:nth-child(3n) {

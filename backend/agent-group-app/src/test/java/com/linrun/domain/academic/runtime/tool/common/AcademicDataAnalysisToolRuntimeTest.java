@@ -23,7 +23,7 @@ class AcademicDataAnalysisToolRuntimeTest {
 
         AcademicToolCallResult result = registry.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.DATA_ANALYSIS)
                 .arguments(Map.of(
-                        "task", "分析套餐销量,
+                        "task", "分析套餐销量",
                         "rows", List.of(
                                 Map.of("package", "A", "sales", 10, "refunds", 1),
                                 Map.of("package", "B", "sales", 30, "refunds", 0),

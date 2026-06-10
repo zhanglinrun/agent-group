@@ -11,10 +11,10 @@ public class ActivityUsabilityLockRule implements ILogicHandler<GroupBuyLockCont
     public GroupBuyLockContext apply(GroupBuyLockContext context, GroupBuyLockDynamicContext dynamicContext) throws Exception {
         GroupBuyActivity activity = context.getActivity();
         if (!context.getRequest().getGoodsId().equals(activity.getGoodsId())) {
-            throw new AppException("GROUP_0002", "拼团活动和额度包不匹�?);
+            throw new AppException("GROUP_0002", "拼团活动和额度包不匹配");
         }
         if (!GroupBuyActivityStatus.ACTIVE.equals(activity.resolveStatus(context.getNow()))) {
-            throw new AppException("GROUP_0008", "拼团活动不可�?);
+            throw new AppException("GROUP_0008", "拼团活动不可用");
         }
         return next(context, dynamicContext);
     }

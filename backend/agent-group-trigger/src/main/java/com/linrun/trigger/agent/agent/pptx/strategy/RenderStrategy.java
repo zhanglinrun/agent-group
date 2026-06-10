@@ -27,7 +27,7 @@ public class RenderStrategy implements PptStateStrategy {
                 })
                 .doOnSuccess(fileUrl -> {
                     context.getPptInstService().updateFileUrl(inst.getId(), fileUrl, TARGET_STATUS);
-                    sink.tryEmitNext(context.createThinkingResponse("�?PPT渲染完成\n"));
+                    sink.tryEmitNext(context.createThinkingResponse("PPT 渲染完成\n"));
                     context.continueStateMachine(inst, sink, query, thinkingBuffer);
                 })
                 .doOnError(err -> {
@@ -41,7 +41,7 @@ public class RenderStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任�?
+        // 保存 disposable 到任务管理器，用于停止任??
         context.setDisposable(inst.getConversationId(), disposable);
     }
 

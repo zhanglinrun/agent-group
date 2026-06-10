@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 文件元数据模�?
+ * 文件元数据模??
  * 存储文件的基本信息和解析后的内容
  */
 @Data
@@ -23,7 +23,7 @@ public class FileInfo {
     private String fileId;
 
     /**
-     * 原始文件�?
+     * 原始文件??
      */
     private String fileName;
 
@@ -43,7 +43,7 @@ public class FileInfo {
     private String minioPath;
 
     /**
-     * 解析后的纯文本内�?
+     * 解析后的纯文本内??
      */
     private String extractedText;
 
@@ -53,33 +53,33 @@ public class FileInfo {
     private LocalDateTime createdAt;
 
     /**
-     * 会话ID（可选，用于关联特定会话�?
+     * 会话ID（可选，用于关联特定会话??
      */
     private String conversationId;
 
     /**
-     * 文件状�?
+     * 文件状??
      */
     @Builder.Default
     private FileStatus status = FileStatus.PENDING;
 
     /**
-     * 是否已向量化（大文件标识�?
-     * 0-未向量化�?-已向量化
+     * 是否已向量化（大文件标识??
+     * 0-未向量化??-已向量化
      */
     @Builder.Default
     private Integer embed = 0;
 
     /**
-     * 文件状态枚�?
+     * 文件状态枚??
      */
     public enum FileStatus {
         /**
-         * 待处�?
+         * 待处??
          */
         PENDING,
         /**
-         * 处理�?
+         * 处理??
          */
         PROCESSING,
         /**
@@ -93,14 +93,14 @@ public class FileInfo {
     }
 
     /**
-     * 判断文件是否已处理完�?
+     * 判断文件是否已处理完??
      */
     public boolean isProcessed() {
         return status == FileStatus.SUCCESS && extractedText != null;
     }
 
     /**
-     * 判断文件是否为图�?
+     * 判断文件是否为图??
      */
     public boolean isImage() {
         return ("png".equalsIgnoreCase(fileType)

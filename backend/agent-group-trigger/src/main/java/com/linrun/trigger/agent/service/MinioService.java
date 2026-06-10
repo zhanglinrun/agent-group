@@ -84,7 +84,8 @@ public class MinioService {
         );
     }
 
-    // 下载文件（返�?InputStream�?    public InputStream downloadFile(String objectName) throws Exception {
+    // 下载文件，返回 InputStream
+    public InputStream downloadFile(String objectName) throws Exception {
         GetObjectResponse response = minioClient.getObject(
                 GetObjectArgs.builder()
                         .bucket(bucketName)

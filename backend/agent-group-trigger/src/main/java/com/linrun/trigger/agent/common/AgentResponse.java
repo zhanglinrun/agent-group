@@ -5,12 +5,12 @@ import com.alibaba.fastjson2.JSONObject;
 
 /**
  * Agent通用响应类型
- * 用于统一各Agent的流式输出格�?
+ * 用于统一各Agent的流式输出格??
  */
 public class AgentResponse {
 
     /**
-     * 支持的类�?
+     * 支持的类??
      */
     public static final String TYPE_TEXT = "text";
     public static final String TYPE_THINKING = "thinking";
@@ -68,7 +68,7 @@ public class AgentResponse {
     }
 
     /**
-     * 创建reference类型响应（无count，自动解析JSON数组计算count�?
+     * 创建reference类型响应（无count，自动解析JSON数组计算count??
      */
     public static String reference(String content) {
         try {
@@ -97,19 +97,19 @@ public class AgentResponse {
     }
 
     /**
-     * 创建recommend类型响应（带count�?
+     * 创建recommend类型响应（带count??
      */
     public static String recommend(String content, Integer count) {
         return new AgentResponse(TYPE_RECOMMEND, content, count).toJson();
     }
 
     /**
-     * 创建JSON类型响应（自定义类型�?
+     * 创建JSON类型响应（自定义类型??
      */
     public static String json(String type, Object content) {
         if (TYPE_REFERENCE.equals(type) && content instanceof String jsonStr) {
             try {
-                // 尝试解析为JSONArray来计算数�?
+                // 尝试解析为JSONArray来计算数??
                 var jsonArray = JSON.parseArray(jsonStr);
                 if (jsonArray != null && !jsonArray.isEmpty()) {
                     return reference(jsonStr, jsonArray.size());

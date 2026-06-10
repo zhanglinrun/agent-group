@@ -59,15 +59,15 @@ export function buildAcademicProjectWorkspace(project: AcademicProjectLike | nul
   const files = Array.isArray(source.files) ? source.files : [];
   const patches = Array.isArray(source.patches) ? source.patches : [];
   const pendingPatches = patches.filter((patch) => text(patch.status).toUpperCase() === "PENDING");
-  const title = text(source.title) || "未选择学术项目";
+  const title = text(source.title) || "未选择任务项目";
   const researchQuestion = text(source.researchQuestion);
   const targetVenue = text(source.targetVenue);
   const subtitle = [researchQuestion, targetVenue].filter(Boolean).join(" · ");
   const fileCount = numberValue(source.fileCount || files.length);
   const pendingPatchCount = numberValue(source.pendingPatchCount || pendingPatches.length);
   const contextParts = [
-    researchQuestion ? `研究问题：${researchQuestion}` : "",
-    targetVenue ? `目标 venue：${targetVenue}` : "",
+    researchQuestion ? `任务目标：${researchQuestion}` : "",
+    targetVenue ? `输出目标：${targetVenue}` : "",
     fileCount ? `材料 ${fileCount} 份` : "",
     pendingPatchCount ? `待确认补丁 ${pendingPatchCount} 个` : ""
   ].filter(Boolean);
@@ -82,6 +82,6 @@ export function buildAcademicProjectWorkspace(project: AcademicProjectLike | nul
     draftFiles: files.filter(isDraftFile),
     referenceFiles: files.filter(isReferenceFile),
     pendingPatches,
-    contextSummary: contextParts.join("；") || "当前还没有项目上下文"
+    contextSummary: contextParts.join("；") || "当前还没有工作上下文"
   };
 }

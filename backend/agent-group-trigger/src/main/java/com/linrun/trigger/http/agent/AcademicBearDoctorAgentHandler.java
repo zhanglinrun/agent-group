@@ -13,6 +13,7 @@ import com.linrun.api.dto.AcademicReplayResponse;
 import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
 import com.linrun.api.dto.AcademicSessionSummaryDTO;
+import com.linrun.api.dto.AgentDiagnosisReportDTO;
 import com.linrun.api.dto.QuotaStreamEvent;
 import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
@@ -27,6 +28,7 @@ import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressProject
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressResult;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
 import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
+import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -63,6 +65,7 @@ public class AcademicBearDoctorAgentHandler {
     private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
     private final AcademicAgentFlowProjector flowProjector = new AcademicAgentFlowProjector();
     private final AcademicAgentFlowProgressProjector flowProgressProjector = new AcademicAgentFlowProgressProjector();
+    private final UnifiedAgentOrchestrator unifiedAgentOrchestrator = new UnifiedAgentOrchestrator();
 
     public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
                                           UserAccountService userAccountService,
@@ -135,6 +138,8 @@ public class AcademicBearDoctorAgentHandler {
             String fileId = effectiveFileIds(safeRequest);
             String projectId = nullToBlank(safeRequest.getProjectId());
             boolean webSearchEnabled = Boolean.TRUE.equals(safeRequest.getWebSearchEnabled());
+            UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan =
+                    unifiedAgentOrchestrator.plan(query, taskType, fileId, webSearchEnabled, safeRequest);
             long startedAt = System.currentTimeMillis();
             AtomicInteger sequence = new AtomicInteger(1);
             String modelName = modelName(user.getUserId(), safeRequest);
@@ -150,19 +155,24 @@ public class AcademicBearDoctorAgentHandler {
                     run.getRunId(), requestId, sessionId, user.getUserId(), taskType);
             AcademicAgentPlan executionPlan = runPlanFactory.build(taskType, webSearchEnabled);
             RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt,
-                    webSearchEnabled, executionPlan);
+                    webSearchEnabled, executionPlan, orchestrationPlan);
             runState.projectId = projectId;
             runState.projectContext = projectContext(user.getUserId(), projectId);
 
+            boolean identityQuestion = isModelIdentityQuestion(query);
+            Flux<QuotaStreamEvent<?>> executionEvents = identityQuestion
+                    ? Flux.defer(() -> Flux.fromIterable(identityAnswerEvents(
+                            token, taskType, query, sessionId, fileId, requestId, sequence, runState)))
+                    : Flux.defer(() -> bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
+                            webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(),
+                            safeRequest.getLlmModel(), executionMemoryPrompt))
+                            .doOnSubscribe(subscription -> AcademicLedgerContext.set(ledgerContext))
+                            .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence, runState));
+
             return Flux.concat(
                             Flux.fromIterable(startEvents(runState, sessionId, requestId, sequence)),
-                            Flux.defer(() -> bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
-                                    webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(),
-                                    safeRequest.getLlmModel(), executionMemoryPrompt))
-                                    .doOnSubscribe(subscription -> AcademicLedgerContext.set(ledgerContext))
-                                    .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence, runState))
-                                    .concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(
-                                            user, sessionId, requestId, sequence, taskType, startedAt, runState)))))
+                            executionEvents.concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(
+                                    user, sessionId, requestId, sequence, taskType, startedAt, runState)))))
                     .onErrorResume(error -> Flux.fromIterable(errorEvents(
                             sessionId, requestId, sequence, error, customModelConfigured, runState)))
                     .doFinally(signalType -> AcademicLedgerContext.clear());
@@ -178,7 +188,7 @@ public class AcademicBearDoctorAgentHandler {
         request.setSessionId(sessionId);
         request.setTaskType(toFrontendTaskType(latest.getAgentType()));
         request.setFileId(nullToBlank(latest.getFileid()));
-        request.setQuestion("请从上次停止处继续完成这个任务，避免重复已经完成的内容�?);
+        request.setQuestion("请从上次停止处继续完成这个任务，避免重复已经完成的内容。");
         return request;
     }
 
@@ -218,6 +228,17 @@ public class AcademicBearDoctorAgentHandler {
         bearDoctorNativeAgentService.deleteSession(token, sessionId);
     }
 
+    public boolean rollbackSession(String token, String sessionId, String messageId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        LocalDateTime anchorTime = bearDoctorNativeAgentService.rollbackSessionFromMessage(token, sessionId, messageId);
+        if (anchorTime == null) {
+            return false;
+        }
+        academicExecutionLedgerService.deleteSessionRunsSince(user.getUserId(), sessionId, anchorTime);
+        academicArtifactService.clearManifest(user.getUserId(), sessionId);
+        return true;
+    }
+
     public List<AcademicSessionSummaryDTO> querySessions(String token, int limit) {
         UserAccount user = userAccountService.requireUserByToken(token);
         return bearDoctorNativeAgentService.querySessions(token, 1, Math.max(1, Math.min(limit, 100)))
@@ -233,12 +254,12 @@ public class AcademicBearDoctorAgentHandler {
         String lastAssistantAnswer = "";
         for (AiSession session : bearDoctorNativeAgentService.querySessionMessages(token, sessionId)) {
             if (StringUtils.hasText(session.getQuestion())) {
-                messages.add(toMessage("USER", session.getQuestion(), session.getCreateTime()));
+                messages.add(toMessage(String.valueOf(session.getId()), "USER", session.getQuestion(), session.getCreateTime()));
             }
             if (StringUtils.hasText(session.getAnswer())) {
                 lastAssistantAnswer = session.getAnswer();
                 AcademicSessionDetailResponse.Message assistantMessage =
-                        toMessage("ASSISTANT", academicArtifactService.sanitizeLocalPaths(session.getAnswer()), session.getUpdateTime());
+                        toMessage(String.valueOf(session.getId()), "ASSISTANT", academicArtifactService.sanitizeLocalPaths(session.getAnswer()), session.getUpdateTime());
                 assistantMessage.setReferences(parseReferences(session.getReference()));
                 assistantMessage.setRecommend(parseRecommend(session.getRecommend()));
                 messages.add(assistantMessage);
@@ -284,6 +305,11 @@ public class AcademicBearDoctorAgentHandler {
     public AcademicRunDetailResponse queryRunDetail(String token, String runId) {
         UserAccount user = userAccountService.requireUserByToken(token);
         return academicExecutionLedgerService.queryRunDetail(user.getUserId(), runId);
+    }
+
+    public AgentDiagnosisReportDTO queryRunDiagnosis(String token, String runId) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return academicExecutionLedgerService.queryRunDiagnosis(user.getUserId(), runId);
     }
 
     public List<AcademicReplayResponse> queryReplay(String token, String sessionId) {
@@ -349,6 +375,14 @@ public class AcademicBearDoctorAgentHandler {
                                                   String requestId,
                                                   AtomicInteger sequence) {
         List<QuotaStreamEvent<?>> events = new ArrayList<>();
+        if (runState.orchestrationPlan != null) {
+            events.add(event("task_analysis", sessionId, requestId, sequence,
+                    runState.orchestrationPlan.taskAnalysisData(runState.run.getRunId())));
+            events.add(event("mode_selection", sessionId, requestId, sequence,
+                    runState.orchestrationPlan.modeSelectionData(runState.run.getRunId())));
+            events.add(event("agent_routing", sessionId, requestId, sequence,
+                    runState.orchestrationPlan.routingData(runState.run.getRunId())));
+        }
         events.add(event("run_start", sessionId, requestId, sequence, runStart(runState.run)));
         if (!runState.projectContext.isEmpty()) {
             events.add(event("project_context", sessionId, requestId, sequence, runState.projectContext));
@@ -385,11 +419,14 @@ public class AcademicBearDoctorAgentHandler {
         AcademicAgentPlan previousPlan = runState.executionPlan;
         AcademicAgentPlan replannedPlan = replannedPlan(node, runState.executionPlan);
         String reason = firstText(node, "reason", "message", "content", "detail");
-        String prefix = replanned ? "计划已重规划" : "计划已更�?;
-        String message = StringUtils.hasText(reason) ? prefix + "�? + reason : prefix;
+        String prefix = replanned ? "计划已重规划" : "计划已更新";
+        String message = StringUtils.hasText(reason) ? prefix + "：" + reason : prefix;
         List<QuotaStreamEvent<?>> events = new ArrayList<>();
         events.add(event("task_status", sessionId, requestId, sequence, status(replanned ? "REPLAN" : "PLAN", message)));
         if (replanned) {
+            runState.replanCount++;
+            events.add(event("replan_delta", sessionId, requestId, sequence,
+                    replan(previousPlan, replannedPlan, reason, runState.run.getRunId())));
             AcademicAgentFlowProgressResult progress = flowProgressProjector.markReplanned(
                     previousPlan, runState.currentFlowStageIndex, message);
             events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
@@ -423,6 +460,25 @@ public class AcademicBearDoctorAgentHandler {
         return List.of(event("answer_delta", sessionId, requestId, sequence, Map.of("content", content)));
     }
 
+    private List<QuotaStreamEvent<?>> identityAnswerEvents(String token,
+                                                           String taskType,
+                                                           String query,
+                                                           String sessionId,
+                                                           String fileId,
+                                                           String requestId,
+                                                           AtomicInteger sequence,
+                                                           RunState runState) {
+        String answer = identityAnswer(runState.modelName);
+        runState.answer.append(answer);
+        bearDoctorNativeAgentService.saveDeterministicTurn(token, taskType, query, sessionId, fileId,
+                answer, Math.max(0L, System.currentTimeMillis() - runState.startedAt));
+        return List.of(
+                event("task_status", sessionId, requestId, sequence,
+                        status("IDENTITY", "已按工作台身份规则回答")),
+                event("answer_delta", sessionId, requestId, sequence, Map.of("content", answer))
+        );
+    }
+
     private List<QuotaStreamEvent<?>> toolStartEvents(JsonNode node,
                                                       String sessionId,
                                                       String requestId,
@@ -435,6 +491,7 @@ public class AcademicBearDoctorAgentHandler {
         String invocationId = academicExecutionLedgerService.recordToolStart(
                 runState.ledgerContext, toolCallId, toolName, action, argumentsJson);
         runState.toolInvocations.put(toolKey(toolCallId, toolName), invocationId);
+        runState.toolCallCount++;
         List<QuotaStreamEvent<?>> events = new ArrayList<>();
         AcademicAgentFlowProgressResult progress = flowProgressProjector.advanceToTool(
                 runState.executionPlan, runState.currentFlowStageIndex, toolName);
@@ -458,6 +515,9 @@ public class AcademicBearDoctorAgentHandler {
         String resultText = jsonOrText(node, "result", "output", "content", "detail");
         String rawStatus = firstText(node, "status", "state");
         String status = isFailureStatus(rawStatus) ? AcademicAgentRun.STATUS_FAILED : AcademicAgentRun.STATUS_SUCCESS;
+        if (AcademicAgentRun.STATUS_FAILED.equals(status)) {
+            runState.failedToolCount++;
+        }
         String errorMessage = AcademicAgentRun.STATUS_FAILED.equals(status)
                 ? firstText(node, "message", "error", "detail")
                 : "";
@@ -471,7 +531,7 @@ public class AcademicBearDoctorAgentHandler {
         }
         List<QuotaStreamEvent<?>> events = new ArrayList<>();
         events.add(event("task_status", sessionId, requestId, sequence,
-                status("TOOL", "工具调用完成�? + nullToBlank(toolName))));
+                status("TOOL", "工具调用完成：" + nullToBlank(toolName))));
         events.add(event("tool_result", sessionId, requestId, sequence,
                 toolResult(invocationId, toolCallId, toolName, status, resultText, structuredOutput, errorMessage, latencyMillis)));
         return events;
@@ -497,6 +557,7 @@ public class AcademicBearDoctorAgentHandler {
                 normalizeErrorMessage(message, customModel));
         runState.currentFlowStageIndex = progress.getCurrentStageIndex();
         events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
+        events.add(event("diagnosis_delta", sessionId, requestId, sequence, diagnosis(runState, durationMillis)));
         events.add(event("run_error", sessionId, requestId, sequence, runDone(runState.run)));
         events.add(errorEvent(sessionId, requestId, sequence, error, customModel));
         return events;
@@ -531,6 +592,7 @@ public class AcademicBearDoctorAgentHandler {
         events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         QuotaAccountResponse quota = userQuotaService.queryAccountResponse(user.getUserId());
         BigDecimal consumedQuota = userQuotaService.estimatePreCheckCost(taskType);
+        runState.consumedQuota = consumedQuota;
         events.add(event("quota_delta", sessionId, requestId, sequence, quota));
         events.add(event("usage_metric", sessionId, requestId, sequence, Map.of(
                 "consumedQuota", consumedQuota,
@@ -543,6 +605,7 @@ public class AcademicBearDoctorAgentHandler {
                 false, "", durationMillis);
         academicExecutionLedgerService.finishRun(runState.run, AcademicAgentRun.STATUS_SUCCESS,
                 runState.answer.toString(), "", "", durationMillis);
+        events.add(event("diagnosis_delta", sessionId, requestId, sequence, diagnosis(runState, durationMillis)));
         events.add(event("run_done", sessionId, requestId, sequence, runDone(runState.run)));
         events.add(event("done", sessionId, requestId, sequence, "done"));
         return events;
@@ -590,8 +653,8 @@ public class AcademicBearDoctorAgentHandler {
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("toolName", AcademicToolOutputNames.QUOTA_USAGE);
         output.put("title", "额度对账快照");
-        output.put("summary", "本次 Agent 运行完成后记录额度余额和预估消�?);
-        output.put("content", "额度只能以账户流水和后端交易状态为准；该快照用于历史回放和运行对账�?);
+        output.put("summary", "本次 Agent 运行完成后记录额度余额和预估消耗。");
+        output.put("content", "额度只能以账户流水和后端交易状态为准；该快照用于历史回放和运行对账。");
         output.put("metadata", metadata);
         return output;
     }
@@ -632,6 +695,22 @@ public class AcademicBearDoctorAgentHandler {
                 .toList());
         data.put("flowStages", flowProjector.buildRemainingStages(executionPlan).stream()
                 .map(this::flowStage)
+                .toList());
+        return data;
+    }
+
+    private Map<String, Object> replan(AcademicAgentPlan previousPlan,
+                                       AcademicAgentPlan nextPlan,
+                                       String reason,
+                                       String runId) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", nullToBlank(runId));
+        data.put("reason", nullToBlank(reason));
+        data.put("oldPlan", previousPlan == null ? List.of() : previousPlan.getSteps().stream()
+                .map(this::planStep)
+                .toList());
+        data.put("newPlan", nextPlan == null ? List.of() : nextPlan.getSteps().stream()
+                .map(this::planStep)
                 .toList());
         return data;
     }
@@ -818,6 +897,42 @@ public class AcademicBearDoctorAgentHandler {
         return data;
     }
 
+    private Map<String, Object> diagnosis(RunState runState, long durationMillis) {
+        double quotaConsumed = runState.consumedQuota == null ? 0.0d : runState.consumedQuota.doubleValue();
+        AgentDiagnosisService.DiagnosisReport report = new AgentDiagnosisService().diagnose(
+                new AgentDiagnosisService.AgentRunContext(
+                        runState.run.getRunId(),
+                        Math.max(0L, durationMillis),
+                        runState.failedToolCount,
+                        quotaConsumed,
+                        runState.replanCount,
+                        AcademicAgentRun.STATUS_FAILED.equals(runState.run.getStatus()),
+                        runState.run.getErrorMessage()));
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("elapsedMs", Math.max(0L, durationMillis));
+        metrics.put("toolCallCount", runState.toolCallCount);
+        metrics.put("failedToolCount", runState.failedToolCount);
+        metrics.put("quotaConsumed", quotaConsumed);
+        metrics.put("replanCount", runState.replanCount);
+        metrics.put("toolSuccessRate", runState.toolCallCount == 0
+                ? 1.0d
+                : (double) (runState.toolCallCount - runState.failedToolCount) / runState.toolCallCount);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", runState.run.getRunId());
+        data.put("sessionId", runState.run.getSessionId());
+        data.put("level", report.getLevel().name());
+        data.put("summary", report.getSummary());
+        data.put("issues", report.getIssues().stream()
+                .map(item -> Map.of(
+                        "level", item.getLevel().name(),
+                        "code", item.getCode(),
+                        "message", item.getMessage()))
+                .toList());
+        data.put("metrics", metrics);
+        return data;
+    }
+
     private java.util.Optional<Map<String, Object>> pptArtifact(UserAccount user, String sessionId) {
         AiPptInst inst = aiPptInstService.getLatestInst(internalSessionId(user.getUserId(), sessionId));
         if (inst == null || !StringUtils.hasText(inst.getFileUrl())) {
@@ -826,7 +941,7 @@ public class AcademicBearDoctorAgentHandler {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("artifactId", String.valueOf(inst.getId()));
         data.put("artifactType", "PPTX");
-        data.put("title", "生成的演示文�?);
+        data.put("title", "生成的演示文稿");
         data.put("content", inst.getFileUrl());
         data.put("downloadUrl", inst.getFileUrl());
         return java.util.Optional.of(data);
@@ -846,7 +961,7 @@ public class AcademicBearDoctorAgentHandler {
                 content = objectMapper.readTree(content.asText());
             } catch (Exception ignored) {
                 events.add(event("reference_delta", sessionId, requestId, sequence,
-                        Map.of("title", "参考资�?, "content", content.asText())));
+                        Map.of("title", "参考资料", "content", content.asText())));
                 return events;
             }
         }
@@ -941,7 +1056,7 @@ public class AcademicBearDoctorAgentHandler {
             return "本次请求已处理，请勿重复提交或刷新后重试";
         }
         if (isContentInspectionMessage(lower)) {
-            return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试�?;
+            return "本次请求被模型服务内容安全检查拦截。可以删减敏感表达、开启新对话减少历史上下文，或关闭联网搜索后重试。";
         }
         if ((lower.contains("401 unauthorized") || lower.contains("unauthorized"))
                 && (lower.contains("dashscope")
@@ -949,15 +1064,15 @@ public class AcademicBearDoctorAgentHandler {
                 || lower.contains("openai")
                 || lower.contains("api key"))) {
             if (customModel || !lower.contains("dashscope")) {
-                return "自定义模型接口认证失败，请检查模型配置里�?API 地址、密钥和模型�?;
+                return "自定义模型接口认证失败，请检查模型配置里的 API 地址、密钥和模型。";
             }
-            return "模型密钥无效或权限不足，请检�?.env 中的 DashScope API Key，或在模型配置里填写可用�?API 地址和密�?;
+            return "模型密钥无效或权限不足，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥。";
         }
         if (lower.contains("api key") && (lower.contains("invalid") || lower.contains("not configured"))) {
             if (customModel || !lower.contains("dashscope")) {
-                return "自定义模型配置不可用，请检查模型配置里�?API 地址、密钥和模型�?;
+                return "自定义模型配置不可用，请检查模型配置里的 API 地址、密钥和模型。";
             }
-            return "模型密钥未配置或不可用，请检�?.env 中的 DashScope API Key，或在模型配置里填写可用�?API 地址和密�?;
+            return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥。";
         }
         return message;
     }
@@ -998,7 +1113,12 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     private AcademicSessionDetailResponse.Message toMessage(String role, String content, LocalDateTime createTime) {
+        return toMessage("", role, content, createTime);
+    }
+
+    private AcademicSessionDetailResponse.Message toMessage(String messageId, String role, String content, LocalDateTime createTime) {
         AcademicSessionDetailResponse.Message message = new AcademicSessionDetailResponse.Message();
+        message.setMessageId(nullToBlank(messageId));
         message.setRole(role);
         message.setContent(nullToBlank(content));
         message.setImageUrl("");
@@ -1037,12 +1157,12 @@ public class AcademicBearDoctorAgentHandler {
                     .append("\n\n");
         }
         if (isContentInspectionMessage(run.getErrorMessage())) {
-            builder.append("本次生成失败，模型服务内容安全检查拦截了本次请求�?);
+            builder.append("本次生成失败，模型服务内容安全检查拦截了本次请求。");
         } else {
-            builder.append("本次生成失败，模型服务返回错误，请检查模型配置或稍后重试�?);
+            builder.append("本次生成失败，模型服务返回错误，请检查模型配置或稍后重试。");
         }
         if (StringUtils.hasText(errorMessage)) {
-            builder.append("\n\n错误信息�?).append(limit(errorMessage, 500));
+            builder.append("\n\n错误信息：").append(limit(errorMessage, 500));
         }
         return builder.toString();
     }
@@ -1219,35 +1339,60 @@ public class AcademicBearDoctorAgentHandler {
         return limit(prompt.toString().trim(), 5000);
     }
 
+    private boolean isModelIdentityQuestion(String query) {
+        String normalized = nullToBlank(query).toLowerCase();
+        if (!StringUtils.hasText(normalized)) {
+            return false;
+        }
+        return (normalized.contains("什么模型")
+                || normalized.contains("哪款模型")
+                || normalized.contains("底层模型")
+                || normalized.contains("模型版本")
+                || normalized.contains("你是谁")
+                || normalized.contains("who are you")
+                || normalized.contains("what model")
+                || normalized.contains("which model"))
+                && !normalized.contains("对比")
+                && !normalized.contains("列表")
+                && !normalized.contains("有哪些模型");
+    }
+
+    private String identityAnswer(String modelName) {
+        String safeModel = StringUtils.hasText(modelName) ? modelName.trim() : "qwen3.7-plus";
+        return "我是熊博士Agent，一个应用层智能体助手，当前默认文本模型配置是 "
+                + safeModel
+                + "；实际底座以后台或用户模型配置为准。";
+    }
+
     private String normalizeQuery(AcademicAgentStreamRequest request, String taskType) {
         String question = request == null ? "" : nullToBlank(request.getQuestion()).trim();
         if ("ppt".equals(taskType)) {
             return normalizePptQuery(question);
         }
         if ("image".equals(taskType) && !StringUtils.hasText(question)) {
-            return "请生成一张适合项目展示的智能体平台概念图�?;
+            return "请生成一张适合项目展示的智能体平台概念图。";
         }
         if ("data".equals(taskType) && !StringUtils.hasText(question)) {
-            return "请分析近五年 RAG 相关论文发表趋势、主要方法和实验指标差异�?;
+            return "请分析近五年 RAG 相关项目资料趋势、主要方案和指标差异。";
         }
         if (StringUtils.hasText(question)) {
             return question;
         }
         if (StringUtils.hasText(request == null ? "" : request.getFileId())) {
-            return "请分析这个文�?;
+            return "请分析这个文件。";
         }
         return "你好";
     }
 
     private String normalizePptQuery(String question) {
-        String topic = StringUtils.hasText(question) ? question : "请生成一份演示文�?;
+        String topic = StringUtils.hasText(question) ? question : "请生成一份演示文稿";
         String normalized = topic.strip();
         boolean hasPageCount = normalized.matches("(?s).*\\d+\\s*(页|p|P|slides?|Slides?).*");
         StringBuilder builder = new StringBuilder(normalized);
-        builder.append("\n\n请直接生成PPT，不要再追问用户�?);
-        builder.append("\n默认补齐以下生成信息�?);
-        builder.append("\n- 页数�?).append(hasPageCount ? "按用户要�? : "5�?);
-        builder.append("\n- 风格建议：科技感、简洁商务蓝，适合技术项目汇�?);
+        builder.append("\n\n请直接生成PPT，不要再追问用户。");
+        builder.append("\n默认补齐以下生成信息：");
+        builder.append("\n- 页数：").append(hasPageCount ? "按用户要求" : "5页");
+        builder.append("\n- 风格建议：科技感、简洁商务蓝，适合技术项目汇报");
         builder.append("\n- 受众群体：计算机硕士秋招技术岗面试官和HR");
         builder.append("\n- 输出要求：生成可下载的真实PPTX文件");
         builder.append("\n- 系统能力：后端会使用python-pptx渲染真实PPTX并上传到MinIO，请不要声称当前环境无法生成二进制PPTX文件");
@@ -1261,12 +1406,12 @@ public class AcademicBearDoctorAgentHandler {
         return switch (normalizeTaskType(fallback)) {
             case "file" -> "文件问答";
             case "ppt" -> "PPT生成";
-            case "deep" -> "深度研究";
+            case "deep" -> "深度任务";
             case "image" -> "图像生成";
             case "data" -> "数据问答";
-            case "skills" -> "技能助�?;
-            case "manual-skills" -> "手动技�?;
-            default -> "新对�?;
+            case "skills" -> "技能助手";
+            case "manual-skills" -> "手动技能";
+            default -> "新对话";
         };
     }
 
@@ -1276,7 +1421,7 @@ public class AcademicBearDoctorAgentHandler {
         }
         try {
             if (!userQuotaService.hasEnabledModelConfig(userId)) {
-                return "bear-doctor-agent";
+                return "qwen3.7-plus";
             }
             String storedModel = userQuotaService.queryModelConfigResponse(userId).getModel();
             if (StringUtils.hasText(storedModel)) {
@@ -1284,7 +1429,7 @@ public class AcademicBearDoctorAgentHandler {
             }
         } catch (Exception ignored) {
         }
-        return "bear-doctor-agent";
+        return "qwen3.7-plus";
     }
 
     private String content(JsonNode node) {
@@ -1425,9 +1570,14 @@ public class AcademicBearDoctorAgentHandler {
         private final long startedAt;
         private final boolean webSearchEnabled;
         private AcademicAgentPlan executionPlan;
+        private final UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan;
         private final StringBuilder answer = new StringBuilder();
         private final Map<String, String> toolInvocations = new LinkedHashMap<>();
         private int currentFlowStageIndex = -1;
+        private int toolCallCount;
+        private int failedToolCount;
+        private int replanCount;
+        private BigDecimal consumedQuota = BigDecimal.ZERO;
         private String projectId = "";
         private Map<String, Object> projectContext = Map.of();
 
@@ -1437,7 +1587,8 @@ public class AcademicBearDoctorAgentHandler {
                          String modelName,
                          long startedAt,
                          boolean webSearchEnabled,
-                         AcademicAgentPlan executionPlan) {
+                         AcademicAgentPlan executionPlan,
+                         UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan) {
             this.run = run;
             this.ledgerContext = ledgerContext;
             this.question = question;
@@ -1445,6 +1596,7 @@ public class AcademicBearDoctorAgentHandler {
             this.startedAt = startedAt;
             this.webSearchEnabled = webSearchEnabled;
             this.executionPlan = executionPlan;
+            this.orchestrationPlan = orchestrationPlan;
         }
     }
 

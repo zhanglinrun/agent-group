@@ -15,7 +15,7 @@ class AcademicPlanLifecycleServiceTest {
     @Test
     void shouldCreatePlanAndActivateFirstStep() {
         AcademicPlanLifecycleResult result = lifecycleService.create("研究 RAG 论文实验结果",
-                List.of("梳理论文方法", "检查实验指核, "生成报告"));
+                List.of("梳理论文方法", "检查实验指标", "生成报告"));
 
         assertTrue(result.isAutoAdvanced());
         assertEquals(0, result.getCurrentStepIndex());
@@ -27,10 +27,10 @@ class AcademicPlanLifecycleServiceTest {
     @Test
     void shouldCompleteCurrentStepAndAdvanceNextStep() {
         AcademicAgentPlan plan = lifecycleService.create("研究 RAG 论文实验结果",
-                List.of("梳理论文方法", "检查实验指核)).getPlan();
+                List.of("梳理论文方法", "检查实验指标")).getPlan();
 
         AcademicPlanLifecycleResult result = lifecycleService.markStep(
-                plan, 0, AcademicPlanLifecycleService.STATUS_COMPLETED, "论文方法已梳理);
+                plan, 0, AcademicPlanLifecycleService.STATUS_COMPLETED, "论文方法已梳理");
 
         assertTrue(result.isAutoAdvanced());
         assertEquals(1, result.getCurrentStepIndex());
@@ -43,9 +43,9 @@ class AcademicPlanLifecycleServiceTest {
     @Test
     void shouldReplanRemainingStepsAndKeepCompletedPrefix() {
         AcademicAgentPlan plan = lifecycleService.create("研究 RAG 论文实验结果",
-                List.of("梳理论文方法", "检查实验指核, "生成报告")).getPlan();
+                List.of("梳理论文方法", "检查实验指标", "生成报告")).getPlan();
         AcademicAgentPlan afterFirstStep = lifecycleService.markStep(
-                plan, 0, AcademicPlanLifecycleService.STATUS_COMPLETED, "论文方法已梳理).getPlan();
+                plan, 0, AcademicPlanLifecycleService.STATUS_COMPLETED, "论文方法已梳理").getPlan();
 
         AcademicPlanLifecycleResult result = lifecycleService.updateRemaining(
                 afterFirstStep, "补充实验指标验证", List.of("补充消融实验对比", "输出实验分析报告"));
@@ -60,7 +60,7 @@ class AcademicPlanLifecycleServiceTest {
     @Test
     void shouldRejectCompletingNonCurrentStep() {
         AcademicAgentPlan plan = lifecycleService.create("研究 RAG 论文实验结果",
-                List.of("梳理论文方法", "检查实验指核)).getPlan();
+                List.of("梳理论文方法", "检查实验指标")).getPlan();
 
         assertThrows(IllegalStateException.class,
                 () -> lifecycleService.markStep(plan, 1, AcademicPlanLifecycleService.STATUS_COMPLETED, ""));

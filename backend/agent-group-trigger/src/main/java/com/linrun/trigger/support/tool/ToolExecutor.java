@@ -81,7 +81,7 @@ public class ToolExecutor {
                 recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
                         "tool execution failed", digest(e), attempt - 1, e.getMessage(), latencyMillis);
                 return ToolExecution.failure(toolName, action,
-                        "工具执行失败�? + e.getMessage(), latencyMillis, e,
+                        "tool execution failed: " + e.getMessage(), latencyMillis, e,
                         toolCallId, attempt - 1, digest(e));
             }
         }
@@ -90,7 +90,7 @@ public class ToolExecutor {
         recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
                 "tool execution failed", digest(lastException), attempts - 1,
                 lastException == null ? "" : lastException.getMessage(), latencyMillis);
-        return ToolExecution.failure(toolName, action, "工具执行失败", latencyMillis, lastException,
+        return ToolExecution.failure(toolName, action, "tool execution failed", latencyMillis, lastException,
                 toolCallId, attempts - 1, digest(lastException));
     }
 

@@ -63,31 +63,31 @@ public class HumanApprovalHandler {
         record.setStatus(HumanApprovalRecord.STATUS_WAITING);
         record.setExpireTime(expireTime);
         save(record);
-        return toResponse(record, "等待人工确认");
+        return toResponse(record, "waiting for approval");
     }
 
     public HumanApprovalResponse approve(ApproveHumanApprovalRequest request) {
         if (request == null || !StringUtils.hasText(request.getApprovalId())) {
-            throw new AppException("HITL_0001", "确认编号不能为空");
+            throw new AppException("HITL_0001", "approval id cannot be blank");
         }
         HumanApprovalRecord record = queryRecord(request.getApprovalId());
         if (record.expired(LocalDateTime.now())) {
-            throw new AppException("HITL_0002", "人工确认已过�?);
+            throw new AppException("HITL_0002", "human approval expired");
         }
         if (StringUtils.hasText(request.getUserId()) && !request.getUserId().equals(record.getUserId())) {
-            throw new AppException("HITL_0003", "人工确认用户不匹�?);
+            throw new AppException("HITL_0003", "human approval user mismatch");
         }
         record.setStatus(Boolean.TRUE.equals(request.getApproved())
                 ? HumanApprovalRecord.STATUS_APPROVED
                 : HumanApprovalRecord.STATUS_REJECTED);
         record.setReason(request.getReason());
         save(record);
-        return toResponse(record, Boolean.TRUE.equals(request.getApproved()) ? "已通过" : "已拒�?);
+        return toResponse(record, Boolean.TRUE.equals(request.getApproved()) ? "approved" : "rejected");
     }
 
     public HumanApprovalResponse queryApproval(String approvalId) {
         HumanApprovalRecord record = queryRecord(approvalId);
-        return toResponse(record, record.expired(LocalDateTime.now()) ? "已过�? : "正常");
+        return toResponse(record, record.expired(LocalDateTime.now()) ? "expired" : "active");
     }
 
     public void assertApproved(String approvalId, String userId, String action, String bizId) {
@@ -95,24 +95,24 @@ public class HumanApprovalHandler {
             return;
         }
         if (!StringUtils.hasText(approvalId)) {
-            throw new AppException("HITL_0004", "该操作需要人工确�?);
+            throw new AppException("HITL_0004", "human approval required");
         }
         HumanApprovalRecord record = queryRecord(approvalId);
         LocalDateTime now = LocalDateTime.now();
         if (record.expired(now)) {
-            throw new AppException("HITL_0002", "人工确认已过�?);
+            throw new AppException("HITL_0002", "human approval expired");
         }
         if (!HumanApprovalRecord.STATUS_APPROVED.equals(record.getStatus())) {
-            throw new AppException("HITL_0005", "人工确认未通过");
+            throw new AppException("HITL_0005", "human approval is not approved");
         }
         if (StringUtils.hasText(userId) && !userId.equals(record.getUserId())) {
-            throw new AppException("HITL_0003", "人工确认用户不匹�?);
+            throw new AppException("HITL_0003", "human approval user mismatch");
         }
         if (StringUtils.hasText(action) && !action.equals(record.getAction())) {
-            throw new AppException("HITL_0006", "人工确认操作不匹�?);
+            throw new AppException("HITL_0006", "human approval action mismatch");
         }
         if (StringUtils.hasText(bizId) && StringUtils.hasText(record.getBizId()) && !bizId.equals(record.getBizId())) {
-            throw new AppException("HITL_0007", "人工确认业务编号不匹�?);
+            throw new AppException("HITL_0007", "human approval biz mismatch");
         }
         record.setStatus(HumanApprovalRecord.STATUS_CONSUMED);
         save(record);
@@ -123,17 +123,17 @@ public class HumanApprovalHandler {
                 || !StringUtils.hasText(request.getUserId())
                 || !StringUtils.hasText(request.getAction())
                 || !StringUtils.hasText(request.getBizId())) {
-            throw new AppException("HITL_0001", "用户、操作和业务编号不能为空");
+            throw new AppException("HITL_0001", "user id, action, and biz id cannot be blank");
         }
     }
 
     private HumanApprovalRecord queryRecord(String approvalId) {
         if (!StringUtils.hasText(approvalId)) {
-            throw new AppException("HITL_0001", "确认编号不能为空");
+            throw new AppException("HITL_0001", "approval id cannot be blank");
         }
         HumanApprovalRecord record = read(approvalId);
         if (record == null) {
-            throw new AppException("HITL_0008", "人工确认记录不存�?);
+            throw new AppException("HITL_0008", "human approval not found");
         }
         return record;
     }

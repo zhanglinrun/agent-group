@@ -36,11 +36,11 @@ class AcademicReplayProjectorTest {
         toolInvocation.setToolCallId("CALL1001");
         toolInvocation.setToolName(AcademicToolOutputNames.REPORT_TOOL);
         toolInvocation.setStatus(AcademicAgentRun.STATUS_SUCCESS);
-        toolInvocation.setResultSummary("报告已生成);
+        toolInvocation.setResultSummary("报告已生成");
         toolInvocation.setResultJson("""
                 {
                   "toolName": "report_tool",
-                  "summary": "报告已生成,
+                  "summary": "报告已生成",
                   "fileRefs": [{"artifactId": "A2001", "fileName": "report.md"}]
                 }
                 """);

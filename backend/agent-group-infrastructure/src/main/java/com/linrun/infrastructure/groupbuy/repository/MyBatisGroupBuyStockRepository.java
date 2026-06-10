@@ -85,7 +85,7 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
                         before.getAvailableStock(), before.getAvailableStock(), "paid stock already released");
                 return before;
             }
-            throw new AppException("GROUP_0015", "拼团已支付库存释放失�?);
+            throw new AppException("GROUP_0015", "group paid stock release failed");
         }
         GroupBuyStock after = queryForUpdate(activityId, goodsId);
         insertFlow(activityId, goodsId, orderId, teamId, GroupBuyStockFlowType.RELEASE_PAID,
@@ -107,7 +107,7 @@ public class MyBatisGroupBuyStockRepository implements GroupBuyStockRepository {
         GroupBuyStock stock = ActivityPOConverter.toEntity(
                 groupBuyStockDao.queryByActivityIdAndGoodsIdForUpdate(activityId, goodsId));
         if (stock == null) {
-            throw new AppException("GROUP_0016", "拼团库存未配�?);
+            throw new AppException("GROUP_0016", "group stock not configured");
         }
         return stock;
     }

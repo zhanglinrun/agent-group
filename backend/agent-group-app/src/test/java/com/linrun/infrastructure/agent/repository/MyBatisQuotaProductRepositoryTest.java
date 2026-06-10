@@ -32,7 +32,7 @@ class MyBatisQuotaProductRepositoryTest {
     @Test
     void shouldNormalizeProductDefaults() {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
-        guideDataDao.detail = FakeGuideDataDao.product("G10001", "基础额度�?);
+        guideDataDao.detail = FakeGuideDataDao.product("G10001", "基础额度包");
         guideDataDao.detail.setGroupPrice(null);
         MyBatisQuotaProductRepository repository = new MyBatisQuotaProductRepository(
                 guideDataDao,
@@ -55,7 +55,7 @@ class MyBatisQuotaProductRepositoryTest {
         public List<QuotaProductPO> queryCandidateProducts(List<String> keywords, int limit) {
             this.keywords = keywords;
             this.limit = limit;
-            return List.of(product("G10002", "论文阅读额度�?));
+            return List.of(product("G10002", "长文档额度包"));
         }
 
         @Override

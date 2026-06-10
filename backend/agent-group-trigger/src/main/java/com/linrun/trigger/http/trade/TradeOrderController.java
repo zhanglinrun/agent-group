@@ -6,6 +6,8 @@ import com.linrun.api.dto.QueryOrderListRequest;
 import com.linrun.api.dto.QueryOrderListResponse;
 import com.linrun.api.dto.QueryRefundOrderListRequest;
 import com.linrun.api.dto.QueryRefundOrderListResponse;
+import com.linrun.api.dto.MockPayCallbackRequest;
+import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.api.dto.TradeStatusFlowDTO;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -16,8 +18,10 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.service.DirectBuyOrderService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
+import com.linrun.domain.trade.service.payment.MockPayCallbackService;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.common.Response;
+import com.linrun.types.exception.AppException;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -39,15 +44,18 @@ public class TradeOrderController {
     private final TradeStatusFlowService tradeStatusFlowService;
     private final UserAccountService userAccountService;
     private final TradeOrderRepository tradeOrderRepository;
+    private final MockPayCallbackService mockPayCallbackService;
 
     public TradeOrderController(DirectBuyOrderService directBuyOrderService,
                                 TradeStatusFlowService tradeStatusFlowService,
                                 UserAccountService userAccountService,
-                                TradeOrderRepository tradeOrderRepository) {
+                                TradeOrderRepository tradeOrderRepository,
+                                MockPayCallbackService mockPayCallbackService) {
         this.directBuyOrderService = directBuyOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.userAccountService = userAccountService;
         this.tradeOrderRepository = tradeOrderRepository;
+        this.mockPayCallbackService = mockPayCallbackService;
     }
 
     @PostMapping("/direct")
@@ -59,6 +67,29 @@ public class TradeOrderController {
             request.setUserId(user.getUserId());
         }
         return Response.success(directBuyOrderService.createDirectOrder(request), RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/mock-pay-success")
+    public Response<MockPayCallbackResponse> mockPaySuccess(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @RequestBody(required = false) MockPayCallbackRequest request) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        MockPayCallbackRequest safeRequest = request == null ? new MockPayCallbackRequest() : request;
+        if (!StringUtils.hasText(safeRequest.getOrderId())) {
+            throw new AppException("0001", "订单编号不能为空");
+        }
+        TradeOrderEntity order = tradeOrderRepository.queryTradeOrderByOrderId(safeRequest.getOrderId())
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
+        if (!user.getUserId().equals(order.getUserId())) {
+            throw new AppException("TRADE_0016", "订单不存在或不属于当前用户");
+        }
+        if (!StringUtils.hasText(safeRequest.getOutTradeNo())) {
+            safeRequest.setOutTradeNo("MOCK_" + safeRequest.getOrderId() + "_" + System.currentTimeMillis());
+        }
+        if (safeRequest.getPayTime() == null) {
+            safeRequest.setPayTime(LocalDateTime.now());
+        }
+        return Response.success(mockPayCallbackService.paySuccess(safeRequest), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/status-flow")

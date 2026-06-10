@@ -35,13 +35,13 @@ class AcademicToolCollectionTest {
         AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
         registry.register(definition("report_tool", "report", "local"), command -> Map.of("ok", true));
         AcademicToolCollection collection = new AcademicToolCollectionFactory(registry).buildAll("deep_research");
-        collection.updateCurrentTask("整理论文阅读报告");
+        collection.updateCurrentTask("整理长文档报告");
         collection.updateToolRoles(Map.of("report_tool", "报告生成专员"));
 
         AcademicToolCollection child = collection.select("parallel_task", List.of("report_tool"));
 
         assertTrue(child.contains("report_tool"));
-        assertEquals("整理论文阅读报告", child.getCurrentTask());
+        assertEquals("整理长文档报告", child.getCurrentTask());
         assertEquals("报告生成专员", child.getToolRole("report_tool"));
     }
 

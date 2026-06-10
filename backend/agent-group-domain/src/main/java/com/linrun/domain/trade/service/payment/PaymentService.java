@@ -45,6 +45,7 @@ import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -71,6 +72,9 @@ public class PaymentService {
     private final PaymentWebhookReplayGuard paymentWebhookReplayGuard;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final AgentObservabilityMetrics metrics;
+
+    @Value("${agent.group.security.mock-payment-enabled:false}")
+    private boolean mockPaymentEnabled;
 
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
@@ -171,7 +175,7 @@ public class PaymentService {
                 return existingResponse;
             }
             metrics.recordPaymentWebhook(payChannel.name(), "processing_conflict", elapsedMillis(startNanos));
-            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重读);
+            throw new AppException("PAY_0016", "支付回调正在处理中，请稍后重读");
         }
 
         boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, webhookResult);
@@ -548,7 +552,7 @@ public class PaymentService {
 
     private PaymentRefundQueryCommand toRefundQueryCommand(QueryPaymentRefundRequest request) {
         if (request == null) {
-            throw new AppException("0001", "退款查询参数不能为�?);
+            throw new AppException("0001", "退款查询参数不能为空");
         }
         if (StringUtils.hasText(request.getOrderId())) {
             TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
@@ -761,7 +765,7 @@ public class PaymentService {
 
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 
     private PayOrderEntity queryPayOrder(String orderId) {
@@ -772,8 +776,12 @@ public class PaymentService {
     private String resolvePayChannel(String requestChannel, PayOrderEntity payOrder) {
         String candidate = StringUtils.hasText(requestChannel)
                 ? requestChannel
-                : payOrder == null ? PaymentChannel.ALIPAY.name() : payOrder.getPayChannel();
+                : payOrder == null ? defaultPayChannel() : payOrder.getPayChannel();
         return PaymentChannel.parse(candidate).name();
+    }
+
+    private String defaultPayChannel() {
+        return mockPaymentEnabled ? PaymentChannel.MOCK_PAY.name() : PaymentChannel.ALIPAY.name();
     }
 
     private void rejectMockPayChannel(String payChannel) {
@@ -781,8 +789,8 @@ public class PaymentService {
     }
 
     private void rejectMockPayChannel(PaymentChannel payChannel) {
-        if (PaymentChannel.MOCK_PAY.equals(payChannel)) {
-            throw new AppException("PAY_0017", "MOCK_PAY is only allowed in unit test stubs");
+        if (PaymentChannel.MOCK_PAY.equals(payChannel) && !mockPaymentEnabled) {
+            throw new AppException("PAY_0017", "MOCK_PAY 只允许在开发或演示环境使用");
         }
     }
 
@@ -823,7 +831,7 @@ public class PaymentService {
     }
 
     private String resolveRefundReason(RefundPaymentRequest request) {
-        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退�?;
+        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退款";
     }
 
     private long elapsedMillis(long startNanos) {

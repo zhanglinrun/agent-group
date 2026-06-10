@@ -11,8 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 智能重规划策�?
- * 当步骤执行失败时，分析原因并动态生成新计划
+ * 智能重规划策略。
  */
 public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentReplanStrategy {
 
@@ -22,37 +21,26 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
             return new ArrayList<>();
         }
 
-        // 1. 分析失败原因
         FailureAnalysis analysis = analyzeFailure(request);
-
-        // 2. 评估已完成步骤的价�?
         boolean canReuseCompleted = canReuseCompletedSteps(request.completedSteps(), analysis);
 
-        // 3. 生成新计�?
         if (canReuseCompleted && analysis.isRecoverable()) {
             return replanRemainingSteps(request, analysis);
-        } else {
-            return replanFromScratch(request);
         }
+        return replanFromScratch(request);
     }
 
-    /**
-     * 分析失败原因
-     */
     private FailureAnalysis analyzeFailure(AcademicAgentFlowReplanRequest request) {
         AcademicAgentStepExecutionResult stepResult = request.failedResult();
         String failureNote = stepResult != null ? stepResult.note() : "未知错误";
         return analyzeFailureByRules(failureNote);
     }
 
-    /**
-     * 基于规则分析失败原因
-     */
     private FailureAnalysis analyzeFailureByRules(String failureNote) {
-        String lowerNote = failureNote.toLowerCase();
+        String lowerNote = failureNote == null ? "" : failureNote.toLowerCase();
 
         if (lowerNote.contains("tool") && lowerNote.contains("not found")) {
-            return new FailureAnalysis("工具不可�?, true, true, "切换工具");
+            return new FailureAnalysis("工具不可用", true, true, "切换工具");
         }
 
         if (lowerNote.contains("parameter") || lowerNote.contains("invalid")) {
@@ -63,14 +51,11 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
             return new FailureAnalysis("超时", true, true, "重试");
         }
 
-        return new FailureAnalysis("未知错误", false, false, "从头开�?);
+        return new FailureAnalysis("未知错误", false, false, "从头开始");
     }
 
-    /**
-     * 评估已完成步骤是否可复用
-     */
-    private boolean canReuseCompletedSteps(List<AcademicPlanStep> completedSteps, 
-                                          FailureAnalysis analysis) {
+    private boolean canReuseCompletedSteps(List<AcademicPlanStep> completedSteps,
+                                           FailureAnalysis analysis) {
         if (completedSteps == null || completedSteps.isEmpty()) {
             return false;
         }
@@ -83,9 +68,6 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
                 .allMatch(step -> AcademicPlanLifecycleService.STATUS_COMPLETED.equals(step.getStatus()));
     }
 
-    /**
-     * 重规划剩余步骤（复用已完成部分）
-     */
     private List<AcademicPlanStep> replanRemainingSteps(AcademicAgentFlowReplanRequest request,
                                                         FailureAnalysis analysis) {
         AcademicAgentPlan originalPlan = request.planSnapshot();
@@ -106,16 +88,10 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
         return remainingSteps;
     }
 
-    /**
-     * 从头重新规划
-     */
     private List<AcademicPlanStep> replanFromScratch(AcademicAgentFlowReplanRequest request) {
         return new ArrayList<>();
     }
 
-    /**
-     * 获取失败步骤之后的所有步验
-     */
     private List<AcademicPlanStep> getRemainingSteps(AcademicAgentPlan plan, AcademicPlanStep failedStep) {
         List<AcademicPlanStep> remaining = new ArrayList<>();
         boolean foundFailed = false;
@@ -132,11 +108,8 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
         return remaining;
     }
 
-    /**
-     * 调整步骤使用替代工具
-     */
     private AcademicPlanStep adjustStepForAlternativeTool(AcademicPlanStep failedStep) {
-        String newInstruction = failedStep.getInstruction() + "（使用替代方法或工具）;
+        String newInstruction = failedStep.getInstruction() + "（使用替代方法或工具）";
         return AcademicPlanStep.builder(
                 failedStep.getStepId() + "_retry",
                 newInstruction)
@@ -145,9 +118,6 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
                 .build();
     }
 
-    /**
-     * 简化步验
-     */
     private AcademicPlanStep simplifyStep(AcademicPlanStep failedStep) {
         String newInstruction = failedStep.getInstruction() + "（简化版本）";
         return AcademicPlanStep.builder(
@@ -158,17 +128,14 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
                 .build();
     }
 
-    /**
-     * 失败分析结果
-     */
     private static class FailureAnalysis {
         private final String failureType;
         private final boolean recoverable;
         private final boolean completedStepsValid;
         private final String suggestedStrategy;
 
-        public FailureAnalysis(String failureType, boolean recoverable, 
-                              boolean completedStepsValid, String suggestedStrategy) {
+        FailureAnalysis(String failureType, boolean recoverable,
+                        boolean completedStepsValid, String suggestedStrategy) {
             this.failureType = failureType;
             this.recoverable = recoverable;
             this.completedStepsValid = completedStepsValid;
@@ -192,18 +159,3 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

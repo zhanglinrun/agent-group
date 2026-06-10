@@ -30,10 +30,10 @@ public class OutlineStrategy implements PptStateStrategy {
         AiPptTemplate template = context.getPptTemplateService().getByCode(templateCode);
 
         if (template == null) {
-            log.error("模板不存�? templateCode={}", templateCode);
+            log.error("模板不存在 templateCode={}", templateCode);
             // 失败时不回退状态，只更新错误信息，转到 FAILED
             context.getPptInstService().updateError(inst.getId(),
-                    "模板不存�? " + templateCode, PptInstStatus.TEMPLATE);
+                    "模板不存在 " + templateCode, PptInstStatus.TEMPLATE);
             // 转到 FAILED 策略
             PptStateStrategyFactory.getInstance().executeFailedState(inst, sink, query, thinkingBuffer, context);
             return;
@@ -59,7 +59,7 @@ public class OutlineStrategy implements PptStateStrategy {
                     context.getPptInstService().updateOutline(inst.getId(),
                             ThinkTagParser.stripThinkTags(outlineContent.toString()),
                             TARGET_STATUS);
-                    sink.tryEmitNext(context.createThinkingResponse("\n�?大纲生成完成，开始设计PPT详细内容\n"));
+                    sink.tryEmitNext(context.createThinkingResponse("\n大纲生成完成，开始设计 PPT 详细内容\n"));
                     context.continueStateMachine(inst, sink, query, thinkingBuffer);
                 })
                 .doOnError(err -> {
@@ -73,7 +73,7 @@ public class OutlineStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任�?
+        // 保存 disposable 到任务管理器，用于停止任??
         context.setDisposable(inst.getConversationId(), disposable);
     }
 

@@ -18,7 +18,7 @@ export interface WorkspacePrompt {
 }
 
 export const WORKSPACES: WorkspaceDefinition[] = [
-  { id: "agent", name: "熊博士 Agent", path: "/", icon: "🤖", agentId: "chat" },
+  { id: "agent", name: "熊博士Agent", path: "/", icon: "🐻", agentId: "chat" },
   { id: "image", name: "图像生成", path: "/workspace/image", icon: "🖼", agentId: "image" },
   { id: "data", name: "数据问答", path: "/workspace/data", icon: "📈", agentId: "data", userVisible: false },
   { id: "mrag", name: "MRAG 知识问答", path: "/workspace/mrag", icon: "MR", agentId: "mrag", userVisible: false },
@@ -51,9 +51,9 @@ export function isUserWorkspace(workspaceId: string): boolean {
 
 export const WORKSPACE_PROMPTS: Record<WorkspaceId, WorkspacePrompt[]> = {
   agent: [
-    { icon: "book", title: "论文精读", prompt: "帮我阅读这篇论文，并输出精读笔记" },
-    { icon: "file", title: "PPT 大纲", prompt: "帮我生成一份组会汇报 PPT 大纲" },
-    { icon: "globe", title: "深度研究", prompt: "帮我调研大模型智能体应用的最新进展" }
+    { icon: "book", title: "项目技术报告", prompt: "帮我把这个项目整理成一份技术报告，突出 Agent 编排、工具调用和交易闭环" },
+    { icon: "file", title: "PPT 大纲", prompt: "帮我生成一份项目汇报 PPT 大纲，包含架构、核心流程和亮点" },
+    { icon: "globe", title: "深度任务", prompt: "帮我调研多智能体编排和 Skill 自动化的最新工程实践，并输出对比结论" }
   ],
   image: [
     { icon: "image", title: "项目封面图", prompt: "生成一张用于“Agent + 拼团交易系统”项目展示的封面图，突出智能体工具调用、额度账户和拼团交易闭环。" },

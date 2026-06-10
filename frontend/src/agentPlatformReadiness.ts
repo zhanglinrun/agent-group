@@ -216,15 +216,11 @@ function deriveReadiness(capabilities: UnknownMap): AgentPlatformReadiness {
   const missingFamilies = REQUIRED_FAMILIES.filter((family) => !coveredFamilies.includes(family));
   const replanCount = executionModes.filter((mode) => bool(mode.replanEnabled) || stringList(mode.replanEvidence).length > 0).length;
 
+  const toolStatusByName = new Map(toolReadiness.map((item) => [text(item.name), text(item.status)]));
   const missingTools = toolReadiness.length === 0
     ? REQUIRED_RUNTIME_TOOLS
-    : unique(toolReadiness
-      .filter((item) => text(item.status) !== "ready")
-      .map((item) => text(item.name))
-      .filter(Boolean));
-  const readyToolCount = toolReadiness.length === 0
-    ? 0
-    : toolReadiness.filter((item) => text(item.status) === "ready").length;
+    : REQUIRED_RUNTIME_TOOLS.filter((name) => toolStatusByName.get(name) !== "ready");
+  const readyToolCount = REQUIRED_RUNTIME_TOOLS.length - missingTools.length;
 
   const coveredWorkspaces = unique(workspaceProfiles
     .filter(workspaceEntryReady)

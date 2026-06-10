@@ -38,9 +38,14 @@ import reactor.core.scheduler.Schedulers;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,9 +55,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import static com.linrun.trigger.agent.service.FileManageService.generateObjectName;
 
 /**
- * 文件问答智能�?
+ * 文件问答智能??
  * 基于文件内容进行问答分析
- * 支持多种文件类型：PDF、DOC、DOCX、TXT、PNG、JPG�?
+ * 支持多种文件类型：PDF、DOC、DOCX、TXT、PNG、JPG??
  */
 @Slf4j
 public class FileReactAgent extends BaseAgent {
@@ -76,7 +81,7 @@ public class FileReactAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
 
-        // 初始化工具记录集�?
+        // 初始化工具记录集??
         this.usedTools = new HashSet<>();
 
         initChatClient();
@@ -122,7 +127,7 @@ public class FileReactAgent extends BaseAgent {
     }
 
     /**
-     * 流式输出（带文件ID�?
+     * 流式输出（带文件ID??
      */
     public Flux<String> stream(String conversationId, String question, String fileId) {
         setCurrentFileId(fileId);
@@ -163,8 +168,8 @@ public class FileReactAgent extends BaseAgent {
         // ===== 加载历史记忆 =====
         loadChatHistory(conversationId, messages, true, true);
 
-        // ===== 加载文件内容或文件信�?=====
-        // 注释掉原有的 loadFileContent 调用，使用新�?FileContentService 工具替代
+        // ===== 加载文件内容或文件信??=====
+        // 注释掉原有的 loadFileContent 调用，使用新??FileContentService 工具替代
         // UserMessage userMessage = loadFileContent();
         // if (userMessage != null && StringUtils.hasText(userMessage.getText()))
         //     messages.add(userMessage);;
@@ -177,7 +182,7 @@ public class FileReactAgent extends BaseAgent {
         messages.add(new UserMessage("<fileids>" + currentFileId + "</fileids>"));
         currentQuestion = question;
 
-        // 添加记忆并保存到数据�?
+        // 添加记忆并保存到数据??
         if (sessionService != null) {
             // 保存用户问题到数据库，关联fileid
             AiSession savedSession = sessionService.saveQuestion(
@@ -200,13 +205,13 @@ public class FileReactAgent extends BaseAgent {
 
         // 收集最终答案，存储memory
         StringBuilder finalAnswerBuffer = new StringBuilder();
-        // 收集思考过�?
+        // 收集思考过??
         StringBuilder thinkingBuffer = new StringBuilder();
 
         scheduleRound(messages, sink, roundCounter, hasSentFinalResult, finalAnswerBuffer, useMemory, conversationId, thinkingBuffer);
 
         return sink.asFlux()
-                // 分离收集 text �?thinking
+                // 分离收集 text ??thinking
                 .doOnNext(chunk -> {
                     try {
                         JSONObject json = JSON.parseObject(chunk);
@@ -217,7 +222,7 @@ public class FileReactAgent extends BaseAgent {
                             thinkingBuffer.append(json.getString("content"));
                         }
                     } catch (Exception e) {
-                        // 解析失败，直接拼�?
+                        // 解析失败，直接拼??
                         finalAnswerBuffer.append(chunk);
                     }
                 })
@@ -228,13 +233,13 @@ public class FileReactAgent extends BaseAgent {
                     }
                 })
                 .doFinally(signalType -> {
-                    log.info("最终答�? {}", finalAnswerBuffer);
-                    log.info("思考过�? {}", thinkingBuffer);
+                    log.info("最终答案 {}", finalAnswerBuffer);
+                    log.info("思考过程 {}", thinkingBuffer);
 
-                    // 保存结果到会�?
+                    // 保存结果到会??
                     saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer);
 
-                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消�?
+                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消??
                     if(taskManager != null){
                         taskManager.completeTask(conversationId);
                     }
@@ -278,7 +283,7 @@ public class FileReactAgent extends BaseAgent {
             }
             return context.toString();
         } catch (Exception e) {
-            log.warn("加载附件上下文失�? {}", e.getClass().getSimpleName());
+            log.warn("加载附件上下文失败 {}", e.getClass().getSimpleName());
             return "";
         }
     }
@@ -298,7 +303,7 @@ public class FileReactAgent extends BaseAgent {
     }
 
     /**
-     * 加载文件内容并构建用户消�?
+     * 加载文件内容并构建用户消??
      */
     private UserMessage loadFileContent() {
         // 1. 获取依赖服务
@@ -335,7 +340,7 @@ public class FileReactAgent extends BaseAgent {
 
                 // 校验文件字节是否为空
                 if (fileBytes == null || fileBytes.length == 0) {
-                    return UserMessage.builder().text("图片文件内容为空，请检查文件是否上传完�?).build();
+                    return UserMessage.builder().text("图片文件内容为空，请检查文件是否上传完成").build();
                 }
 
                 // 构建图片消息
@@ -350,7 +355,7 @@ public class FileReactAgent extends BaseAgent {
                         .build();
             }
         } catch (Exception e) {
-            return UserMessage.builder().text("图片文件处理失败�? + e.getMessage()).build();
+            return UserMessage.builder().text("图片文件处理失败：" + e.getMessage()).build();
         }
     }
 
@@ -359,9 +364,9 @@ public class FileReactAgent extends BaseAgent {
      */
     private UserMessage handleTextFile(FileInfo fileInfo) {
         String extractedText = fileInfo.getExtractedText();
-        // 校验文本内容是否为空，提升用户体�?
+        // 校验文本内容是否为空，提升用户体??
         String textContent = (extractedText == null || extractedText.trim().isEmpty())
-                ? "当前文件是一个文本文件，但文件内容为空，请检查文件是否有效�?
+                ? "当前文件是一个文本文件，但文件内容为空，请检查文件是否有效"
                 : "当前文件是一个文本文件，请围绕这个文件进行问答，以下是这个文件的具体内容：\n" + extractedText;
 
         return UserMessage.builder()
@@ -370,7 +375,7 @@ public class FileReactAgent extends BaseAgent {
     }
 
     /**
-     * 判断是否为图片文�?
+     * 判断是否为图片文??
      */
     private boolean isImageFile(String fileType) {
         return ("jpg".equalsIgnoreCase(fileType) ||
@@ -434,7 +439,7 @@ public class FileReactAgent extends BaseAgent {
         String text = gen.getOutput().getText();
         List<AssistantMessage.ToolCall> tc = gen.getOutput().getToolCalls();
 
-        // 一旦发�?tool_call，立即进�?TOOL_CALL 模式
+        // 一旦发??tool_call，立即进??TOOL_CALL 模式
         if (tc != null && !tc.isEmpty()) {
             state.setMode(RoundMode.TOOL_CALL);
 
@@ -444,7 +449,7 @@ public class FileReactAgent extends BaseAgent {
             return;
         }
 
-        // 还没出现 tool_call，使�?ThinkTagParser 解析 <think/> 标签
+        // 还没出现 tool_call，使??ThinkTagParser 解析 <think/> 标签
         if (text != null) {
             ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(text, state.inThink);
             state.inThink = parseResult.inThink();
@@ -484,7 +489,7 @@ public class FileReactAgent extends BaseAgent {
                              AtomicBoolean hasSentFinalResult, StringBuilder finalAnswerBuffer,
                              boolean useMemory, String conversationId, StringBuilder thinkingBuffer) {
 
-        // 如果整轮都没�?tool_call，才是最终答�?
+        // 如果整轮都没??tool_call，才是最终答??
         if (state.getMode() != RoundMode.TOOL_CALL) {
             sink.tryEmitComplete();
             hasSentFinalResult.set(true);
@@ -497,7 +502,7 @@ public class FileReactAgent extends BaseAgent {
             if (enableRecommendations) {
                 String recommendations = generateRecommendations(conversationId, currentQuestion, finalText);
                 if (recommendations != null) {
-                    currentRecommendations = recommendations; // 保存用于数据库存�?
+                    currentRecommendations = recommendations; // 保存用于数据库存??
                     String recommendJson = createRecommendResponse(recommendations);
                     sink.tryEmitNext(recommendJson);
                 }
@@ -530,7 +535,7 @@ public class FileReactAgent extends BaseAgent {
         // 创建新的消息列表，确保系统提示词在最前面
         List<Message> newMessages = new ArrayList<>();
 
-        // 添加系统提示�?
+        // 添加系统提示??
         newMessages.add(new SystemMessage(ReactAgentPrompts.getFilePrompt()));
         if (StringUtils.hasText(systemPrompt)) {
             newMessages.add(new SystemMessage(systemPrompt));
@@ -545,18 +550,18 @@ public class FileReactAgent extends BaseAgent {
 
         // 添加限制提示
         newMessages.add(new UserMessage("""
-                你已达到最大推理轮次限制�?
+                你已达到最大推理轮次限制。
                 请基于当前已有的上下文信息，
-                直接给出最终答案�?
-                禁止再调用任何工具�?
-                如果信息不完整，请合理总结和说明�?
+                直接给出最终答案。
+                禁止再调用任何工具。
+                如果信息不完整，请合理总结和说明。
                 """));
 
-        // 替换原消息列�?
+        // 替换原消息列??
         messages.clear();
         messages.addAll(newMessages);
 
-        // 收集最终文�?
+        // 收集最终文??
         StringBuilder finalTextBuffer = new StringBuilder();
 
         Disposable disposable = chatClient.prompt()
@@ -593,7 +598,7 @@ public class FileReactAgent extends BaseAgent {
                     if (enableRecommendations) {
                         String recommendations = generateRecommendations(conversationId, currentQuestion, finalText);
                         if (recommendations != null) {
-                            currentRecommendations = recommendations; // 保存用于数据库存�?
+                            currentRecommendations = recommendations; // 保存用于数据库存??
                             String recommendJson = createRecommendResponse(recommendations);
                             sink.tryEmitNext(recommendJson);
                         }
@@ -619,7 +624,7 @@ public class FileReactAgent extends BaseAgent {
         AtomicInteger completedCount = new AtomicInteger(0);
         int totalToolCalls = toolCalls.size();
 
-        // 保证顺序一致�?
+        // 保证顺序一致??
         Map<String, ToolResponseMessage.ToolResponse> responseMap = new ConcurrentHashMap<>();
 
         for (AssistantMessage.ToolCall tc : toolCalls) {
@@ -641,12 +646,12 @@ public class FileReactAgent extends BaseAgent {
                     return;
                 }
 
-                // 如果�?loadContent 工具，解析参数并发�?thinking 消息
+                // 如果??loadContent 工具，解析参数并发??thinking 消息
                 if (toolName.contains("loadContent")) {
                     JSONObject args = JSON.parseObject(argsJson);
                     String question = (String) args.get("question");
-                    // 发�?thinking 消息，表示正在加载文件内�?
-                    String loadThink = "📂 正在检索文件内容，请稍�?..";
+                    // 发??thinking 消息，表示正在加载文件内??
+                    String loadThink = "📂 正在检索文件内容，请稍候...";
                     sink.tryEmitNext(createThinkingResponse(loadThink));
                 }
 
@@ -654,16 +659,16 @@ public class FileReactAgent extends BaseAgent {
                     Object result = callback.call(argsJson);
                     String resultStr = result.toString();
 
-                    // 记录使用的工�?
+                    // 记录使用的工??
                     recordUsedTool(toolName);
 
-                    // 将结果放�?responseMap，key �?toolCall.id()
+                    // 将结果放??responseMap，key ??toolCall.id()
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
                             tc.id(), toolName, resultStr));
                 } catch (Exception ex) {
-                    // 工具执行失败时，也放�?responseMap
+                    // 工具执行失败时，也放??responseMap
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具执行失败�? + ex.getMessage() + "\" }"));
+                            tc.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }"));
                 } finally {
                     completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
                 }
@@ -678,14 +683,14 @@ public class FileReactAgent extends BaseAgent {
                                   Runnable onComplete) {
         int current = completedCount.incrementAndGet();
         if (current >= total) {
-            // 按原�?toolCalls 的顺序重组结�?
+            // 按原??toolCalls 的顺序重组结??
             List<ToolResponseMessage.ToolResponse> sortedResponses = new ArrayList<>();
             for (AssistantMessage.ToolCall tc : originalToolCalls) {
                 ToolResponseMessage.ToolResponse response = responseMap.get(tc.id());
                 if (response != null) {
                     sortedResponses.add(response);
                 } else {
-                    // 如果某个工具调用没有响应，添加一个错误响�?
+                    // 如果某个工具调用没有响应，添加一个错误响??
                     sortedResponses.add(new ToolResponseMessage.ToolResponse(
                             tc.id(), tc.name(), "{ \"error\": \"工具响应丢失\" }"));
                 }
@@ -776,7 +781,7 @@ public class FileReactAgent extends BaseAgent {
 
         public FileReactAgent build() {
             if (chatModel == null) {
-                throw new IllegalArgumentException("chatModel 不能为空�?);
+                throw new IllegalArgumentException("chatModel 不能为空");
             }
             return new FileReactAgent(name, chatModel, tools, systemPrompt, maxRounds, chatMemory, sessionService, taskManager);
         }

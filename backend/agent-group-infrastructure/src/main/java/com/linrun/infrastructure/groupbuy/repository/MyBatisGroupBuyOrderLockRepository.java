@@ -67,7 +67,7 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     @Transactional(rollbackFor = Exception.class)
     public GroupBuySettlementResult settlePaidOrder(String orderId) {
         GroupBuyOrderLock orderLock = Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryLockByOrderId(orderId)))
-                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0011", "group order lock not found"));
 
         int updated = groupBuyOrderLockDao.updateOrderLockPaid(orderId);
         if (updated == 1) {
@@ -78,7 +78,7 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
         }
 
         GroupBuyTeam team = Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId())))
-                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0003", "group team not found"));
         return new GroupBuySettlementResult(orderLock, team, updated != 1);
     }
 
@@ -91,7 +91,7 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     @Transactional(rollbackFor = Exception.class)
     public GroupBuySettlementResult releaseLockedOrder(String orderId) {
         GroupBuyOrderLock orderLock = Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryLockByOrderId(orderId)))
-                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0011", "group order lock not found"));
         int updated = groupBuyOrderLockDao.releaseLockedOrder(orderId);
         if (updated == 1) {
             groupBuyOrderLockDao.reduceTeamLockCount(orderLock.getTeamId());
@@ -100,7 +100,7 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
             orderLock = ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryLockByOrderId(orderId));
         }
         GroupBuyTeam team = Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId())))
-                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0003", "group team not found"));
         return new GroupBuySettlementResult(orderLock, team, updated != 1);
     }
 
@@ -108,7 +108,7 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     @Transactional(rollbackFor = Exception.class)
     public GroupBuySettlementResult releasePaidOrder(String orderId) {
         GroupBuyOrderLock orderLock = Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryLockByOrderId(orderId)))
-                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0011", "group order lock not found"));
         int updated = groupBuyOrderLockDao.releasePaidOrder(orderId);
         if (updated == 1) {
             groupBuyOrderLockDao.reduceTeamPaidCount(orderLock.getTeamId());
@@ -117,7 +117,7 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
             orderLock = ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryLockByOrderId(orderId));
         }
         GroupBuyTeam team = Optional.ofNullable(ActivityPOConverter.toEntity(groupBuyOrderLockDao.queryTeamByTeamId(orderLock.getTeamId())))
-                .orElseThrow(() -> new AppException("GROUP_0003", "拼团队伍不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0003", "group team not found"));
         return new GroupBuySettlementResult(orderLock, team, updated != 1);
     }
 

@@ -29,7 +29,7 @@ public class GroupBuyRefundStrategyRouter {
         return strategies.stream()
                 .filter(strategy -> strategy.supports(tradeOrder, payOrder))
                 .findFirst()
-                .orElseThrow(() -> new AppException("TRADE_0020", "当前拼团订单状态不支持退�?))
+                .orElseThrow(() -> new AppException("TRADE_0020", "当前拼团订单状态不支持退款"))
                 .refund(request);
     }
 }

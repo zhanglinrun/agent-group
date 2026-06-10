@@ -42,7 +42,7 @@ public class GroupBuyRefundRuleChain {
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new AppException("TRADE_0021", "拼团退款处理失败);
+            throw new AppException("TRADE_0021", "拼团退款处理失败");
         }
     }
 
@@ -72,7 +72,7 @@ public class GroupBuyRefundRuleChain {
         public GroupBuyRefundContext apply(GroupBuyRefundContext context, DynamicContext dynamicContext) throws Exception {
             String orderId = context.getRequest().getOrderId();
             TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                    .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
+                    .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
             PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
                     .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
             context.setTradeOrder(tradeOrder);
@@ -86,7 +86,7 @@ public class GroupBuyRefundRuleChain {
         @Override
         public GroupBuyRefundContext apply(GroupBuyRefundContext context, DynamicContext dynamicContext) throws Exception {
             if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(context.getTradeOrder().getBuyType())) {
-                throw new AppException("TRADE_0008", "非拼团订单不能发起拼团退�?);
+                throw new AppException("TRADE_0008", "非拼团订单不能发起拼团退款");
             }
             return next(context, dynamicContext);
         }

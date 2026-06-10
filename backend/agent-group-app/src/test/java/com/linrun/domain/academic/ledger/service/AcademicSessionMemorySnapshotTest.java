@@ -27,7 +27,7 @@ class AcademicSessionMemorySnapshotTest {
         repository.runs.add(run("RUN2", "REQ2", "S1", "继继续分析交易异常", LocalDateTime.of(2026, 6, 1, 10, 10)));
         repository.runs.add(run("RUN1", "REQ1", "S1", "分析拼团转化", LocalDateTime.of(2026, 6, 1, 10, 0)));
 
-        AcademicToolInvocation tool = tool("TOOL1", "RUN1", "data_analysis", "系统计漏斗", "已生成分析报告);
+        AcademicToolInvocation tool = tool("TOOL1", "RUN1", "data_analysis", "系统计漏斗", "已生成分析报告");
         repository.tools.add(tool);
         repository.artifacts.add(artifact("A1", "RUN1", "TOOL1", "REPORT", "conversion.md"));
         repository.artifacts.add(artifact("A2", "RUN1", "TOOL1", "INTERNAL", "debug.json"));
@@ -215,7 +215,7 @@ class AcademicSessionMemorySnapshotTest {
         invocation.setArgumentsJson("{\"metric\":\"conversion\"}");
         invocation.setResultSummary(summary);
         invocation.setResultJson("""
-                {"summary":"已生成分析报告,"fileRefs":[{"artifactId":"A1","fileName":"conversion.md"}]}
+                {"summary":"已生成分析报告","fileRefs":[{"artifactId":"A1","fileName":"conversion.md"}]}
                 """);
         invocation.setStatus(AcademicAgentRun.STATUS_SUCCESS);
         invocation.setStartedAt(LocalDateTime.of(2026, 6, 1, 10, 1));

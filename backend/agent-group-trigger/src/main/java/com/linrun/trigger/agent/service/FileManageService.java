@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 /**
  * 文件管理服务
- * 提供文件上传、查询、删除等纯业务功�?
+ * 提供文件上传、查询、删除等纯业务功??
  */
 @Service
 @Slf4j
@@ -77,7 +77,7 @@ public class FileManageService {
     private long maxFileSizeBytes = 10 * 1024 * 1024L;
 
     /**
-     * 初始化多模态模型（用于图片识别�?
+     * 初始化多模态模型（用于图片识别??
      */
     @PostConstruct
     public void init() {
@@ -102,7 +102,7 @@ public class FileManageService {
     /**
      * 上传文件
      *
-     * @param file 上传的文�?
+     * @param file 上传的文??
      * @return 文件信息
      */
     @Transactional(rollbackFor = Exception.class)
@@ -113,7 +113,7 @@ public class FileManageService {
         String fileType = getFileType(filename);
         long fileSize = file.getSize();
 
-        log.info("开始处理文件上�? fileId={}, fileName={}, fileType={}, fileSize={}", fileId, filename, fileType, fileSize);
+        log.info("开始处理文件上传 fileId={}, fileName={}, fileType={}, fileSize={}", fileId, filename, fileType, fileSize);
 
         try {
             // 创建文件信息
@@ -126,10 +126,10 @@ public class FileManageService {
                     .status(FileInfo.FileStatus.PROCESSING)
                     .build();
 
-            // 先保存到数据库（初始状态为PROCESSING�?
+            // 先保存到数据库（初始状态为 PROCESSING）。
             fileInfoService.saveFileInfo(fileInfo);
 
-            // 上传�?MinIO
+            // 上传到 MinIO。
             String objectName = generateObjectName(fileId, fileType);
             String minioPath = minioService.uploadFile(file, objectName);
             log.info("MinIO 上传完成: fileId={}", fileId);
@@ -139,14 +139,14 @@ public class FileManageService {
             fileInfo.setStatus(FileInfo.FileStatus.SUCCESS);
             fileInfoService.updateFileInfo(fileInfo);
 
-            // 根据文件类型进行不同的处�?
+            // 根据文件类型进行不同的处理。
             if (isTextFile(fileType)) {
                 try {
                     var parseResult = fileParserService.parseFile(file);
                     String fullText = parseResult.getFullText();
                     String extractedText = parseResult.getTruncatedText();
 
-                    log.info("文件解析完成: fileId={}, 全量文本长度: {}, 截断后长�? {}",
+                    log.info("文件解析完成: fileId={}, 全量文本长度: {}, 截断后长度: {}",
                             fileId, fullText.length(), extractedText.length());
 
                     // 存储截断后的文本用于展示
@@ -163,7 +163,7 @@ public class FileManageService {
                             log.info("大文件向量化完成: fileId={}", fileId);
                         } catch (Exception e) {
                             log.error("大文件向量化失败: fileId={}", fileId, e);
-                            // 向量化失败不影响文件上传，embed 保持�?0
+                            // 向量化失败不影响文件上传，embed 保持 0。
                         }
                     }
                 } catch (Exception e) {
@@ -211,7 +211,7 @@ public class FileManageService {
      * 识别图片内容
      *
      * @param file 图片文件
-     * @return 图片内容的详细描�?
+     * @return 图片内容的详细描述
      */
     private String image2Text(MultipartFile file) {
         try (InputStream inputStream = file.getInputStream()) {
@@ -221,7 +221,7 @@ public class FileManageService {
                 throw new RuntimeException("图片文件内容为空");
             }
 
-            // 使用多模态模型识别图�?
+            // 使用多模态模型识别图片。
             ByteArrayResource imageResource = new ByteArrayResource(imageBytes);
             var userMessage = UserMessage.builder()
                     .text("请描述这张图片的内容，包括场景、对象、布局、颜色、文字信息，直接输出纯文本描述，不要多余说明，不要增加任何特殊符号，特别是换行符")
@@ -249,30 +249,30 @@ public class FileManageService {
     public FileInfo getFileInfo(String fileId) {
         FileInfo fileInfo = fileInfoService.getFileInfoById(fileId);
         if (fileInfo == null) {
-            throw new IllegalArgumentException("文件不存�? " + fileId);
+            throw new IllegalArgumentException("文件不存在 " + fileId);
         }
         recoverExtractedTextIfNeeded(fileInfo);
         return fileInfo;
     }
 
     /**
-     * 获取文件处理状态（用于查询处理进度�?
+     * 获取文件处理状态（用于查询处理进度）。
      *
      * @param fileId 文件ID
-     * @return 处理状态描�?
+     * @return 处理状态描述
      */
     public String getFileProcessingStatus(String fileId) {
         FileInfo fileInfo = getFileInfo(fileId);
 
         switch (fileInfo.getStatus()) {
             case PROCESSING:
-                return "文件正在处理�?..";
+                return "文件正在处理中...";
             case SUCCESS:
-                return "文件处理完成，可以查看内�?;
+                return "文件处理完成，可以查看内容";
             case FAILED:
                 return "文件处理失败，请重试";
             default:
-                return "未知状�?;
+                return "未知状态";
         }
     }
 
@@ -286,19 +286,19 @@ public class FileManageService {
         FileInfo fileInfo = getFileInfo(fileId);
 
         if (fileInfo.getStatus() != FileInfo.FileStatus.SUCCESS) {
-            throw new IllegalStateException("文件尚未处理完成，当前状�? " + fileInfo.getStatus());
+            throw new IllegalStateException("文件尚未处理完成，当前状态 " + fileInfo.getStatus());
         }
 
         String content = fileInfo.getExtractedText();
         if (content == null || content.trim().isEmpty()) {
-            return "该文件没有可识别的内�?;
+            return "该文件没有可识别的内容";
         }
 
         return content;
     }
 
     /**
-     * 检查文件是否存�?
+     * 检查文件是否存在。
      *
      * @param fileId 文件ID
      * @return 是否存在
@@ -316,11 +316,11 @@ public class FileManageService {
     public void deleteFile(String fileId) {
         FileInfo fileInfo = fileInfoService.getFileInfoById(fileId);
         if (fileInfo == null) {
-            throw new IllegalArgumentException("文件不存�? " + fileId);
+            throw new IllegalArgumentException("文件不存在 " + fileId);
         }
 
         try {
-            // �?MinIO 删除
+            // 从 MinIO 删除。
             if (fileInfo.getMinioPath() != null) {
                 String objectName = extractObjectName(fileInfo.getMinioPath());
                 minioService.deleteFile(objectName);
@@ -355,12 +355,12 @@ public class FileManageService {
         try {
             fileInfoService.deleteFileInfo(fileId);
         } catch (Exception e) {
-            log.warn("会话文件元数据清理失�? fileId={}, reason={}", fileId, e.getClass().getSimpleName());
+            log.warn("会话文件元数据清理失败 fileId={}, reason={}", fileId, e.getClass().getSimpleName());
         }
     }
 
     /**
-     * 获取所有文件列�?     *
+     * 获取所有文件列??     *
      * @return 文件列表
      */
     public Map<String, FileInfo> getAllFiles() {
@@ -379,7 +379,7 @@ public class FileManageService {
     }
 
     /**
-     * 清理所有文件（用于测试�?
+     * 清理所有文件（用于测试??
      */
     @Transactional(rollbackFor = Exception.class)
     public void clearAll() {
@@ -396,7 +396,7 @@ public class FileManageService {
     }
 
     /**
-     * 从文件名中提取文件类�?
+     * 从文件名中提取文件类??
      */
     private String getFileType(String fileName) {
         if (fileName == null || fileName.isEmpty()) {
@@ -415,7 +415,7 @@ public class FileManageService {
         }
         String filename = safeFilename(file.getOriginalFilename());
         if (StringUtils.isBlank(filename) || filename.length() > MAX_FILENAME_LENGTH) {
-            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超�?160 个字�?);
+            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超过 160 个字符");
         }
         if (file.getSize() > maxFileSizeBytes) {
             throw new AppException("UPLOAD_0003", "上传文件超过大小限制");
@@ -451,7 +451,7 @@ public class FileManageService {
     }
 
     /**
-     * 判断是否为文本文�?
+     * 判断是否为文本文??
      */
     private boolean isTextFile(String fileType) {
         return ("pdf".equalsIgnoreCase(fileType) ||
@@ -488,14 +488,14 @@ public class FileManageService {
                     : text;
             fileInfo.setExtractedText(recoveredText);
             fileInfoService.updateFileInfo(fileInfo);
-            log.info("文件文本内容已补充恢�? fileId={}, 文本长度: {}", fileInfo.getFileId(), recoveredText.length());
+            log.info("文件文本内容已补充恢复 fileId={}, 文本长度: {}", fileInfo.getFileId(), recoveredText.length());
         } catch (Exception e) {
             log.warn("文件文本内容恢复失败: fileId={}, reason={}", fileInfo.getFileId(), e.getClass().getSimpleName());
         }
     }
 
     /**
-     * 判断是否为图片文�?
+     * 判断是否为图片文??
      */
     private boolean isImageFile(String fileType) {
         return ("jpg".equalsIgnoreCase(fileType) ||
@@ -557,13 +557,13 @@ public class FileManageService {
      * @param text   文本内容
      */
     private void processLargeFileEmbedding(String fileId, String text) {
-        log.info("开始处理大文件向量�? fileId={}, 文本长度: {}", fileId, text.length());
+        log.info("开始处理大文件向量化 fileId={}, 文本长度: {}", fileId, text.length());
 
         // 1. 创建文档
         Document document = new Document(text);
         List<Document> documents = List.of(document);
 
-        // 2. 切分文档（使�?00字符�?0重叠�?
+        // 2. 切分文档（使??00字符??0重叠??
         OverlapParagraphTextSplitter splitter = new OverlapParagraphTextSplitter(500, 50);
         List<Document> chunks = splitter.apply(documents);
         log.info("文档切分完成: fileId={}, 切分数量: {}", fileId, chunks.size());

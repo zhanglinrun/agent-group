@@ -108,12 +108,12 @@ public class AcademicProjectService {
         }
         boolean fileExists = project.getFiles().stream().anyMatch(file -> fileId.equals(file.getFileId()));
         if (!fileExists) {
-            throw new AppException("ACADEMIC_PROJECT_0004", "文件不属于当前项目);
+            throw new AppException("ACADEMIC_PROJECT_0004", "文件不属于当前项目");
         }
         AcademicProjectPatch patch = new AcademicProjectPatch();
         patch.setPatchId(nextId("PATCH"));
         patch.setFileId(fileId);
-        patch.setTitle(limit(firstText(safeRequest.getTitle(), "学术写作修改建议"), 160));
+        patch.setTitle(limit(firstText(safeRequest.getTitle(), "内容修改建议"), 160));
         patch.setReason(limit(safeRequest.getReason(), 1000));
         patch.setBeforeText(limit(safeRequest.getBeforeText(), DEFAULT_TEXT_LIMIT));
         patch.setAfterText(limit(safeRequest.getAfterText(), DEFAULT_TEXT_LIMIT));
@@ -170,7 +170,7 @@ public class AcademicProjectService {
         validateUserId(userId);
         String safeProjectId = safe(projectId);
         return projectRepository.queryProject(userId, safeProjectId)
-                .orElseThrow(() -> new AppException("ACADEMIC_PROJECT_0006", "学术项目不存在或无权访问"));
+                .orElseThrow(() -> new AppException("ACADEMIC_PROJECT_0006", "任务项目不存在或无权访问"));
     }
 
     private AcademicProjectResponse toResponse(AcademicProject project) {
@@ -240,7 +240,7 @@ public class AcademicProjectService {
 
     private void validateUserId(String userId) {
         if (!StringUtils.hasText(userId)) {
-            throw new AppException("AUTH_0001", "用户未登当);
+            throw new AppException("AUTH_0001", "用户未登录");
         }
     }
 

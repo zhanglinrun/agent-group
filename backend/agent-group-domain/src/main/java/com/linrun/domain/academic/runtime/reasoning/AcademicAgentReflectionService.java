@@ -9,12 +9,12 @@ import java.util.List;
 
 /**
  * Agent 反思与自我评估服务
- * 在关键节点评估计划执行质量、识别改进空�?
+ * 在关键节点评估计划执行质量、识别改进空间。
  */
 public class AcademicAgentReflectionService {
 
     /**
-     * 对计划执行结果进行反�?
+     * 对计划执行结果进行反思。
      */
     public ReflectionResult reflect(AcademicAgentPlan plan, List<AcademicPlanStep> completedSteps) {
         if (plan == null || completedSteps == null || completedSteps.isEmpty()) {
@@ -62,18 +62,18 @@ public class AcademicAgentReflectionService {
                 .filter(s -> AcademicPlanLifecycleService.STATUS_BLOCKED.equals(s.getStatus()))
                 .count();
         if (failedSteps > 0) {
-            improvements.add("本" + failedSteps + " 个步骤执行失败，需要调整策�?);
+            improvements.add("有 " + failedSteps + " 个步骤执行失败，需要调整策略");
         }
 
         if (plan.getSteps().size() > 8) {
-            improvements.add("计划步骤过多） + plan.getSteps().size() + "步），可以合并相似步验);
+            improvements.add("计划步骤过多（" + plan.getSteps().size() + " 步），可以合并相似步骤");
         }
 
         long emptyOutputSteps = completedSteps.stream()
                 .filter(s -> s.getNote() == null || s.getNote().trim().isEmpty())
                 .count();
         if (emptyOutputSteps > completedSteps.size() / 2) {
-            improvements.add("超过半数步骤缺少输出，可能需要调整执行方开);
+            improvements.add("超过半数步骤缺少输出，可能需要调整执行方式");
         }
 
         return improvements;
@@ -85,7 +85,7 @@ public class AcademicAgentReflectionService {
     private String generateReflectionSummary(double quality, List<String> improvements, boolean needReplan) {
         StringBuilder summary = new StringBuilder();
         
-        summary.append("执行质量评分）).append(String.format("%.1f", quality * 100)).append("/100\n");
+        summary.append("执行质量评分：").append(String.format("%.1f", quality * 100)).append("/100\n");
         
         if (quality >= 0.9) {
             summary.append("质量等级：优秀\n");
@@ -105,9 +105,9 @@ public class AcademicAgentReflectionService {
         }
 
         if (needReplan) {
-            summary.append("\n建议：根数据反思结果调整后继续计�?);
+            summary.append("\n建议：根据反思结果调整后继续计划。");
         } else {
-            summary.append("\n建议：当前计划执行良好，可继继续按原计划进行);
+            summary.append("\n建议：当前计划执行良好，可以继续按原计划进行。");
         }
 
         return summary.toString();
@@ -131,7 +131,7 @@ public class AcademicAgentReflectionService {
         }
 
         public static ReflectionResult empty() {
-            return new ReflectionResult(0.0, new ArrayList<>(), false, "无数据);
+            return new ReflectionResult(0.0, new ArrayList<>(), false, "无数据");
         }
 
         public double getQuality() {

@@ -149,7 +149,40 @@ export function streamEventToTimelineItem(
       type: "run",
       status: "running",
       title: "运行开始",
-      content: `${text(data.taskType) || "chat"} · ${text(data.model) || "bear-doctor-agent"}`
+      content: `${text(data.taskType) || "chat"} · ${text(data.model) || "qwen3.7-plus"}`
+    };
+  }
+  if (eventName === "task_analysis") {
+    return {
+      type: "task_analysis",
+      status: "thinking",
+      title: "任务分析",
+      taskType: text(data.taskType),
+      difficulty: text(data.difficulty),
+      estimatedSteps: Number(data.estimatedSteps || 0),
+      needsMultipleSources: Boolean(data.needsMultipleSources),
+      content: text(data.summary)
+    };
+  }
+  if (eventName === "mode_selection") {
+    return {
+      type: "mode_selection",
+      status: "planned",
+      title: "模式选择",
+      executionMode: text(data.executionMode),
+      modeFamily: text(data.modeFamily),
+      agentType: text(data.agentType),
+      content: text(data.reason) || text(data.summary)
+    };
+  }
+  if (eventName === "agent_routing") {
+    return {
+      type: "agent_routing",
+      status: "planned",
+      title: "Agent 协作",
+      agentType: text(data.agentType),
+      selectedAgents: Array.isArray(data.selectedAgents) ? data.selectedAgents.map(text).filter(Boolean) : [],
+      content: text(data.routingReason)
     };
   }
   if (eventName === "plan_delta") {
@@ -164,19 +197,29 @@ export function streamEventToTimelineItem(
       flowStages: Array.isArray(data.flowStages) ? data.flowStages : []
     };
   }
+  if (eventName === "replan_delta") {
+    return {
+      type: "replan",
+      status: "replanned",
+      title: "动态重规划",
+      content: text(data.reason) || "计划已调整",
+      oldPlan: Array.isArray(data.oldPlan) ? data.oldPlan : [],
+      newPlan: Array.isArray(data.newPlan) ? data.newPlan : []
+    };
+  }
   if (eventName === "project_context") {
     const fileCount = Number(data.fileCount || 0);
     const pendingPatchCount = Number(data.pendingPatchCount || 0);
     return {
       type: "project",
       status: "completed",
-      title: text(data.title) || "学术项目上下文",
+      title: text(data.title) || "项目上下文",
       content: [
-        text(data.researchQuestion) ? `研究问题：${text(data.researchQuestion)}` : "",
+        text(data.researchQuestion) ? `任务问题：${text(data.researchQuestion)}` : "",
         text(data.targetVenue) ? `目标：${text(data.targetVenue)}` : "",
         fileCount ? `材料 ${fileCount} 份` : "",
         pendingPatchCount ? `待确认补丁 ${pendingPatchCount} 个` : ""
-      ].filter(Boolean).join(" 路 ")
+      ].filter(Boolean).join(" · ")
     };
   }
   if (eventName === "flow_delta") {
@@ -195,6 +238,8 @@ export function streamEventToTimelineItem(
       toolCallId: text(data.toolCallId),
       toolName: text(data.toolName) || "工具调用",
       detail: text(data.action) || text(data.argumentsJson),
+      action: text(data.action),
+      argumentsJson: text(data.argumentsJson),
       status: "running"
     };
   }
@@ -205,8 +250,22 @@ export function streamEventToTimelineItem(
       toolCallId: text(data.toolCallId),
       toolName: text(data.toolName) || "工具调用",
       detail: text(data.resultSummary) || text(data.errorMessage),
+      resultJson: text(data.resultJson),
+      errorMessage: text(data.errorMessage),
       status: normalizeTimelineStatus(data.status, "completed"),
       latencyMillis: Number(data.latencyMillis ?? 0)
+    };
+  }
+  if (eventName === "diagnosis_delta") {
+    const metrics = asObject(data.metrics);
+    return {
+      type: "diagnosis",
+      status: text(data.level).toLowerCase() === "ok" ? "completed" : "blocked",
+      title: "运行诊断",
+      level: text(data.level),
+      content: text(data.summary),
+      issues: Array.isArray(data.issues) ? data.issues : [],
+      metrics
     };
   }
   if (eventName === "llm_delta") {

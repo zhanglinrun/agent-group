@@ -19,7 +19,7 @@ spring:
       chat:
         completions-path: /chat/completions
         options:
-          model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.6-plus}
+          model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.7-plus}
           temperature: 0.2
           stream-usage: true
       embedding:
@@ -159,7 +159,7 @@ agent:
       admin-password: ${AGENT_GROUP_ADMIN_PASSWORD:admin_dev}
       operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
       operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
-      mock-payment-enabled: ${AGENT_GROUP_MOCK_PAYMENT_ENABLED:false}
+      mock-payment-enabled: ${AGENT_GROUP_MOCK_PAYMENT_ENABLED:true}
       demo-user-enabled: ${AGENT_GROUP_DEMO_USER_ENABLED:false}
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}

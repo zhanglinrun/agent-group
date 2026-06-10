@@ -34,9 +34,9 @@ public class DynamicPgVectorStoreFactory {
         boolean tableExists = tableExists(actualTableName);
 
         if (tableExists) {
-            log.info("向量�?[{}] 已存在，开始直接加载PgVectorStore", actualTableName);
+            log.info("向量表[{}] 已存在，开始直接加载 PgVectorStore", actualTableName);
         } else {
-            log.info("向量�?[{}] 不存在，将自动创建并初始化PgVectorStore", actualTableName);
+            log.info("向量表[{}] 不存在，将自动创建并初始化 PgVectorStore", actualTableName);
         }
 
         PgVectorStore pgVectorStore = PgVectorStore.builder(jdbcTemplate, embeddingModel)
@@ -73,7 +73,7 @@ public class DynamicPgVectorStoreFactory {
             Boolean exists = new JdbcTemplate(dataSource).queryForObject(checkSql, Boolean.class, tableName);
             return Boolean.TRUE.equals(exists);
         } catch (Exception e) {
-            log.error("检查向量表 [{}] 是否存在时发生异�?, tableName, e);
+            log.error("检查向量表 [{}] 是否存在时发生异常", tableName, e);
             return false;
         }
     }

@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * AI PPT 模板实体�?
+ * AI PPT 模板实体??
  * 对应数据库表 ai_ppt_template
  */
 @Data
@@ -41,13 +41,13 @@ public class AiPptTemplate {
     private String templateName;
 
     /**
-     * 模板说明（给AI理解�?
+     * 模板说明（给AI理解??
      */
     @TableField("template_desc")
     private String templateDesc;
 
     /**
-     * 模板结构JSON（页�?占位符）
+     * 模板结构JSON（页??占位符）
      */
     @TableField("template_schema")
     private String templateSchema;
@@ -59,7 +59,7 @@ public class AiPptTemplate {
     private String filePath;
 
     /**
-     * 风格标签：科技,商务,简�?
+     * 风格标签：科技,商务,简??
      */
     @TableField("style_tags")
     private String styleTags;

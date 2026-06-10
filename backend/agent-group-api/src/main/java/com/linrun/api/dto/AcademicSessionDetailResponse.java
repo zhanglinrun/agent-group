@@ -17,6 +17,7 @@ public class AcademicSessionDetailResponse implements Serializable {
 
     @Data
     public static class Message implements Serializable {
+        private String messageId;
         private String role;
         private String content;
         private String imageUrl;

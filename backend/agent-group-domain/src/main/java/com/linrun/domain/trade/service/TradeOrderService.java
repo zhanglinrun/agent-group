@@ -60,7 +60,7 @@ public class TradeOrderService {
 
     public void markPaySuccess(TradeOrderEntity order, PayOrderEntity payOrder, String outTradeNo, LocalDateTime payTime) {
         if (!order.getOrderId().equals(payOrder.getOrderId())) {
-            throw new AppException("TRADE_0012", "订单和支付单不匹�?);
+            throw new AppException("TRADE_0012", "订单和支付单不匹配");
         }
         if (!StringUtils.hasText(outTradeNo)) {
             throw new AppException("0001", "外部交易单号不能为空");
@@ -71,7 +71,7 @@ public class TradeOrderService {
 
     public void closeUnpaidOrder(TradeOrderEntity order, PayOrderEntity payOrder, LocalDateTime closeTime) {
         if (!order.getOrderId().equals(payOrder.getOrderId())) {
-            throw new AppException("TRADE_0012", "订单和支付单不匹�?);
+            throw new AppException("TRADE_0012", "订单和支付单不匹配");
         }
         order.close(closeTime);
         payOrder.close();
@@ -79,7 +79,7 @@ public class TradeOrderService {
 
     public void refundPaidOrder(TradeOrderEntity order, PayOrderEntity payOrder) {
         if (!order.getOrderId().equals(payOrder.getOrderId())) {
-            throw new AppException("TRADE_0012", "订单和支付单不匹�?);
+            throw new AppException("TRADE_0012", "订单和支付单不匹配");
         }
         order.refund();
         payOrder.refund();
@@ -93,10 +93,10 @@ public class TradeOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(command.getGoodsId())) {
-            throw new AppException("0001", "额度包编号不能为�?);
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (!StringUtils.hasText(command.getGoodsName())) {
-            throw new AppException("0001", "额度包名称不能为�?);
+            throw new AppException("0001", "额度包名称不能为空");
         }
         if (command.getBuyType() == null) {
             throw new AppException("0001", "购买类型不能为空");

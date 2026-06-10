@@ -41,7 +41,7 @@ public class TradeOrderEntity {
             return;
         }
         if (!TradeOrderStatusEnumVO.PAY_WAIT.equals(orderStatus)) {
-            throw new AppException("TRADE_0007", "当前订单状态不能改为支付成�?);
+            throw new AppException("TRADE_0007", "当前订单状态不能改为支付成功");
         }
         this.payTime = payTime;
         this.orderStatus = TradeOrderStatusEnumVO.PAY_SUCCESS;
@@ -66,7 +66,7 @@ public class TradeOrderEntity {
         }
         if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
                 && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)) {
-            throw new AppException("TRADE_0010", "当前订单状态不能完成交明);
+            throw new AppException("TRADE_0010", "当前订单状态不能完成交易");
         }
         this.orderStatus = TradeOrderStatusEnumVO.DEAL_DONE;
     }
@@ -76,7 +76,7 @@ public class TradeOrderEntity {
             return;
         }
         if (!TradeOrderStatusEnumVO.CREATE.equals(orderStatus) && !TradeOrderStatusEnumVO.PAY_WAIT.equals(orderStatus)) {
-            throw new AppException("TRADE_0011", "当前订单状态不能关�?);
+            throw new AppException("TRADE_0011", "当前订单状态不能关闭");
         }
         this.closeTime = closeTime;
         this.orderStatus = TradeOrderStatusEnumVO.CLOSED;
@@ -89,7 +89,7 @@ public class TradeOrderEntity {
         if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
                 && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)
                 && !TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
-            throw new AppException("TRADE_0015", "当前订单状态不能退�?);
+            throw new AppException("TRADE_0015", "当前订单状态不能退款");
         }
         this.orderStatus = TradeOrderStatusEnumVO.REFUNDED;
     }

@@ -62,7 +62,7 @@ describe("workspace navigation view model", () => {
       workspaceProfiles: [
         {
           id: "trade",
-          availableTools: ["trade_audit"],
+          availableTools: [],
           missingTools: ["data_analysis"],
           runEndpoint: "/api/v1/academic/stream",
           historyEndpoint: "/api/v1/trade/order/my"
@@ -77,7 +77,7 @@ describe("workspace navigation view model", () => {
 
     expect(trade).toMatchObject({
       id: "trade",
-      pageStatus: "partial",
+      pageStatus: "pending",
       primaryActionLabel: "",
       inputKinds: ["quota"],
       dedicatedRun: false

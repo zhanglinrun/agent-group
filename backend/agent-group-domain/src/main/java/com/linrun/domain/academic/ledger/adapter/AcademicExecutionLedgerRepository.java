@@ -5,6 +5,7 @@ import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +38,10 @@ public interface AcademicExecutionLedgerRepository {
     List<AcademicToolInvocation> queryToolInvocations(String runId);
 
     List<AcademicArtifact> queryArtifactsByRun(String runId);
+
+    default int deleteSessionRunsSince(String userId, String sessionId, LocalDateTime startedAt) {
+        return 0;
+    }
 }
 
 

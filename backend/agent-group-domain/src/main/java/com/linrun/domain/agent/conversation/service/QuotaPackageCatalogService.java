@@ -37,11 +37,11 @@ public class QuotaPackageCatalogService {
 
     public QuotaProduct queryPackageDetail(String goodsId) {
         if (!StringUtils.hasText(goodsId)) {
-            throw new AppException("0001", "额度包编号不能为�?);
+            throw new AppException("0001", "额度包编号不能为空");
         }
         QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(goodsId)
                 .filter(this::isUpgradeProduct)
-                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下构));
+                .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下架"));
         return enrichGroupBuy(product);
     }
 

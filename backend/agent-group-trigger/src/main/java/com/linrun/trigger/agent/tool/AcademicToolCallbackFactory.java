@@ -206,9 +206,9 @@ public class AcademicToolCallbackFactory {
     private static String description(AcademicToolDefinition definition) {
         StringBuilder builder = new StringBuilder();
         builder.append(definition.getDescription());
-        builder.append("\n\n类别�?).append(definition.getCategory());
-        builder.append("；来源：").append(definition.getSource()).append("�?);
-        builder.append("\n返回值是 JSON，包�?success、result、artifactIds 和错误信息�?);
+        builder.append("\n\n类别：").append(definition.getCategory());
+        builder.append("；来源：").append(definition.getSource()).append("。");
+        builder.append("\n返回值是 JSON，包含 success、result、artifactIds 和错误信息。");
         return builder.toString();
     }
 

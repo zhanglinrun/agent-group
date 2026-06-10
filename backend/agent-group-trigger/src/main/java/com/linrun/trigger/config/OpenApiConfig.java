@@ -17,7 +17,7 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("Agent Group API")
-                        .description("Login, quota, group-buy, payment and bear-doctor-agent compatible APIs.")
+                        .description("Login, quota, group-buy, payment and agent workspace compatible APIs.")
                         .version("1.0.0")
                         .license(new License().name("internal")))
                 .servers(List.of(new Server().url("/").description("current server")));

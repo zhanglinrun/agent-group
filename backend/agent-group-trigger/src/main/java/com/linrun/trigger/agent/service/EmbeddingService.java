@@ -46,24 +46,24 @@ public class EmbeddingService {
         try {
             vectorStore = pgVectorStoreFactory.createPgVectorStore("vector_file_info");
         } catch (Exception e) {
-            log.warn("PgVector 初始化失败，文件问答将退回全文读�? {}", e.getMessage());
+            log.warn("PgVector 初始化失败，文件问答将退回全文读取 {}", e.getMessage());
             vectorStore = null;
         }
     }
 
     /**
-     * 向量�?
+     * 向量化。
      */
     public List<float[]> embed(List<Document> documents) {
         return documents.stream().map(document -> embeddingModel.embed(document.getText())).collect(Collectors.toList());
     }
 
     /**
-     * 存储向量�?
+     * 存储向量。
      */
     public void embedAndStore(List<Document> documents) {
         if (vectorStore == null) {
-            log.warn("PgVector 不可用，跳过文件向量�?);
+            log.warn("PgVector 不可用，跳过文件向量化");
             return;
         }
         for (int i = 0; i < documents.size(); i += EMBEDDING_BATCH_SIZE) {
@@ -73,18 +73,18 @@ public class EmbeddingService {
     }
 
     /**
-     * RAG 检�?- 根据文件ID和问题检索相关文�?
+     * RAG 检索 - 根据文件ID和问题检索相关文档。
      *
      * @param fileId   文件ID
      * @param question 用户问题
      * @return 相关文档内容列表
      */
     public List<String> ragRetrieve(String fileId, String question) {
-        log.info("RAG 检索开�? fileId={}, question={}", fileId, question);
+        log.info("RAG 检索开始 fileId={}, question={}", fileId, question);
 
         if (StringUtils.isBlank(fileId) || StringUtils.isBlank(question)) {
-            log.warn("RAG 检索参数为�? fileId={}, question={}", fileId, question);
-            return Collections.singletonList("检索参数不能为�?);
+            log.warn("RAG 检索参数为空 fileId={}, question={}", fileId, question);
+            return Collections.singletonList("检索参数不能为空");
         }
         if (vectorStore == null) {
             return Collections.singletonList("向量库不可用，请直接读取文件全文");
@@ -112,7 +112,7 @@ public class EmbeddingService {
             List<Query> expandedQueries = queryExpander.expand(compressed);
             log.info("扩展后的Query：{}", expandedQueries);
 
-            // 3. 语义向量检�?- 使用 fileid 过滤
+            // 3. 语义向量检索 - 使用 fileid 过滤。
             List<String> results = new ArrayList<>();
             Set<String> seenIds = new HashSet<>();
 
@@ -134,12 +134,12 @@ public class EmbeddingService {
                 }
             }
 
-            log.info("RAG 检索完�? fileId={}, 返回结果�?{}", fileId, results.size());
+            log.info("RAG 检索完成 fileId={}, 返回结果数={}", fileId, results.size());
             return results;
 
         } catch (Exception e) {
-            log.error("RAG 检索失�? fileId={}, question={}", fileId, question, e);
-            return Collections.singletonList("RAG 检索失�? " + e.getMessage());
+            log.error("RAG 检索失败 fileId={}, question={}", fileId, question, e);
+            return Collections.singletonList("RAG 检索失败：" + e.getMessage());
         }
     }
 }

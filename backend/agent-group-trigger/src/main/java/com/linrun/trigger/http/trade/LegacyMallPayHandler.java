@@ -85,7 +85,7 @@ public class LegacyMallPayHandler {
 
     public String groupBuyNotify(NotifyRequest request) {
         if (request == null || request.getOutTradeNoList() == null || request.getOutTradeNoList().isEmpty()) {
-            throw new AppException("0001", "???????????");
+            throw new AppException("0001", "成团通知订单列表不能为空");
         }
         tradeOrderRepository.updateGroupSettledByOrderIds(request.getOutTradeNoList());
         return "success";
@@ -137,7 +137,7 @@ public class LegacyMallPayHandler {
 
     public RefundOrderResponse refundOrder(RefundOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOrderId())) {
-            throw new AppException("0001", "????????");
+            throw new AppException("0001", "订单编号不能为空");
         }
         boolean success = tradeCompensationService.refundOrCloseOrder(
                 request.getUserId(), request.getOrderId(), resolveRefundReason(request));
@@ -145,13 +145,13 @@ public class LegacyMallPayHandler {
         RefundOrderResponse response = new RefundOrderResponse();
         response.setSuccess(success);
         response.setOrderId(request.getOrderId());
-        response.setMessage(success ? "????" : "?????????????");
+        response.setMessage(success ? "退款处理成功" : "订单状态暂不支持退款");
         return response;
     }
 
     public String activePayNotify(String outTradeNo) {
         if (!StringUtils.hasText(outTradeNo)) {
-            throw new AppException("0001", "?????????");
+            throw new AppException("0001", "外部交易单号不能为空");
         }
         ReconcilePaymentRequest request = new ReconcilePaymentRequest();
         request.setOrderId(outTradeNo);
@@ -242,13 +242,13 @@ public class LegacyMallPayHandler {
             throw new AppException("0001", "请求参数不能为空");
         }
         if (!StringUtils.hasText(request.getUserId())) {
-            throw new AppException("0001", "????????");
+            throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getProductId())) {
-            throw new AppException("0001", "?????????");
+            throw new AppException("0001", "商品编号不能为空");
         }
         if (isGroupBuy(request) && !StringUtils.hasText(request.getActivityId())) {
-            throw new AppException("0001", "????????");
+            throw new AppException("0001", "拼团活动编号不能为空");
         }
     }
 
@@ -269,7 +269,7 @@ public class LegacyMallPayHandler {
     }
 
     private String resolveRefundReason(RefundOrderRequest request) {
-        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "??????";
+        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户发起退款";
     }
 
     private String formBody(Map<String, String> params) {

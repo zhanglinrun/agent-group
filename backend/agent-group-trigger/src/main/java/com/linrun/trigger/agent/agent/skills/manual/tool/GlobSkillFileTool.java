@@ -23,7 +23,8 @@ public class GlobSkillFileTool extends SkillFileToolSupport
 
     public static final String NAME = "glob_skill_files";
     public static final String DESCRIPTION = """
-            在已注册技能目录内�?glob 模式查找文件�?            例如 pattern=references/**/*.md �?scripts/*.py�?            """;
+            在已注册技能目录内按 glob 模式查找文件。例如 pattern=references/**/*.md 或 scripts/*.py。
+            """;
 
     public GlobSkillFileTool(SkillRegistry skillRegistry) {
         super(skillRegistry);
@@ -105,7 +106,7 @@ public class GlobSkillFileTool extends SkillFileToolSupport
 
     public record Request(
             @JsonProperty(value = "skill", required = true)
-            @JsonPropertyDescription("技能名�?)
+            @JsonPropertyDescription("技能名")
             String skill,
 
             @JsonProperty("path")
@@ -117,7 +118,7 @@ public class GlobSkillFileTool extends SkillFileToolSupport
             String pattern,
 
             @JsonProperty("max_results")
-            @JsonPropertyDescription("最大返回数量，默认 120，最�?300")
+            @JsonPropertyDescription("最大返回数量，默认 120，最多 300")
             Integer maxResults
     ) {
     }

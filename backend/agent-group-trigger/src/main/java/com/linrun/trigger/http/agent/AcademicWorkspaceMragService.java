@@ -98,7 +98,7 @@ public class AcademicWorkspaceMragService {
         AcademicWorkspaceMragRunRequest safeRequest = request == null
                 ? new AcademicWorkspaceMragRunRequest()
                 : request;
-        String question = firstText(safeRequest.getQuestion(), safeRequest.getText(), "MRAG 多模态检索问�?);
+        String question = firstText(safeRequest.getQuestion(), safeRequest.getText(), "MRAG 多模态检索问题");
         UserAccount user = userAccountService.requireUserByToken(token);
         String userId = user.getUserId();
         preCheckQuota(userId);
@@ -144,7 +144,7 @@ public class AcademicWorkspaceMragService {
 
             results.addAll(callTools(context, scheduledTools));
             if (results.isEmpty() && !missingTools.isEmpty()) {
-                throw new AppException("MRAG_WORKSPACE_0001", "MRAG 工作区缺少可用工�? " + String.join(", ", missingTools));
+                throw new AppException("MRAG_WORKSPACE_0001", "MRAG 工作区缺少可用工具：" + String.join(", ", missingTools));
             }
 
             String summary = summary(results, missingTools);
@@ -158,8 +158,8 @@ public class AcademicWorkspaceMragService {
             throw e;
         } catch (Exception e) {
             ledgerService.finishRun(run, AcademicAgentRun.STATUS_FAILED, "", "MRAG_WORKSPACE_0002",
-                    firstText(e.getMessage(), "MRAG 工作区执行失�?), elapsed(startedAt));
-            throw new AppException("MRAG_WORKSPACE_0002", "MRAG 工作区执行失�? " + firstText(e.getMessage(), "未知错误"));
+                    firstText(e.getMessage(), "MRAG 工作区执行失败"), elapsed(startedAt));
+            throw new AppException("MRAG_WORKSPACE_0002", "MRAG 工作区执行失败：" + firstText(e.getMessage(), "未知错误"));
         }
     }
 
@@ -348,7 +348,7 @@ public class AcademicWorkspaceMragService {
                 .map(item -> firstText(item.getSummary(), item.getTitle(), item.getToolName()))
                 .filter(StringUtils::hasText)
                 .toList();
-        String summary = parts.isEmpty() ? "MRAG 工作区已完成工具运行" : String.join("�?, parts);
+        String summary = parts.isEmpty() ? "MRAG 工作区已完成工具运行" : String.join("；", parts);
         if (!missingTools.isEmpty()) {
             summary = summary + "；未配置工具: " + String.join(", ", missingTools);
         }

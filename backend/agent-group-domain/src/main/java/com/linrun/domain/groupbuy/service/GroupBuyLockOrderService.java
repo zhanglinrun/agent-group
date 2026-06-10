@@ -208,7 +208,7 @@ public class GroupBuyLockOrderService {
         if (repeatedLock != null) {
             validateRepeatedLock(request, repeatedLock);
             GroupBuyTeam team = groupBuyOrderLockRepository.queryTeamByTeamId(repeatedLock.getTeamId())
-                    .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完�?));
+                    .orElseThrow(() -> new AppException("GROUP_0009", "拼团锁单数据不完整"));
             TradePayOrderAggregate tradePayOrder = queryTradePayOrder(repeatedLock.getOrderId());
             CreatePaymentResponse payment = createGatewayPayment(
                     tradePayOrder.getTradeOrder(),
@@ -223,7 +223,7 @@ public class GroupBuyLockOrderService {
         QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         GroupBuyActivity activity = groupBuyActivityRepository.queryByActivityId(request.getActivityId())
-                .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存�?));
+                .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存在"));
 
         LocalDateTime now = LocalDateTime.now();
         GroupBuyLockContext lockContext = new GroupBuyLockContext(request, product, activity, now);
@@ -258,7 +258,7 @@ public class GroupBuyLockOrderService {
 
         GroupBuyTeam team = lockContext.getTeam();
         if (team == null) {
-            throw new AppException("GROUP_0003", "拼团队伍不存�?);
+            throw new AppException("GROUP_0003", "拼团队伍不存在");
         }
         try {
             groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
@@ -317,13 +317,13 @@ public class GroupBuyLockOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "额度包编号不能为�?);
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (!StringUtils.hasText(request.getActivityId())) {
             throw new AppException("0001", "活动编号不能为空");
         }
         if (!StringUtils.hasText(request.getIdempotentKey())) {
-            throw new AppException("0001", "幂等键不能为�?);
+            throw new AppException("0001", "幂等键不能为空");
         }
     }
 
@@ -331,7 +331,7 @@ public class GroupBuyLockOrderService {
         if (!request.getUserId().equals(repeatedLock.getUserId())
                 || !request.getGoodsId().equals(repeatedLock.getGoodsId())
                 || !request.getActivityId().equals(repeatedLock.getActivityId())) {
-            throw new AppException("GROUP_0020", "请勿重复提交不同的拼团订�?);
+            throw new AppException("GROUP_0020", "请勿重复提交不同的拼团订单");
         }
     }
 
@@ -362,10 +362,10 @@ public class GroupBuyLockOrderService {
 
     private TradePayOrderAggregate queryTradePayOrder(String orderId) {
         if (!StringUtils.hasText(orderId)) {
-            throw new AppException("GROUP_0010", "拼团锁单未关联交易订�?);
+            throw new AppException("GROUP_0010", "拼团锁单未关联交易订单");
         }
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 

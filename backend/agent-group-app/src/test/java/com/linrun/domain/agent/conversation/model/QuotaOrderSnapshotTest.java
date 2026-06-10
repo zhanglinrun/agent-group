@@ -12,12 +12,12 @@ class QuotaOrderSnapshotTest {
     void shouldUseDatabaseSafeDefaultsWhenActivityMissing() {
         QuotaProduct product = new QuotaProduct();
         product.setGoodsId("G10001");
-        product.setGoodsName("基础学术额度�?);
+        product.setGoodsName("基础额度包");
         product.setOriginPrice(new BigDecimal("2399.00"));
         product.setGroupPrice(new BigDecimal("2399.00"));
 
         QuotaOrderSnapshot snapshot = QuotaOrderSnapshot.captureQuote(
-                "S10001", "R10001", "U10001", "推荐额度�?, product);
+                "S10001", "R10001", "U10001", "推荐额度包", product);
 
         assertEquals("", snapshot.getActivityId());
         assertEquals("G10001", snapshot.getGoodsId());

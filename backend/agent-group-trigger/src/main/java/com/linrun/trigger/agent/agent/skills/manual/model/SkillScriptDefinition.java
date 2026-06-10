@@ -23,7 +23,7 @@ public record SkillScriptDefinition(
     }
 
     public String toSummaryLine() {
-        String desc = description == null || description.isBlank() ? "未提供说�? : description;
+        String desc = description == null || description.isBlank() ? "未提供说明" : description;
         return "- " + scriptName + " | runtime=" + runtime + " | path=" + relativePath + " | " + desc;
     }
 

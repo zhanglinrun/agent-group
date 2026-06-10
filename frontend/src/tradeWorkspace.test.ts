@@ -55,7 +55,7 @@ describe("trade workspace summary", () => {
     expect(tradeOrderStatusLabel("missing")).toBe("MISSING");
   });
 
-  it("builds an agent audit prompt from an order", () => {
+  it("builds a trade record summary from an order", () => {
     const prompt = buildTradeAuditPrompt({
       orderId: "O1001",
       teamId: "T1001",
@@ -67,8 +67,8 @@ describe("trade workspace summary", () => {
 
     expect(prompt).toContain("O1001");
     expect(prompt).toContain("T1001");
-    expect(prompt).toContain("trade_audit");
-    expect(prompt).toContain("Agent");
+    expect(prompt).toContain("交易记录核对摘要");
+    expect(prompt).toContain("不把交易核对包装成 Agent 能力");
     expect(prompt).toContain("暂不能发放额度");
   });
 
@@ -124,7 +124,7 @@ describe("trade workspace summary", () => {
     });
   });
 
-  it("builds an agent audit prompt from a trade history item", () => {
+  it("builds a trade record summary from a trade history item", () => {
     const prompt = buildTradeHistoryAuditPrompt({
       id: "O1001",
       title: "Agent quota",
@@ -139,6 +139,6 @@ describe("trade workspace summary", () => {
     expect(prompt).toContain("O1001");
     expect(prompt).toContain("T1001");
     expect(prompt).toContain("19.9");
-    expect(prompt).toContain("trade_audit");
+    expect(prompt).toContain("交易记录核对摘要");
   });
 });

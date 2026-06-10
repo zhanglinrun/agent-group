@@ -24,7 +24,7 @@ import org.springframework.util.StringUtils;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final String USER_AUTH_INFO = "请先登录后再访问该接�?;
+    private static final String USER_AUTH_INFO = "请先登录后再访问该接口";
     private static final String OPERATOR_AUTH_INFO = "请使用运营账号访问该接口";
 
     @Bean

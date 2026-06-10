@@ -44,7 +44,7 @@ class QuotaPackageCatalogServiceTest {
         QuotaProduct product = service.queryPackageDetail("G10002");
 
         assertEquals("G10002", product.getGoodsId());
-        assertEquals("论文阅读额度�?, product.getGoodsName());
+        assertEquals("长文档额度包", product.getGoodsName());
     }
 
     @Test
@@ -67,8 +67,8 @@ class QuotaPackageCatalogServiceTest {
         @Override
         public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
             return List.of(
-                    product("G10001", "基础额度�?),
-                    product("G10002", "论文阅读额度�?),
+                    product("G10001", "基础额度包"),
+                    product("G10002", "长文档额度包"),
                     membershipPlan("MEMBER_PLUS_MONTH", "Plus 会员"));
         }
 
@@ -85,11 +85,11 @@ class QuotaPackageCatalogServiceTest {
             product.setGoodsName(goodsName);
             product.setOriginPrice(new BigDecimal("29.90"));
             product.setGroupPrice(new BigDecimal("24.90"));
-            product.setQuotaAmount(new BigDecimal("40"));
+            product.setQuotaAmount(new BigDecimal("4990"));
             product.setProductType("QUOTA_PACKAGE");
-            product.setSpecSummary("适合学术问答、论文摘要和资料整理");
-            product.setRecommendReason("适合轻量学术任务");
-            product.setAfterSalePolicy("未使用额度可按规则退�?);
+            product.setSpecSummary("适合文件问答、长文档摘要和资料整理");
+            product.setRecommendReason("适合轻量 Agent 任务");
+            product.setAfterSalePolicy("未使用额度可按规则退款");
             return product;
         }
 
@@ -102,7 +102,7 @@ class QuotaPackageCatalogServiceTest {
             product.setProductType("MEMBERSHIP_PLAN");
             product.setSpecSummary("每月会员额度和自定义模型权益");
             product.setRecommendReason("适合高频使用学术助手");
-            product.setAfterSalePolicy("会员开通后按虚拟服务规则处理售�?);
+            product.setAfterSalePolicy("会员开通后按虚拟服务规则处理售后");
             return product;
         }
     }

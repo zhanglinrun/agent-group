@@ -28,10 +28,10 @@ public class SearchTool {
         return ToolCallbacks.from(new SearchTool(searchService));
     }
 
-    @Tool(name = "search", description = "联网搜索最新公开信息。用于政策、新闻、价格、规则、时间安排等需要实时核验的问题�?)
+    @Tool(name = "search", description = "联网搜索最新公开信息。用于政策、新闻、价格、规则、时间安排等需要实时核验的问题。")
     public String search(
             @ToolParam(description = "搜索关键词，尽量包含主体、年份和权威来源限定") String query,
-            @ToolParam(description = "最多返回结果数，默�?5，范�?1 �?5", required = false) Integer maxResults) {
+            @ToolParam(description = "最多返回结果数，默认 5，范围 1 到 5", required = false) Integer maxResults) {
         try {
             if (!StringUtils.hasText(query)) {
                 return objectMapper.writeValueAsString(Map.of("results", List.of()));

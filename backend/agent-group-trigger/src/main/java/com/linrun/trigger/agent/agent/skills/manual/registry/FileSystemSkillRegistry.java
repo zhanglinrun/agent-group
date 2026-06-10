@@ -13,10 +13,10 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * 文件系统技能注册表�?
+ * 文件系统技能注册表??
  *
  * 从本地文件系统加载技能。支持目录扫描，自动发现
- * 技能目录中�?SKILL.md 文件�?
+ * 技能目录中??SKILL.md 文件??
  *
  * @author bigchui
  * 

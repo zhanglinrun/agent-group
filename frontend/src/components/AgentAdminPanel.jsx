@@ -9,6 +9,9 @@ import {
   queryAgentAdminConfigs,
   queryAgentAdminRuntimeSnapshot,
   queryAgentAdminStatistics,
+  queryAcademicRunDiagnosis,
+  queryAcademicRuns,
+  queryAcademicSessions,
   upsertAgentAdminConfig
 } from "../services/api";
 
@@ -77,6 +80,9 @@ export default function AgentAdminPanel({
   const [runtimeSnapshot, setRuntimeSnapshot] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+  const [diagnosisReports, setDiagnosisReports] = useState([]);
+  const [diagnosisError, setDiagnosisError] = useState("");
   const [actionKey, setActionKey] = useState("");
   const [error, setError] = useState("");
   const [exportPreview, setExportPreview] = useState("");
@@ -139,8 +145,46 @@ export default function AgentAdminPanel({
     }
   };
 
+  const loadDiagnostics = async () => {
+    setDiagnosisLoading(true);
+    setDiagnosisError("");
+    try {
+      const sessionsRes = await queryAcademicSessions(6);
+      if (!apiSucceeded(sessionsRes)) {
+        throw new Error(normalizeApiMessage(sessionsRes?.info || sessionsRes?.message, "诊断会话读取失败"));
+      }
+      const sessions = Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
+      const runGroups = await Promise.all(
+        sessions.map((session) => queryAcademicRuns(session.sessionId, 3).catch(() => ({ data: [] })))
+      );
+      const runs = runGroups
+        .flatMap((res) => Array.isArray(res.data) ? res.data : [])
+        .filter((run) => run?.runId)
+        .slice(0, 8);
+      const reports = await Promise.all(
+        runs.map(async (run) => {
+          const res = await queryAcademicRunDiagnosis(run.runId);
+          return {
+            ...(res.data || {}),
+            taskType: run.taskType,
+            question: run.question,
+            status: run.status,
+            startedAt: run.startedAt
+          };
+        })
+      );
+      setDiagnosisReports(reports);
+    } catch (loadError) {
+      setDiagnosisReports([]);
+      setDiagnosisError(normalizeApiMessage(loadError.message, "Agent 诊断读取失败；请先确认用户已登录并产生过任务"));
+    } finally {
+      setDiagnosisLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadState(category).catch(() => {});
+    loadDiagnostics().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
@@ -347,6 +391,49 @@ export default function AgentAdminPanel({
           </div>
         </div>
       )}
+
+      <div className="agent-diagnosis-panel">
+        <div className="agent-diagnosis-head">
+          <div>
+            <strong>Agent 诊断</strong>
+            <span>基于运行账本统计耗时、工具成功率、异常和额度消耗</span>
+          </div>
+          <button type="button" onClick={loadDiagnostics} disabled={diagnosisLoading}>
+            {diagnosisLoading ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+            刷新诊断
+          </button>
+        </div>
+        {diagnosisError && <div className="mcp-error">{diagnosisError}</div>}
+        {!diagnosisLoading && diagnosisReports.length === 0 && !diagnosisError && (
+          <p className="mcp-empty">暂无运行诊断数据</p>
+        )}
+        <div className="agent-diagnosis-list">
+          {diagnosisReports.map((report) => (
+            <article className={`agent-diagnosis-card ${String(report.level || "OK").toLowerCase()}`} key={report.runId}>
+              <div>
+                <strong>{report.taskType || "chat"} · {report.level || "OK"}</strong>
+                <span>{report.question || report.runId}</span>
+              </div>
+              <div className="agent-diagnosis-metrics">
+                <span>耗时 <b>{Number(report.elapsedMs || 0)} ms</b></span>
+                <span>工具 <b>{Number(report.toolCallCount || 0)}</b></span>
+                <span>成功率 <b>{Math.round(Number(report.toolSuccessRate ?? 1) * 100)}%</b></span>
+                <span>产物 <b>{Number(report.artifactCount || 0)}</b></span>
+                <span>额度 <b>{Number(report.quotaConsumed || 0).toFixed(2)}</b></span>
+              </div>
+              {(report.issues || []).length > 0 ? (
+                <ul>
+                  {(report.issues || []).slice(0, 3).map((issue) => (
+                    <li key={`${report.runId}-${issue.code}`}>{issue.code}：{issue.message}</li>
+                  ))}
+                </ul>
+              ) : (
+                <small>{report.summary || "执行正常，未发现问题"}</small>
+              )}
+            </article>
+          ))}
+        </div>
+      </div>
 
       <div className="agent-admin-tabs">
         {CATEGORIES.map((item) => (

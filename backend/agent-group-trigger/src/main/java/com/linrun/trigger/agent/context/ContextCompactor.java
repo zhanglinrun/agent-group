@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 上下文压缩器�?
- * �?Agent 循环的每�?LLM 调用前执行，按需压缩内存中的消息列表�?
+ * 上下文压缩器??
+ * ??Agent 循环的每??LLM 调用前执行，按需压缩内存中的消息列表??
  *
  * Layer 1 (micro_compact): 每轮自动执行，替换旧工具结果和长参数为占位符
  * Layer 2 (auto_compact): token 超阈值时触发，用 LLM 摘要替换所有旧消息
@@ -36,18 +36,18 @@ public class ContextCompactor {
     }
 
     /**
-     * 压缩消息列表（向后兼容，不传 currentQuestion）�?
-     * 直接修改传入�?messages 列表�?
+     * 压缩消息列表（向后兼容，不传 currentQuestion）??
+     * 直接修改传入??messages 列表??
      */
     public void compact(List<Message> messages) {
         compact(messages, null);
     }
 
     /**
-     * 核心方法：压缩消息列表。直接修改传入的 messages 列表�?
+     * 核心方法：压缩消息列表。直接修改传入的 messages 列表??
      *
      * @param messages        消息列表
-     * @param currentQuestion 当前用户请求，用于引导摘要重点（可为 null�?
+     * @param currentQuestion 当前用户请求，用于引导摘要重点（可为 null??
      */
     public void compact(List<Message> messages, String currentQuestion) {
         if (messages == null || messages.size() <= 2) {
@@ -72,7 +72,7 @@ public class ContextCompactor {
         // 1. 构建 toolCallId -> toolName 映射
         Map<String, String> toolNameMap = buildToolNameMap(messages);
 
-        // 2. 收集 ToolResponseMessage 的索�?
+        // 2. 收集 ToolResponseMessage 的索??
         List<Integer> trmIndices = new ArrayList<>();
         for (int i = 0; i < messages.size(); i++) {
             if (messages.get(i) instanceof ToolResponseMessage) {
@@ -80,7 +80,7 @@ public class ContextCompactor {
             }
         }
 
-        // 3. 收集包含 ToolCall �?AssistantMessage 的索�?
+        // 3. 收集包含 ToolCall ??AssistantMessage 的索??
         List<Integer> assistantWithToolCallIndices = new ArrayList<>();
         for (int i = 0; i < messages.size(); i++) {
             if (messages.get(i) instanceof AssistantMessage am
@@ -89,7 +89,7 @@ public class ContextCompactor {
             }
         }
 
-        // 4. 替换旧的 ToolResponse 内容（保留最�?keepRecentTools 个）
+        // 4. 替换旧的 ToolResponse 内容（保留最??keepRecentTools 个）
         int trmKeepCount = Math.min(policy.keepRecentTools(), trmIndices.size());
         int trmClearCount = trmIndices.size() - trmKeepCount;
         for (int idx = 0; idx < trmClearCount; idx++) {
@@ -108,7 +108,7 @@ public class ContextCompactor {
                     continue;
                 }
 
-                // 替换长内容为占位符（必须是合�?JSON 格式，否则模型报错）
+                // 替换长内容为占位符（必须是合??JSON 格式，否则模型报错）
                 if (content != null && content.length() > policy.maxToolLength()) {
                     content = "{\"compacted\":true,\"tool\":\"" + toolName
                             + "\",\"originalLength\":" + content.length()
@@ -119,7 +119,7 @@ public class ContextCompactor {
             messages.set(msgIndex, new ToolResponseMessage(replaced));
         }
 
-        // 5. 替换旧的 AssistantMessage.ToolCall 长参数（保留最�?keepRecentTools 个）
+        // 5. 替换旧的 AssistantMessage.ToolCall 长参数（保留最??keepRecentTools 个）
         if (policy.maxToolLength() > 0) {
             int ascKeepCount = Math.min(policy.keepRecentTools(), assistantWithToolCallIndices.size());
             int ascClearCount = assistantWithToolCallIndices.size() - ascKeepCount;
@@ -152,8 +152,8 @@ public class ContextCompactor {
     // ==================== Layer 2: auto_compact ====================
 
     /**
-     * auto_compact：将所有旧消息（除 SystemMessage）交�?LLM 生成结构化摘要，然后替换�?
-     * 不保留任何旧消息、不提取 protected、不对齐边界�?
+     * auto_compact：将所有旧消息（除 SystemMessage）交??LLM 生成结构化摘要，然后替换??
+     * 不保留任何旧消息、不提取 protected、不对齐边界??
      */
     private void autoCompact(List<Message> messages, String currentQuestion) {
         // 1. 保留 SystemMessage（第一条）
@@ -164,14 +164,14 @@ public class ContextCompactor {
 
         int systemMsgCount = systemMessage != null ? 1 : 0;
 
-        // 2. 所有非 SystemMessage 的消息进入摘�?
+        // 2. 所有非 SystemMessage 的消息进入摘??
         List<Message> oldMessages = new ArrayList<>(
                 messages.subList(systemMsgCount, messages.size()));
 
         // 3. LLM 生成结构化摘要（失败时回退到截断策略）
         String summary = generateSummary(oldMessages, currentQuestion);
 
-        // 4. 重建消息列表：System �?Summary �?CurrentQuestion
+        // 4. 重建消息列表：System ??Summary ??CurrentQuestion
         messages.clear();
         if (systemMessage != null) {
             messages.add(systemMessage);
@@ -207,7 +207,7 @@ public class ContextCompactor {
         int keepCount = 10;
         int start = Math.max(0, messages.size() - keepCount);
         StringBuilder sb = new StringBuilder();
-        sb.append("...[摘要生成失败，以下为最�?").append(keepCount).append(" 条对话内容]\n\n");
+        sb.append("...[摘要生成失败，以下为最近 ").append(keepCount).append(" 条对话内容]\n\n");
         for (int i = start; i < messages.size(); i++) {
             sb.append(extractMessageText(messages.get(i))).append("\n\n");
         }
@@ -225,7 +225,7 @@ public class ContextCompactor {
     }
 
     /**
-     * 提取消息的文本内容（剥离 think 标签，ToolCall 保留名称和参数）�?
+     * 提取消息的文本内容（剥离 think 标签，ToolCall 保留名称和参数）??
      */
     private String extractMessageText(Message msg) {
         if (msg instanceof AssistantMessage am) {

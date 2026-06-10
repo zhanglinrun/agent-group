@@ -40,7 +40,7 @@ export const AGENT_MODES: AgentModeOption[] = [
   },
   {
     id: "deep",
-    name: "深度研究",
+    name: "深度任务",
     icon: "🔬",
     executionMode: "Plan Execute",
     executionFamily: "plan-execute",

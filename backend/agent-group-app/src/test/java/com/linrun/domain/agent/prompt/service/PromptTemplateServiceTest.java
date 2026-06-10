@@ -21,7 +21,7 @@ class PromptTemplateServiceTest {
         PromptTemplate template = service.requireEnabled(PromptTemplateType.GUIDE);
 
         assertEquals("guide-v1.0", template.getTemplateVersion());
-        assertEquals("Agent 额度包提示模�?, template.getContent());
+        assertEquals("Agent 额度包提示模板", template.getContent());
     }
 
     @Test
@@ -39,14 +39,14 @@ class PromptTemplateServiceTest {
         @Override
         public Optional<PromptTemplate> queryEnabledByType(PromptTemplateType templateType) {
             if (PromptTemplateType.GUIDE.equals(templateType)) {
-                return Optional.of(PromptTemplate.enabled("PT10001", templateType, "guide-v1.0", "Agent 额度包提示模�?));
+                return Optional.of(PromptTemplate.enabled("PT10001", templateType, "guide-v1.0", "Agent 额度包提示模板"));
             }
             return Optional.empty();
         }
 
         @Override
         public List<PromptTemplate> queryEnabledTemplates() {
-            return List.of(PromptTemplate.enabled("PT10001", PromptTemplateType.GUIDE, "guide-v1.0", "Agent 额度包提示模�?));
+            return List.of(PromptTemplate.enabled("PT10001", PromptTemplateType.GUIDE, "guide-v1.0", "Agent 额度包提示模板"));
         }
     }
 

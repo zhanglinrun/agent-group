@@ -51,12 +51,12 @@ public class UserQuotaService {
     public static final String FLOW_TASK_CONSUME = "TASK_CONSUME";
 
     private static final BigDecimal MIN_TOKEN_COST = new BigDecimal("0.01");
-    private static final BigDecimal DEFAULT_PROMPT_COST_PER_1K = new BigDecimal("0.10");
-    private static final BigDecimal DEFAULT_COMPLETION_COST_PER_1K = new BigDecimal("0.30");
+    private static final BigDecimal DEFAULT_PROMPT_COST_PER_1K = new BigDecimal("0.20");
+    private static final BigDecimal DEFAULT_COMPLETION_COST_PER_1K = new BigDecimal("0.80");
     private static final BigDecimal DEFAULT_CUSTOM_MODEL_SERVICE_RATE = new BigDecimal("0.10");
     private static final String DEFAULT_CUSTOM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode";
     private static final String DEFAULT_CUSTOM_IMAGE_BASE_URL = "https://api.openai.com";
-    private static final String DEFAULT_CUSTOM_TEXT_MODEL = "qwen3.6-plus";
+    private static final String DEFAULT_CUSTOM_TEXT_MODEL = "qwen3.7-plus";
     private static final String DEFAULT_CUSTOM_IMAGE_MODEL = "gpt-image-2";
     private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
@@ -251,7 +251,7 @@ public class UserQuotaService {
                 .map(UserMembershipAccount::remainingQuota)
                 .orElse(BigDecimal.ZERO));
         if (available.compareTo(safeAmount) < 0) {
-            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告);
+            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告");
         }
     }
 
@@ -328,11 +328,11 @@ public class UserQuotaService {
         BigDecimal accountDebit = normalizeAmount(quotaCost.subtract(memberDebit));
         if (accountDebit.compareTo(BigDecimal.ZERO) > 0) {
             if (before.getQuotaBalance().compareTo(accountDebit) < 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告);
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告");
             }
             int affected = userQuotaRepository.decreaseQuota(userId, accountDebit);
             if (affected <= 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告);
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告");
             }
             UserQuotaAccount after = queryAccount(userId);
             userQuotaRepository.saveFlow(flow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId,
@@ -443,7 +443,7 @@ public class UserQuotaService {
                 grantFlow.getQuotaAmount().negate(),
                 before.getQuotaBalance(),
                 after.getQuotaBalance(),
-                "订单退款回滚额�?));
+                "订单退款回滚额度"));
     }
 
     private BigDecimal debitMembership(String userId, BigDecimal quotaCost, UserMembershipAccount membership) {
@@ -590,19 +590,19 @@ public class UserQuotaService {
     }
 
     private String consumeRemark(String taskType, BigDecimal quotaCost, BigDecimal memberDebit, boolean customModelUsed) {
-        String source = customModelUsed ? "自定义模�? : "平台模型";
+        String source = customModelUsed ? "自定义模型" : "平台模型";
         if (memberDebit.compareTo(BigDecimal.ZERO) > 0) {
-            return "任务�?token 扣费） + safe(taskType) + "） + source
-                    + "，会员额度抵�?" + memberDebit.stripTrailingZeros().toPlainString()
-                    + "，总费�?" + quotaCost.stripTrailingZeros().toPlainString();
+            return "任务 token 扣费：" + safe(taskType) + "，" + source
+                    + "，会员额度抵扣 " + memberDebit.stripTrailingZeros().toPlainString()
+                    + "，总费用 " + quotaCost.stripTrailingZeros().toPlainString();
         }
-        return "任务�?token 扣费） + safe(taskType) + "） + source
-                + "，费�?" + quotaCost.stripTrailingZeros().toPlainString();
+        return "任务 token 扣费：" + safe(taskType) + "，" + source
+                + "，费用 " + quotaCost.stripTrailingZeros().toPlainString();
     }
 
     private UserQuotaAccount queryAccount(String userId) {
         return userQuotaRepository.queryAccount(userId)
-                .orElseThrow(() -> new AppException("QUOTA_0002", "额度账户不存�?));
+                .orElseThrow(() -> new AppException("QUOTA_0002", "额度账户不存在"));
     }
 
     private UserQuotaFlow flow(String userId,
@@ -676,7 +676,7 @@ public class UserQuotaService {
         UserMembershipDTO dto = new UserMembershipDTO();
         dto.setUserId(userId);
         dto.setPlanCode(membership == null ? "FREE" : firstText(membership.getPlanCode(), "FREE"));
-        dto.setPlanName(membership == null ? "免费版 : firstText(membership.getPlanName(), "免费版));
+        dto.setPlanName(membership == null ? "免费版" : firstText(membership.getPlanName(), "免费版"));
         dto.setStatus(membership == null ? "INACTIVE" : firstText(membership.getStatus(), "INACTIVE"));
         dto.setMonthlyQuota(normalizeAmount(membership == null ? BigDecimal.ZERO : membership.getMonthlyQuota()));
         dto.setMonthlyUsedQuota(normalizeAmount(membership == null ? BigDecimal.ZERO : membership.getMonthlyUsedQuota()));
@@ -729,12 +729,12 @@ public class UserQuotaService {
         try {
             uri = URI.create(text);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0002", "自定义模�?API 地址格式不正�?);
+            throw new AppException("MODEL_CONFIG_0002", "自定义模型 API 地址格式不正确");
         }
         String scheme = uri.getScheme();
         String host = uri.getHost();
         if (!"https".equalsIgnoreCase(scheme) || !StringUtils.hasText(host)) {
-            throw new AppException("MODEL_CONFIG_0002", "自定义模�?API 地址仅支�?HTTPS");
+            throw new AppException("MODEL_CONFIG_0002", "自定义模型 API 地址仅支持 HTTPS");
         }
         String lowerHost = host.toLowerCase();
         if ("localhost".equals(lowerHost)
@@ -743,7 +743,7 @@ public class UserQuotaService {
                 || lowerHost.startsWith("10.")
                 || lowerHost.startsWith("192.168.")
                 || lowerHost.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\..*")) {
-            throw new AppException("MODEL_CONFIG_0002", "自定义模�?API 地址不能指向本地或内网地址");
+            throw new AppException("MODEL_CONFIG_0002", "自定义模型 API 地址不能指向本地或内网地址");
         }
         return text.replaceAll("/+$", "");
     }
@@ -756,7 +756,7 @@ public class UserQuotaService {
 
     private String encryptApiKey(String apiKey) {
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密�?);
+            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
         }
         try {
             byte[] iv = new byte[12];
@@ -767,7 +767,7 @@ public class UserQuotaService {
             return "v1:" + Base64.getEncoder().encodeToString(iv)
                     + ":" + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0004", "自定义模型密钥加密失败);
+            throw new AppException("MODEL_CONFIG_0004", "自定义模型密钥加密失败");
         }
     }
 
@@ -776,7 +776,7 @@ public class UserQuotaService {
             return "";
         }
         if (!StringUtils.hasText(modelConfigCryptoSecret)) {
-            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密�?);
+            throw new AppException("MODEL_CONFIG_0003", "请先配置自定义模型密钥加密密钥");
         }
         String[] parts = encryptedApiKey.split(":", 3);
         if (parts.length != 3 || !"v1".equals(parts[0])) {
@@ -789,7 +789,7 @@ public class UserQuotaService {
             cipher.init(Cipher.DECRYPT_MODE, secretKey(), new GCMParameterSpec(128, iv));
             return new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new AppException("MODEL_CONFIG_0005", "自定义模型密钥解密失败);
+            throw new AppException("MODEL_CONFIG_0005", "自定义模型密钥解密失败");
         }
     }
 

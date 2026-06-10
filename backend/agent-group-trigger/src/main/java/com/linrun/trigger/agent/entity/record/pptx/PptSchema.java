@@ -18,7 +18,7 @@ import java.util.List;
 public class PptSchema {
 
     /**
-     * 幻灯片列�?
+     * 幻灯片列??
      */
     private List<Slide> slides;
 }

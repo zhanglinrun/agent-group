@@ -13,10 +13,10 @@ const DEFAULT_MODEL_CONFIG = {
   enabled: false,
   baseUrl: DEFAULT_TEXT_BASE_URL,
   apiKey: "",
-  model: "qwen3.6-plus",
+  model: "qwen3.7-plus",
   textBaseUrl: DEFAULT_TEXT_BASE_URL,
   textApiKey: "",
-  textModel: "qwen3.6-plus",
+  textModel: "qwen3.7-plus",
   imageBaseUrl: DEFAULT_IMAGE_BASE_URL,
   imageApiKey: "",
   imageModel: "gpt-image-2",
@@ -24,6 +24,16 @@ const DEFAULT_MODEL_CONFIG = {
   textKeyMasked: "",
   imageKeyMasked: ""
 };
+
+function preferredPayChannel(explicitChannel = "") {
+  const configured = String(explicitChannel || import.meta.env?.VITE_PAYMENT_CHANNEL || "").trim();
+  if (configured) return configured.toUpperCase();
+  const host = typeof window !== "undefined" ? window.location?.hostname : "";
+  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
+    return "MOCK_PAY";
+  }
+  return "ALIPAY";
+}
 
 function volatileStorage() {
   return window.sessionStorage;
@@ -80,6 +90,9 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
       return "自定义模型配置不可用，请检查模型配置里的 API 地址、密钥和模型名";
     }
     return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
+  }
+  if (lower.includes("alipay config incomplete")) {
+    return "支付宝沙箱配置不完整；本地开发可使用模拟支付，真实支付需要配置支付宝 appId、应用私钥和支付宝公钥";
   }
   if ((lower.includes("duplicate entry") || lower.includes("sqlintegrityconstraintviolationexception"))
     && (lower.includes("uk_user_biz_flow") || lower.includes("user_quota_flow"))) {
@@ -439,8 +452,22 @@ export async function queryAcademicReplay(sessionId) {
   });
 }
 
+export async function queryAcademicRuns(sessionId, limit = 20) {
+  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}/runs?limit=${encodeURIComponent(limit)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
 export async function queryAcademicRunDetail(runId) {
   return request(`/api/v1/academic/runs/${encodeURIComponent(runId)}`, {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function queryAcademicRunDiagnosis(runId) {
+  return request(`/api/v1/academic/runs/${encodeURIComponent(runId)}/diagnosis`, {
     userAuth: true,
     method: "GET"
   });
@@ -511,6 +538,15 @@ export async function deleteAcademicSession(sessionId) {
   });
 }
 
+export async function rollbackAcademicSession(sessionId, messageId) {
+  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}/rollback`, {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messageId })
+  });
+}
+
 export async function stopAcademicStream(sessionId = getSessionId()) {
   return request("/api/v1/academic/stop", {
     userAuth: true,
@@ -518,7 +554,7 @@ export async function stopAcademicStream(sessionId = getSessionId()) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId })
   }).catch(error => {
-    console.warn("停止学术智能体流失败", error);
+    console.warn("停止 Agent 流失败", error);
   });
 }
 
@@ -643,7 +679,7 @@ export async function queryWorkspaceMragHistory({ sessionId = "", limit = 20 } =
 }
 
 export async function queryAgentCapabilities() {
-  return request("/agent/capabilities", {
+  return request("/api/v1/academic/capabilities", {
     userAuth: true,
     method: "GET"
   });
@@ -874,7 +910,7 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
           : await response.text().catch(() => "");
         throw new ApiError(normalizeApiMessage(
           payload?.info || payload?.message || payload,
-          `学术智能体请求失败：${response.status}`
+          `Agent 请求失败：${response.status}`
         ), response.status, payload);
       }
 
@@ -937,7 +973,7 @@ export async function createDirectOrder(product, userId) {
       userId,
       goodsId: product.id || product.goodsId,
       idempotentKey: `IDEMP_${Date.now()}`,
-      payChannel: "ALIPAY"
+      payChannel: preferredPayChannel()
     })
   });
 }
@@ -970,7 +1006,7 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
       source: "s01",
       channel: "c01",
       outTradeNo,
-      payChannel: "ALIPAY",
+      payChannel: preferredPayChannel(options.payChannel),
       notifyConfigVO: {
         notifyType: "MQ"
       }
@@ -980,7 +1016,7 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
 
 export async function mockPaySuccess(orderId) {
   return request("/api/v1/trade/order/mock-pay-success", {
-    auth: true,
+    userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1000,7 +1036,7 @@ export async function createPayment(orderId, options = {}) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       orderId,
-      payChannel: options.payChannel || "ALIPAY",
+      payChannel: preferredPayChannel(options.payChannel),
       notifyUrl: options.notifyUrl || "",
       returnUrl
     })

@@ -16,17 +16,17 @@ public class SessionListVO {
     private String conversationId;
 
     /**
-     * 智能体类型（react/file/ppt�?
+     * 智能体类型（react/file/ppt??
      */
     private String agentType;
 
     /**
-     * 最新问�?
+     * 最新问??
      */
     private String question;
 
     /**
-     * 最新回�?
+     * 最新回??
      */
     private String answer;
 
@@ -46,7 +46,7 @@ public class SessionListVO {
     private java.time.LocalDateTime updateTime;
 
     /**
-     * 文件ID（关联文件或PPT�?
+     * 文件ID（关联文件或PPT??
      */
     private String fileid;
 

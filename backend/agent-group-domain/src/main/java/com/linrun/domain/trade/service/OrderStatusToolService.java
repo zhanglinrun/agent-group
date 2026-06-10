@@ -33,7 +33,7 @@ public class OrderStatusToolService {
         }
         String normalized = question.toLowerCase();
         if (!normalized.contains("订单")
-                && !normalized.contains("支付状�?)
+                && !normalized.contains("支付状态")
                 && !normalized.contains("物流")
                 && !normalized.contains("order")) {
             return false;
@@ -41,11 +41,11 @@ public class OrderStatusToolService {
         if (StringUtils.hasText(extractOrderId(question))) {
             return true;
         }
-        return normalized.contains("查订�?)
+        return normalized.contains("查订单")
                 || normalized.contains("查询订单")
                 || normalized.contains("看下订单")
                 || normalized.contains("看看订单")
-                || normalized.contains("订单状�?)
+                || normalized.contains("订单状态")
                 || normalized.contains("物流到哪");
     }
 
@@ -58,9 +58,9 @@ public class OrderStatusToolService {
             throw new AppException("0001", "订单编号不能为空");
         }
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
         if (StringUtils.hasText(userId) && !userId.equals(tradeOrder.getUserId())) {
-            throw new AppException("TRADE_0018", "只能查询当前用户的订�?);
+            throw new AppException("TRADE_0018", "只能查询当前用户的订单");
         }
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId).orElse(null);
 
@@ -79,9 +79,9 @@ public class OrderStatusToolService {
             throw new AppException("0001", "订单编号不能为空");
         }
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
         if (StringUtils.hasText(userId) && !userId.equals(tradeOrder.getUserId())) {
-            throw new AppException("TRADE_0018", "只能查询当前用户的订�?);
+            throw new AppException("TRADE_0018", "只能查询当前用户的订单");
         }
         RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(orderId).orElse(null);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -124,13 +124,13 @@ public class OrderStatusToolService {
         }
         return switch (orderStatus) {
             case CREATE -> "待创建支付单";
-            case PAY_WAIT -> "待支�?;
-            case PAY_SUCCESS -> "已支�?;
-            case GROUP_SETTLED -> "拼团已成回;
-            case DEAL_DONE -> "交易已完成;
-            case CLOSED -> "已关�?;
+            case PAY_WAIT -> "待支付";
+            case PAY_SUCCESS -> "已支付";
+            case GROUP_SETTLED -> "拼团已成团";
+            case DEAL_DONE -> "交易已完成";
+            case CLOSED -> "已关闭";
             case WAIT_REFUND -> "退款处理中";
-            case REFUNDED -> "已退�?;
+            case REFUNDED -> "已退款";
         };
     }
 

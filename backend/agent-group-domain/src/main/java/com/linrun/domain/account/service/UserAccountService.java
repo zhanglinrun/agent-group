@@ -51,7 +51,7 @@ public class UserAccountService {
         validateRegister(request);
         String username = request.getUsername().trim();
         userAccountRepository.queryByUsername(username).ifPresent(user -> {
-            throw new AppException("AUTH_0003", "账号已存�?);
+            throw new AppException("AUTH_0003", "账号已存在");
         });
 
         UserAccount user = new UserAccount();
@@ -107,13 +107,13 @@ public class UserAccountService {
             throw new AppException("AUTH_0001", "请先登录");
         }
         UserLoginSession session = userAccountRepository.querySessionByToken(cleanToken(token))
-                .orElseThrow(() -> new AppException("AUTH_0001", "登录已失效，请重新登当));
+                .orElseThrow(() -> new AppException("AUTH_0001", "登录已失效，请重新登录"));
         if (!SESSION_ACTIVE.equals(session.getStatus()) || session.getExpireTime() == null
                 || session.getExpireTime().isBefore(LocalDateTime.now())) {
-            throw new AppException("AUTH_0001", "登录已失效，请重新登当);
+            throw new AppException("AUTH_0001", "登录已失效，请重新登录");
         }
         return userAccountRepository.queryByUserId(session.getUserId())
-                .orElseThrow(() -> new AppException("AUTH_0006", "用户不存�?));
+                .orElseThrow(() -> new AppException("AUTH_0006", "用户不存在"));
     }
 
     public String resolveUserId(String token, String fallbackUserId) {
@@ -167,7 +167,7 @@ public class UserAccountService {
         registerRequest.setEmail("demo@example.com");
         register(registerRequest);
         return userAccountRepository.queryByUsername("demo")
-                .orElseThrow(() -> new AppException("AUTH_0006", "演示用户初始化失败));
+                .orElseThrow(() -> new AppException("AUTH_0006", "演示用户初始化失败"));
     }
 
     private UserQuotaAccount emptyQuota(String userId) {
@@ -181,13 +181,13 @@ public class UserAccountService {
             throw new AppException("0001", "账号不能为空");
         }
         if (!StringUtils.hasText(request.getPassword()) || request.getPassword().length() < 6) {
-            throw new AppException("0001", "密码长度不能少于 6 位);
+            throw new AppException("0001", "密码长度不能少于 6 位");
         }
     }
 
     private void validateLogin(LoginRequest request) {
         if (request == null || !StringUtils.hasText(request.getUsername()) || !StringUtils.hasText(request.getPassword())) {
-            throw new AppException("0001", "账号和密码不能为�?);
+            throw new AppException("0001", "账号和密码不能为空");
         }
     }
 
@@ -209,7 +209,7 @@ public class UserAccountService {
             byte[] bytes = digest.digest((safe(salt) + ":" + safe(password)).getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(bytes);
         } catch (NoSuchAlgorithmException e) {
-            throw new AppException("AUTH_0007", "密码摘要算法不可�?);
+            throw new AppException("AUTH_0007", "密码摘要算法不可用");
         }
     }
 

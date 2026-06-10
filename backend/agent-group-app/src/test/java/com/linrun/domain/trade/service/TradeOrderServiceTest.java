@@ -65,7 +65,7 @@ class TradeOrderServiceTest {
                 () -> service.createOrder(command(TradeBuyTypeEnumVO.GROUP_BUY, null, "2399.00", "2099.00")));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("拼团订单活动编号不能为空", exception.getMessage());
+        assertEquals("鎷煎洟璁㈠崟娲诲姩缂栧彿涓嶈兘涓虹┖", exception.getMessage());
     }
 
     @Test
@@ -163,7 +163,7 @@ class TradeOrderServiceTest {
         CreateTradeOrderCommandEntity command = new CreateTradeOrderCommandEntity();
         command.setUserId("U10001");
         command.setGoodsId("G10001");
-        command.setGoodsName("基础学术额度�?);
+        command.setGoodsName("基础学术额度包");
         command.setActivityId(activityId);
         command.setBuyType(buyType);
         command.setOriginAmount(new BigDecimal(originAmount));

@@ -20,7 +20,7 @@ public class MockPaymentAccessChecker {
         }
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> "ROLE_ADMIN".equals(role) || "ROLE_OPERATOR".equals(role));
+                .anyMatch(role -> "ROLE_ADMIN".equals(role) || "ROLE_OPERATOR".equals(role) || "ROLE_USER".equals(role));
     }
 }
 

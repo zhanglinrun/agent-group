@@ -154,7 +154,7 @@ public class AcademicFileUploadHandler {
         }
         String filename = safeFilename(file.getOriginalFilename());
         if (!StringUtils.hasText(filename) || filename.length() > MAX_FILENAME_LENGTH) {
-            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超�?160 个字�?);
+            throw new AppException("UPLOAD_0002", "文件名不能为空，且长度不能超过 160 个字符");
         }
         if (file.getSize() > maxFileSizeBytes) {
             throw new AppException("UPLOAD_0003", "上传文件超过大小限制");
@@ -162,7 +162,7 @@ public class AcademicFileUploadHandler {
         String lowerName = filename.toLowerCase(Locale.ROOT);
         if (BLOCKED_EXTENSION_MARKERS.stream().anyMatch(lowerName::contains)
                 || !allowedExtensionSet().contains(extension(lowerName))) {
-            throw new AppException("UPLOAD_0004", "文件类型不在学术助手白名单内");
+            throw new AppException("UPLOAD_0004", "文件类型不在熊博士Agent白名单内");
         }
     }
 
@@ -178,7 +178,7 @@ public class AcademicFileUploadHandler {
         try {
             return file.getBytes();
         } catch (IOException e) {
-            throw new AppException("UPLOAD_0005", "上传文件读取失败�? + e.getMessage());
+            throw new AppException("UPLOAD_0005", "上传文件读取失败：" + e.getMessage());
         }
     }
 

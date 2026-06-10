@@ -22,21 +22,21 @@ import java.util.Map;
 public class OperationalRuleController {
 
     private static final Map<String, String> GROUPS = Map.ofEntries(
-            Map.entry(DynamicConfigService.DOWNGRADE_SWITCH, "????"),
-            Map.entry(DynamicConfigService.CUT_RANGE, "????"),
-            Map.entry(DynamicConfigService.SC_BLACKLIST, "????"),
-            Map.entry(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_TYPE, "????"),
-            Map.entry(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_URL, "????"),
-            Map.entry(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_MQ, "????"),
-            Map.entry(DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, "????"),
-            Map.entry(DynamicConfigService.GROUP_REFUND_NOTIFY_URL, "????"),
-            Map.entry(DynamicConfigService.GROUP_REFUND_NOTIFY_MQ, "????"),
-            Map.entry(DynamicConfigService.PAYMENT_QUERY_COMPENSATION_SWITCH, "????"),
-            Map.entry(DynamicConfigService.PAYMENT_QUERY_COMPENSATION_LIMIT, "????"),
-            Map.entry(DynamicConfigService.PAYMENT_RISK_CHECK_SWITCH, "????"),
-            Map.entry(DynamicConfigService.AGENT_PLAN_EXECUTE_SWITCH, "?????"),
-            Map.entry(DynamicConfigService.AGENT_CONTEXT_COMPACT_THRESHOLD, "?????"),
-            Map.entry(DynamicConfigService.KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "?????")
+            Map.entry(DynamicConfigService.DOWNGRADE_SWITCH, "降级开关"),
+            Map.entry(DynamicConfigService.CUT_RANGE, "切量比例"),
+            Map.entry(DynamicConfigService.SC_BLACKLIST, "渠道黑名单"),
+            Map.entry(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_TYPE, "拼团结算通知类型"),
+            Map.entry(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_URL, "拼团结算通知地址"),
+            Map.entry(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_MQ, "拼团结算消息主题"),
+            Map.entry(DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, "拼团退款通知类型"),
+            Map.entry(DynamicConfigService.GROUP_REFUND_NOTIFY_URL, "拼团退款通知地址"),
+            Map.entry(DynamicConfigService.GROUP_REFUND_NOTIFY_MQ, "拼团退款消息主题"),
+            Map.entry(DynamicConfigService.PAYMENT_QUERY_COMPENSATION_SWITCH, "支付查询补偿开关"),
+            Map.entry(DynamicConfigService.PAYMENT_QUERY_COMPENSATION_LIMIT, "支付查询补偿上限"),
+            Map.entry(DynamicConfigService.PAYMENT_RISK_CHECK_SWITCH, "支付风控检查开关"),
+            Map.entry(DynamicConfigService.AGENT_PLAN_EXECUTE_SWITCH, "Agent 计划执行开关"),
+            Map.entry(DynamicConfigService.AGENT_CONTEXT_COMPACT_THRESHOLD, "Agent 上下文压缩阈值"),
+            Map.entry(DynamicConfigService.KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "知识库上下文扩展开关")
     );
 
     private final DynamicConfigService dynamicConfigService;

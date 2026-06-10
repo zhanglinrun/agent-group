@@ -80,10 +80,10 @@ public class MarketTradeFacadeHandler {
         validateLockRequest(request);
         GroupBuyTrialResult trialResult = groupBuyMarketTrialService.trial(toTrialCommand(request));
         if (!request.getActivityId().equals(trialResult.getActivityId())) {
-            throw new AppException("GROUP_0018", "????????????????");
+            throw new AppException("GROUP_0018", "拼团试算结果与请求活动不匹配");
         }
         if (!trialResult.isEnable() || !trialResult.isAvailable()) {
-            throw new AppException("GROUP_0019", "???????????????");
+            throw new AppException("GROUP_0019", "当前账号暂不能参加这个拼团活动");
         }
         humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
                 HumanApprovalHandler.ACTION_LOCK_MARKET_PAY_ORDER, request.getOutTradeNo());
@@ -101,26 +101,26 @@ public class MarketTradeFacadeHandler {
 
     public SettlementMarketPayOrderResponse settlementMarketPayOrder(SettlementMarketPayOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOutTradeNo())) {
-            throw new AppException("0001", "?????????");
+            throw new AppException("0001", "外部交易单号不能为空");
         }
         humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
                 HumanApprovalHandler.ACTION_SETTLEMENT_MARKET_PAY_ORDER, request.getOutTradeNo());
         String orderId = resolveOrderId(request.getOutTradeNo());
         TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "?????"));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
 
         PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0014", "pay order not found"));
+                .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
         if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
-            throw new AppException("GROUP_0023", "only group buy order can be settled by market facade");
+            throw new AppException("GROUP_0023", "只有拼团订单可以执行成团结算");
         }
         if (!PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
-            throw new AppException("GROUP_0024", "order payment is not success yet");
+            throw new AppException("GROUP_0024", "订单尚未支付成功，不能成团结算");
         }
         groupBuySettlementService.settlePaySuccess(tradeOrder);
 
         GroupBuyOrderLock orderLock = groupBuyOrderLockRepository.queryLockByOrderId(orderId)
-                .orElseThrow(() -> new AppException("GROUP_0011", "???????"));
+                .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
 
         SettlementMarketPayOrderResponse response = new SettlementMarketPayOrderResponse();
         response.setUserId(tradeOrder.getUserId());
@@ -132,13 +132,13 @@ public class MarketTradeFacadeHandler {
 
     public RefundMarketPayOrderResponse refundMarketPayOrder(RefundMarketPayOrderRequest request) {
         if (request == null || !StringUtils.hasText(request.getOutTradeNo())) {
-            throw new AppException("0001", "?????????");
+            throw new AppException("0001", "外部交易单号不能为空");
         }
         humanApprovalService.assertApproved(request.getHitlApprovalId(), request.getUserId(),
                 HumanApprovalHandler.ACTION_REFUND_MARKET_PAY_ORDER, request.getOutTradeNo());
         String orderId = resolveOrderId(request.getOutTradeNo());
         boolean success = tradeCompensationService.refundOrCloseOrder(
-                request.getUserId(), orderId, "????");
+                request.getUserId(), orderId, "拼团订单退款");
         GroupBuyOrderLock orderLock = groupBuyOrderLockRepository.queryLockByOrderId(orderId).orElse(null);
 
         RefundMarketPayOrderResponse response = new RefundMarketPayOrderResponse();
@@ -146,13 +146,13 @@ public class MarketTradeFacadeHandler {
         response.setOrderId(orderId);
         response.setTeamId(orderLock == null ? null : orderLock.getTeamId());
         response.setCode(success ? "0000" : "0002");
-        response.setInfo(success ? "????" : "????");
+        response.setInfo(success ? "退款处理成功" : "退款处理失败");
         return response;
     }
 
     public GoodsMarketResponse queryGroupBuyMarketConfig(GoodsMarketRequest request) {
         if (request == null || !StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "?????????");
+            throw new AppException("0001", "商品编号不能为空");
         }
         GroupBuyTrialResult trialResult = groupBuyMarketTrialService.trial(toTrialCommand(request));
 
@@ -264,22 +264,22 @@ public class MarketTradeFacadeHandler {
 
     private void validateLockRequest(LockMarketPayOrderRequest request) {
         if (request == null) {
-            throw new AppException("0001", "????????");
+            throw new AppException("0001", "锁单参数不能为空");
         }
         if (!StringUtils.hasText(request.getUserId())
                 || !StringUtils.hasText(request.getGoodsId())
                 || !StringUtils.hasText(request.getActivityId())
                 || !StringUtils.hasText(request.getOutTradeNo())) {
-            throw new AppException("0001", "???????????????????");
+            throw new AppException("0001", "用户、商品、活动和外部交易单号不能为空");
         }
         if (dynamicConfigService.isDowngradeSwitch()) {
-            throw new AppException("DCC_0003", "?????????");
+            throw new AppException("DCC_0003", "拼团活动暂时不可用");
         }
         if (!dynamicConfigService.isCutRange(request.getUserId())) {
-            throw new AppException("DCC_0004", "????????????");
+            throw new AppException("DCC_0004", "当前账号暂不能参加活动");
         }
         if (dynamicConfigService.isSourceChannelBlackIntercept(request.getSource(), request.getChannel())) {
-            throw new AppException("DCC_0005", "???????????");
+            throw new AppException("DCC_0005", "当前渠道暂不能参加活动");
         }
     }
 

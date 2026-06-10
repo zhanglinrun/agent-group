@@ -70,7 +70,7 @@ public class AcademicWorkspaceImageService {
                 ? new AcademicWorkspaceImageGenerateRequest()
                 : request;
         if (!StringUtils.hasText(safeRequest.getPrompt())) {
-            throw new AppException("IMAGE_WORKSPACE_0001", "图像生成提示词不能为�?);
+            throw new AppException("IMAGE_WORKSPACE_0001", "图像生成提示词不能为空");
         }
         UserAccount user = userAccountService.requireUserByToken(token);
         String userId = user.getUserId();

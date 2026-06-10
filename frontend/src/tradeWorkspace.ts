@@ -149,7 +149,7 @@ export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
   const marketType = isGroupOrder(order) ? "拼团订单" : "直接购买订单";
   const settlement = tradeSettlementHint(order);
   return [
-    "请按拼团交易审计 Flow 核查这笔订单。",
+    "交易记录核对摘要",
     orderId ? `订单号：${orderId}` : "",
     teamId ? `拼团队伍或活动：${teamId}` : "",
     product ? `商品：${product}` : "",
@@ -157,7 +157,7 @@ export function buildTradeAuditPrompt(order: Record<string, unknown>): string {
     status ? `当前状态：${status}` : "",
     `订单类型：${marketType}`,
     `结算判断：${settlement.label}。${settlement.detail}`,
-    "请优先调用 trade_audit 读取后端事实，区分支付成功、成团、额度到账、退款回滚和 Agent 消耗流水，并给出结论和下一步处理建议。"
+    "请以后台订单、支付、拼团和额度流水为准，不把交易核对包装成 Agent 能力。"
   ].filter(Boolean).join("\n");
 }
 

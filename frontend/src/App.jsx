@@ -7,7 +7,6 @@ import {
   BarChart3,
   BookOpen,
   Check,
-  ChevronDown,
   Copy,
   CreditCard,
   Download,
@@ -20,6 +19,7 @@ import {
   LogOut,
   MessageCircle,
   Paperclip,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
@@ -116,6 +116,7 @@ import {
   login,
   logout,
   modelConfigReady,
+  mockPaySuccess,
   normalizeApiMessage,
   queryAgentCapabilities,
   queryAcademicReplay,
@@ -137,6 +138,7 @@ import {
   rebuildKnowledgeVector,
   register,
   registerMcpServer,
+  rollbackAcademicSession,
   requestAcademicAttachStream,
   requestAcademicResumeStream,
   requestAcademicStream,
@@ -171,9 +173,9 @@ import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
 const AGENTS = USER_AGENT_MODES;
 
 const COMPOSER_AGENT_LABELS = {
-  chat: "对话",
+  chat: "问答",
   ppt: "PPT",
-  deep: "研究",
+  deep: "深度任务",
   image: "图像",
   "manual-skills": "Skill"
 };
@@ -187,10 +189,66 @@ const PPT_IMAGE2_SKILL_INSTRUCTION = [
   "不要把整页参考图直接作为最终 PPT 页面。"
 ].join("\n");
 const DEEP_RESEARCH_STYLE_INSTRUCTION = [
-  "本轮使用研究模式，适合综述、技术调研、竞品对比、方案选型和复杂问题拆解。",
-  "先把用户问题拆成研究计划，再按计划检索、整理和对比证据，最后输出结构化报告。",
+  "本轮使用深度任务模式，适合技术调研、方案选型、竞品对比、资料整理和复杂问题拆解。",
+  "先把用户问题拆成执行计划，再按计划检索、整理和对比证据，最后输出结构化结果。",
   "回答中区分确定事实、推断结论和仍需补充验证的信息；引用来源时说明证据用途。"
 ].join("\n");
+
+const COMPOSER_MODE_INTENTS = {
+  chat: {
+    label: "即时任务执行",
+    executionMode: "ReAct",
+    route: "意图识别 -> 工具判断 -> 回复生成",
+    hint: "展示本轮是否需要调用工具、读取文件、联网搜索或进入技能流程。",
+    agents: "对话 Agent / 文件工具 / 额度对账",
+    outputs: "直接回答、引用来源、必要的工具记录",
+    trace: "任务分析、工具判断、模型调用"
+  },
+  ppt: {
+    label: "PPT 生成流水线",
+    executionMode: "Flow",
+    route: "需求澄清 -> 大纲 -> 素材 -> 渲染",
+    hint: "不是只切换标签，会按阶段产出大纲、页面结构和可下载文件。",
+    agents: "需求 Agent / 内容 Agent / PPT 生成 Agent",
+    outputs: "大纲、页面结构、演示文稿文件",
+    trace: "阶段流转、工具调用、产物记录"
+  },
+  deep: {
+    label: "多 Agent 深度任务",
+    executionMode: "Plan-Execute",
+    route: "规划 -> 搜索/文件 -> 报告 -> 反思",
+    hint: "复杂任务会展示任务拆解、协作角色、工具调用和必要时的重规划。",
+    agents: "规划 Agent / 搜索 Agent / 文件 Agent / 报告 Agent",
+    outputs: "结构化报告、证据列表、风险和待确认项",
+    trace: "任务分析、计划版本、重规划、诊断"
+  },
+  image: {
+    label: "图像产物生成",
+    executionMode: "Image Flow",
+    route: "提示词整理 -> 图像生成 -> 产物记录",
+    hint: "图像生成逻辑保持原样，只统一进入执行过程和产物展示。",
+    agents: "提示词 Agent / 图像服务 / 产物记录",
+    outputs: "图片、提示词、下载和复用记录",
+    trace: "参数整理、生成状态、产物落库"
+  },
+  "manual-skills": {
+    label: "技能自动化流程",
+    executionMode: "Skill-SOP",
+    route: "技能发现 -> 步骤读取 -> 工具组合执行",
+    hint: "第一版支持本地技能发现、读取、执行和产物记录。",
+    agents: "Skill 路由 / 本地技能 / 工具运行时",
+    outputs: "固定流程结果、文件或报告产物",
+    trace: "技能选择、步骤执行、工具输入输出"
+  }
+};
+
+const COMPOSER_PLACEHOLDERS = {
+  chat: "直接提问，或说明要完成的任务",
+  ppt: "例如：做一份 8 页项目汇报 PPT，包含架构和业务闭环",
+  deep: "例如：调研某个技术方案，输出对比、结论和依据",
+  image: "描述要生成或编辑的图片",
+  "manual-skills": "例如：使用 tech-report 生成项目技术报告"
+};
 const WEB_SEARCH_STYLE_INSTRUCTION = [
   "本轮已开启联网搜索，请围绕用户问题生成合适关键词，必要时检索公开网页。",
   "基于网页来源回答，并区分搜索得到的事实、自己的归纳和仍需进一步确认的信息。"
@@ -357,6 +415,19 @@ function submitPaymentForm(payHtml = "", targetWindow = null) {
 
 function isPaymentFormHtml(value = "") {
   return /<form[\s>]/i.test(String(value || ""));
+}
+
+function preferredFrontendPayChannel(explicitChannel = "") {
+  const configured = String(explicitChannel || import.meta.env?.VITE_PAYMENT_CHANNEL || "").trim();
+  if (configured) return configured.toUpperCase();
+  const host = typeof window !== "undefined" ? window.location?.hostname : "";
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" ? "MOCK_PAY" : "ALIPAY";
+}
+
+function isMockPayment(payment = {}) {
+  const channel = String(payment.payChannel || "").toUpperCase();
+  const payUrl = String(payment.payUrl || "");
+  return channel === "MOCK_PAY" || payUrl.startsWith("mock://");
 }
 
 function openGatewayPayment(payment = {}, targetWindow = null) {
@@ -710,12 +781,12 @@ function App() {
   return (
     <Routes>
       <Route path={APP_ROUTES.admin} element={<AdminDashboard />} />
-      <Route path="/*" element={<BearDoctorAcademicApp />} />
+      <Route path="/*" element={<AgentWorkspaceApp />} />
     </Routes>
   );
 }
 
-function BearDoctorAcademicApp() {
+function AgentWorkspaceApp() {
   const location = useLocation();
   const navigate = useNavigate();
   const routeWorkspace = userWorkspaceFromPath(location.pathname);
@@ -865,9 +936,22 @@ function BearDoctorAcademicApp() {
   const isSending = Boolean(runningChatIds[currentChatId]);
   const canResumeCurrentChat = Boolean((currentTaskStatus.stopped || currentChat?.stopped) && !isSending);
   const canUseFile = workspaceAcceptsFile(currentWorkspace.id, selectedAgent);
+  const academicProjectContextEnabled = currentWorkspace.id === "agent" && ["deep", "file"].includes(selectedAgent);
+  const activeAcademicProjectForRequest = academicProjectContextEnabled ? activeAcademicProject : null;
+  const showAcademicProjectPanel = academicProjectContextEnabled && (academicProjects.length > 0 || activeAcademicProject);
   const manualSkills = useMemo(() => (
     Array.isArray(agentCapabilities?.manualSkills) ? agentCapabilities.manualSkills : []
   ), [agentCapabilities]);
+  const selectedManualSkill = useMemo(() => (
+    manualSkills.find((skill) => skill.name === selectedSkillName) || null
+  ), [manualSkills, selectedSkillName]);
+  const selectedManualSkillHelp = selectedManualSkill
+    ? (selectedManualSkill.description || `${selectedManualSkill.name || "当前 Skill"} 已选中，请输入目标、素材路径和约束。`)
+    : "选择“自动”时，系统会根据任务内容匹配合适的 Skill；选择具体 Skill 后，这里会显示该 Skill 的说明。";
+  const selectedModeIntent = COMPOSER_MODE_INTENTS[selectedAgent] || COMPOSER_MODE_INTENTS.chat;
+  const composerPlaceholder = webSearchEnabled
+    ? "输入要联网查证的问题"
+    : COMPOSER_PLACEHOLDERS[selectedAgent] || COMPOSER_PLACEHOLDERS.chat;
   const capabilitySummary = useMemo(() => {
     if (!agentCapabilities) return [];
     const toolCount = Number(agentCapabilities.academicToolCount || 0);
@@ -1039,7 +1123,7 @@ function BearDoctorAcademicApp() {
       };
       const remote = (res.data || []).map((item) => ({
         id: item.sessionId,
-        title: item.title || "学术会话",
+        title: item.title || "任务会话",
         lastMessage: item.lastMessage || "",
         messages: previousById.get(item.sessionId)?.messages || EMPTY_MESSAGES,
         isNew: false
@@ -1058,7 +1142,7 @@ function BearDoctorAcademicApp() {
     try {
       const res = await queryAcademicProjects(20);
       if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "学术项目读取失败"));
+        throw new Error(normalizeUserMessage(res.info || res.message, "任务项目读取失败"));
       }
       const projects = res.data || [];
       setAcademicProjects(projects);
@@ -1066,7 +1150,7 @@ function BearDoctorAcademicApp() {
         projects.some((project) => project.projectId === prev) ? prev : projects[0]?.projectId || ""
       ));
     } catch (error) {
-      setAcademicProjectError(normalizeUserMessage(error.message, "学术项目读取失败"));
+      setAcademicProjectError(normalizeUserMessage(error.message, "任务项目读取失败"));
     } finally {
       setAcademicProjectLoading(false);
     }
@@ -1081,22 +1165,22 @@ function BearDoctorAcademicApp() {
     setAcademicProjectError("");
     try {
       const res = await createAcademicProject({
-        title: "学术研究项目",
-        researchQuestion: "请描述研究问题",
+        title: "熊博士Agent 项目",
+        researchQuestion: "请描述任务目标",
         targetVenue: "待定",
         writingStatus: "DRAFTING",
-        progressNote: "已创建项目，可继续上传论文、补充资料并生成阶段性结果"
+        progressNote: "已创建项目，可继续上传材料、补充资料并生成阶段性结果"
       });
       if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res.info || res.message, "学术项目创建失败"));
+        throw new Error(normalizeUserMessage(res.info || res.message, "任务项目创建失败"));
       }
       const project = res.data;
       setAcademicProjects((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
       setActiveAcademicProjectId(project.projectId);
-      setToast("项目已创建");
+      setToast("任务项目已创建");
       return project;
     } catch (error) {
-      setAcademicProjectError(normalizeUserMessage(error.message, "学术项目创建失败"));
+      setAcademicProjectError(normalizeUserMessage(error.message, "任务项目创建失败"));
       return null;
     } finally {
       setAcademicProjectLoading(false);
@@ -1200,25 +1284,13 @@ function BearDoctorAcademicApp() {
     setWorkspaceRunDetailError("");
     try {
       if (targetWorkspaceId === "trade") {
-        const [ordersRes, sessionsRes] = await Promise.all([
-          queryUserOrderList({ pageSize: 8 }),
-          queryAcademicSessions(30).catch(() => null)
-        ]);
+        const ordersRes = await queryUserOrderList({ pageSize: 8 });
         if (!apiSucceeded(ordersRes)) {
           throw new Error(normalizeUserMessage(ordersRes?.info || ordersRes?.message, "工作区历史读取失败"));
         }
-        const auditSessions = apiSucceeded(sessionsRes) && Array.isArray(sessionsRes?.data)
-          ? sessionsRes.data.filter((item) => (
-            ["trade", "trade-audit", "trade-flow", "group-trade", "workspace-trade"]
-              .includes(String(item?.taskType || item?.agentType || "").trim().toLowerCase())
-          ))
-          : [];
         setWorkspaceHistory({
           workspaceId: targetWorkspaceId,
-          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, [
-            ...auditSessions,
-            ...(ordersRes.data?.orderList || [])
-          ], 8)
+          items: normalizeWorkspaceHistoryItems(targetWorkspaceId, ordersRes.data?.orderList || [], 8)
         });
         return;
       }
@@ -1366,7 +1438,8 @@ function BearDoctorAcademicApp() {
   }, [loadKnowledgeDocuments]);
 
   const toUiMessages = useCallback((items = []) => items.map((item, index) => ({
-    id: `${item.role || "MSG"}_${index}_${item.createTime || "local"}`,
+    id: item.messageId ? `${item.role || "MSG"}_${item.messageId}` : `${item.role || "MSG"}_${index}_${item.createTime || "local"}`,
+    recordId: item.messageId || "",
     role: item.role === "USER" ? "user" : "assistant",
     content: item.content || "",
     timeline: [],
@@ -1445,7 +1518,7 @@ function BearDoctorAcademicApp() {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
-    if (["run_start", "project_context", "plan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
+    if (["task_analysis", "mode_selection", "agent_routing", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
       const artifacts = eventArtifacts(event);
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
@@ -1624,12 +1697,13 @@ function BearDoctorAcademicApp() {
   const refreshRecharge = useCallback(async () => {
     await Promise.all([
       loadQuota().catch(() => {}),
-      loadOrders().catch(() => {})
+      loadOrders().catch(() => {}),
+      loadPackages().catch((error) => console.warn("额度包读取失败", error))
     ]);
     if (activeWorkspace === "trade") {
       await loadWorkspaceHistory("trade").catch(() => {});
     }
-  }, [activeWorkspace, loadOrders, loadQuota, loadWorkspaceHistory]);
+  }, [activeWorkspace, loadOrders, loadPackages, loadQuota, loadWorkspaceHistory]);
 
   useEffect(() => {
     ensureChat(currentChatId);
@@ -1763,7 +1837,7 @@ function BearDoctorAcademicApp() {
     setInputMessage(prompt);
   };
 
-  const auditTradeOrder = (order) => {
+  const openTradeOrderRecords = () => {
     if (!auth?.token) {
       setLoginOpen(true);
       return;
@@ -1786,6 +1860,25 @@ function BearDoctorAcademicApp() {
     refreshRecharge().catch(() => {});
   };
 
+  const loadGroupMarketConfig = useCallback(async (pkg = groupPreviewPackage) => {
+    if (!pkg || !getUserAuth()?.token) return null;
+    setGroupTeamsLoading(true);
+    try {
+      const userId = auth?.userId || quota?.userId;
+      const res = await queryGroupBuyMarketConfig(pkg, userId);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "拼团信息读取失败"));
+      }
+      setGroupMarketConfig(res.data || null);
+      return res.data || null;
+    } catch (error) {
+      setConnectionError(normalizeUserMessage(error.message, "拼团信息读取失败"));
+      return null;
+    } finally {
+      setGroupTeamsLoading(false);
+    }
+  }, [auth?.userId, groupPreviewPackage, quota?.userId]);
+
   const openGroupPreview = async (pkg) => {
     if (!auth?.token) {
       setLoginOpen(true);
@@ -1794,17 +1887,7 @@ function BearDoctorAcademicApp() {
     setConnectionError("");
     setGroupPreviewPackage(pkg);
     setGroupMarketConfig(null);
-    setGroupTeamsLoading(true);
-    try {
-      const userId = auth.userId || quota?.userId;
-      const res = await queryGroupBuyMarketConfig(pkg, userId);
-      if (res.code !== "0000") throw new Error(normalizeUserMessage(res.info, "拼团信息读取失败"));
-      setGroupMarketConfig(res.data || null);
-    } catch (error) {
-      setConnectionError(normalizeUserMessage(error.message, "拼团信息读取失败"));
-    } finally {
-      setGroupTeamsLoading(false);
-    }
+    await loadGroupMarketConfig(pkg);
   };
 
   const handleAuthSubmit = async (event) => {
@@ -1878,7 +1961,7 @@ function BearDoctorAcademicApp() {
         if (imageFile) {
           setInputMessage((prev) => (prev.trim() ? prev : "这个图上是什么内容呢"));
         }
-        const project = activeAcademicProject || await createDefaultAcademicProject();
+        const project = academicProjectContextEnabled ? (activeAcademicProject || await createDefaultAcademicProject()) : null;
         if (project?.projectId) {
           const bindRes = await bindAcademicProjectFile(project.projectId, {
             fileId: parsedFile.fileId,
@@ -1906,10 +1989,10 @@ function BearDoctorAcademicApp() {
     }
   };
 
-  const sendMessage = () => {
-    const text = inputMessage.trim();
+  const sendMessage = async (options = {}) => {
+    const text = String(options.text ?? inputMessage).trim();
     const sessionId = currentChatId;
-    const file = selectedFile;
+    const file = Object.prototype.hasOwnProperty.call(options, "file") ? options.file : selectedFile;
     if (runningChatIds[sessionId] || isUploading || (!text && !file)) return;
     if (!auth?.token) {
       setLoginOpen(true);
@@ -1972,8 +2055,25 @@ function BearDoctorAcademicApp() {
       }
     }
 
+    if (options.rollbackToMessageId) {
+      const chat = chatList.find((item) => item.id === sessionId);
+      const anchorMessage = chat?.messages?.find((message) => message.id === options.rollbackToMessageId);
+      if (anchorMessage?.recordId) {
+        try {
+          const rollbackRes = await rollbackAcademicSession(sessionId, anchorMessage.recordId);
+          if (!apiSucceeded(rollbackRes)) {
+            throw new Error(normalizeUserMessage(rollbackRes?.info || rollbackRes?.message, "回溯失败"));
+          }
+        } catch (error) {
+          setConnectionError(normalizeUserMessage(error.message, "回溯失败，请稍后重试"));
+          return;
+        }
+      }
+    }
+
     const userMsg = {
       id: createRuntimeId("U"),
+      recordId: "",
       role: "user",
       content: displayQuestion,
       file: Boolean(file),
@@ -1982,6 +2082,7 @@ function BearDoctorAcademicApp() {
     const assistantId = createRuntimeId("A");
     const assistantMsg = {
       id: assistantId,
+      recordId: "",
       role: "assistant",
       content: "",
       timeline: [{ type: "thinking", content: "正在理解任务并准备工具..." }],
@@ -1993,13 +2094,22 @@ function BearDoctorAcademicApp() {
       showReference: false
     };
 
-    updateChat(sessionId, (chat) => ({
-      ...chat,
-      title: chat.isNew && text ? `${text.slice(0, 20)}${text.length > 20 ? "..." : ""}` : chat.title,
-      isNew: false,
-      stopped: false,
-      messages: [...chat.messages, userMsg, assistantMsg]
-    }));
+    updateChat(sessionId, (chat) => {
+      let baseMessages = chat.messages;
+      if (options.rollbackToMessageId) {
+        const rollbackIndex = chat.messages.findIndex((message) => message.id === options.rollbackToMessageId);
+        if (rollbackIndex >= 0) {
+          baseMessages = chat.messages.slice(0, rollbackIndex);
+        }
+      }
+      return {
+        ...chat,
+        title: chat.isNew && text ? `${text.slice(0, 20)}${text.length > 20 ? "..." : ""}` : chat.title,
+        isNew: false,
+        stopped: false,
+        messages: [...baseMessages, userMsg, assistantMsg]
+      };
+    });
     setChatRunning(sessionId, true, { stopped: false });
     setInputMessage("");
     setConnectionError("");
@@ -2250,7 +2360,7 @@ function BearDoctorAcademicApp() {
     streamControllersRef.current[sessionId] = requestAcademicStream(
       {
         sessionId,
-        projectId: activeAcademicProject?.projectId || "",
+        projectId: activeAcademicProjectForRequest?.projectId || "",
         threadId: sessionId,
         question: streamDraft.question,
         taskType: streamDraft.taskType,
@@ -2357,6 +2467,44 @@ function BearDoctorAcademicApp() {
     await navigator.clipboard.writeText(message.content || "");
     setCopiedId(message.id);
     setTimeout(() => setCopiedId(""), 1400);
+  };
+
+  const hasRetryQuota = () => {
+    const accountQuota = Number(quota?.quotaBalance || 0);
+    const memberQuota = membership?.active ? Number(membership?.remainingMonthlyQuota || 0) : 0;
+    return accountQuota + memberQuota > 0;
+  };
+
+  const editAndRetryUserMessage = (message, nextContent) => {
+    const nextText = String(nextContent || "").trim();
+    if (!nextText || isSending) return;
+    if (message.recordId && !hasRetryQuota()) {
+      setConnectionError("额度不足，先购买额度包或开通会员后再重试");
+      return;
+    }
+    sendMessage({
+      text: nextText,
+      file: null,
+      rollbackToMessageId: message.id
+    });
+  };
+
+  const retryAssistantMessage = (message) => {
+    if (isSending) return;
+    const chat = chatList.find((item) => item.id === currentChatId);
+    const messageIndex = chat?.messages?.findIndex((item) => item.id === message.id) ?? -1;
+    if (!chat || messageIndex < 0) return;
+    const userMessage = [...chat.messages.slice(0, messageIndex)].reverse().find((item) => item.role === "user");
+    if (!userMessage?.content) return;
+    if (userMessage.recordId && !hasRetryQuota()) {
+      setConnectionError("额度不足，先购买额度包或开通会员后再重试");
+      return;
+    }
+    sendMessage({
+      text: userMessage.content,
+      file: null,
+      rollbackToMessageId: userMessage.id
+    });
   };
 
   const handleArtifactDownload = async (artifact) => {
@@ -2733,7 +2881,7 @@ function BearDoctorAcademicApp() {
         payUrl: data.payUrl || "",
         payFormHtml: data.payFormHtml || (data.paymentType === "PAGE_FORM" ? data.payUrl : ""),
         paymentType: data.paymentType || (isPaymentFormHtml(data.payUrl) ? "PAGE_FORM" : ""),
-        payChannel: data.payChannel || "ALIPAY",
+        payChannel: data.payChannel || preferredFrontendPayChannel(),
         gatewayTradeNo: data.gatewayTradeNo || "",
         source: "new"
       });
@@ -2759,7 +2907,7 @@ function BearDoctorAcademicApp() {
       payUrl,
       payFormHtml: isPaymentFormHtml(payUrl) ? payUrl : "",
       paymentType: isPaymentFormHtml(payUrl) ? "PAGE_FORM" : "",
-      payChannel: order.payChannel || "ALIPAY",
+      payChannel: order.payChannel || preferredFrontendPayChannel(),
       source: "existing"
     });
   };
@@ -2768,16 +2916,30 @@ function BearDoctorAcademicApp() {
     if (!paymentDialog?.orderId) return;
     setBuyingKey(`pay-${paymentDialog.orderId}`);
     setConnectionError("");
-    const payWindow = window.open("", "_blank");
-    if (payWindow && !payWindow.closed) {
-      payWindow.document.write("<!doctype html><html><head><meta charset=\"UTF-8\"><title>支付宝支付</title></head><body>正在进入支付宝...</body></html>");
-      payWindow.document.close();
-    }
     try {
       const preparedPayment = {
         ...paymentDialog,
         payFormHtml: paymentDialog.payFormHtml || (isPaymentFormHtml(paymentDialog.payUrl) ? paymentDialog.payUrl : "")
       };
+      if (isMockPayment(preparedPayment)) {
+        const mockRes = await mockPaySuccess(paymentDialog.orderId);
+        if (!apiSucceeded(mockRes)) {
+          throw new Error(normalizeUserMessage(mockRes?.info || mockRes?.message, "模拟支付失败"));
+        }
+        setPaymentDialog(null);
+        setToast(Number(paymentDialog.marketType) === 1
+          ? (paymentDialog.productType === "MEMBERSHIP_PLAN" ? "模拟支付完成，拼团成团后会员生效" : "模拟支付完成，拼团成团后额度到账")
+          : (paymentDialog.productType === "MEMBERSHIP_PLAN" ? "模拟支付完成，会员已生效" : "模拟支付完成，额度已到账"));
+        await loadOrders().catch(() => {});
+        await loadQuota().catch(() => {});
+        await loadGroupMarketConfig().catch(() => {});
+        return;
+      }
+      const payWindow = window.open("", "_blank");
+      if (payWindow && !payWindow.closed) {
+        payWindow.document.write("<!doctype html><html><head><meta charset=\"UTF-8\"><title>支付宝支付</title></head><body>正在进入支付宝...</body></html>");
+        payWindow.document.close();
+      }
       if (openGatewayPayment(preparedPayment, payWindow)) {
         setPaymentDialog(null);
         setToast("已打开支付宝支付页，支付完成后订单会通过回调更新");
@@ -2785,7 +2947,7 @@ function BearDoctorAcademicApp() {
         return;
       }
       const payRes = await createPayment(paymentDialog.orderId, {
-        payChannel: "ALIPAY",
+        payChannel: paymentDialog.payChannel || "",
         returnUrl: paymentReturnUrl(paymentDialog.orderId)
       });
       if (!apiSucceeded(payRes)) {
@@ -2798,7 +2960,6 @@ function BearDoctorAcademicApp() {
       setToast("已打开支付宝支付页，支付完成后订单会通过回调更新");
       await loadOrders().catch(() => {});
     } catch (error) {
-      if (payWindow && !payWindow.closed) payWindow.close();
       setConnectionError(normalizeUserMessage(error.message, "支付宝支付创建失败"));
     } finally {
       setBuyingKey("");
@@ -2872,7 +3033,7 @@ function BearDoctorAcademicApp() {
           </div>
 
           <div className="messages-container" ref={messagesContainer}>
-            {(academicProjects.length > 0 || activeAcademicProject) && (
+            {showAcademicProjectPanel && (
               <AcademicProjectPanel
                 projects={academicProjects}
                 model={academicProjectWorkspace}
@@ -2946,7 +3107,7 @@ function BearDoctorAcademicApp() {
                 loading={ordersLoading}
                 onRefresh={() => loadOrders().catch(() => {})}
                 onOpenRecharge={openRecharge}
-                onAuditOrder={auditTradeOrder}
+                onOpenOrderRecords={openTradeOrderRecords}
               />
             )}
             {(!currentChat || currentChat.messages.length === 0) ? (
@@ -2969,6 +3130,8 @@ function BearDoctorAcademicApp() {
                     isSending={isSending}
                     isLast={currentChat.messages[currentChat.messages.length - 1]?.id === msg.id}
                     onCopy={copyMessage}
+                    onEditUser={editAndRetryUserMessage}
+                    onRetryAssistant={retryAssistantMessage}
                     onToggleTimeline={toggleTimeline}
                     onToggleReference={toggleReference}
                     onRecommendClick={quickPrompt}
@@ -3039,7 +3202,7 @@ function BearDoctorAcademicApp() {
                     sendMessage();
                   }
                 }}
-                placeholder={webSearchEnabled ? "搜索网页" : selectedAgent === "image" ? "描述或编辑图片" : selectedAgent === "deep" ? "获取详细报告" : "问点什么"}
+                placeholder={composerPlaceholder}
                 rows={1}
               />
               <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} hidden />
@@ -3077,9 +3240,8 @@ function BearDoctorAcademicApp() {
                   </button>
                 </div>
                 <div className="composer-tool-right">
-                  <button type="button" className="composer-mode-button" title="当前模式">
-                    <span>{COMPOSER_AGENT_LABELS[selectedAgent] || "对话"}</span>
-                    <ChevronDown size={14} />
+                  <button type="button" className="composer-mode-button" title="本轮执行方式">
+                    <span>{selectedModeIntent.executionMode || selectedModeIntent.label}</span>
                   </button>
                   <button
                     className={`send-btn ${isSending ? "stop" : ""} ${!isSending && (!inputMessage.trim() && !selectedFile) ? "disabled" : ""}`}
@@ -3090,6 +3252,19 @@ function BearDoctorAcademicApp() {
                     {isSending ? <Square size={17} /> : <ArrowUp size={18} />}
                   </button>
                 </div>
+              </div>
+            </div>
+            <div className="composer-mode-intent">
+              <div className="composer-mode-intent-main">
+                <span>{selectedModeIntent.label}</span>
+                <em>{selectedModeIntent.route}</em>
+                <small>{selectedModeIntent.hint}</small>
+              </div>
+              <div className="composer-mode-intent-grid" aria-label="本轮执行说明">
+                <div><b>模式</b><span>{selectedModeIntent.executionMode}</span></div>
+                <div><b>协作</b><span>{selectedModeIntent.agents}</span></div>
+                <div><b>产出</b><span>{selectedModeIntent.outputs}</span></div>
+                <div><b>过程</b><span>{selectedModeIntent.trace}</span></div>
               </div>
             </div>
             {selectedAgent === "ppt" && (
@@ -3107,10 +3282,10 @@ function BearDoctorAcademicApp() {
               <div className="composer-research-style-note">
                 <div>
                   <Search size={15} />
-                  <strong>研究报告</strong>
+                  <strong>深度任务</strong>
                 </div>
                 <span>
-                  适合综述、技术调研、竞品对比和方案选型。输入研究问题、范围和希望重点关注的角度，系统会先拆解计划，再整理来源、对比证据并输出报告。
+                  适合技术调研、竞品对比、方案选型和复杂资料整理。输入目标、范围和重点，系统会先拆解计划，再整理来源、对比证据并输出结果。
                 </span>
               </div>
             )}
@@ -3132,7 +3307,7 @@ function BearDoctorAcademicApp() {
                   <span>{selectedSkillName || "自动"}</span>
                 </div>
                 <p className="composer-skill-help">
-                  适合指定某个固定流程处理任务。选择一个 Skill 后，输入目标、素材路径和约束；选择“自动”时，系统会根据任务内容匹配合适的 Skill。
+                  {selectedManualSkillHelp}
                 </p>
                 <div className="skill-picker composer-skill-picker" aria-label="选择 Skill">
                   <button
@@ -3153,7 +3328,13 @@ function BearDoctorAcademicApp() {
                       {skill.name || "技能"}
                     </button>
                   ))}
-                  {manualSkills.length === 0 && <em>暂无技能</em>}
+                  {manualSkills.length === 0 && (
+                    <em>
+                      {agentCapabilities?.skillsDirectory
+                        ? `未发现技能：${agentCapabilities.skillsDirectory}`
+                        : "未配置本地技能目录"}
+                    </em>
+                  )}
                 </div>
               </div>
             )}
@@ -3544,11 +3725,14 @@ function AcademicProjectPanel({
   const visibleDrafts = workspace.draftFiles.slice(0, 3);
   const visibleReferences = workspace.referenceFiles.slice(0, 3);
   const visiblePatches = workspace.pendingPatches.slice(0, 3);
+  const hasProjectDetails = hasProject && (
+    visibleDrafts.length > 0 || visibleReferences.length > 0 || visiblePatches.length > 0
+  );
   return (
-    <section className="academic-project-panel">
+    <section className={`academic-project-panel ${hasProjectDetails ? "" : "compact"}`}>
       <div className="academic-project-head">
         <div>
-          <span className="academic-project-kicker">论文工程</span>
+          <span className="academic-project-kicker">工作上下文</span>
           <strong>{workspace.title}</strong>
           <em>{workspace.subtitle || workspace.contextSummary}</em>
         </div>
@@ -3581,17 +3765,17 @@ function AcademicProjectPanel({
         <span><b>{workspace.fileCount}</b>材料</span>
         <span><b>{workspace.pendingPatchCount}</b>待确认补丁</span>
       </div>
-      {hasProject ? (
+      {hasProjectDetails ? (
         <div className="academic-project-grid">
           <div className="academic-project-column">
             <div className="academic-project-column-head">
               <FileText size={14} />
-              <strong>草稿材料</strong>
+              <strong>工作材料</strong>
             </div>
             {visibleDrafts.map((file) => (
               <ProjectFileRow file={file} key={file.fileId || file.fileName} />
             ))}
-            {visibleDrafts.length === 0 && <div className="academic-project-empty">暂无草稿文件</div>}
+            {visibleDrafts.length === 0 && <div className="academic-project-empty">暂无工作材料</div>}
           </div>
           <div className="academic-project-column">
             <div className="academic-project-column-head">
@@ -3622,9 +3806,9 @@ function AcademicProjectPanel({
             {visiblePatches.length === 0 && <div className="academic-project-empty">暂无待确认补丁</div>}
           </div>
         </div>
-      ) : (
-        <div className="academic-project-empty wide">创建项目后，上传文件会自动进入当前论文工程</div>
-      )}
+      ) : !hasProject ? (
+        <div className="academic-project-empty wide">创建项目后，上传文件会自动进入当前工作项目</div>
+      ) : null}
     </section>
   );
 }
@@ -3847,7 +4031,7 @@ function tradeOrderAmount(order = {}) {
   return formatTradeNumber(order.payAmount || order.totalAmount || order.amount || order.lockAmount);
 }
 
-function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAuditOrder }) {
+function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onOpenOrderRecords }) {
   const stats = [
     { label: "当前余额", value: `${formatTradeNumber(summary.quotaBalance)} 点` },
     { label: "已用额度", value: `${formatTradeNumber(summary.usedQuota)} 点` },
@@ -3908,9 +4092,9 @@ function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onAu
                   {settlementHint.label}
                 </small>
                 <span>￥{tradeOrderAmount(order)}</span>
-                <button type="button" className="trade-order-audit" onClick={() => onAuditOrder?.(order)}>
+                <button type="button" className="trade-order-audit" onClick={() => onOpenOrderRecords?.()}>
                   <Eye size={14} />
-                  <span>记录</span>
+                  <span>订单</span>
                 </button>
               </article>
             );
@@ -4169,7 +4353,7 @@ function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPr
           <div className="icon-glow" />
         </div>
       )}
-      <h2>{useSimpleEmpty ? "今天想研究什么？" : workspace.name}</h2>
+      <h2>{useSimpleEmpty ? "今天想做什么？" : workspace.name}</h2>
       {!useSimpleEmpty && <p>{serviceProfile.summary}</p>}
       {showWorkspaceRuntime && (
         <div className="workspace-meter">
@@ -4743,170 +4927,354 @@ function ArtifactInlinePreview({ preview }) {
   return null;
 }
 
-function AgentRunDigestPanel({ digest }) {
-  if (!digest?.visible) return null;
+function numberFrom(value, fallback = 0) {
+  const parsed = Number(value ?? fallback);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function formatReasoningDuration(ms) {
+  const value = numberFrom(ms, 0);
+  if (value <= 0) return "";
+  if (value < 1000) return `${Math.max(1, Math.round(value))} ms`;
+  const seconds = value / 1000;
+  if (seconds < 10) return `${seconds.toFixed(1).replace(/\.0$/, "")} 秒`;
+  if (seconds < 60) return `${Math.round(seconds)} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return rest > 0 ? `${minutes} 分 ${rest} 秒` : `${minutes} 分`;
+}
+
+function reasoningElapsedMs(timeline = []) {
+  const diagnosis = [...timeline].reverse().find((item) => item?.type === "diagnosis" && numberFrom(item?.metrics?.elapsedMs, 0) > 0);
+  if (diagnosis) return numberFrom(diagnosis.metrics.elapsedMs, 0);
+  return timeline.reduce((sum, item) => sum + numberFrom(item?.latencyMillis, 0), 0);
+}
+
+function reasoningToolCount(timeline = []) {
+  const seen = new Set();
+  let anonymous = 0;
+  timeline.forEach((item) => {
+    if (item?.type !== "tool") return;
+    const key = String(item.invocationId || item.toolCallId || "").trim();
+    if (key) {
+      seen.add(key);
+      return;
+    }
+    if (String(item.status || "").toLowerCase() !== "running") {
+      anonymous += 1;
+    }
+  });
+  return seen.size || anonymous || timeline.filter((item) => item?.type === "tool").length;
+}
+
+function assistantReasoningMeta(message = {}, plannerHistory = []) {
+  const timeline = message.timeline || [];
+  const pieces = [];
+  const elapsed = formatReasoningDuration(reasoningElapsedMs(timeline));
+  const tools = reasoningToolCount(timeline);
+  if (elapsed) pieces.push(`用时 ${elapsed}`);
+  if (tools > 0) pieces.push(`${tools} 次工具`);
+  if (plannerHistory.length > 0) pieces.push(`${plannerHistory.length} 版计划`);
+  if ((message.artifacts || []).length > 0) pieces.push(`${message.artifacts.length} 个产物`);
+  return pieces.slice(0, 3).join(" · ");
+}
+
+function TimelineContent({ timeline = [] }) {
   return (
-    <section className={`agent-run-digest ${digest.status}`}>
-      <div className="agent-run-digest-head">
-        <span>{digest.statusLabel}</span>
-        <strong>执行摘要</strong>
-      </div>
-      {digest.metrics.length > 0 && (
-        <div className="agent-run-digest-metrics">
-          {digest.metrics.map((metric) => (
-            <span className={metric.tone || "normal"} key={metric.key}>
-              <b>{metric.value}</b>
-              {metric.label}
-            </span>
-          ))}
-        </div>
-      )}
-      {digest.highlights.length > 0 && (
-        <div className="agent-run-digest-highlights">
-          {digest.highlights.map((item, index) => (
-            <p key={`${item}-${index}`}>{item}</p>
-          ))}
+    <div className="timeline-content">
+      {timeline.map((item, index) => {
+        const statusClass = timelineItemStatus(item);
+        const statusLabel = timelineItemStatusLabel(item);
+        return (
+          <div className="timeline-item" key={`${item.type}-${index}`}>
+            <div className={`timeline-dot ${statusClass}`} title={statusLabel} />
+            <div className="timeline-item-body">
+              {item.type === "thinking" && <div className="timeline-thinking">{item.content}</div>}
+              {item.type === "task_analysis" && (
+                <div className="timeline-reasoning">
+                  <strong>{item.title || "任务分析"}</strong>
+                  <span>{item.taskType || "任务"} · {item.difficulty || "中等"} · 预计 {item.estimatedSteps || 0} 步</span>
+                  {item.needsMultipleSources && <em>需要多源对比</em>}
+                  {item.content && <small>{item.content}</small>}
+                </div>
+              )}
+              {item.type === "mode_selection" && (
+                <div className="timeline-reasoning">
+                  <strong>{item.executionMode || "ReAct"}</strong>
+                  <span>{item.agentType || "chat"} · {item.modeFamily || "react"}</span>
+                  {item.content && <small>{item.content}</small>}
+                </div>
+              )}
+              {item.type === "agent_routing" && (
+                <div className="timeline-routing">
+                  <strong>{item.title || "Agent 协作"}</strong>
+                  <div>
+                    {(item.selectedAgents || []).map((agentName) => (
+                      <span key={agentName}>{agentName}</span>
+                    ))}
+                  </div>
+                  {item.content && <small>{item.content}</small>}
+                </div>
+              )}
+              {item.type === "run" && (
+                <div className="timeline-run">
+                  <span className="timeline-tool-name">{item.title}</span>
+                  <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
+                  {item.content && <small>{item.content}</small>}
+                </div>
+              )}
+              {item.type === "plan" && (
+                <div className="timeline-plan">
+                  <strong>{item.title || "执行计划"}</strong>
+                  {(item.flowStages || []).length > 0 ? (
+                    <div className="timeline-flow-stages">
+                      {(item.flowStages || []).map((stage, stageIndex) => (
+                        <div className="timeline-flow-stage" key={`stage-${stage.stageIndex ?? stageIndex}`}>
+                          <small>阶段 {(stage.stageIndex ?? stageIndex) + 1}</small>
+                          {(stage.steps || []).map((step, stepIndex) => (
+                            <span key={`${step.stepId || stepIndex}-${planStepLabel(step)}`}>
+                              {planStepLabel(step)}
+                              {planStepMeta(step) && <em>{planStepMeta(step)}</em>}
+                            </span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    (item.steps || []).map((step, stepIndex) => (
+                      <span key={`${step.stepId || stepIndex}-${planStepLabel(step)}`}>
+                        {planStepLabel(step)}
+                        {planStepMeta(step) && <em>{planStepMeta(step)}</em>}
+                      </span>
+                    ))
+                  )}
+                </div>
+              )}
+              {item.type === "replan" && (
+                <div className="timeline-replan">
+                  <strong>{item.title || "动态重规划"}</strong>
+                  {item.content && <small>{item.content}</small>}
+                  <span>旧计划 {(item.oldPlan || []).length} 步 · 新计划 {(item.newPlan || []).length} 步</span>
+                </div>
+              )}
+              {item.type === "flow" && (
+                <div className="timeline-flow">
+                  <span className={`timeline-flow-status ${statusClass}`}>
+                    阶段 {(item.stageIndex ?? 0) + 1} · {statusLabel}
+                  </span>
+                  {item.message && <small>{item.message}</small>}
+                  {(item.steps || []).map((step, stepIndex) => (
+                    <em key={`${step.stepId || stepIndex}-${planStepLabel(step)}`}>
+                      {planStepLabel(step)}
+                    </em>
+                  ))}
+                </div>
+              )}
+              {item.type === "tool" && (
+                <div className="timeline-tool">
+                  <span>🔧</span>
+                  <span className="timeline-tool-name">{item.toolName}</span>
+                  <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
+                  {item.detail && <small>{item.detail}</small>}
+                  {item.latencyMillis ? <small>{item.latencyMillis} ms</small> : null}
+                  {(item.argumentsJson || item.resultJson || item.errorMessage) && (
+                    <details className="timeline-tool-io">
+                      <summary>输入 / 输出</summary>
+                      {item.argumentsJson && <pre>{String(item.argumentsJson).slice(0, 1600)}</pre>}
+                      {item.resultJson && <pre>{String(item.resultJson).slice(0, 2400)}</pre>}
+                      {item.errorMessage && <pre>{String(item.errorMessage).slice(0, 800)}</pre>}
+                    </details>
+                  )}
+                </div>
+              )}
+              {item.type === "llm" && (
+                <div className="timeline-llm">
+                  <span className="timeline-tool-name">{item.modelName}</span>
+                  <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
+                  <small>{item.tokens || 0} tokens · {item.latencyMillis || 0} ms</small>
+                </div>
+              )}
+              {item.type === "diagnosis" && (
+                <div className="timeline-diagnosis">
+                  <strong>{item.title || "运行诊断"} · {item.level || "OK"}</strong>
+                  {item.content && <small>{item.content}</small>}
+                  {item.metrics && (
+                    <div>
+                      <span>耗时 {item.metrics.elapsedMs || 0} ms</span>
+                      <span>工具 {item.metrics.toolCallCount || 0} 次</span>
+                      <span>失败 {item.metrics.failedToolCount || 0} 次</span>
+                      <span>重规划 {item.metrics.replanCount || 0} 次</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {item.type === "error" && <div className="timeline-error"><AlertTriangle size={14} /><span>{item.message}</span></div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AssistantReasoningPanel({ msg, digest, plannerHistory = [], onToggle }) {
+  const timeline = msg.timeline || [];
+  const visible = Boolean(digest?.visible || plannerHistory.length || timeline.length);
+  if (!visible) return null;
+  const open = Boolean(msg.showTimeline);
+  const status = digest?.status || "completed";
+  const title = status === "running" ? "思考中" : status === "attention" ? "需关注" : "已思考";
+  const meta = assistantReasoningMeta(msg, plannerHistory);
+  return (
+    <section className={`assistant-reasoning ${status} ${open ? "open" : ""}`}>
+      <button type="button" className="assistant-reasoning-toggle" onClick={onToggle} aria-expanded={open}>
+        <span className="assistant-reasoning-icon" aria-hidden="true">
+          {status === "running" ? <Loader2 size={14} /> : status === "attention" ? <AlertTriangle size={14} /> : <Check size={14} />}
+        </span>
+        <span className="assistant-reasoning-title">{title}</span>
+        {meta && <span className="assistant-reasoning-meta">（{meta}）</span>}
+        <span className="assistant-reasoning-caret">{open ? "⌃" : "⌄"}</span>
+      </button>
+      {open && (
+        <div className="assistant-reasoning-body">
+          {digest?.metrics?.length > 0 && (
+            <div className="assistant-reasoning-metrics">
+              {digest.metrics.map((metric) => (
+                <span className={metric.tone || "normal"} key={metric.key}>
+                  <b>{metric.value}</b>{metric.label}
+                </span>
+              ))}
+            </div>
+          )}
+          {digest?.highlights?.length > 0 && (
+            <div className="assistant-reasoning-highlights">
+              {digest.highlights.map((item, index) => <p key={`${item}-${index}`}>{item}</p>)}
+            </div>
+          )}
+          {plannerHistory.length > 0 && (
+            <div className="assistant-reasoning-plans">
+              <span className="assistant-reasoning-subtitle">计划历史</span>
+              {plannerHistory.map((version, index) => (
+                <div className={`assistant-reasoning-plan ${version.latest ? "latest" : ""}`} key={version.id}>
+                  <strong>{index + 1}. {version.title}</strong>
+                  <small>
+                    第 {version.revision || index + 1} 版
+                    {" · "}
+                    {version.stageCount > 0 ? `${version.stageCount} 阶段 · ` : ""}
+                    {version.stepCount} 步{version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}
+                    {" · "}
+                    {version.status}
+                  </small>
+                  {version.replanReason && <em>原因：{version.replanReason}</em>}
+                  {version.summary && <em>{version.summary}</em>}
+                </div>
+              ))}
+            </div>
+          )}
+          {timeline.length > 0 && <TimelineContent timeline={timeline} />}
         </div>
       )}
     </section>
   );
 }
 
-function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline, onToggleReference, onRecommendClick, onDownloadArtifact }) {
+function MessageItem({
+  msg,
+  copied,
+  isSending,
+  isLast,
+  onCopy,
+  onEditUser,
+  onRetryAssistant,
+  onToggleTimeline,
+  onToggleReference,
+  onRecommendClick,
+  onDownloadArtifact
+}) {
   const isUser = msg.role === "user";
   const plannerHistory = !isUser ? buildPlannerHistory(msg.timeline || []) : [];
   const runDigest = !isUser ? buildAgentRunDigest(msg) : null;
   const [previewArtifactKey, setPreviewArtifactKey] = useState("");
+  const [editingUser, setEditingUser] = useState(false);
+  const [editingDraft, setEditingDraft] = useState(msg.content || "");
+  useEffect(() => {
+    if (!editingUser) {
+      setEditingDraft(msg.content || "");
+    }
+  }, [editingUser, msg.content]);
+  const submitUserEdit = () => {
+    const nextText = editingDraft.trim();
+    if (!nextText || nextText === msg.content || isSending) {
+      setEditingUser(false);
+      setEditingDraft(msg.content || "");
+      return;
+    }
+    setEditingUser(false);
+    onEditUser?.(msg, nextText);
+  };
   return (
     <div className={`message ${msg.role}`}>
-      <div className="message-avatar">{isUser ? "👤" : "AI"}</div>
       <div className="message-content">
         {isUser ? (
-          <>
-            <div className="user-message">
-              {msg.file && <span className="file-attachment"><Paperclip size={14} />{msg.fileName}</span>}
-              <div>{msg.content}</div>
-            </div>
-            <button className="copy-btn copy-btn-user" onClick={() => onCopy(msg)}>
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-            </button>
-          </>
+          <div className="user-message-wrap">
+            {editingUser ? (
+              <div className="user-message-editor">
+                <textarea
+                  value={editingDraft}
+                  autoFocus
+                  rows={Math.min(8, Math.max(2, editingDraft.split("\n").length))}
+                  onChange={(event) => setEditingDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+                      submitUserEdit();
+                    }
+                    if (event.key === "Escape") {
+                      setEditingUser(false);
+                      setEditingDraft(msg.content || "");
+                    }
+                  }}
+                />
+                <div className="user-message-editor-actions">
+                  <button type="button" onClick={() => {
+                    setEditingUser(false);
+                    setEditingDraft(msg.content || "");
+                  }}>取消</button>
+                  <button type="button" className="primary" disabled={isSending || !editingDraft.trim()} onClick={submitUserEdit}>发送</button>
+                </div>
+              </div>
+            ) : (
+              <div className="user-message">
+                {msg.file && <span className="file-attachment"><Paperclip size={14} />{msg.fileName}</span>}
+                <div>{msg.content}</div>
+              </div>
+            )}
+            {!editingUser && (
+              <div className="message-actions user-actions">
+                <button className="message-icon-btn" title="复制" onClick={() => onCopy(msg)}>
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                </button>
+                <button
+                  className="message-icon-btn"
+                  title="编辑并重试"
+                  disabled={isSending}
+                  onClick={() => {
+                    setEditingDraft(msg.content || "");
+                    setEditingUser(true);
+                  }}
+                >
+                  <Pencil size={15} />
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="ai-message">
-            <AgentRunDigestPanel digest={runDigest} />
-            {plannerHistory.length > 0 && (
-              <div className="planner-history">
-                <div className="planner-history-header">
-                  <span>计划历史</span>
-                  <b>{plannerHistory.length} 版</b>
-                </div>
-                <div className="planner-history-list">
-                  {plannerHistory.map((version, index) => (
-                    <div className={`planner-history-item ${version.latest ? "latest" : ""}`} key={version.id}>
-                      <span className={`planner-history-status ${version.status}`}>{version.status}</span>
-                      <strong>{index + 1}. {version.title}</strong>
-                      <small>
-                        第 {version.revision || index + 1} 版
-                        {"?"}
-                        {version.stageCount > 0 ? `${version.stageCount} 阶段` : ""}
-                        {version.stepCount} 步{version.flowUpdates > 0 ? `，${version.flowUpdates} 次更新` : ""}
-                      </small>
-                      {version.replanReason && <em>原因：{version.replanReason}</em>}
-                      {version.summary && <em>{version.summary}</em>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {msg.timeline?.length > 0 && (
-              <div className="timeline-section">
-                <button className="timeline-header" onClick={() => onToggleTimeline(msg.id)}>
-                  <span className="timeline-icon-wrapper">⚙</span>
-                  <span className="timeline-title">执行过程</span>
-                  <span>{msg.showTimeline ? "⌃" : "⌄"}</span>
-                </button>
-                {msg.showTimeline && (
-                  <div className="timeline-content">
-                    {msg.timeline.map((item, index) => {
-                      const statusClass = timelineItemStatus(item);
-                      const statusLabel = timelineItemStatusLabel(item);
-                      return (
-                      <div className="timeline-item" key={`${item.type}-${index}`}>
-                        <div className={`timeline-dot ${statusClass}`} title={statusLabel} />
-                        <div className="timeline-item-body">
-                          {item.type === "thinking" && <div className="timeline-thinking">{item.content}</div>}
-                          {item.type === "run" && (
-                            <div className="timeline-run">
-                              <span className="timeline-tool-name">{item.title}</span>
-                              <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
-                              {item.content && <small>{item.content}</small>}
-                            </div>
-                          )}
-                          {item.type === "plan" && (
-                            <div className="timeline-plan">
-                              <strong>{item.title || "执行计划"}</strong>
-                              {(item.flowStages || []).length > 0 ? (
-                                <div className="timeline-flow-stages">
-                                  {(item.flowStages || []).map((stage, stageIndex) => (
-                                    <div className="timeline-flow-stage" key={`stage-${stage.stageIndex ?? stageIndex}`}>
-                                      <small>阶段 {(stage.stageIndex ?? stageIndex) + 1}</small>
-                                      {(stage.steps || []).map((step, stepIndex) => (
-                                        <span key={`${step.stepId || stepIndex}-${planStepLabel(step)}`}>
-                                          {planStepLabel(step)}
-                                          {planStepMeta(step) && <em>{planStepMeta(step)}</em>}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                (item.steps || []).map((step, stepIndex) => (
-                                  <span key={`${step.stepId || stepIndex}-${planStepLabel(step)}`}>
-                                    {planStepLabel(step)}
-                                    {planStepMeta(step) && <em>{planStepMeta(step)}</em>}
-                                  </span>
-                                ))
-                              )}
-                            </div>
-                          )}
-                          {item.type === "flow" && (
-                            <div className="timeline-flow">
-                              <span className={`timeline-flow-status ${statusClass}`}>
-                                阶段 {(item.stageIndex ?? 0) + 1} · {statusLabel}
-                              </span>
-                              {item.message && <small>{item.message}</small>}
-                              {(item.steps || []).map((step, stepIndex) => (
-                                <em key={`${step.stepId || stepIndex}-${planStepLabel(step)}`}>
-                                  {planStepLabel(step)}
-                                </em>
-                              ))}
-                            </div>
-                          )}
-                          {item.type === "tool" && (
-                            <div className="timeline-tool">
-                              <span>🔧</span>
-                              <span className="timeline-tool-name">{item.toolName}</span>
-                              <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
-                              {item.detail && <small>{item.detail}</small>}
-                              {item.latencyMillis ? <small>{item.latencyMillis} ms</small> : null}
-                            </div>
-                          )}
-                          {item.type === "llm" && (
-                            <div className="timeline-llm">
-                              <span className="timeline-tool-name">{item.modelName}</span>
-                              <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
-                              <small>{item.tokens || 0} tokens · {item.latencyMillis || 0} ms</small>
-                            </div>
-                          )}
-                          {item.type === "error" && <div className="timeline-error"><AlertTriangle size={14} /><span>{item.message}</span></div>}
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+            <AssistantReasoningPanel
+              msg={msg}
+              digest={runDigest}
+              plannerHistory={plannerHistory}
+              onToggle={() => onToggleTimeline(msg.id)}
+            />
 
             <MarkdownRenderer content={msg.content} />
             {isSending && isLast && (
@@ -4998,9 +5366,19 @@ function MessageItem({ msg, copied, isSending, isLast, onCopy, onToggleTimeline,
               </div>
             )}
 
-            <button className="copy-btn" onClick={() => onCopy(msg)}>
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-            </button>
+            <div className="message-actions assistant-actions">
+              <button className="message-icon-btn" title="复制" onClick={() => onCopy(msg)}>
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+              </button>
+              <button
+                className="message-icon-btn"
+                title="重试"
+                disabled={isSending}
+                onClick={() => onRetryAssistant?.(msg)}
+              >
+                <RotateCcw size={15} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -5107,7 +5485,7 @@ function ModelConfigDialog({ config, onSave, onClose }) {
             <input
               value={draft.textModel || draft.model || ""}
               onChange={(event) => updateTextModel(event.target.value)}
-              placeholder="qwen3.6-plus"
+              placeholder="qwen3.7-plus"
               disabled={!draft.enabled}
             />
           </label>
@@ -5181,7 +5559,7 @@ function RechargeDialog({
     const rawSize = Number(product.teamSize || 0);
     if (rawSize === 3 || rawSize === 5) return rawSize;
     const text = `${product.goodsId || ""} ${product.goodsName || ""}`.toUpperCase();
-    if (text.includes("G10002") || text.includes("G10005") || text.includes("论文阅读") || text.includes("深度研究")) {
+    if (text.includes("G10002") || text.includes("G10005") || text.includes("长文档") || text.includes("深度任务")) {
       return 5;
     }
     return 3;
@@ -5258,6 +5636,8 @@ function RechargeDialog({
   const promptCost = Number(billingPolicy?.platformPromptCostPer1k || 0).toFixed(2);
   const completionCost = Number(billingPolicy?.platformCompletionCostPer1k || 0).toFixed(2);
   const customRate = Math.round(Number(billingPolicy?.customModelServiceRate || 0) * 100);
+  const blendedCostPer1k = Number(billingPolicy?.platformPromptCostPer1k || 0) * 0.7
+    + Number(billingPolicy?.platformCompletionCostPer1k || 0) * 0.3;
   const membershipPlans = (packages || []).filter((pkg) => pkg.productType === "MEMBERSHIP_PLAN");
   const quotaPackages = (packages || []).filter((pkg) => pkg.productType !== "MEMBERSHIP_PLAN");
   const currentPlanCode = memberActive ? (membership?.planCode || "FREE") : "FREE";
@@ -5294,8 +5674,22 @@ function RechargeDialog({
     return [
       `每月 ${quota} 点会员额度`,
       "自定义模型会员免费",
-      isPro ? "适合深度研究、PPT 和图像生成" : "适合论文问答、PPT 和常用 Skill"
+      isPro ? "适合深度任务、PPT 和图像生成" : "适合文件问答、PPT 和常用 Skill"
     ];
+  };
+  const estimatedMixedTokensLabel = (quotaAmountValue) => {
+    const quotaValue = Number(quotaAmountValue || 0);
+    if (!Number.isFinite(quotaValue) || quotaValue <= 0 || blendedCostPer1k <= 0) {
+      return "按实际模型 token 消耗扣减";
+    }
+    const tokens = Math.floor((quotaValue / blendedCostPer1k) * 1000);
+    if (tokens >= 1000000) {
+      return `约 ${(tokens / 1000000).toFixed(1)}M 混合 token`;
+    }
+    if (tokens >= 10000) {
+      return `约 ${Math.floor(tokens / 10000)} 万混合 token`;
+    }
+    return `约 ${tokens.toLocaleString("zh-CN")} 混合 token`;
   };
 
   if (groupPreviewPackage) {
@@ -5399,12 +5793,12 @@ function RechargeDialog({
           <button className="refresh-btn upgrade-refresh" onClick={onRefresh}>刷新</button>
         </div>
         <div className="upgrade-billing-note">
-          平台模型：输入 {promptCost} 点/千 token，输出 {completionCost} 点/千 token；自定义模型按 {customRate || 10}% 收取服务费。
+          1 点约等于 0.01 元；参考 Qwen3.7-Plus 官方价格，平台按输入 {promptCost} 点/千 token、输出 {completionCost} 点/千 token 计费；自定义模型按 {customRate || 10}% 收取服务费。
         </div>
         <div className="recharge-head">
           <div>
             <h3>额度中心</h3>
-            <p>购买额度后可用于对话、文件上传后的问答、生成 PPT、深度研究和 Skill 调用</p>
+            <p>购买额度后可用于对话、文件问答、生成 PPT、图像生成、深度任务和 Skill 调用</p>
           </div>
           <button className="refresh-btn" onClick={onRefresh}>刷新</button>
         </div>
@@ -5425,10 +5819,10 @@ function RechargeDialog({
         <div className="membership-card">
           <div>
             <span>{memberActive ? "会员额度" : "会员"}</span>
-            <strong>{memberActive ? `${memberRemaining} / ${memberTotal} 次` : "未开通"}</strong>
+            <strong>{memberActive ? `${memberRemaining} / ${memberTotal} 点` : "未开通"}</strong>
           </div>
           <p>
-            当前计费：输入 {promptCost} 点/千 token，输出 {completionCost} 点/千 token，自定义模型按 {customRate || 10}% 计费。
+            当前计费：1 点约等于 0.01 元；输入 {promptCost} 点/千 token，输出 {completionCost} 点/千 token，自定义模型按 {customRate || 10}% 计费。
           </p>
         </div>
         <div className="recharge-tabs">
@@ -5475,6 +5869,7 @@ function RechargeDialog({
                         <em>/ 月</em>
                       </div>
                       <p>{plan.specSummary}</p>
+                      <div className="pkg-token-estimate">{estimatedMixedTokensLabel(plan.quotaAmount)}</div>
                       <div className="membership-plan-actions">
                         <button type="button" onClick={() => onBuy(plan, "direct")} disabled={disabled}>
                           {actionText}
@@ -5508,9 +5903,10 @@ function RechargeDialog({
                       <h4>{pkg.goodsName}</h4>
                       <p>{pkg.specSummary}</p>
                       <div className="pkg-amount">{Number(pkg.quotaAmount || 0).toFixed(0)} 点</div>
+                      <div className="pkg-token-estimate">{estimatedMixedTokensLabel(pkg.quotaAmount)}</div>
                       <ul className="plan-features">
                         <li><Check size={14} /> 对话、文件问答和 Skill 调用</li>
-                        <li><Check size={14} /> 生成 PPT、图像和深度研究</li>
+                        <li><Check size={14} /> 生成 PPT、图像和深度任务</li>
                         <li><Check size={14} /> 支付后自动记录额度流水</li>
                       </ul>
                       <div className="pkg-actions">
@@ -5582,6 +5978,7 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
   const amount = Number(payment?.amount || 0).toFixed(2);
   const isGroupOrder = Number(payment?.marketType) === 1;
   const isMembershipOrder = payment?.productType === "MEMBERSHIP_PLAN";
+  const mockPayment = isMockPayment(payment);
   const paying = buyingKey === `pay-${payment?.orderId}`;
 
   return (
@@ -5591,8 +5988,12 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
         <div className="payment-icon">
           <CreditCard size={24} />
         </div>
-        <h3>进入支付宝支付</h3>
-        <p>{isMembershipOrder ? "支付完成并回调成功后会员会自动生效。" : isGroupOrder ? "支付完成后先等待成团，成团后额度才会到账。" : "支付完成并回调成功后额度会自动到账。"}</p>
+        <h3>{mockPayment ? "确认模拟支付" : "进入支付宝支付"}</h3>
+        <p>{isMembershipOrder
+          ? (mockPayment ? "本地模拟支付完成后，会员会按后端交易状态生效。" : "支付完成并回调成功后会员会自动生效。")
+          : isGroupOrder
+            ? "支付完成后先等待成团，成团后额度才会到账。"
+            : (mockPayment ? "本地模拟支付完成后，额度会按后端交易状态到账。" : "支付完成并回调成功后额度会自动到账。")}</p>
         <div className="payment-summary">
           <div>
             <span>订单</span>
@@ -5617,7 +6018,7 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
           <button type="button" onClick={onCancel} disabled={paying}>取消</button>
           <button type="button" className="primary" onClick={onConfirm} disabled={paying}>
             {paying ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />}
-            {paying ? "跳转中" : "去支付宝支付"}
+            {paying ? "处理中" : (mockPayment ? "确认模拟支付" : "去支付宝支付")}
           </button>
         </div>
       </div>

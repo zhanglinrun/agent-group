@@ -190,6 +190,13 @@ public class AcademicArtifactService {
         }
     }
 
+    public void clearManifest(String userId, String sessionId) {
+        try {
+            Files.deleteIfExists(manifestPath(userId, sessionId));
+        } catch (IOException ignored) {
+        }
+    }
+
     public DownloadArtifact resolveDownload(String artifactId) {
         Path file = resolveArtifactPath(artifactId);
         if (!Files.isRegularFile(file)) {
@@ -220,7 +227,7 @@ public class AcademicArtifactService {
                 fileName = "生成文件";
             }
             matcher.appendReplacement(buffer,
-                    Matcher.quoteReplacement("`" + fileName + "`（可通过下方下载按钮获取�?));
+                    Matcher.quoteReplacement("`" + fileName + "`（可通过下方下载按钮获取）"));
         }
         matcher.appendTail(buffer);
         return buffer.toString();
@@ -381,7 +388,7 @@ public class AcademicArtifactService {
         Path root = root();
         Path file = root.resolve(relative).normalize();
         if (!file.startsWith(root)) {
-            throw new AppException("ARTIFACT_0003", "生成文件路径不合�?);
+            throw new AppException("ARTIFACT_0003", "生成文件路径不合法");
         }
         return file;
     }
@@ -449,7 +456,7 @@ public class AcademicArtifactService {
         String ext = extension(fileName).toUpperCase(Locale.ROOT);
         return switch (ext) {
             case "PDF" -> "PDF 笔记";
-            case "TEX" -> "LaTeX 源文�?;
+            case "TEX" -> "LaTeX 源文件";
             case "SRT", "VTT" -> "字幕文件";
             case "TXT", "MD" -> "文本资料";
             case "PPTX" -> "PPT 文件";
@@ -497,7 +504,7 @@ public class AcademicArtifactService {
             byte[] bytes = Base64.getUrlDecoder().decode(value);
             return new String(bytes, StandardCharsets.UTF_8);
         } catch (IllegalArgumentException e) {
-            throw new AppException("ARTIFACT_0003", "生成文件路径不合�?);
+            throw new AppException("ARTIFACT_0003", "生成文件路径不合法");
         }
     }
 

@@ -36,7 +36,7 @@ public class PayOrderEntity {
             return;
         }
         if (!PayStatusEnumVO.WAIT_PAY.equals(payStatus)) {
-            throw new AppException("TRADE_0003", "当前支付单状态不能改为支付成�?);
+            throw new AppException("TRADE_0003", "当前支付单状态不能改为支付成功");
         }
         this.outTradeNo = outTradeNo;
         this.payTime = payTime;
@@ -63,7 +63,7 @@ public class PayOrderEntity {
             throw new AppException("TRADE_0004", "支付成功的支付单不能关闭");
         }
         if (PayStatusEnumVO.REFUNDED.equals(payStatus)) {
-            throw new AppException("TRADE_0005", "已退款的支付单不能关�?);
+            throw new AppException("TRADE_0005", "已退款的支付单不能关闭");
         }
         this.payStatus = PayStatusEnumVO.CLOSED;
     }
@@ -73,7 +73,7 @@ public class PayOrderEntity {
             return;
         }
         if (!PayStatusEnumVO.SUCCESS.equals(payStatus)) {
-            throw new AppException("TRADE_0016", "当前支付单状态不能退�?);
+            throw new AppException("TRADE_0016", "当前支付单状态不能退款");
         }
         this.payStatus = PayStatusEnumVO.REFUNDED;
     }

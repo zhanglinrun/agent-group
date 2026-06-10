@@ -22,7 +22,8 @@ public class ListSkillDirectoryTool extends SkillFileToolSupport
 
     public static final String NAME = "list_skill_directory";
     public static final String DESCRIPTION = """
-            列出已注册技能目录内的文件和子目录�?            只能浏览 skill 对应目录下的内容�?            """;
+            列出已注册技能目录内的文件和子目录。只能浏览 skill 对应目录下的内容。
+            """;
 
     public ListSkillDirectoryTool(SkillRegistry skillRegistry) {
         super(skillRegistry);
@@ -83,7 +84,7 @@ public class ListSkillDirectoryTool extends SkillFileToolSupport
 
     public record Request(
             @JsonProperty(value = "skill", required = true)
-            @JsonPropertyDescription("技能名�?)
+            @JsonPropertyDescription("技能名")
             String skill,
 
             @JsonProperty("path")
@@ -91,11 +92,11 @@ public class ListSkillDirectoryTool extends SkillFileToolSupport
             String path,
 
             @JsonProperty("max_depth")
-            @JsonPropertyDescription("最大遍历深度，默认 2，最�?8")
+            @JsonPropertyDescription("最大遍历深度，默认 2，最多 8")
             Integer maxDepth,
 
             @JsonProperty("max_entries")
-            @JsonPropertyDescription("最大返回条目数，默�?160，最�?400")
+            @JsonPropertyDescription("最大返回条目数，默认 160，最多 400")
             Integer maxEntries
     ) {
     }

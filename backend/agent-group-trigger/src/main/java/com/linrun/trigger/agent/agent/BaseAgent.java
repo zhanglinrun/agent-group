@@ -41,7 +41,7 @@ public abstract class BaseAgent {
     // 是否启用推荐问题功能
     protected boolean enableRecommendations = true;
 
-    // 计时�?
+    // 计时??
     protected long startTime;
     protected long firstResponseTime;
     protected Set<String> usedTools;
@@ -51,7 +51,7 @@ public abstract class BaseAgent {
     protected String currentRecommendations;
 
     /**
-     * 构造函�?
+     * 构造函??
      */
     public BaseAgent(String name, ChatModel chatModel, String agentType) {
         this.name = name;
@@ -60,7 +60,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 子类必须实现的执行方�?
+     * 子类必须实现的执行方??
      *
      * @param conversationId 会话ID
      * @param question       用户问题
@@ -76,14 +76,14 @@ public abstract class BaseAgent {
      * @param conversationId 会话ID
      * @param messages       目标消息列表
      * @param skipSystem     是否跳过系统消息
-     * @param addLabel       是否添加"对话历史�?标签
+     * @param addLabel       是否添加"对话历史"标签
      */
     protected void loadChatHistory(String conversationId, List<Message> messages, boolean skipSystem, boolean addLabel) {
         if (conversationId != null && chatMemory != null) {
             List<Message> history = chatMemory.get(conversationId);
             if (history != null && !history.isEmpty()) {
                 if (addLabel) {
-                    messages.add(new UserMessage("对话历史�?));
+                    messages.add(new UserMessage("对话历史"));
                 }
                 for (Message msg : history) {
                     if (skipSystem && msg instanceof SystemMessage) {
@@ -121,13 +121,13 @@ public abstract class BaseAgent {
             return MessageWindowChatMemory.builder().maxMessages(maxMessages).build();
         }
 
-        // 查询数据库中的对话历�?
+        // 查询数据库中的对话历??
         List<AiSession> history = sessionService.findRecentBySessionId(sessionId, maxMessages);
 
         // 创建 ChatMemory
         ChatMemory chatMemory = MessageWindowChatMemory.builder().maxMessages(maxMessages).build();
 
-        // 将历史记录添加到 ChatMemory（按时间顺序�?
+        // 将历史记录添加到 ChatMemory（按时间顺序??
         if (history != null && !history.isEmpty()) {
             // 反转历史记录顺序，确保按时间顺序添加
             for (int i = history.size() - 1; i >= 0; i--) {
@@ -220,7 +220,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 检查并发任�?
+     * 检查并发任??
      *
      * @param conversationId 会话ID
      * @return 错误流，如果没有冲突则返回null
@@ -259,9 +259,9 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 获取总响应时�?
+     * 获取总响应时??
      *
-     * @return 总响应时间（毫秒�?
+     * @return 总响应时间（毫秒??
      */
     protected long getTotalResponseTime() {
         if (startTime == 0) {
@@ -292,7 +292,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 记录使用的工�?
+     * 记录使用的工??
      *
      * @param toolName 工具名称
      */
@@ -318,26 +318,26 @@ public abstract class BaseAgent {
         try {
             List<Message> messages = new ArrayList<>();
 
-            // 1. 添加系统提示�?
+            // 1. 添加系统提示??
             messages.add(new SystemMessage(ReactAgentPrompts.getRecommendPrompt()));
 
             // 2. 添加历史消息
             loadChatHistory(conversationId, messages, true, true);
 
             // 3. 添加当前会话的消息（最新的消息，放在最后）
-            messages.add(new UserMessage("当前会话�?));
+            messages.add(new UserMessage("当前会话"));
             messages.add(new UserMessage(currentQuestion));
             if (currentAnswer != null) {
                 messages.add(new AssistantMessage(currentAnswer));
             }
 
             // 4. 添加格式说明消息
-            // 使用 BeanOutputConverter 进行结构化输�?
+            // 使用 BeanOutputConverter 进行结构化输??
             BeanOutputConverter<List<String>> converter = new BeanOutputConverter<>(new ParameterizedTypeReference<>() {
             });
 
             // 添加格式说明消息
-            messages.add(new UserMessage("请根据上述对话生�?个推荐问题。输出格式为：\n" + converter.getFormat()));
+            messages.add(new UserMessage("请根据上述对话生成 3 个推荐问题。输出格式为：\n" + converter.getFormat()));
 
             // 5. 调用模型生成推荐问题
             String response = ChatClient.builder(chatModel).build()
@@ -356,7 +356,7 @@ public abstract class BaseAgent {
                 }
             }
 
-            log.warn("生成推荐问题失败，响应格式无�? {}", response);
+            log.warn("生成推荐问题失败，响应格式无效 {}", response);
             return null;
         } catch (Exception e) {
             log.error("生成推荐问题异常", e);
@@ -367,7 +367,7 @@ public abstract class BaseAgent {
     /**
      * 从响应中提取JSON数组
      *
-     * @param response 响应字符�?
+     * @param response 响应字符??
      * @return JSON数组字符串，提取失败返回null
      */
     private String extractJsonArray(String response) {
@@ -375,7 +375,7 @@ public abstract class BaseAgent {
             return null;
         }
 
-        // 查找第一�?[ 和最后一�?]
+        // 查找第一??[ 和最后一??]
         int start = response.indexOf('[');
         int end = response.lastIndexOf(']');
 

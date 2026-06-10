@@ -5,8 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 链路追踪上下方
- * 支持 TraceId �?SpanId 传播，用于全链路追踪
+ * 链路追踪上下文。
+ * 支持 TraceId 和 SpanId 传播，用于全链路追踪。
  */
 public class TraceContext {
 
@@ -16,7 +16,7 @@ public class TraceContext {
     private static final ThreadLocal<Map<String, String>> TAGS = new ThreadLocal<>();
 
     /**
-     * 开始新的追�?
+     * 开始新的追踪。
      */
     public static void startTrace(String traceId) {
         TRACE_ID.set(traceId != null ? traceId : generateTraceId());
@@ -26,7 +26,7 @@ public class TraceContext {
     }
 
     /**
-     * 开始新�?Span
+     * 开始新的 Span。
      */
     public static String startSpan(String operation) {
         String currentSpan = SPAN_ID.get();
@@ -78,14 +78,14 @@ public class TraceContext {
     }
 
     /**
-     * 获取�?SpanId
+     * 获取父级 SpanId。
      */
     public static String parentSpanId() {
         return PARENT_SPAN_ID.get();
     }
 
     /**
-     * 获取所有标�?
+     * 获取所有标签。
      */
     public static Map<String, String> getTags() {
         Map<String, String> tags = TAGS.get();
@@ -93,7 +93,7 @@ public class TraceContext {
     }
 
     /**
-     * 清理上下方
+     * 清理上下文。
      */
     public static void clear() {
         TRACE_ID.remove();

@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * PPT状态策略上下文
- * 用于在策略间共享依赖和工具方�?
+ * 用于在策略间共享依赖和工具方??
  */
 public class PptStateStrategyContext {
 
@@ -40,7 +40,7 @@ public class PptStateStrategyContext {
     private Long currentSessionId;
     private String currentConversationId;
     private boolean modifyMode;
-    private String modifyQuery;  // 当前修改需求（仅在 modifyMode �?true 时有效）
+    private String modifyQuery;  // 当前修改需求（仅在 modifyMode ??true 时有效）
 
     public PptStateStrategyContext(ChatClient chatClient, ChatModel chatModel,
                                     AiPptInstService pptInstService,
@@ -170,14 +170,14 @@ public class PptStateStrategyContext {
     }
 
     /**
-     * 设置当前修改需�?
+     * 设置当前修改需??
      */
     public void setModifyQuery(String modifyQuery) {
         this.modifyQuery = modifyQuery;
     }
 
     /**
-     * 获取当前修改需�?
+     * 获取当前修改需??
      */
     public String getModifyQuery() {
         return modifyQuery;
@@ -201,14 +201,14 @@ public class PptStateStrategyContext {
      * @param conversationId 会话ID
      * @param messages      目标消息列表
      * @param skipSystem    是否跳过系统消息
-     * @param addLabel     是否添加"对话历史�?标签
+     * @param addLabel     是否添加"对话历史"标签
      */
     public void loadChatHistory(String conversationId, List<Message> messages, boolean skipSystem, boolean addLabel) {
         if (conversationId != null && chatMemory != null) {
             List<Message> history = chatMemory.get(conversationId);
             if (history != null && !history.isEmpty()) {
                 if (addLabel) {
-                    messages.add(new UserMessage("对话历史�?));
+                    messages.add(new UserMessage("对话历史"));
                 }
                 for (Message msg : history) {
                     if (skipSystem && msg instanceof SystemMessage) {
@@ -243,10 +243,10 @@ public class PptStateStrategyContext {
     }
 
     /**
-     * 判断是否可以进入下一�?
-     * 根据提示词约定的标记判断�?
-     * - 【开始生成PPT】：继续下一�?
-     * - 【暂停生成PPT】：停止并转�?FAILED
+     * 判断是否可以进入下一??
+     * 根据提示词约定的标记判断??
+     * - 【开始生成PPT】：继续下一??
+     * - 【暂停生成PPT】：停止并转??FAILED
      */
     public boolean shouldContinueToNextStep(String response) {
         if (response == null || response.isEmpty()) {
@@ -257,20 +257,20 @@ public class PptStateStrategyContext {
         String trimmedResponse = response.trim();
 
         // 优先检查明确的标记（使用精确匹配避免误判）
-        if (trimmedResponse.contains("【开始生成PPT�?) || trimmedResponse.contains("【开始生成PPT�?.toLowerCase())) {
+        if (trimmedResponse.contains("【开始生成PPT】") || trimmedResponse.contains("【开始生成ppt】")) {
             return true;
         }
 
-        if (trimmedResponse.contains("【暂停生成PPT�?) || trimmedResponse.contains("【暂停生成PPT�?.toLowerCase())) {
+        if (trimmedResponse.contains("【暂停生成PPT】") || trimmedResponse.contains("【暂停生成ppt】")) {
             return false;
         }
 
         // 兜容逻辑：如果没有找到明确标记，根据内容特征判断
-        // 如果包含明确的疑问标记（问号、请问等），则不能继�?
+        // 如果包含明确的疑问标记（问号、请问等），则不能继??
         String[] stopKeywords = {
-                "【暂停生成PPT�?, "【暂停生成ppt�?,
-                "请问", "请问�?, "请问是否", "请提�?, "请问需�?,
-                "请问�?, "请问希望", "请问�?, "请问您的"
+                "【暂停生成PPT】", "【暂停生成ppt】",
+                "请问", "请问？", "请问是否", "请提供", "请问需要",
+                "请问一下", "请问希望", "请问您", "请问您的"
         };
 
         String lowerResponse = trimmedResponse.toLowerCase();
@@ -288,7 +288,7 @@ public class PptStateStrategyContext {
      * 继续执行状态机
      *
      * @param inst PPT 实例
-     * @param sink 响应�?
+     * @param sink 响应??
      * @param query 用户查询
      * @param thinkingBuffer 思考缓冲区
      */

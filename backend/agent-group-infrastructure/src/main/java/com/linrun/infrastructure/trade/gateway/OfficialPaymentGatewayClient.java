@@ -693,7 +693,7 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             Object notification = new NotificationParser(wechatConfig()).parse(requestParam, notificationType);
             return toWechatRefundQueryResult(command, notification, true, "微信支付退款回调验签通过");
         } catch (ClassNotFoundException e) {
-            return parseWechatRefundWebhookBody(command, true, "微信支付退款回调验签通过，当�?SDK 未提供退款通知模型，按报文解析");
+            return parseWechatRefundWebhookBody(command, true, "微信支付退款回调验签通过，当??SDK 未提供退款通知模型，按报文解析");
         }
     }
 

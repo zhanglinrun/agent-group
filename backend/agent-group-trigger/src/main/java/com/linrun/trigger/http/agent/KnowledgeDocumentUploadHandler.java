@@ -204,7 +204,7 @@ public class KnowledgeDocumentUploadHandler {
     private void validateUploadFile(MultipartFile file) {
         String filename = file.getOriginalFilename();
         if (!StringUtils.hasText(filename) || filename.length() > MAX_FILENAME_LENGTH) {
-            throw new AppException("UPLOAD_0001", "文件名不能为空，且长度不能超�?160 个字�?);
+            throw new AppException("UPLOAD_0001", "filename cannot be blank and length cannot exceed 160 characters");
         }
         if (file.getSize() > maxFileSizeBytes) {
             throw new AppException("UPLOAD_0002", "上传文件超过大小限制");
@@ -216,7 +216,7 @@ public class KnowledgeDocumentUploadHandler {
         }
         String extension = extension(safeName);
         if (!allowedExtensionSet().contains(extension)) {
-            throw new AppException("UPLOAD_0004", "当前只允许上�?md、txt、pdf、docx 类型文件");
+            throw new AppException("UPLOAD_0004", "当前只允许上传 md、txt、pdf、docx 类型文件");
         }
         String contentType = file.getContentType();
         if (StringUtils.hasText(contentType) && !"application/octet-stream".equalsIgnoreCase(contentType)
@@ -261,7 +261,7 @@ public class KnowledgeDocumentUploadHandler {
         try {
             return file.getBytes();
         } catch (IOException e) {
-            throw new AppException("0001", "上传文件读取失败�? + e.getMessage());
+            throw new AppException("0001", "upload file read failed: " + e.getMessage());
         }
     }
 

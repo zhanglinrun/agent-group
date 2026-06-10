@@ -8,6 +8,7 @@ import com.linrun.api.dto.AcademicReplayResponse;
 import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
 import com.linrun.api.dto.AcademicSessionSummaryDTO;
+import com.linrun.api.dto.AgentDiagnosisReportDTO;
 import com.linrun.api.dto.QuotaStreamEvent;
 import com.linrun.domain.agent.conversation.adapter.QuotaStreamControlRepository;
 import com.linrun.trigger.config.RequestTraceContext;
@@ -167,6 +168,13 @@ public class AcademicAgentController {
         return Response.success(academicBearDoctorAgentHandler.queryRunDetail(token, runId), RequestTraceContext.getRequestId());
     }
 
+    @GetMapping("/runs/{runId}/diagnosis")
+    public Response<AgentDiagnosisReportDTO> runDiagnosis(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String runId) {
+        return Response.success(academicBearDoctorAgentHandler.queryRunDiagnosis(token, runId), RequestTraceContext.getRequestId());
+    }
+
     @GetMapping("/runs/{runId}/replay")
     public Response<AcademicReplayResponse> runReplay(
             @RequestHeader(value = "Authorization", required = false) String token,
@@ -180,6 +188,16 @@ public class AcademicAgentController {
             @PathVariable String sessionId) {
         academicBearDoctorAgentHandler.deleteSession(token, sessionId);
         return Response.success(true, RequestTraceContext.getRequestId());
+    }
+
+    @PostMapping("/sessions/{sessionId}/rollback")
+    public Response<Boolean> rollbackSession(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String sessionId,
+            @RequestBody Map<String, String> request) {
+        String messageId = request == null ? "" : request.getOrDefault("messageId", "");
+        return Response.success(academicBearDoctorAgentHandler.rollbackSession(token, sessionId, messageId),
+                RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/artifacts/download")
@@ -219,7 +237,7 @@ public class AcademicAgentController {
         try {
             return objectMapper.writeValueAsString(event);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("学术智能体流事件序列化失�?, e);
+            throw new IllegalStateException("Agent 流事件序列化失败", e);
         }
     }
 }

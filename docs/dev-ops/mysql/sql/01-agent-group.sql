@@ -620,7 +620,7 @@ create table if not exists ai_file_info (
   primary key (id),
   unique key uk_file_id (file_id),
   key idx_conversation_id (conversation_id)
-) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent 文件元数据表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 文件元数据表';
 
 create table if not exists ai_session (
   id bigint not null auto_increment comment '主键ID',
@@ -640,7 +640,7 @@ create table if not exists ai_session (
   primary key (id),
   key idx_session_id (session_id),
   key idx_create_time (create_time)
-) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent 智能体会话表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent 智能体会话表';
 
 create table if not exists ai_ppt_inst (
   id bigint not null auto_increment comment '实例ID',
@@ -660,7 +660,7 @@ create table if not exists ai_ppt_inst (
   key idx_conversation_id (conversation_id),
   key idx_status (status),
   key idx_template_code (template_code)
-) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent PPT 生成实例表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent PPT 生成实例表';
 
 create table if not exists ai_ppt_template (
   id bigint not null auto_increment comment '模板ID',
@@ -675,7 +675,7 @@ create table if not exists ai_ppt_template (
   primary key (id),
   unique key uk_template_code (template_code),
   key idx_template_code (template_code)
-) engine=InnoDB default charset=utf8mb4 comment='熊博士 Agent PPT 模板表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent PPT 模板表';
 
 insert into ai_ppt_template (
   template_code, template_name, template_desc, template_schema, file_path, style_tags, slide_count
@@ -921,8 +921,8 @@ insert into dynamic_config (
 ('groupRefundNotifyType', 'HTTP', 'group refund notify type'),
 ('groupRefundNotifyUrl', '', 'group refund notify url'),
 ('groupRefundNotifyMQ', 'agent.group.notify.group-refund', 'group refund notify mq'),
-('agentBillingPromptCostPer1k', '0.10', 'platform prompt quota cost per 1k tokens'),
-('agentBillingCompletionCostPer1k', '0.30', 'platform completion quota cost per 1k tokens'),
+('agentBillingPromptCostPer1k', '0.20', 'qwen3.7-plus prompt quota cost per 1k tokens'),
+('agentBillingCompletionCostPer1k', '0.80', 'qwen3.7-plus completion quota cost per 1k tokens'),
 ('agentBillingCustomModelServiceRate', '0.10', 'custom model service fee rate')
 on duplicate key update
   config_value = values(config_value),
@@ -953,14 +953,14 @@ insert into guide_goods (
   goods_id, goods_name, image_url, origin_price, quota_amount, product_type, spec_summary, after_sale_policy,
   recommend_reason, not_suitable_for, enabled, sort_order
 ) values
-('G10001', '基础额度包', '', 19.90, 40.00, 'QUOTA_PACKAGE', '适合普通对话、论文摘要和轻量问答', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合刚开始体验学术助手的用户', '需要批量生成 PPT 或长时间深度研究的用户', 1, 10),
-('G10002', '论文阅读额度包', '', 49.90, 120.00, 'QUOTA_PACKAGE', '适合上传论文、生成精读笔记和实验复现清单', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合研究生读论文、整理相关工作和复现实验', '只进行普通短对话的用户', 1, 20),
-('G10003', 'PPT 创作额度包', '', 69.90, 180.00, 'QUOTA_PACKAGE', '适合生成组会汇报、开题答辩和论文分享 PPT', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合需要多次生成和修改学术演示稿的用户', '只需要偶尔问答的用户', 1, 30),
-('G10004', '图表重建额度包', '', 39.90, 90.00, 'QUOTA_PACKAGE', '适合图片、流程图和架构图转可编辑草稿', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合论文图、实验流程和系统架构图的重建编辑', '要求严格 1:1 商业级复刻的用户', 1, 40),
-('G10005', '深度研究额度包', '', 99.90, 260.00, 'QUOTA_PACKAGE', '适合复杂主题拆解、多轮调研和报告生成', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合秋招项目调研、论文选题和技术路线规划', '只需要单轮短问答的用户', 1, 50),
-('G10006', '团队拼团额度包', '', 129.90, 360.00, 'QUOTA_PACKAGE', '适合实验室小组共享演示，额度更多且拼团优惠更明显', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合组会、课题组内部演示和多人拼团充值', '个人轻量体验用户', 1, 60),
-('MEMBER_PLUS_MONTH', 'Plus 会员', '', 39.90, 1000.00, 'MEMBERSHIP_PLAN', '每月 1000 点会员额度，自定义模型会员免费，适合高频论文问答和 PPT 生成', '会员属于虚拟服务，支付开通后按平台会员服务规则处理售后', '适合需要稳定使用对话、文件问答、图像和深度研究能力的个人用户', '只偶尔体验一次的用户', 1, 1),
-('MEMBER_PRO_MONTH', 'Pro 会员', '', 99.90, 5000.00, 'MEMBERSHIP_PLAN', '每月 5000 点会员额度，适合深度研究、长文档处理和多模态生成', '会员属于虚拟服务，支付开通后按平台会员服务规则处理售后', '适合项目复盘、论文精读、答辩材料和复杂 Agent 任务高频使用', '只进行普通短对话的用户', 1, 2)
+('G10001', '基础额度包', '', 19.90, 1990.00, 'QUOTA_PACKAGE', '包含 1990 点额度，适合普通对话、文件问答和轻量资料整理', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合刚开始体验 Agent 工作台的用户', '需要批量生成 PPT 或长时间深度任务的用户', 1, 10),
+('G10002', '长文档额度包', '', 49.90, 4990.00, 'QUOTA_PACKAGE', '包含 4990 点额度，适合上传长文档、生成摘要、提纲和执行清单', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合整理项目资料、会议纪要、需求文档和技术材料', '只进行普通短对话的用户', 1, 20),
+('G10003', 'PPT 创作额度包', '', 69.90, 6990.00, 'QUOTA_PACKAGE', '包含 6990 点额度，适合生成汇报、答辩和项目展示 PPT', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合需要多次生成和修改演示稿的用户', '只需要偶尔问答的用户', 1, 30),
+('G10004', '图表重建额度包', '', 39.90, 3990.00, 'QUOTA_PACKAGE', '包含 3990 点额度，适合图片、流程图和架构图转可编辑草稿', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合流程图、业务图、架构图和项目图表的重建编辑', '要求严格 1:1 商业级复刻的用户', 1, 40),
+('G10005', '深度任务额度包', '', 99.90, 9990.00, 'QUOTA_PACKAGE', '包含 9990 点额度，适合复杂主题拆解、多轮调研和报告生成', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合秋招项目调研、方案选型和技术路线规划', '只需要单轮短问答的用户', 1, 50),
+('G10006', '团队拼团额度包', '', 129.90, 12990.00, 'QUOTA_PACKAGE', '包含 12990 点额度，适合小组共享演示，额度更多且拼团优惠更明显', '虚拟额度到账后不支持无理由退款；未使用额度退款时会回滚到账额度', '适合组会、课题组内部演示和多人拼团充值', '个人轻量体验用户', 1, 60),
+('MEMBER_PLUS_MONTH', 'Plus 会员', '', 39.90, 3990.00, 'MEMBERSHIP_PLAN', '每月 3990 点会员额度，自定义模型会员免费，适合高频文件问答和 PPT 生成', '会员属于虚拟服务，支付开通后按平台会员服务规则处理售后', '适合需要稳定使用对话、文件问答、图像和深度任务能力的个人用户', '只偶尔体验一次的用户', 1, 1),
+('MEMBER_PRO_MONTH', 'Pro 会员', '', 99.90, 9990.00, 'MEMBERSHIP_PLAN', '每月 9990 点会员额度，适合深度任务、长文档处理和多模态生成', '会员属于虚拟服务，支付开通后按平台会员服务规则处理售后', '适合项目复盘、技术方案、演示材料和复杂 Agent 任务高频使用', '只进行普通短对话的用户', 1, 2)
 on duplicate key update
   goods_name = values(goods_name),
   image_url = values(image_url),
@@ -980,10 +980,10 @@ insert into group_activity (
   tag_id, tag_scope, enabled
 ) values
 ('A10001', 'G10001', 16.90, 3, '基础额度包拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
-('A10002', 'G10002', 42.90, 5, '论文阅读额度包拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1),
+('A10002', 'G10002', 42.90, 5, '长文档额度包拼团', 'D10002', 0, 1, 5, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), 'TAG_PAY_2000', '2', 1),
 ('A10003', 'G10003', 59.90, 3, 'PPT 创作额度包拼团', 'D10002', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
 ('A10004', 'G10004', 33.90, 4, '图表重建额度包拼团', 'D10002', 0, 1, 4, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 5 day), null, null, 1),
-('A10005', 'G10005', 84.90, 2, '深度研究额度包拼团', 'D10001', 0, 2, 2, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 10 day), null, null, 1),
+('A10005', 'G10005', 84.90, 2, '深度任务额度包拼团', 'D10001', 0, 2, 2, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 10 day), null, null, 1),
 ('A10006', 'G10006', 109.90, 3, '团队拼团额度包拼团', 'D10001', 0, 2, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
 ('A10007', 'MEMBER_PLUS_MONTH', 32.90, 3, 'Plus 会员拼团', 'D10001', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1),
 ('A10008', 'MEMBER_PRO_MONTH', 84.90, 3, 'Pro 会员拼团', 'D10001', 0, 1, 3, 1440, 1, date_sub(now(), interval 1 day), date_add(now(), interval 7 day), null, null, 1)
@@ -1023,10 +1023,10 @@ insert into sku (
   source, channel, goods_id, goods_name, original_price
 ) values
 ('s01', 'c01', 'G10001', '基础额度包', 19.90),
-('s01', 'c01', 'G10002', '论文阅读额度包', 49.90),
+('s01', 'c01', 'G10002', '长文档额度包', 49.90),
 ('s01', 'c01', 'G10003', 'PPT 创作额度包', 69.90),
 ('s01', 'c01', 'G10004', '图表重建额度包', 39.90),
-('s01', 'c01', 'G10005', '深度研究额度包', 99.90),
+('s01', 'c01', 'G10005', '深度任务额度包', 99.90),
 ('s01', 'c01', 'G10006', '团队拼团额度包', 129.90),
 ('s01', 'c01', 'MEMBER_PLUS_MONTH', 'Plus 会员', 39.90),
 ('s01', 'c01', 'MEMBER_PRO_MONTH', 'Pro 会员', 99.90)
@@ -1069,10 +1069,10 @@ on duplicate key update
 insert into knowledge_document (
   document_id, document_name, document_type, knowledge_version, source_type, source_name, document_status, enabled
 ) values
-('DOC10001', '学术额度包说明', '额度包资料', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10002', '论文阅读工作流说明', '学术工作流', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10003', '学术资料整理边界', '安全边界', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
-('DOC10005', '学术 Agent 任务说明', 'Agent 任务规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
+('DOC10001', '额度包说明', '额度包资料', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10002', '长文档工作流说明', '文档工作流', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10003', '资料整理边界', '安全边界', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1),
+('DOC10005', 'Agent 任务说明', 'Agent 任务规则', 'v1', 'INIT_DATA', '初始化数据', 'ENABLED', 1)
 on duplicate key update
   document_name = values(document_name),
   document_type = values(document_type),
@@ -1085,14 +1085,14 @@ on duplicate key update
 insert into knowledge_fragment (
   fragment_id, document_id, goods_id, document_type, knowledge_version, content, rank_no, fragment_status, enabled
 ) values
-('KF10001', 'DOC10001', 'G10001', '额度包资料', 'v1', '基础额度包包含 40 点额度，适合普通学术问答、论文摘要和轻量资料整理。', 1, 'ENABLED', 1),
-('KF10002', 'DOC10002', 'G10001', '学术工作流', 'v1', '论文阅读任务应先提取题名、摘要、方法、实验设置和结论，再整理贡献点与不足。', 2, 'ENABLED', 1),
-('KF10003', 'DOC10003', 'G10001', '安全边界', 'v1', '学术 Agent 可以辅助整理资料和生成草稿，但不能把未验证的模型推断写成论文事实。', 3, 'ENABLED', 1),
-('KF10011', 'DOC10005', 'G10003', 'Agent 任务规则', 'v1', 'PPT 创作额度包适合组会汇报、开题答辩和论文分享，支持生成演示稿结构、页面大纲和讲稿草稿。', 11, 'ENABLED', 1),
-('KF10012', 'DOC10005', 'G10004', 'Agent 任务规则', 'v1', '图表重建额度包适合把论文图、流程图和架构图转换成可编辑 Mermaid 或结构化草稿。', 12, 'ENABLED', 1),
-('KF10013', 'DOC10005', 'G10005', 'Agent 任务规则', 'v1', '深度研究额度包适合复杂主题拆解、技术路线规划、相关工作整理和长报告生成。', 13, 'ENABLED', 1),
-('KF10014', 'DOC10005', 'G10006', 'Agent 任务规则', 'v1', '团队拼团额度包适合实验室小组共享演示，拼团价 109.90 元，可获得 360 点额度。', 14, 'ENABLED', 1),
-('KF10015', 'DOC10005', 'G10001', 'Agent 任务规则', 'v1', '普通学术问答应优先给出直接结论，再补充必要依据和可继续验证的资料方向。', 15, 'ENABLED', 1)
+('KF10001', 'DOC10001', 'G10001', '额度包资料', 'v1', '基础额度包包含 1990 点额度，适合普通问答、文件问答和轻量资料整理。', 1, 'ENABLED', 1),
+('KF10002', 'DOC10002', 'G10001', '文档工作流', 'v1', '长文档任务应先提取主题、目标、关键结论、风险点和待办事项，再整理成可执行清单。', 2, 'ENABLED', 1),
+('KF10003', 'DOC10003', 'G10001', '安全边界', 'v1', 'Agent 可以辅助整理资料和生成草稿，但不能把未验证的模型推断写成事实。', 3, 'ENABLED', 1),
+('KF10011', 'DOC10005', 'G10003', 'Agent 任务规则', 'v1', 'PPT 创作额度包适合项目汇报、方案评审和产品演示，支持生成演示稿结构、页面大纲和讲稿草稿。', 11, 'ENABLED', 1),
+('KF10012', 'DOC10005', 'G10004', 'Agent 任务规则', 'v1', '图表重建额度包适合把流程图、业务图和架构图转换成可编辑 Mermaid 或结构化草稿。', 12, 'ENABLED', 1),
+('KF10013', 'DOC10005', 'G10005', 'Agent 任务规则', 'v1', '深度任务额度包适合复杂主题拆解、技术路线规划、相关工作整理和长报告生成。', 13, 'ENABLED', 1),
+('KF10014', 'DOC10005', 'G10006', 'Agent 任务规则', 'v1', '团队拼团额度包适合小组共享演示，拼团价 109.90 元，可获得 12990 点额度。', 14, 'ENABLED', 1),
+('KF10015', 'DOC10005', 'G10001', 'Agent 任务规则', 'v1', '普通问答应优先给出直接结论，再补充必要依据和可继续验证的资料方向。', 15, 'ENABLED', 1)
 on duplicate key update
   document_id = values(document_id),
   goods_id = values(goods_id),

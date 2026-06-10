@@ -56,8 +56,8 @@ public class DynamicConfigService {
             Map.entry(AGENT_PLAN_EXECUTE_SWITCH, "1"),
             Map.entry(AGENT_CONTEXT_COMPACT_THRESHOLD, "1600"),
             Map.entry(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1"),
-            Map.entry(AGENT_BILLING_PROMPT_COST_PER_1K, "0.10"),
-            Map.entry(AGENT_BILLING_COMPLETION_COST_PER_1K, "0.30"),
+            Map.entry(AGENT_BILLING_PROMPT_COST_PER_1K, "0.20"),
+            Map.entry(AGENT_BILLING_COMPLETION_COST_PER_1K, "0.80"),
             Map.entry(AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE, "0.10")
     );
 

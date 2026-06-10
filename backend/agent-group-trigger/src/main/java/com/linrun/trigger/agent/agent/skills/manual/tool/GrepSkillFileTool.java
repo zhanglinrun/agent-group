@@ -25,7 +25,8 @@ public class GrepSkillFileTool extends SkillFileToolSupport
 
     public static final String NAME = "grep_skill_files";
     public static final String DESCRIPTION = """
-            在已注册技能目录内搜索文本内容�?            path 可以是技能内文件或目录；regex=false 时按普通关键词搜索�?            """;
+            在已注册技能目录内搜索文本内容。path 可以是技能内文件或目录；regex=false 时按普通关键词搜索。
+            """;
 
     public GrepSkillFileTool(SkillRegistry skillRegistry) {
         super(skillRegistry);
@@ -107,7 +108,7 @@ public class GrepSkillFileTool extends SkillFileToolSupport
 
     public record Request(
             @JsonProperty(value = "skill", required = true)
-            @JsonPropertyDescription("技能名�?)
+            @JsonPropertyDescription("技能名")
             String skill,
 
             @JsonProperty("path")
@@ -115,11 +116,11 @@ public class GrepSkillFileTool extends SkillFileToolSupport
             String path,
 
             @JsonProperty(value = "pattern", required = true)
-            @JsonPropertyDescription("关键词或正则表达�?)
+            @JsonPropertyDescription("关键词或正则表达式")
             String pattern,
 
             @JsonProperty("regex")
-            @JsonPropertyDescription("是否按正则表达式搜索，默�?false")
+            @JsonPropertyDescription("是否按正则表达式搜索，默认 false")
             Boolean regex,
 
             @JsonProperty("case_sensitive")
@@ -127,7 +128,7 @@ public class GrepSkillFileTool extends SkillFileToolSupport
             Boolean caseSensitive,
 
             @JsonProperty("max_matches")
-            @JsonPropertyDescription("最大返回命中数，默�?80，最�?200")
+            @JsonPropertyDescription("最大返回命中数，默认 80，最多 200")
             Integer maxMatches
     ) {
     }

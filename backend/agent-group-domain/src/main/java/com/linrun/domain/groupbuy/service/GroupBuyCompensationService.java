@@ -109,7 +109,7 @@ public class GroupBuyCompensationService {
         validateGroupBuyOrder(tradeOrder);
 
         RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId())
-                .orElseThrow(() -> new AppException("TRADE_0015", "退款单不存�?));
+                .orElseThrow(() -> new AppException("TRADE_0015", "退款单不存在"));
         GroupBuySettlementResult releaseResult = releasePaidGroupBuyOrder(tradeOrder.getOrderId());
         recordRefundReleaseFlow(tradeOrder, releaseResult);
         return toResponse(tradeOrder, payOrder, refundOrder, releaseResult, refundOrder.getRefundTime());
@@ -200,7 +200,7 @@ public class GroupBuyCompensationService {
 
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存�?));
+                .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 
     private PayOrderEntity queryPayOrder(String orderId) {

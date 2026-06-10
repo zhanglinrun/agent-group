@@ -35,13 +35,13 @@ public class GroupBuyTeam {
 
     public void assertCanJoin(String activityId, String goodsId, LocalDateTime now) {
         if (!this.activityId.equals(activityId) || !this.goodsId.equals(goodsId)) {
-            throw new AppException("GROUP_0004", "拼团队伍和活动额度包不匹�?);
+            throw new AppException("GROUP_0004", "拼团队伍和活动额度包不匹配");
         }
         if (!GroupBuyTeamStatus.PROCESSING.equals(teamStatus)) {
             throw new AppException("GROUP_0005", "拼团队伍不可加入");
         }
         if (validEndTime != null && !now.isBefore(validEndTime)) {
-            throw new AppException("GROUP_0006", "拼团队伍已过本);
+            throw new AppException("GROUP_0006", "拼团队伍已过本");
         }
         if (lockCount != null && targetCount != null && lockCount >= targetCount) {
             throw new AppException("GROUP_0007", "拼团队伍名额已满");

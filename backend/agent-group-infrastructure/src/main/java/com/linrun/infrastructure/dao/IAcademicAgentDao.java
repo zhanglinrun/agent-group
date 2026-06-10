@@ -10,6 +10,7 @@ import com.linrun.infrastructure.po.AcademicToolInvocationPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -76,6 +77,22 @@ public interface IAcademicAgentDao {
     List<AcademicToolInvocationPO> queryToolInvocations(@Param("runId") String runId);
 
     List<AcademicArtifactPO> queryArtifactsByRun(@Param("runId") String runId);
+
+    int deleteArtifactsSince(@Param("userId") String userId,
+                             @Param("sessionId") String sessionId,
+                             @Param("startedAt") LocalDateTime startedAt);
+
+    int deleteLlmInvocationsSince(@Param("userId") String userId,
+                                  @Param("sessionId") String sessionId,
+                                  @Param("startedAt") LocalDateTime startedAt);
+
+    int deleteToolInvocationsSince(@Param("userId") String userId,
+                                   @Param("sessionId") String sessionId,
+                                   @Param("startedAt") LocalDateTime startedAt);
+
+    int deleteRunsSince(@Param("userId") String userId,
+                        @Param("sessionId") String sessionId,
+                        @Param("startedAt") LocalDateTime startedAt);
 }
 
 

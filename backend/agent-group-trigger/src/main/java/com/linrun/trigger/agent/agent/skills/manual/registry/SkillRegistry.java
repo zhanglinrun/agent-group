@@ -6,9 +6,9 @@ import com.linrun.trigger.agent.agent.skills.manual.model.SkillMetadata;
 import java.util.List;
 
 /**
- * 技能注册表接口�?
+ * 技能注册表接口??
  *
- * 定义技能的注册、查询和加载操作�?
+ * 定义技能的注册、查询和加载操作??
  *
  * @author bigchui
  * 

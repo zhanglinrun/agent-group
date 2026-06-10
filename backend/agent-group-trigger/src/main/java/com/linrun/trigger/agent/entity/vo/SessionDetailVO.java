@@ -17,7 +17,7 @@ public class SessionDetailVO {
     private String conversationId;
 
     /**
-     * 智能体类型（react/file/ppt�?
+     * 智能体类型（react/file/ppt??
      */
     private String agentType;
 
@@ -27,7 +27,7 @@ public class SessionDetailVO {
     private List<MessageVO> messages;
 
     /**
-     * 文件ID（关联文件或PPT�?
+     * 文件ID（关联文件或PPT??
      */
     private String fileid;
 }

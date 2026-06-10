@@ -31,10 +31,10 @@ public class HtmlToPptService {
 
                 XSLFSlide slide = ppt.createSlide();
 
-                // HTML â†?PNG
+                // HTML ??PNG
                 byte[] image = renderService.htmlToImage(html);
 
-                // PNG â†?PPT
+                // PNG ??PPT
                 XSLFPictureData pd = ppt.addPicture(
                         image,
                         PictureData.PictureType.PNG

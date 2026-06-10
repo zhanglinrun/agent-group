@@ -58,108 +58,93 @@ public class GlobalExceptionHandler {
     private String normalizeSystemMessage(Exception e) {
         String message = e == null ? "" : e.getMessage();
         if (!StringUtils.hasText(message)) {
-            return "系统繁忙，请稍后再试";
+            return "system busy, please try again later";
         }
         String normalized = normalizeMessage(message);
-        return normalized.equals(message) ? "系统繁忙，请稍后再试" : normalized;
+        return normalized.equals(message) ? "system busy, please try again later" : normalized;
     }
 
     private String normalizeMessage(String message) {
         if (message == null || message.isBlank()) {
-            return "操作失败";
+            return "operation failed";
         }
         String lower = message.toLowerCase(Locale.ROOT);
         if (lower.contains("user group buy take limit reached")) {
-            return "你已达到该拼团活动的参与次数上限";
+            return "group buy participation limit reached";
         }
         if (lower.contains("group team slot is full") || lower.contains("group team quota is full")) {
-            return "拼团队伍名额已满";
+            return "group team is full";
         }
         if (lower.contains("group team not found") || lower.contains("group lock not found") || lower.contains("group order lock not found")) {
-            return "拼团队伍不存在或已失�?;
+            return "group team not found or expired";
         }
         if (lower.contains("idempotent key conflict")) {
-            return "请勿重复提交不同的拼团订�?;
+            return "duplicate idempotent key";
         }
         if (lower.contains("request activity does not match market trial activity")) {
-            return "当前拼团活动已变化，请刷新后重试";
+            return "group activity has changed, please retry";
         }
         if (lower.contains("user cannot join this group activity")) {
-            return "当前账号暂不能参加这个拼团活�?;
+            return "current account cannot join this group activity";
         }
         if (lower.contains("group buy market is downgraded")) {
-            return "拼团活动暂时不可�?;
+            return "group buy activity is temporarily unavailable";
         }
         if (lower.contains("user is outside market cut range")) {
-            return "当前账号暂不在活动范围内";
+            return "current account is outside activity range";
         }
         if (lower.contains("source and channel are blocked")) {
-            return "当前渠道暂不能参加活�?;
+            return "current channel cannot join this activity";
         }
         if (lower.contains("product not found")) {
-            return "额度包不存在或已下架";
+            return "quota product not found or offline";
         }
         if (lower.contains("pay order not found")) {
-            return "支付单不存在";
+            return "pay order not found";
         }
         if (lower.contains("refund order not found")) {
-            return "退款单不存�?;
+            return "refund order not found";
         }
         if (lower.contains("order not found or user mismatch")) {
-            return "订单不存在或不属于当前用�?;
+            return "order not found or user mismatch";
         }
         if (lower.contains("order not found")) {
-            return "订单不存�?;
+            return "order not found";
         }
         if (lower.contains("cannot be blank") || lower.contains("cannot be empty") || lower.contains("is required")) {
-            return "请补全必要信�?;
+            return "required information is missing";
         }
         if (lower.contains("request cannot be null")) {
-            return "请求参数不能为空";
+            return "request cannot be null";
         }
         if (lower.contains("group buy timeout unformed")) {
-            return "拼团超时未成�?;
+            return "group buy timed out before forming";
         }
         if (lower.contains("too many requests")) {
-            return "操作过于频繁，请稍后再试";
+            return "too many requests, please try again later";
         }
         if (lower.contains("human approval required")) {
-            return "该操作需要人工确�?;
+            return "human approval required";
         }
         if (lower.contains("human approval expired")) {
-            return "人工确认已过�?;
+            return "human approval expired";
         }
         if (lower.contains("human approval user mismatch")) {
-            return "人工确认用户不匹�?;
+            return "human approval user mismatch";
         }
         if (lower.contains("human approval is not approved")) {
-            return "人工确认未通过";
+            return "human approval is not approved";
         }
         if (lower.contains("human approval action mismatch") || lower.contains("human approval biz mismatch")) {
-            return "人工确认信息不匹�?;
+            return "human approval information mismatch";
         }
         if (lower.contains("human approval not found")) {
-            return "人工确认记录不存�?;
+            return "human approval not found";
         }
         if ((lower.contains("duplicate entry") || lower.contains("sqlintegrityconstraintviolationexception"))
                 && (lower.contains("uk_user_biz_flow") || lower.contains("user_quota_flow"))) {
-            return "本次请求已处理，请勿重复提交或刷新后重试";
+            return "request already processed, please do not submit repeatedly";
         }
         return message;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

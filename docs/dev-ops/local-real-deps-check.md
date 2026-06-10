@@ -13,9 +13,9 @@ docker compose -f docker-compose-environment.yml up -d
 
 ```powershell
 $env:AGENT_GROUP_LLM_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
-$env:AGENT_GROUP_LLM_CHAT_MODEL="qwen3.6-plus"
+$env:AGENT_GROUP_LLM_CHAT_MODEL="qwen3.7-plus"
 $env:AGENT_GROUP_LLM_EMBEDDING_MODEL="text-embedding-v3"
-$env:AGENT_GROUP_LLM_VISION_MODEL="qwen3.6-plus"
+$env:AGENT_GROUP_LLM_VISION_MODEL="qwen3.7-plus"
 $env:AGENT_GROUP_LLM_API_KEY="你的测试密钥"
 $env:AGENT_GROUP_VECTOR_LOCAL_FALLBACK_ENABLED="false"
 $env:AGENT_GROUP_VECTOR_KEYWORD_FALLBACK_ENABLED="false"
@@ -57,7 +57,7 @@ docker exec agent-group-mysql sh -c "mysql --default-character-set=utf8mb4 -uroo
 建议提问：
 
 ```text
-我是研究生，想读论文和整理相关工作，基础额度包和论文阅读额度包怎么选？
+我想整理长文档和项目资料，基础额度包和长文档额度包怎么选？
 ```
 
 验收时看四件事：

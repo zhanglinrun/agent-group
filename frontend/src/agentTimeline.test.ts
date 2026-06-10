@@ -190,7 +190,7 @@ describe("agent timeline projection", () => {
       type: "project",
       status: "completed",
       title: "AMR Paper",
-      content: "研究问题：Open-set recognition 路 目标：TWC 路 材料 2 份 路 待确认补丁 1 个"
+      content: "任务问题：Open-set recognition · 目标：TWC · 材料 2 份 · 待确认补丁 1 个"
     });
   });
 

@@ -1,14 +1,19 @@
 package com.linrun.domain.academic.ledger.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.AcademicReplayResponse;
 import com.linrun.api.dto.AcademicRunDetailResponse;
 import com.linrun.api.dto.AcademicSessionDetailResponse;
+import com.linrun.api.dto.AgentDiagnosisReportDTO;
 import com.linrun.domain.academic.ledger.adapter.AcademicExecutionLedgerRepository;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
+import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
+import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputReader;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputView;
 import com.linrun.types.exception.AppException;
@@ -30,6 +35,7 @@ public class AcademicExecutionLedgerService {
     private final AcademicExecutionLedgerRepository ledgerRepository;
     private final AcademicReplayProjector replayProjector;
     private final AcademicToolOutputReader toolOutputReader = new AcademicToolOutputReader();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AcademicExecutionLedgerService(AcademicExecutionLedgerRepository ledgerRepository,
                                           AcademicReplayProjector replayProjector) {
@@ -212,10 +218,30 @@ public class AcademicExecutionLedgerService {
         return detail(run);
     }
 
+    public AgentDiagnosisReportDTO queryRunDiagnosis(String userId, String runId) {
+        AcademicAgentRun run = ledgerRepository.queryRun(userId, runId)
+                .orElseThrow(() -> new AppException("LEDGER_0001", "运行记录不存在或无权访问"));
+        List<AcademicToolInvocation> toolInvocations = ledgerRepository.queryToolInvocations(run.getRunId());
+        List<AcademicLlmInvocation> llmInvocations = ledgerRepository.queryLlmInvocations(run.getRunId());
+        List<AcademicArtifact> artifacts = ledgerRepository.queryArtifactsByRun(run.getRunId());
+        return diagnosis(run, toolInvocations, llmInvocations, artifacts);
+    }
+
     public List<AcademicReplayResponse> querySessionReplays(String userId, String sessionId) {
         return queryRuns(userId, sessionId, DEFAULT_RUN_LIMIT).stream()
                 .map(this::replay)
                 .toList();
+    }
+
+    public int deleteSessionRunsSince(String userId, String sessionId, LocalDateTime startedAt) {
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(sessionId) || startedAt == null) {
+            return 0;
+        }
+        try {
+            return ledgerRepository.deleteSessionRunsSince(userId, sessionId, startedAt);
+        } catch (Exception ignored) {
+            return 0;
+        }
     }
 
     public AcademicSessionDetailResponse.MemorySnapshot querySessionMemory(String userId,
@@ -295,6 +321,89 @@ public class AcademicExecutionLedgerService {
                 ledgerRepository.queryLlmInvocations(run.getRunId()),
                 ledgerRepository.queryToolInvocations(run.getRunId()),
                 ledgerRepository.queryArtifactsByRun(run.getRunId()));
+    }
+
+    private AgentDiagnosisReportDTO diagnosis(AcademicAgentRun run,
+                                              List<AcademicToolInvocation> toolInvocations,
+                                              List<AcademicLlmInvocation> llmInvocations,
+                                              List<AcademicArtifact> artifacts) {
+        int toolCallCount = safeList(toolInvocations).size();
+        int failedToolCount = (int) safeList(toolInvocations).stream()
+                .filter(this::isFailedTool)
+                .count();
+        int replanCount = estimateReplanCount(toolInvocations);
+        long elapsedMs = run.getDurationMillis() == null ? 0L : Math.max(0L, run.getDurationMillis());
+        double quotaConsumed = quotaConsumed(toolInvocations);
+        boolean failed = AcademicAgentRun.STATUS_FAILED.equals(safe(run.getStatus()));
+        AgentDiagnosisService.DiagnosisReport report = new AgentDiagnosisService().diagnose(
+                new AgentDiagnosisService.AgentRunContext(
+                        run.getRunId(),
+                        elapsedMs,
+                        failedToolCount,
+                        quotaConsumed,
+                        replanCount,
+                        failed,
+                        run.getErrorMessage()));
+
+        AgentDiagnosisReportDTO dto = new AgentDiagnosisReportDTO();
+        dto.setRunId(run.getRunId());
+        dto.setSessionId(run.getSessionId());
+        dto.setLevel(report.getLevel().name());
+        dto.setSummary(report.getSummary());
+        dto.setIssues(report.getIssues().stream()
+                .map(item -> new AgentDiagnosisReportDTO.DiagnosisItemDTO(
+                        item.getLevel().name(), item.getCode(), item.getMessage()))
+                .toList());
+        dto.setElapsedMs(elapsedMs);
+        dto.setToolCallCount(toolCallCount);
+        dto.setFailedToolCount(failedToolCount);
+        dto.setQuotaConsumed(quotaConsumed);
+        dto.setReplanCount(replanCount);
+        dto.setLlmCallCount(safeList(llmInvocations).size());
+        dto.setArtifactCount(safeList(artifacts).size());
+        dto.setToolSuccessRate(toolCallCount == 0
+                ? 1.0d
+                : (double) (toolCallCount - failedToolCount) / toolCallCount);
+        return dto;
+    }
+
+    private boolean isFailedTool(AcademicToolInvocation invocation) {
+        return invocation != null && AcademicAgentRun.STATUS_FAILED.equals(safe(invocation.getStatus()));
+    }
+
+    private int estimateReplanCount(List<AcademicToolInvocation> toolInvocations) {
+        List<AcademicToolInvocation> tools = safeList(toolInvocations);
+        int count = 0;
+        for (int index = 0; index < tools.size(); index++) {
+            if (isFailedTool(tools.get(index)) && hasLaterSuccessTool(tools, index)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean hasLaterSuccessTool(List<AcademicToolInvocation> tools, int currentIndex) {
+        for (int index = currentIndex + 1; index < tools.size(); index++) {
+            if (AcademicAgentRun.STATUS_SUCCESS.equals(safe(tools.get(index).getStatus()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private double quotaConsumed(List<AcademicToolInvocation> toolInvocations) {
+        for (AcademicToolInvocation invocation : safeList(toolInvocations)) {
+            if (AcademicToolOutputNames.QUOTA_USAGE.equals(safe(invocation.getToolName()))) {
+                Map<String, Object> result = parseJsonObject(invocation.getResultJson());
+                Map<String, Object> metadata = parseNestedObject(result.get("metadata"));
+                Object value = metadata.get("estimatedConsumedQuota");
+                double parsed = doubleValue(value);
+                if (parsed > 0) {
+                    return parsed;
+                }
+            }
+        }
+        return 0.0d;
     }
 
     private AcademicRunDetailResponse.Run run(AcademicAgentRun run) {
@@ -678,6 +787,48 @@ public class AcademicExecutionLedgerService {
             }
         }
         return cjkTokens + (long) Math.ceil(otherChars / 4.0d);
+    }
+
+    private <T> List<T> safeList(List<T> values) {
+        return values == null ? List.of() : values;
+    }
+
+    private Map<String, Object> parseJsonObject(String value) {
+        if (!StringUtils.hasText(value)) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseNestedObject(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                result.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            return result;
+        }
+        if (value instanceof String text) {
+            return parseJsonObject(text);
+        }
+        return Map.of();
+    }
+
+    private double doubleValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(text(value));
+        } catch (Exception ignored) {
+            return 0.0d;
+        }
     }
 
     private String nextId(String prefix) {

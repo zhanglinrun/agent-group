@@ -87,10 +87,10 @@ public class DirectBuyOrderService {
             throw new AppException("0001", "用户编号不能为空");
         }
         if (!StringUtils.hasText(request.getGoodsId())) {
-            throw new AppException("0001", "额度包编号不能为�?);
+            throw new AppException("0001", "额度包编号不能为空");
         }
         if (!StringUtils.hasText(request.getIdempotentKey())) {
-            throw new AppException("0001", "幂等键不能为�?);
+            throw new AppException("0001", "幂等键不能为空");
         }
         TradeOrderEntity existed = tradeOrderRepository.queryTradeOrderByIdempotentKey(request.getIdempotentKey())
                 .orElse(null);
@@ -138,7 +138,7 @@ public class DirectBuyOrderService {
         if (!request.getUserId().equals(existed.getUserId())
                 || !request.getGoodsId().equals(existed.getGoodsId())
                 || !TradeBuyTypeEnumVO.DIRECT.equals(existed.getBuyType())) {
-            throw new AppException("TRADE_0017", "幂等键已被其他下单请求使�?);
+            throw new AppException("TRADE_0017", "幂等键已被其他下单请求使用");
         }
     }
 

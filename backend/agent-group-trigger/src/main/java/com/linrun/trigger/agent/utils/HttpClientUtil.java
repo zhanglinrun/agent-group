@@ -25,15 +25,15 @@ public class HttpClientUtil {
      * 发送POST请求
      *
      * @param url 请求URL
-     * @param headers 请求�?
-     * @param body 请求�?
+     * @param headers 请求??
+     * @param body 请求??
      * @return 响应结果
      */
     public static String doPost(String url, Map<String, String> headers, Object body) {
         try {
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofMinutes(5)); // 设置超时时间�?分钟
+                    .timeout(Duration.ofMinutes(5)); // 设置超时时间??分钟
 
             // 添加自定义请求头
             if (headers != null) {
@@ -42,7 +42,7 @@ public class HttpClientUtil {
                 }
             }
 
-            // 添加请求�?
+            // 添加请求??
             String bodyStr = body instanceof String ? (String) body : JSON.toJSONString(body);
             requestBuilder.POST(HttpRequest.BodyPublishers.ofString(bodyStr, StandardCharsets.UTF_8));
 
@@ -58,7 +58,7 @@ public class HttpClientUtil {
             }
         } catch (IOException | InterruptedException e) {
             log.error("HTTP请求异常", e);
-            Thread.currentThread().interrupt(); // 重要：恢复中断状�?
+            Thread.currentThread().interrupt(); // 重要：恢复中断状??
             throw new RuntimeException("HTTP请求异常", e);
         }
     }
@@ -67,7 +67,7 @@ public class HttpClientUtil {
      * 发送GET请求
      *
      * @param url 请求URL
-     * @param headers 请求�?
+     * @param headers 请求??
      * @return 响应结果
      */
     public static String doGet(String url, Map<String, String> headers) {
@@ -76,7 +76,7 @@ public class HttpClientUtil {
                     .uri(URI.create(url))
                     .timeout(Duration.ofMinutes(5));
 
-            // 添加请求�?
+            // 添加请求??
             if (headers != null) {
                 for (Map.Entry<String, String> entry : headers.entrySet()) {
                     requestBuilder.header(entry.getKey(), entry.getValue());
@@ -95,7 +95,7 @@ public class HttpClientUtil {
             }
         } catch (IOException | InterruptedException e) {
             log.error("HTTP请求异常", e);
-            Thread.currentThread().interrupt(); // 重要：恢复中断状�?
+            Thread.currentThread().interrupt(); // 重要：恢复中断状??
             throw new RuntimeException("HTTP请求异常", e);
         }
     }

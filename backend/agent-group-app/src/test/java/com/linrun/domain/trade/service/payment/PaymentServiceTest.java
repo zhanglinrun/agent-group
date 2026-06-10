@@ -210,14 +210,14 @@ class PaymentServiceTest {
         fixture.repository.payOrder.setOutTradeNo("GT10001");
         RefundPaymentRequest request = new RefundPaymentRequest();
         request.setOrderId("O10001");
-        request.setRefundReason("用户申请退�?);
+        request.setRefundReason("用户申请退款");
 
         RefundPaymentResponse response = fixture.service.refund(request);
 
         assertEquals(TradeOrderStatusEnumVO.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatusEnumVO.REFUNDED, fixture.repository.payOrder.getPayStatus());
         assertNotNull(response.getRefundId());
-        assertEquals("用户申请退�?, fixture.repository.refundOrder.getRefundReason());
+        assertEquals("用户申请退款", fixture.repository.refundOrder.getRefundReason());
     }
 
     @Test
@@ -369,7 +369,7 @@ class PaymentServiceTest {
             tradeOrder.setOrderId("O10001");
             tradeOrder.setUserId("U10001");
             tradeOrder.setGoodsId("G10001");
-            tradeOrder.setGoodsName("基础学术额度�?);
+            tradeOrder.setGoodsName("基础学术额度包");
             tradeOrder.setBuyType(TradeBuyTypeEnumVO.DIRECT);
             tradeOrder.setOriginAmount(new BigDecimal("2399.00"));
             tradeOrder.setPayAmount(new BigDecimal("2399.00"));

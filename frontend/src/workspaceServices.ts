@@ -222,7 +222,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     id: "agent",
     taskType: "chat",
     title: "通用 Agent",
-    summary: "统一承载对话、文件上传后的问答、深度研究、PPT 和 Skill 任务。",
+    summary: "统一承载对话、文件问答、深度任务、PPT 和 Skill 任务。",
     primaryTools: ["planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["answer", "reference", "artifact"],
@@ -244,7 +244,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     id: "data",
     taskType: "data",
     title: "数据问答工作区",
-    summary: "面向论文表格、实验指标、引用网络和阅读笔记分析。",
+    summary: "面向表格数据、实验指标、业务指标和知识材料分析。",
     primaryTools: ["data_analysis", "table_rag", "nl2sql", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["table", "sql", "chart", "report"],
@@ -955,7 +955,7 @@ export function buildWorkspaceDataCatalogDraft(catalog: {
     modelCodeText: modelCodes.join(", "),
     columnsText: columnNames.join(", "),
     schemaInfoJson: schemaInfo.length ? JSON.stringify(schemaInfo, null, 2) : "",
-    businessKnowledge: "默认围绕论文元数据、实验结果、引用网络和阅读笔记分析，结论需要说明数据来源和统计口径。"
+    businessKnowledge: "默认围绕数据字段、实验结果、业务指标和知识材料分析，结论需要说明数据来源和统计口径。"
   };
 }
 

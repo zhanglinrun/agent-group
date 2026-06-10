@@ -13,10 +13,10 @@ class KnowledgeKeywordServiceTest {
     void shouldExtractBusinessKeywordsFirst() {
         KnowledgeKeywordService service = new KnowledgeKeywordService();
 
-        List<String> keywords = service.extractKeywords("我想了解拼团失败后退款和售后怎么�?);
+        List<String> keywords = service.extractKeywords("我想了解拼团失败后退款和售后怎么办");
 
         assertTrue(keywords.contains("拼团"));
-        assertTrue(keywords.contains("退�?));
+        assertTrue(keywords.contains("退款"));
         assertTrue(keywords.contains("售后"));
     }
 

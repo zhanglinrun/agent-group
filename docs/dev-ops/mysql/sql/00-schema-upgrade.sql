@@ -955,8 +955,8 @@ insert into dynamic_config (
 ('groupRefundNotifyType', 'HTTP', 'group refund notify type'),
 ('groupRefundNotifyUrl', '', 'group refund notify url'),
 ('groupRefundNotifyMQ', 'agent.group.notify.group-refund', 'group refund notify mq'),
-('agentBillingPromptCostPer1k', '0.10', 'platform prompt quota cost per 1k tokens'),
-('agentBillingCompletionCostPer1k', '0.30', 'platform completion quota cost per 1k tokens'),
+('agentBillingPromptCostPer1k', '0.20', 'qwen3.7-plus prompt quota cost per 1k tokens'),
+('agentBillingCompletionCostPer1k', '0.80', 'qwen3.7-plus completion quota cost per 1k tokens'),
 ('agentBillingCustomModelServiceRate', '0.10', 'custom model service fee rate')
 on duplicate key update
   config_value = values(config_value),

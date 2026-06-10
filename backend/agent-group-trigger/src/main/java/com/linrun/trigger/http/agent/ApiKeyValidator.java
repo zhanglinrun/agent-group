@@ -3,8 +3,8 @@ package com.linrun.trigger.http.agent;
 import org.springframework.util.StringUtils;
 
 /**
- * API 密钥验证工具�?
- * 统一处理 API 密钥的有效性校�?
+ * API 密钥验证工具。
+ * 统一处理 API 密钥的有效性校验。
  */
 public class ApiKeyValidator {
 
@@ -19,10 +19,10 @@ public class ApiKeyValidator {
     }
 
     /**
-     * 验证多个 API 密钥是否都有�?
+     * 验证多个 API 密钥是否都有效。
      * 
      * @param apiKeys API 密钥数组
-     * @return 如果所有密钥都有效则返�?true
+     * @return 如果所有密钥都有效则返回 true
      */
     public static boolean areAllValidApiKeys(String... apiKeys) {
         if (apiKeys == null || apiKeys.length == 0) {

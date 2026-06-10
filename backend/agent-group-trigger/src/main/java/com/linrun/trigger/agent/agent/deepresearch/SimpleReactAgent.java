@@ -25,10 +25,13 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,33 +43,33 @@ public class SimpleReactAgent {
 
     public static final String REACT_AGENT_SYSTEM_PROMPT = """
             ## 角色
-            你是一个联网查询助手，擅长用联网查询工具，查询准确的信息，过滤掉无效的广告�?
+            你是一个联网查询助手，擅长使用联网查询工具获取准确的信息，并过滤无效广告。
                         
             ## 工具调用规则（极其重要）
-            1. 如果需要调用工具：必须使用 OpenAI 官方 ToolCall 结构，并�?**只能通过工具调用字段输出**�?
-            2. 工具调用时：**禁止�?content 中出现任何形式的工具调用文本**（包�?JSON�?tool_call>、函数名、参数、思考、推理或描述）�?
-            3. 工具调用消息必须是一次性、原子性输出，不得混杂任何解释或内容�?
-            4. 工具调用前后不得输出任何多余文字、标签、换行、推理轨迹或说明�?
+            1. 如果需要调用工具：必须使用 OpenAI 官方 ToolCall 结构，并且 **只能通过工具调用字段输出**。
+            2. 工具调用时：**禁止在 content 中出现任何形式的工具调用文本**（包括 JSON、<tool_call>、函数名、参数、思考、推理或描述）。
+            3. 工具调用消息必须是一次性、原子性输出，不得混杂任何解释或内容。
+            4. 工具调用前后不得输出任何多余文字、标签、换行、推理轨迹或说明。
             5. 调用工具时：
                -工具参数必须是有效的JSON
-               -参数必须简洁，不超�?00个字�?
+               - 参数必须简洁，不超过 100 个字。
                -切勿包含以前的工具结果、原始内容、HTML或长文本
-               -仅包括工具所需的最小控制参�?
+               - 仅包括工具所需的最小控制参数。
                         
             ## 工具执行结果
-            系统会自动将工具执行结果作为 ToolResponseMessage 注入上下文，你只需读取并决定下一步动作�?
+            系统会自动将工具执行结果作为 ToolResponseMessage 注入上下文，你只需读取并决定下一步动作。
                         
-            ## 最终答案规�?
-            1. 如果上下文已经拥有了完成任务的全部信息，则不要再调用任何工具�?
-            2. 在这种情况下，你必须输出最终自然语言答案，且 **禁止包含任何工具调用格式**�?
-            3. 最终答案只允许是自然语言，不能包�?JSON、思考过程、reasoning、ToolCall 或伪代码�?
+            ## 最终答案规则
+            1. 如果上下文已经拥有了完成任务的全部信息，则不要再调用任何工具。
+            2. 在这种情况下，你必须输出最终自然语言答案，且 **禁止包含任何工具调用格式**。
+            3. 最终答案只允许是自然语言，不能包含 JSON、思考过程、reasoning、ToolCall 或伪代码。
                         
             ## 强制要求（必须遵守）
-            1. 工具调用消息必须只通过 ToolCall 字段输出，不允许�?content 字段体现工具调用迹象�?
-            2. 如果本轮没有工具调用，则视为任务完成，你必须输出最终答案�?
-            3. 不允许重复调用同一个工具（名称 + 参数完全一致），除非工具调用失败�?
-            4. 禁止输出会干扰工具系统解析的任何结构（如 <reason>�?ToolCall>、函�?JSON、或模型内部思考）�?
-            5. 如果上下文已经包含了完成任务的全部信息，则不要再调用任何工具�?
+            1. 工具调用消息必须只通过 ToolCall 字段输出，不允许在 content 字段体现工具调用迹象。
+            2. 如果本轮没有工具调用，则视为任务完成，你必须输出最终答案。
+            3. 不允许重复调用同一个工具（名称 + 参数完全一致），除非工具调用失败。
+            4. 禁止输出会干扰工具系统解析的任何结构（如 <reason>、<ToolCall>、函数 JSON 或模型内部思考）。
+            5. 如果上下文已经包含了完成任务的全部信息，则不要再调用任何工具。
             """;
 
     private final String name;
@@ -80,9 +83,9 @@ public class SimpleReactAgent {
     /**
      * 新增 reflection 相关参数
      */
-    // 功能增强拦截�?
+    // 功能增强拦截??
     private List<Advisor> advisors;
-    //最大反思轮�?
+    //最大反思轮??
     private int maxReflectionRounds;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -123,7 +126,7 @@ public class SimpleReactAgent {
     }
 
     /**
-     * 非流式输�?
+     * 非流式输??
      *
      * @param question
      * @return
@@ -132,7 +135,7 @@ public class SimpleReactAgent {
         return callInternal(null, question);
     }
 
-    // 带会话记�?
+    // 带会话记??
     public String call(String conversationId, String question) {
         return callInternal(conversationId, question);
     }
@@ -163,13 +166,13 @@ public class SimpleReactAgent {
         while (true) {
             round++;
             if (maxRounds > 0 && round > maxRounds) {
-                log.warn("=== 达到 maxRounds（{}），强制生成最终答�?===", maxRounds);
+                log.warn("=== 达到 maxRounds（{}），强制生成最终答案 ===", maxRounds);
                 messages.add(new UserMessage("""
-                        你已达到最大推理轮次限制�?
+                        你已达到最大推理轮次限制。
                         请基于当前已有的上下文信息，
-                        直接给出最终答案�?
-                        禁止再调用任何工具�?
-                        如果信息不完整，请合理总结和说明�?
+                        直接给出最终答案。
+                        禁止再调用任何工具。
+                        如果信息不完整，请合理总结和说明。
                         """));
                 String finalText = chatClient.prompt().messages(messages).call().content();
                 if (useMemory) {
@@ -188,7 +191,7 @@ public class SimpleReactAgent {
 
             String assistantText = aiText;
 
-            // ===== 没有工具调用，视为最终答�?=====
+            // ===== 没有工具调用，视为最终答??=====
             if (!chatResponse.chatResponse().hasToolCalls()) {
                 if (useMemory) {
                     chatMemory.add(conversationId, new AssistantMessage(aiText));
@@ -220,7 +223,7 @@ public class SimpleReactAgent {
 
                             messages.add(new ToolResponseMessage(List.of(tr)));
                         } catch (Exception ex) {
-                            addErrorToolResponse(messages, toolCall, "工具执行失败�? + ex.getMessage());
+                            addErrorToolResponse(messages, toolCall, "工具执行失败：" + ex.getMessage());
                         }
                     });
         }
@@ -234,7 +237,7 @@ public class SimpleReactAgent {
 
         StringBuilder textBuffer = new StringBuilder();
         List<AssistantMessage.ToolCall> toolCalls = Collections.synchronizedList(new ArrayList<>());
-        /** ThinkTagParser �?inThink 状�?*/
+        /** ThinkTagParser ??inThink 状??*/
         boolean inThink = false;
     }
 
@@ -297,11 +300,11 @@ public class SimpleReactAgent {
         scheduleRound(messages, sink, roundCounter, hasSentFinalResult, finalAnswerBuffer, useMemory, conversationId);
 
         return sink.asFlux()
-                // 收集最终答�?
+                // 收集最终答??
                 .doOnNext(finalAnswerBuffer::append)
                 .doOnCancel(() -> hasSentFinalResult.set(true))
                 .doFinally(signalType -> {
-                    log.info("最终答�? {}", finalAnswerBuffer);
+                    log.info("最终答案 {}", finalAnswerBuffer);
                 });
     }
 
@@ -338,7 +341,7 @@ public class SimpleReactAgent {
         String text = gen.getOutput().getText();
         List<AssistantMessage.ToolCall> tc = gen.getOutput().getToolCalls();
 
-        // 一旦发�?tool_call，立即进�?TOOL_CALL 模式
+        // 一旦发??tool_call，立即进??TOOL_CALL 模式
         if (tc != null && !tc.isEmpty()) {
             state.mode = RoundMode.TOOL_CALL;
 
@@ -348,7 +351,7 @@ public class SimpleReactAgent {
             return;
         }
 
-        // 还没出现 tool_call，使�?ThinkTagParser 解析 <think/> 标签
+        // 还没出现 tool_call，使??ThinkTagParser 解析 <think/> 标签
         if (text != null) {
             ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(text, state.inThink);
             state.inThink = parseResult.inThink();
@@ -377,7 +380,7 @@ public class SimpleReactAgent {
             }
         }
 
-        // �?tool call
+        // ??tool call
         state.toolCalls.add(incoming);
     }
 
@@ -388,7 +391,7 @@ public class SimpleReactAgent {
     private void finishRound(List<Message> messages, Sinks.Many<String> sink, RoundState state, AtomicLong roundCounter,
                              AtomicBoolean hasSentFinalResult, StringBuilder finalAnswerBuffer, boolean useMemory, String conversationId) {
 
-        // 如果整轮都没�?tool_call，才是最终答�?
+        // 如果整轮都没??tool_call，才是最终答??
         if (state.mode != RoundMode.TOOL_CALL) {
             String finalText = state.textBuffer.toString();
             sink.tryEmitComplete();
@@ -422,11 +425,11 @@ public class SimpleReactAgent {
 
     private void forceFinalStream(String conversationId, boolean useMemory, List<Message> messages, Sinks.Many<String> sink, AtomicBoolean hasSentFinalResult) {
         messages.add(new UserMessage("""
-                你已达到最大推理轮次限制�?
+                你已达到最大推理轮次限制。
                 请基于当前已有的上下文信息，
-                直接给出最终答案�?
-                禁止再调用任何工具�?
-                如果信息不完整，请合理总结和说明�?
+                直接给出最终答案。
+                禁止再调用任何工具。
+                如果信息不完整，请合理总结和说明。
                 """));
 
         StringBuilder stringBuilder = new StringBuilder();
@@ -467,7 +470,7 @@ public class SimpleReactAgent {
         AtomicInteger completedCount = new AtomicInteger(0);
         int totalToolCalls = toolCalls.size();
 
-        // 保证顺序一致�?
+        // 保证顺序一致??
         Map<String, ToolResponseMessage.ToolResponse> responseMap = new ConcurrentHashMap<>();
 
         for (AssistantMessage.ToolCall tc : toolCalls) {
@@ -493,18 +496,18 @@ public class SimpleReactAgent {
                     Object result = callback.call(argsJson);
                     String resultStr = Objects.toString(result, "");
 
-                    // 解析搜索结果（如果是 tavily search�?
+                    // 解析搜索结果（如果是 tavily search??
                     if (agentState != null) {
                         parseSearchResult(resultStr, agentState);
                     }
 
-                    // 将结果放�?responseMap，key �?toolCall.id()
+                    // 将结果放??responseMap，key ??toolCall.id()
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
                             tc.id(), toolName, resultStr));
                 } catch (Exception ex) {
-                    // 工具执行失败时，也放�?responseMap
+                    // 工具执行失败时，也放??responseMap
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具执行失败�? + ex.getMessage() + "\" }"));
+                            tc.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }"));
                 } finally {
                     completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
                 }
@@ -519,14 +522,14 @@ public class SimpleReactAgent {
                                   Runnable onComplete) {
         int current = completedCount.incrementAndGet();
         if (current >= total) {
-            // 按原�?toolCalls 的顺序重组结�?
+            // 按原??toolCalls 的顺序重组结??
             List<ToolResponseMessage.ToolResponse> sortedResponses = new ArrayList<>();
             for (AssistantMessage.ToolCall tc : originalToolCalls) {
                 ToolResponseMessage.ToolResponse response = responseMap.get(tc.id());
                 if (response != null) {
                     sortedResponses.add(response);
                 } else {
-                    // 如果某个工具调用没有响应，添加一个错误响�?
+                    // 如果某个工具调用没有响应，添加一个错误响??
                     sortedResponses.add(new ToolResponseMessage.ToolResponse(
                             tc.id(), tc.name(), "{ \"error\": \"工具响应丢失\" }"));
                 }
@@ -558,7 +561,7 @@ public class SimpleReactAgent {
 
     /**
      * 解析搜索结果
-     * 从工具返回的 JSON 中提取搜索结果并添加�?AgentState
+     * 从工具返回的 JSON 中提取搜索结果并添加??AgentState
      */
     private void parseSearchResult(String resultJson, AgentState state) {
         try {
@@ -603,7 +606,7 @@ public class SimpleReactAgent {
     }
 
     /**
-     * 获取节点安全�?
+     * 获取节点安全??
      */
     private String getSafe(JsonNode node, String field) {
         JsonNode v = node.get(field);
@@ -621,7 +624,7 @@ public class SimpleReactAgent {
     /**
      * 内部执行方法
      *
-     * @param withReference 是否需要返回参考来�?
+     * @param withReference 是否需要返回参考来??
      */
     private SimpleReactResult executeInternal(String conversationId, String question, boolean withReference) {
         List<Message> messages = Collections.synchronizedList(new ArrayList<>());
@@ -629,7 +632,7 @@ public class SimpleReactAgent {
 
         AgentState agentState = withReference ? new AgentState() : null;
 
-        // 合并为单�?SystemMessage（部分模型不支持多个�?
+        // 合并为单??SystemMessage（部分模型不支持多个??
         messages.add(new SystemMessage(PlanExecutePrompts.getCurrentTime() + "\n\n"
                 + REACT_AGENT_SYSTEM_PROMPT + "\n\n" + systemPrompt));
 
@@ -654,13 +657,13 @@ public class SimpleReactAgent {
         while (true) {
             round++;
             if (maxRounds > 0 && round > maxRounds) {
-                log.warn("=== 达到 maxRounds（{}），强制生成最终答�?===", maxRounds);
+                log.warn("=== 达到 maxRounds（{}），强制生成最终答案 ===", maxRounds);
                 messages.add(new UserMessage("""
-                        你已达到最大推理轮次限制�?
+                        你已达到最大推理轮次限制。
                         请基于当前已有的上下文信息，
-                        直接给出最终答案�?
-                        禁止再调用任何工具�?
-                        如果信息不完整，请合理总结和说明�?
+                        直接给出最终答案。
+                        禁止再调用任何工具。
+                        如果信息不完整，请合理总结和说明。
                         """));
 
                 String forcedAnswer = chatClient.prompt().messages(messages).call().content();
@@ -681,7 +684,7 @@ public class SimpleReactAgent {
 
             String assistantText = chatResponse.chatResponse().getResult().getOutput().getText();
 
-            // ===== 没有工具调用，视为最终答�?=====
+            // ===== 没有工具调用，视为最终答??=====
             if (!chatResponse.chatResponse().hasToolCalls()) {
                 String finalText = chatResponse.chatResponse().getResult().getOutput().getText();
                 if (useMemory) {
@@ -720,7 +723,7 @@ public class SimpleReactAgent {
                             toolCall.id(), toolName, resultStr);
                     messages.add(new ToolResponseMessage(List.of(tr)));
                 } catch (Exception ex) {
-                    addErrorToolResponse(messages, toolCall, "工具执行失败�? + ex.getMessage());
+                    addErrorToolResponse(messages, toolCall, "工具执行失败：" + ex.getMessage());
                 }
             }
         }
@@ -796,7 +799,7 @@ public class SimpleReactAgent {
 
         public SimpleReactAgent build() {
             if (chatModel == null) {
-                throw new IllegalArgumentException("chatModel 不能为空�?);
+                throw new IllegalArgumentException("chatModel 不能为空");
             }
             return new SimpleReactAgent(name, chatModel, tools, systemPrompt, maxRounds, chatMemory, advisors, maxReflectionRounds);
         }

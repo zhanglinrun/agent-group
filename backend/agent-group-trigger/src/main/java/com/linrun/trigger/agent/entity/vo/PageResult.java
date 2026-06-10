@@ -17,7 +17,7 @@ public class PageResult<T> {
     private Integer pageNum;
 
     /**
-     * 页大�?
+     * 页大??
      */
     private Integer pageSize;
 

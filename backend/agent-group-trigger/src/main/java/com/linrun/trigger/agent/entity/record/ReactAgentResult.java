@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Agent 执行结果（包含答案、参考链接、使用的工具�?
+ * Agent 执行结果（包含答案、参考链接、使用的工具??
  */
 public class ReactAgentResult {
     private final String answer;

@@ -9,6 +9,7 @@ import com.linrun.infrastructure.agent.converter.AcademicPOConverter;
 import com.linrun.infrastructure.dao.IAcademicAgentDao;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -89,6 +90,16 @@ public class MyBatisAcademicExecutionLedgerRepository implements AcademicExecuti
     @Override
     public List<AcademicArtifact> queryArtifactsByRun(String runId) {
         return AcademicPOConverter.toArtifacts(academicAgentDao.queryArtifactsByRun(runId));
+    }
+
+    @Override
+    public int deleteSessionRunsSince(String userId, String sessionId, LocalDateTime startedAt) {
+        int count = 0;
+        count += academicAgentDao.deleteArtifactsSince(userId, sessionId, startedAt);
+        count += academicAgentDao.deleteLlmInvocationsSince(userId, sessionId, startedAt);
+        count += academicAgentDao.deleteToolInvocationsSince(userId, sessionId, startedAt);
+        count += academicAgentDao.deleteRunsSince(userId, sessionId, startedAt);
+        return count;
     }
 }
 

@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Skills React Agent
- * 通用型智能体，集�?Skills、搜索、文件等多种能力，工具按需挂载，LLM 自动判断使用哪个工具/Skill�?
- * 使用事件流模型输出（Thinking/Text/ToolStart/ToolEnd/Error/Complete）�?
+ * 通用型智能体，集??Skills、搜索、文件等多种能力，工具按需挂载，LLM 自动判断使用哪个工具/Skill??
+ * 使用事件流模型输出（Thinking/Text/ToolStart/ToolEnd/Error/Complete）??
  *
  * @author bigchui
  */
@@ -75,7 +75,7 @@ public class SkillsReactAgent extends BaseAgent {
 
         initChatClient();
 
-        // 初始化上下文压缩器（不配�?contextPolicy 时不启用�?
+        // 初始化上下文压缩器（不配??contextPolicy 时不启用??
         this.contextCompactor = contextPolicy != null
                 ? new ContextCompactor(contextPolicy, chatModel)
                 : null;
@@ -114,7 +114,7 @@ public class SkillsReactAgent extends BaseAgent {
     }
 
     /**
-     * 带文件ID的流式输�?
+     * 带文件ID的流式输??
      */
     public Flux<String> stream(String conversationId, String question, String fileId) {
         return streamInternal(conversationId, question, fileId);
@@ -187,9 +187,9 @@ public class SkillsReactAgent extends BaseAgent {
         AtomicLong roundCounter = new AtomicLong(0);
         AtomicBoolean hasSentFinalResult = new AtomicBoolean(false);
 
-        // 收集最终答�?
+        // 收集最终答??
         StringBuilder finalAnswerBuffer = new StringBuilder();
-        // 收集思考过�?
+        // 收集思考过??
         StringBuilder thinkingBuffer = new StringBuilder();
 
         scheduleRound(messages, sink, roundCounter, hasSentFinalResult, conversationId,
@@ -198,7 +198,7 @@ public class SkillsReactAgent extends BaseAgent {
         return sink.asFlux()
                 .doOnNext(chunk -> {
                     recordFirstResponse();
-                    // 解析 JSON，分离收�?text �?thinking
+                    // 解析 JSON，分离收??text ??thinking
                     try {
                         var json = JSON.parseObject(chunk);
                         String type = json.getString("type");
@@ -218,13 +218,14 @@ public class SkillsReactAgent extends BaseAgent {
                     }
                 })
                 .doFinally(signalType -> {
-                    log.info("最终答�? {}", finalAnswerBuffer);
-                    log.info("思考过�? {}", thinkingBuffer);
+                    log.info("最终答案 {}", finalAnswerBuffer);
+                    log.info("思考过程 {}", thinkingBuffer);
 
-                    // 保存结果到会�?
+                    // 保存结果到会??
                     saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer);
 
-                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消�?                    if (taskManager != null) {
+                    // 流正常结束时只移除任务状态，用户点击停止才发送停止消息
+                    if (taskManager != null) {
                         taskManager.completeTask(conversationId);
                     }
                 });
@@ -265,7 +266,7 @@ public class SkillsReactAgent extends BaseAgent {
                                StringBuilder finalAnswerBuffer, StringBuilder thinkingBuffer,
                                int retryAttempt) {
         long round = roundCounter.incrementAndGet();
-        log.info("=== Round {} 开�?=== 消息�? {} retryAttempt: {}", round, messages.size(), retryAttempt);
+        log.info("=== Round {} 开始 === 消息数 {} retryAttempt: {}", round, messages.size(), retryAttempt);
 
         // 上下文压缩（每轮 LLM 调用前执行）
         if (contextCompactor != null) {
@@ -288,7 +289,7 @@ public class SkillsReactAgent extends BaseAgent {
                         log.warn("LLM stream error (attempt {}/{}), retrying in {}ms: {}",
                                 retryAttempt + 1, maxRetries, RETRY_INTERVAL_MS, err.getMessage());
                         sink.tryEmitNext(new AgentStreamEvent.Error("LLM_CALL_FAILED",
-                                "LLM 调用失败，正在重�?(" + (retryAttempt + 1) + "/" + maxRetries + ")",
+                                "LLM 调用失败，正在重试(" + (retryAttempt + 1) + "/" + maxRetries + ")",
                                 err.getMessage()).toJSON());
                         Schedulers.boundedElastic().schedule(
                                 () -> scheduleRound(messages, sink, roundCounter, hasSentFinalResult,
@@ -314,7 +315,7 @@ public class SkillsReactAgent extends BaseAgent {
     }
 
     /**
-     * 处理流式 chunk，使�?ThinkTagParser 拆分思考内容和正常文本
+     * 处理流式 chunk，使??ThinkTagParser 拆分思考内容和正常文本
      */
     private void processChunk(ChatResponse chunk, Sinks.Many<String> sink, RoundState state) {
         if (chunk == null || chunk.getResult() == null || chunk.getResult().getOutput() == null) {
@@ -325,7 +326,7 @@ public class SkillsReactAgent extends BaseAgent {
         String text = gen.getOutput().getText();
         List<AssistantMessage.ToolCall> tc = gen.getOutput().getToolCalls();
 
-        // 一旦发�?tool_call，立即进�?TOOL_CALL 模式
+        // 一旦发??tool_call，立即进??TOOL_CALL 模式
         if (tc != null && !tc.isEmpty()) {
             state.mode = RoundMode.TOOL_CALL;
             for (AssistantMessage.ToolCall incoming : tc) {
@@ -372,7 +373,7 @@ public class SkillsReactAgent extends BaseAgent {
                              String conversationId,
                              StringBuilder finalAnswerBuffer, StringBuilder thinkingBuffer) {
 
-        // 如果整轮都没�?tool_call，才是最终答�?
+        // 如果整轮都没??tool_call，才是最终答??
         if (state.mode != RoundMode.TOOL_CALL) {
             sink.tryEmitNext(new AgentStreamEvent.Complete().toJSON());
             sink.tryEmitComplete();
@@ -423,10 +424,10 @@ public class SkillsReactAgent extends BaseAgent {
         }
 
         newMessages.add(new UserMessage("""
-                你已达到最大推理轮次限制�?
-                请基于当前已有的上下文信息，直接给出最终答案�?
-                禁止再调用任何工具�?
-                如果信息不完整，请合理总结和说明�?
+                你已达到最大推理轮次限制。
+                请基于当前已有的上下文信息，直接给出最终答案。
+                禁止再调用任何工具。
+                如果信息不完整，请合理总结和说明。
                 """));
 
         messages.clear();
@@ -450,7 +451,7 @@ public class SkillsReactAgent extends BaseAgent {
                         log.warn("forceFinal stream error (attempt {}/{}), retrying in {}ms: {}",
                                 retryAttempt + 1, maxRetries, RETRY_INTERVAL_MS, err.getMessage());
                         sink.tryEmitNext(new AgentStreamEvent.Error("LLM_CALL_FAILED",
-                                "LLM 调用失败，正在重�?(" + (retryAttempt + 1) + "/" + maxRetries + ")",
+                                "LLM 调用失败，正在重试(" + (retryAttempt + 1) + "/" + maxRetries + ")",
                                 err.getMessage()).toJSON());
                         Schedulers.boundedElastic().schedule(
                                 () -> forceFinalStream(messages, sink, hasSentFinalResult, conversationId, retryAttempt + 1),
@@ -490,7 +491,7 @@ public class SkillsReactAgent extends BaseAgent {
                 String toolName = tc.name();
                 String argsJson = tc.arguments();
 
-                // 发�?ToolStart 事件
+                // 发??ToolStart 事件
                 log.info(">>> ToolStart: {} | args: {}", toolName, argsJson);
                 sink.tryEmitNext(new AgentStreamEvent.ToolStart(toolName, tc.id(), argsJson).toJSON());
 
@@ -509,19 +510,19 @@ public class SkillsReactAgent extends BaseAgent {
                     Object result = callback.call(argsJson);
                     String resultStr = Objects.toString(result, "");
 
-                    // 记录使用的工�?
+                    // 记录使用的工??
                     recordUsedTool(toolName);
 
                     // 记录工具执行结果
                     toolRecords.add(new ToolRecord(toolName, tc.id(), argsJson, resultStr));
 
-                    // 发�?ToolEnd 事件
+                    // 发??ToolEnd 事件
                     log.info("<<< ToolEnd: {} | resultLen: {} | result: {}", toolName, resultStr.length(), resultStr);
                     sink.tryEmitNext(new AgentStreamEvent.ToolEnd(toolName, tc.id(), resultStr).toJSON());
 
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(tc.id(), toolName, resultStr));
                 } catch (Exception ex) {
-                    String errorMsg = "工具执行失败�? + ex.getMessage();
+                    String errorMsg = "工具执行失败：" + ex.getMessage();
                     log.error("<<< ToolEnd (ERROR): {} | {}", toolName, ex.getMessage());
                     sink.tryEmitNext(new AgentStreamEvent.ToolEnd(toolName, tc.id(), errorMsg).toJSON());
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
@@ -646,10 +647,10 @@ public class SkillsReactAgent extends BaseAgent {
 
         public SkillsReactAgent build() {
             if (chatModel == null) {
-                throw new IllegalArgumentException("chatModel 不能为空�?);
+                throw new IllegalArgumentException("chatModel 不能为空");
             }
             if (tools == null || tools.isEmpty()) {
-                throw new IllegalArgumentException("tools 不能为空�?);
+                throw new IllegalArgumentException("tools 不能为空");
             }
             return new SkillsReactAgent(name, chatModel, tools, systemPrompt, maxRounds, maxRetries,
                     chatMemory, sessionService, taskManager, contextPolicy);
