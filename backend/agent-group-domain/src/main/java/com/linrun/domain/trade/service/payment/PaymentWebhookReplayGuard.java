@@ -14,8 +14,17 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 支付回调防重放守卫。
+ *
+ * 生产链路通过注入 {@link PaymentWebhookReplayRepository}（Redis 实现）做跨实例防重放；
+ * 只有在缺少该仓储时（主要是单元测试）才退化为单机内存模式，此时多实例部署无法互斥，
+ * 退化路径会打印告警日志，便于运维及时发现配置缺失。
+ */
 @Service
 public class PaymentWebhookReplayGuard {
+
+    private static final System.Logger LOGGER = System.getLogger(PaymentWebhookReplayGuard.class.getName());
 
     private final long replayWindowSeconds;
     private final PaymentWebhookReplayRepository replayRepository;
@@ -43,6 +52,9 @@ public class PaymentWebhookReplayGuard {
         if (replayRepository != null) {
             return replayRepository.acquireProcessingLock(replayKey, Duration.ofSeconds(replayWindowSeconds));
         }
+        LOGGER.log(System.Logger.Level.WARNING,
+                "payment webhook replay guard fell back to in-memory mode, cross-instance replay protection is disabled, replayKey="
+                        + replayKey);
         cleanup(now);
         return processingEvents.putIfAbsent(replayKey, now) == null;
     }

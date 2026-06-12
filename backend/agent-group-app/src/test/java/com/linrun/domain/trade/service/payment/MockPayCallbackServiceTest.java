@@ -108,7 +108,7 @@ class MockPayCallbackServiceTest {
                 () -> service.paySuccess(request("O10001", " ", PAY_TIME)));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("澶栭儴浜ゆ槗鍗曞彿涓嶈兘涓虹┖", exception.getMessage());
+        assertEquals("外部交易单号不能为空", exception.getMessage());
     }
 
     private MockPayCallbackRequest request(String orderId, String outTradeNo, LocalDateTime payTime) {

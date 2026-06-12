@@ -1,5 +1,6 @@
 package com.linrun.domain.academic.runtime.reasoning;
 
+import com.linrun.domain.academic.runtime.agent.AcademicAgentFallbackReplanStrategy;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowReplanRequest;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentReplanStrategy;
@@ -14,6 +15,8 @@ import java.util.List;
  * 智能重规划策略。
  */
 public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentReplanStrategy {
+
+    private final AcademicAgentFallbackReplanStrategy fallbackReplanStrategy = new AcademicAgentFallbackReplanStrategy();
 
     @Override
     public List<AcademicPlanStep> replan(AcademicAgentFlowReplanRequest request) {
@@ -88,8 +91,12 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
         return remainingSteps;
     }
 
+    /**
+     * 失败不可恢复或已完成步骤不可复用时，退回兜底策略重建剩余计划，
+     * 至少产出一个恢复步骤交给执行引擎重试，而不是返回空列表导致整次运行直接失败。
+     */
     private List<AcademicPlanStep> replanFromScratch(AcademicAgentFlowReplanRequest request) {
-        return new ArrayList<>();
+        return fallbackReplanStrategy.replan(request);
     }
 
     private List<AcademicPlanStep> getRemainingSteps(AcademicAgentPlan plan, AcademicPlanStep failedStep) {

@@ -47,7 +47,7 @@ public class GroupBuyLockOrderService {
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
-    private final QuotaProductRepository QuotaProductRepository;
+    private final QuotaProductRepository quotaProductRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final GroupBuyStockRepository groupBuyStockRepository;
@@ -55,48 +55,12 @@ public class GroupBuyLockOrderService {
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
-    private final QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator;
+    private final QuotaOrderSnapshotValidator quotaOrderSnapshotValidator;
     private final AgentObservabilityMetrics metrics;
     private final GroupBuyLockRuleChain groupBuyLockRuleChain;
     private final PaymentService paymentService;
 
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
-                GroupBuyStockRepository.noop(), GroupBuyTeamStockRepository.noop(),
-                tradeOrderRepository, tradeOrderService, tradeStatusFlowService);
-    }
-
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    GroupBuyStockRepository groupBuyStockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository,
-                groupBuyStockRepository, GroupBuyTeamStockRepository.noop(),
-                tradeOrderRepository, tradeOrderService, tradeStatusFlowService);
-    }
-
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    GroupBuyStockRepository groupBuyStockRepository,
-                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
-                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                QuotaOrderSnapshotRepository.noop());
-    }
-
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository quotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -104,58 +68,14 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    QuotaOrderSnapshotRepository QuotaOrderSnapshotRepository) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
+                                    QuotaOrderSnapshotRepository quotaOrderSnapshotRepository) {
+        this(quotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
                 groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository), AgentObservabilityMetrics.noop(), null);
-    }
-
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    GroupBuyStockRepository groupBuyStockRepository,
-                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService,
-                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
-                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                QuotaOrderSnapshotValidator, AgentObservabilityMetrics.noop(), null);
-    }
-
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    GroupBuyStockRepository groupBuyStockRepository,
-                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService,
-                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
-                                    AgentObservabilityMetrics metrics) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
-                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                QuotaOrderSnapshotValidator, metrics, null);
-    }
-
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    GroupBuyStockRepository groupBuyStockRepository,
-                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService,
-                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
-                                    PaymentService paymentService) {
-        this(QuotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
-                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                QuotaOrderSnapshotValidator, AgentObservabilityMetrics.noop(), paymentService);
+                new QuotaOrderSnapshotValidator(quotaOrderSnapshotRepository), AgentObservabilityMetrics.noop(), null);
     }
 
     @Autowired
-    public GroupBuyLockOrderService(QuotaProductRepository QuotaProductRepository,
+    public GroupBuyLockOrderService(QuotaProductRepository quotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyStockRepository groupBuyStockRepository,
@@ -163,10 +83,10 @@ public class GroupBuyLockOrderService {
                                     TradeOrderRepository tradeOrderRepository,
                                     TradeOrderService tradeOrderService,
                                     TradeStatusFlowService tradeStatusFlowService,
-                                    QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
+                                    QuotaOrderSnapshotValidator quotaOrderSnapshotValidator,
                                     AgentObservabilityMetrics metrics,
                                     PaymentService paymentService) {
-        this.QuotaProductRepository = QuotaProductRepository;
+        this.quotaProductRepository = quotaProductRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.groupBuyStockRepository = groupBuyStockRepository;
@@ -174,13 +94,13 @@ public class GroupBuyLockOrderService {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
-        this.QuotaOrderSnapshotValidator = QuotaOrderSnapshotValidator;
+        this.quotaOrderSnapshotValidator = quotaOrderSnapshotValidator;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
         this.paymentService = paymentService;
         this.groupBuyLockRuleChain = new GroupBuyLockRuleChain(
                 groupBuyOrderLockRepository,
                 groupBuyTeamStockRepository,
-                QuotaOrderSnapshotValidator);
+                quotaOrderSnapshotValidator);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -220,7 +140,7 @@ public class GroupBuyLockOrderService {
                     payment);
         }
 
-        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(request.getGoodsId())
+        QuotaProduct product = quotaProductRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         GroupBuyActivity activity = groupBuyActivityRepository.queryByActivityId(request.getActivityId())
                 .orElseThrow(() -> new AppException("GROUP_0001", "拼团活动不存在"));

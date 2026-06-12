@@ -103,6 +103,55 @@ public class AgentObservabilityMetrics {
                 .record(Duration.ofMillis(Math.max(0L, latencyMillis)));
     }
 
+    public void recordAgentRun(String taskType, String status, long latencyMillis) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("agent_group_agent_run_total")
+                .tag("task_type", normalizeTag(taskType))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .increment();
+        Timer.builder("agent_group_agent_run_latency")
+                .tag("task_type", normalizeTag(taskType))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .record(Duration.ofMillis(Math.max(0L, latencyMillis)));
+    }
+
+    public void recordLlmCall(String model, String status, boolean fallbackUsed, long latencyMillis) {
+        if (meterRegistry == null) {
+            return;
+        }
+        Counter.builder("agent_group_llm_call_total")
+                .tag("model", normalizeTag(model))
+                .tag("status", normalizeTag(status))
+                .tag("fallback", fallbackUsed ? "true" : "false")
+                .register(meterRegistry)
+                .increment();
+        Timer.builder("agent_group_llm_call_latency")
+                .tag("model", normalizeTag(model))
+                .tag("status", normalizeTag(status))
+                .register(meterRegistry)
+                .record(Duration.ofMillis(Math.max(0L, latencyMillis)));
+    }
+
+    public void recordTokenUsage(String scene, long promptTokens, long completionTokens) {
+        if (meterRegistry == null) {
+            return;
+        }
+        DistributionSummary.builder("agent_group_token_usage")
+                .tag("scene", normalizeTag(scene))
+                .tag("type", "prompt")
+                .register(meterRegistry)
+                .record(Math.max(0L, promptTokens));
+        DistributionSummary.builder("agent_group_token_usage")
+                .tag("scene", normalizeTag(scene))
+                .tag("type", "completion")
+                .register(meterRegistry)
+                .record(Math.max(0L, completionTokens));
+    }
+
     private String normalizeTag(String value) {
         return value == null || value.isBlank() ? "unknown" : value;
     }

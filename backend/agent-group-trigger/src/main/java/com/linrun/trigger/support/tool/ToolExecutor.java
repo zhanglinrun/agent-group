@@ -4,6 +4,7 @@ import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
+import com.linrun.types.exception.AppException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -20,25 +21,40 @@ public class ToolExecutor {
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolExecutor.class);
     private final AgentObservabilityMetrics metrics;
     private final AcademicExecutionLedgerService ledgerService;
+    private final ToolInvocationGuard invocationGuard;
 
     public ToolExecutor() {
-        this(AgentObservabilityMetrics.noop(), (AcademicExecutionLedgerService) null);
+        this(AgentObservabilityMetrics.noop(), (AcademicExecutionLedgerService) null, null);
     }
 
     public ToolExecutor(AgentObservabilityMetrics metrics) {
-        this(metrics, (AcademicExecutionLedgerService) null);
+        this(metrics, (AcademicExecutionLedgerService) null, null);
+    }
+
+    public ToolExecutor(AgentObservabilityMetrics metrics, ToolInvocationGuard invocationGuard) {
+        this(metrics, (AcademicExecutionLedgerService) null, invocationGuard);
+    }
+
+    public ToolExecutor(AgentObservabilityMetrics metrics,
+                        ObjectProvider<AcademicExecutionLedgerService> ledgerServiceProvider) {
+        this(metrics, ledgerServiceProvider == null ? null : ledgerServiceProvider.getIfAvailable(), null);
     }
 
     @Autowired
     public ToolExecutor(AgentObservabilityMetrics metrics,
-                        ObjectProvider<AcademicExecutionLedgerService> ledgerServiceProvider) {
-        this(metrics, ledgerServiceProvider == null ? null : ledgerServiceProvider.getIfAvailable());
+                        ObjectProvider<AcademicExecutionLedgerService> ledgerServiceProvider,
+                        ObjectProvider<ToolInvocationGuard> invocationGuardProvider) {
+        this(metrics,
+                ledgerServiceProvider == null ? null : ledgerServiceProvider.getIfAvailable(),
+                invocationGuardProvider == null ? null : invocationGuardProvider.getIfAvailable());
     }
 
     private ToolExecutor(AgentObservabilityMetrics metrics,
-                         AcademicExecutionLedgerService ledgerService) {
+                         AcademicExecutionLedgerService ledgerService,
+                         ToolInvocationGuard invocationGuard) {
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
         this.ledgerService = ledgerService;
+        this.invocationGuard = invocationGuard;
     }
 
     public <T> ToolExecution<T> execute(String toolName,
@@ -55,6 +71,19 @@ public class ToolExecutor {
                                         Supplier<T> supplier) {
         long startNanos = System.nanoTime();
         String toolCallId = toolName + "-" + UUID.randomUUID();
+        String rejectReason = invocationGuard == null
+                ? null
+                : invocationGuard.rejectReason(toolName).orElse(null);
+        if (rejectReason != null) {
+            LOGGER.warn("tool execute blocked by policy, toolName={}, action={}, reason={}",
+                    toolName, action, rejectReason);
+            metrics.recordToolExecution(toolName, action, false, 0L);
+            String blockedInvocationId = recordToolStart(toolCallId, toolName, action);
+            recordToolFinish(blockedInvocationId, AcademicAgentRun.STATUS_FAILED,
+                    "tool blocked by policy", "", 0, rejectReason, 0L);
+            return ToolExecution.failure(toolName, action, "tool blocked by policy: " + rejectReason,
+                    0L, new AppException("TOOL_0403", rejectReason), toolCallId, 0, "");
+        }
         String ledgerInvocationId = recordToolStart(toolCallId, toolName, action);
         int attempts = Math.max(1, maxRetries + 1);
         Exception lastException = null;

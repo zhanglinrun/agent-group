@@ -132,11 +132,6 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>cn.bugstack.wrench</groupId>
-            <artifactId>xfg-wrench-starter-design-framework</artifactId>
-            <version>3.0.0</version>
-        </dependency>
-        <dependency>
             <groupId>com.linrun</groupId>
             <artifactId>agent-group-api</artifactId>
             <version>1.0-SNAPSHOT</version>

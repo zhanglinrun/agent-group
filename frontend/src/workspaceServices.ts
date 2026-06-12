@@ -955,8 +955,19 @@ export function buildWorkspaceDataCatalogDraft(catalog: {
     modelCodeText: modelCodes.join(", "),
     columnsText: columnNames.join(", "),
     schemaInfoJson: schemaInfo.length ? JSON.stringify(schemaInfo, null, 2) : "",
-    businessKnowledge: "默认围绕数据字段、实验结果、业务指标和知识材料分析，结论需要说明数据来源和统计口径。"
+    businessKnowledge: buildDataBusinessKnowledge(schemaInfo)
   };
+}
+
+function buildDataBusinessKnowledge(schemaInfo: Array<{ displayName?: string }>): string {
+  const modelNames = schemaInfo
+    .map((model) => String(model.displayName || "").trim())
+    .filter(Boolean);
+  const base = "默认围绕数据字段、实验结果、业务指标和知识材料分析，结论需要说明数据来源和统计口径。";
+  if (!modelNames.length) {
+    return base;
+  }
+  return `可用数据模型：${modelNames.join("、")}。${base}`;
 }
 
 function clampBatchCount(value: unknown): number {

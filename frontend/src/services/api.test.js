@@ -132,7 +132,7 @@ describe("mcp admin api client", () => {
 
     await queryAgentCapabilities();
 
-    expect(fetch).toHaveBeenCalledWith("/agent/capabilities", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/api/v1/academic/capabilities", expect.objectContaining({
       method: "GET",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token"

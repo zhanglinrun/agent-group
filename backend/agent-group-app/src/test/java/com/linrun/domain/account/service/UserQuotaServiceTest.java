@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -196,6 +197,25 @@ class UserQuotaServiceTest {
         assertEquals(BigDecimal.ZERO, quotaRepository.membership.getMonthlyUsedQuota());
         assertTrue(quotaRepository.membership.isActive(LocalDateTime.now()));
         assertEquals(TradeOrderStatusEnumVO.DEAL_DONE, order.getOrderStatus());
+    }
+
+    @Test
+    void refundedMembershipOrderRevokesMembershipAndIsIdempotent() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        UserQuotaService service = serviceWithProduct(quotaRepository,
+                membershipProduct("G1001", "Plus 会员", new BigDecimal("1000.00")));
+        TradeOrderEntity order = order("O10001", TradeBuyTypeEnumVO.DIRECT, TradeOrderStatusEnumVO.PAY_SUCCESS);
+        service.grantQuotaForPaidOrder(order);
+        assertTrue(quotaRepository.membership.isActive(LocalDateTime.now()));
+
+        service.rollbackQuotaForRefundedOrder(order);
+        service.rollbackQuotaForRefundedOrder(order);
+
+        assertFalse(quotaRepository.membership.isActive(LocalDateTime.now()));
+        assertEquals(2, quotaRepository.flows.size());
+        assertEquals(UserQuotaService.FLOW_REFUND_ROLLBACK, quotaRepository.flows.get(1).getFlowType());
+        assertEquals(0, quotaRepository.flows.get(1).getQuotaAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(new BigDecimal("0"), quotaRepository.balance);
     }
 
     private static UserQuotaService serviceWithProduct(InMemoryQuotaRepository quotaRepository, QuotaProduct product) {

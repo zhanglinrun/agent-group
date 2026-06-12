@@ -29,6 +29,7 @@ import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProgressResult;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
 import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
 import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
+import com.linrun.domain.academic.runtime.security.PromptInjectionGuard;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -1365,7 +1366,8 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     private String normalizeQuery(AcademicAgentStreamRequest request, String taskType) {
-        String question = request == null ? "" : nullToBlank(request.getQuestion()).trim();
+        String question = PromptInjectionGuard.sanitize(
+                request == null ? "" : nullToBlank(request.getQuestion()).trim());
         if ("ppt".equals(taskType)) {
             return normalizePptQuery(question);
         }

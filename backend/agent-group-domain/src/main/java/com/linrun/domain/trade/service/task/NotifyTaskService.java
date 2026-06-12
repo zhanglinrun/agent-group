@@ -21,6 +21,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 拼团结果对外通知任务。
+ *
+ * 语义说明：这里通知的是"成团结算 / 退款完成"这类业务结果，发给下游订阅方
+ * （默认投递到 MQ 的 notify 路由，由 {@code RabbitTradeEventConfiguration} 声明的队列承接；
+ * 也可配置为 HTTP 推送到外部系统）。它和支付网关的支付回调是两回事——支付回调
+ * 在 {@code PaymentService#handleWebhook} 里，带验签和防重放，方向是网关调我们；
+ * 这里方向是我们通知别人，失败靠 {@code GroupBuyNotifyTaskJob} 定时重试。
+ */
 @Service
 public class NotifyTaskService {
 
@@ -77,7 +86,7 @@ public class NotifyTaskService {
         task.applyConfig(settlementNotifyConfig());
         task.setNotifyCount(0);
         task.setNotifyStatus(NotifyTask.STATUS_INIT);
-        task.setParameterJson(groupSettlementPayload(team.getTeamId(), orderIds));
+        task.setParameterJson(groupSettlementPayload(team, orderIds));
         task.setUuid(team.getTeamId() + "_" + NotifyTask.CATEGORY_TRADE_SETTLEMENT);
         notifyTaskRepository.save(task);
         return task;
@@ -165,22 +174,26 @@ public class NotifyTaskService {
 
     private NotifyConfig settlementNotifyConfig() {
         return NotifyConfig.of(
-                dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_TYPE, NotifyTask.TYPE_HTTP),
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_TYPE, NotifyTask.TYPE_MQ),
                 dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement"),
                 dynamicConfigService.getValue(DynamicConfigService.GROUP_SETTLEMENT_NOTIFY_URL, ""));
     }
 
     private NotifyConfig refundNotifyConfig() {
         return NotifyConfig.of(
-                dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, NotifyTask.TYPE_HTTP),
+                dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_TYPE, NotifyTask.TYPE_MQ),
                 dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"),
                 dynamicConfigService.getValue(DynamicConfigService.GROUP_REFUND_NOTIFY_URL, ""));
     }
 
-    private String groupSettlementPayload(String teamId, List<String> orderIds) {
+    private String groupSettlementPayload(GroupBuyTeam team, List<String> orderIds) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("teamId", teamId);
+        payload.put("teamId", team.getTeamId());
+        payload.put("activityId", team.getActivityId());
+        payload.put("teamStatus", team.getTeamStatus() == null ? "" : team.getTeamStatus().name());
+        payload.put("orderCount", orderIds.size());
         payload.put("outTradeNoList", orderIds);
+        payload.put("settledAt", java.time.LocalDateTime.now().toString());
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {

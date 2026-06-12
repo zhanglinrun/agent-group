@@ -26,6 +26,9 @@ public class AcademicAgentReasoningService {
         if (lower.contains("研究") || lower.contains("调研") || lower.contains("分析")) {
             return "深度分析";
         }
+        if (lower.contains("ppt") || question.contains("演示文稿") || question.contains("幻灯片")) {
+            return "PPT 制作";
+        }
         if (lower.contains("搜索") || lower.contains("查找") || lower.contains("检索")) {
             return "信息检索";
         }

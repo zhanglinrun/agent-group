@@ -18,7 +18,7 @@ class AcademicAgentRunPlanFactoryTest {
         AcademicAgentPlan plan = planFactory.build("deep", true);
         List<AcademicAgentFlowStage> stages = flowProjector.buildRemainingStages(plan);
 
-        assertEquals("深度研究", plan.getTitle());
+        assertEquals("深度任务", plan.getTitle());
         assertEquals(5, plan.getSteps().size());
         assertEquals(List.of("S1"), stages.get(0).stepIds());
         assertEquals(List.of("S2", "S3"), stages.get(1).stepIds());

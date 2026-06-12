@@ -1,0 +1,116 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "expr": "sum by (task_type, status) (rate(agent_group_agent_run_total[5m]))",
+          "legendFormat": "{{task_type}} / {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Agent 运行速率（按任务类型与状态）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1, "min": 0 }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "expr": "sum(rate(agent_group_agent_run_total{status=\"SUCCESS\"}[15m])) / sum(rate(agent_group_agent_run_total[15m]))",
+          "legendFormat": "运行成功率",
+          "refId": "A"
+        }
+      ],
+      "title": "Agent 运行成功率（15 分钟窗口）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "expr": "sum by (task_type) (rate(agent_group_agent_run_latency_sum[5m])) / sum by (task_type) (rate(agent_group_agent_run_latency_count[5m])) * 1000",
+          "legendFormat": "{{task_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Agent 运行平均耗时（按任务类型）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(agent_group_llm_call_latency_sum[5m])) / sum by (model) (rate(agent_group_llm_call_latency_count[5m])) * 1000",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ],
+      "title": "大模型调用平均延迟（按模型）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "expr": "sum by (status, fallback) (rate(agent_group_llm_call_total[5m]))",
+          "legendFormat": "{{status}} / fallback={{fallback}}",
+          "refId": "A"
+        }
+      ],
+      "title": "大模型调用量与回退链路使用",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [
+        {
+          "expr": "sum by (type) (rate(agent_group_token_usage_sum[5m]))",
+          "legendFormat": "{{type}} tokens/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Token 消耗速率（prompt / completion）",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["agent-group", "agent-runs"],
+  "templating": { "list": [] },
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Agent 运行与大模型调用监控",
+  "uid": "agent-group-agent-runs",
+  "version": 1,
+  "weekStart": ""
+}

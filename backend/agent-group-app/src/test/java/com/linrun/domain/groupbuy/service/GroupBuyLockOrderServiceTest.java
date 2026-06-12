@@ -137,7 +137,7 @@ class GroupBuyLockOrderServiceTest {
                 () -> service.lock(request("T10001", "IDEM_10003")));
 
         assertEquals("GROUP_0007", exception.getCode());
-        assertEquals("鎷煎洟闃熶紞鍚嶉宸叉弧", exception.getMessage());
+        assertEquals("拼团队伍名额已满", exception.getMessage());
     }
 
     @Test

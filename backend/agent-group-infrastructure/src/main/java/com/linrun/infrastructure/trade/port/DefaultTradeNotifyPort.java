@@ -5,6 +5,8 @@ import com.linrun.domain.trade.model.notify.NotifyTask;
 import com.linrun.domain.trade.adapter.repository.TradeEventPublisher;
 import com.linrun.domain.trade.model.entity.TradeEventMessageEntity;
 import com.linrun.types.exception.AppException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -17,6 +19,8 @@ import java.time.LocalDateTime;
 
 @Component
 public class DefaultTradeNotifyPort implements TradeNotifyPort {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DefaultTradeNotifyPort.class);
 
     private final TradeEventPublisher tradeEventPublisher;
     private final RestTemplate restTemplate = new RestTemplate();
@@ -43,6 +47,9 @@ public class DefaultTradeNotifyPort implements TradeNotifyPort {
 
     private void dispatchHttp(NotifyTask task) {
         if (!StringUtils.hasText(task.getNotifyUrl()) || "none".equalsIgnoreCase(task.getNotifyUrl())) {
+            // 配置成 HTTP 但没有给地址：按成功跳过避免无意义重试，但要让配置缺失可见
+            LOGGER.warn("notify task skipped because http url is blank, uuid={}, category={}",
+                    task.getUuid(), task.getNotifyCategory());
             return;
         }
         HttpHeaders headers = new HttpHeaders();

@@ -11,6 +11,7 @@ import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import com.linrun.domain.academic.model.AcademicSession;
 import com.linrun.domain.academic.runtime.executor.AcademicAgentExecutorSupport;
+import com.linrun.domain.academic.runtime.security.PromptInjectionGuard;
 import com.linrun.domain.academic.runtime.tool.AcademicToolCallCommand;
 import com.linrun.domain.academic.runtime.tool.common.AcademicDeepSearchToolRuntime;
 import com.linrun.domain.academic.runtime.tool.common.AcademicMultimodalAgentToolRuntime;
@@ -98,7 +99,8 @@ public class AcademicWorkspaceMragService {
         AcademicWorkspaceMragRunRequest safeRequest = request == null
                 ? new AcademicWorkspaceMragRunRequest()
                 : request;
-        String question = firstText(safeRequest.getQuestion(), safeRequest.getText(), "MRAG 多模态检索问题");
+        String question = PromptInjectionGuard.sanitize(
+                firstText(safeRequest.getQuestion(), safeRequest.getText(), "MRAG 多模态检索问题"));
         UserAccount user = userAccountService.requireUserByToken(token);
         String userId = user.getUserId();
         preCheckQuota(userId);

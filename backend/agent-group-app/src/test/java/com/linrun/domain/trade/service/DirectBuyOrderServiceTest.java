@@ -120,7 +120,7 @@ class DirectBuyOrderServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
         assertEquals("DATA_0003", exception.getCode());
-        assertEquals("棰濆害鍖呬笉瀛樺湪鎴栧凡涓嬫灦", exception.getMessage());
+        assertEquals("额度包不存在或已下架", exception.getMessage());
     }
 
     @Test
@@ -139,7 +139,7 @@ class DirectBuyOrderServiceTest {
         AppException exception = assertThrows(AppException.class, () -> service.createDirectOrder(request));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("鐢ㄦ埛缂栧彿涓嶈兘涓虹┖", exception.getMessage());
+        assertEquals("用户编号不能为空", exception.getMessage());
     }
 
     @Test

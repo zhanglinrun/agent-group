@@ -20,6 +20,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 支付成功后的统一处理服务。
+ *
+ * 名字里的 Mock 是历史遗留：它最初服务于模拟支付入口，但现在真实支付回调
+ * （{@link PaymentService#handleWebhook}）验签后也复用这里的 {@link #paySuccess} 完成
+ * 订单状态流转、拼团结算和额度发放。换言之这是真实交易链路的核心一环，并非仅供测试。
+ */
 @Service
 public class MockPayCallbackService {
 

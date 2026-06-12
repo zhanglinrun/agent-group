@@ -44,10 +44,10 @@ public class DynamicConfigService {
             Map.entry(CUT_RANGE, "100"),
             Map.entry(SC_BLACKLIST, ""),
             Map.entry(CACHE_SWITCH, "0"),
-            Map.entry(GROUP_SETTLEMENT_NOTIFY_TYPE, "HTTP"),
+            Map.entry(GROUP_SETTLEMENT_NOTIFY_TYPE, "MQ"),
             Map.entry(GROUP_SETTLEMENT_NOTIFY_URL, ""),
             Map.entry(GROUP_SETTLEMENT_NOTIFY_MQ, "agent.group.notify.group-settlement"),
-            Map.entry(GROUP_REFUND_NOTIFY_TYPE, "HTTP"),
+            Map.entry(GROUP_REFUND_NOTIFY_TYPE, "MQ"),
             Map.entry(GROUP_REFUND_NOTIFY_URL, ""),
             Map.entry(GROUP_REFUND_NOTIFY_MQ, "agent.group.notify.group-refund"),
             Map.entry(PAYMENT_QUERY_COMPENSATION_SWITCH, "1"),
@@ -56,8 +56,8 @@ public class DynamicConfigService {
             Map.entry(AGENT_PLAN_EXECUTE_SWITCH, "1"),
             Map.entry(AGENT_CONTEXT_COMPACT_THRESHOLD, "1600"),
             Map.entry(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1"),
-            Map.entry(AGENT_BILLING_PROMPT_COST_PER_1K, "0.20"),
-            Map.entry(AGENT_BILLING_COMPLETION_COST_PER_1K, "0.80"),
+            Map.entry(AGENT_BILLING_PROMPT_COST_PER_1K, "0.10"),
+            Map.entry(AGENT_BILLING_COMPLETION_COST_PER_1K, "0.30"),
             Map.entry(AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE, "0.10")
     );
 

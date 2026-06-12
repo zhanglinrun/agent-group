@@ -16,7 +16,9 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputReader;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputView;
+import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -34,13 +36,22 @@ public class AcademicExecutionLedgerService {
 
     private final AcademicExecutionLedgerRepository ledgerRepository;
     private final AcademicReplayProjector replayProjector;
+    private final AgentObservabilityMetrics metrics;
     private final AcademicToolOutputReader toolOutputReader = new AcademicToolOutputReader();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AcademicExecutionLedgerService(AcademicExecutionLedgerRepository ledgerRepository,
                                           AcademicReplayProjector replayProjector) {
+        this(ledgerRepository, replayProjector, AgentObservabilityMetrics.noop());
+    }
+
+    @Autowired
+    public AcademicExecutionLedgerService(AcademicExecutionLedgerRepository ledgerRepository,
+                                          AcademicReplayProjector replayProjector,
+                                          AgentObservabilityMetrics metrics) {
         this.ledgerRepository = ledgerRepository;
         this.replayProjector = replayProjector;
+        this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
     }
 
     public AcademicAgentRun startRun(String userId,
@@ -84,6 +95,7 @@ public class AcademicExecutionLedgerService {
         run.setErrorMessage(limit(errorMessage, 1024));
         run.setFinishedAt(LocalDateTime.now());
         run.setDurationMillis(Math.max(0L, durationMillis));
+        metrics.recordAgentRun(run.getTaskType(), run.getStatus(), run.getDurationMillis());
         try {
             ledgerRepository.finishRun(run);
         } catch (Exception ignored) {
@@ -121,6 +133,8 @@ public class AcademicExecutionLedgerService {
         invocation.setStartedAt(LocalDateTime.now().minusNanos(Math.max(0L, latencyMillis) * 1_000_000L));
         invocation.setFinishedAt(LocalDateTime.now());
         invocation.setLatencyMillis(Math.max(0L, latencyMillis));
+        metrics.recordLlmCall(invocation.getModelName(), invocation.getStatus(), fallbackUsed, invocation.getLatencyMillis());
+        metrics.recordTokenUsage("agent", promptTokens, completionTokens);
         try {
             ledgerRepository.createLlmInvocation(invocation);
         } catch (Exception ignored) {

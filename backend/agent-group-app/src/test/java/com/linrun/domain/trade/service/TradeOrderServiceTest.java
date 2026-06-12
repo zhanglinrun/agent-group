@@ -65,7 +65,7 @@ class TradeOrderServiceTest {
                 () -> service.createOrder(command(TradeBuyTypeEnumVO.GROUP_BUY, null, "2399.00", "2099.00")));
 
         assertEquals("0001", exception.getCode());
-        assertEquals("鎷煎洟璁㈠崟娲诲姩缂栧彿涓嶈兘涓虹┖", exception.getMessage());
+        assertEquals("拼团订单活动编号不能为空", exception.getMessage());
     }
 
     @Test

@@ -10,6 +10,13 @@ target/
 *.iml
 *.ipr
 
+
+
+.cursor/
+.codegraph/
+.trellis/
+
+
 ### Eclipse ###
 .apt_generated
 .classpath

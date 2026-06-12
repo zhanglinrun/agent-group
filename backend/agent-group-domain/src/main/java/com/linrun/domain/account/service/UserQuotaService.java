@@ -24,6 +24,7 @@ import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -51,8 +52,8 @@ public class UserQuotaService {
     public static final String FLOW_TASK_CONSUME = "TASK_CONSUME";
 
     private static final BigDecimal MIN_TOKEN_COST = new BigDecimal("0.01");
-    private static final BigDecimal DEFAULT_PROMPT_COST_PER_1K = new BigDecimal("0.20");
-    private static final BigDecimal DEFAULT_COMPLETION_COST_PER_1K = new BigDecimal("0.80");
+    private static final BigDecimal DEFAULT_PROMPT_COST_PER_1K = new BigDecimal("0.10");
+    private static final BigDecimal DEFAULT_COMPLETION_COST_PER_1K = new BigDecimal("0.30");
     private static final BigDecimal DEFAULT_CUSTOM_MODEL_SERVICE_RATE = new BigDecimal("0.10");
     private static final String DEFAULT_CUSTOM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode";
     private static final String DEFAULT_CUSTOM_IMAGE_BASE_URL = "https://api.openai.com";
@@ -251,7 +252,7 @@ public class UserQuotaService {
                 .map(UserMembershipAccount::remainingQuota)
                 .orElse(BigDecimal.ZERO));
         if (available.compareTo(safeAmount) < 0) {
-            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告");
+            throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会员");
         }
     }
 
@@ -328,11 +329,11 @@ public class UserQuotaService {
         BigDecimal accountDebit = normalizeAmount(quotaCost.subtract(memberDebit));
         if (accountDebit.compareTo(BigDecimal.ZERO) > 0) {
             if (before.getQuotaBalance().compareTo(accountDebit) < 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告");
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会员");
             }
             int affected = userQuotaRepository.decreaseQuota(userId, accountDebit);
             if (affected <= 0) {
-                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会告");
+                throw new AppException("QUOTA_0001", "额度不足，请先购买额度包或开通会员");
             }
             UserQuotaAccount after = queryAccount(userId);
             userQuotaRepository.saveFlow(flow(userId, FLOW_TASK_CONSUME, safeTaskConsumeBizId,
@@ -372,16 +373,20 @@ public class UserQuotaService {
         }
         userQuotaRepository.createAccountIfAbsent(tradeOrder.getUserId());
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
-        userQuotaRepository.increaseQuota(tradeOrder.getUserId(), quotaAmount);
-        UserQuotaAccount after = queryAccount(tradeOrder.getUserId());
-        userQuotaRepository.saveFlow(flow(
+        BigDecimal afterBalance = before.getQuotaBalance().add(quotaAmount);
+        boolean recorded = recordGrantFlowOnce(flow(
                 tradeOrder.getUserId(),
                 FLOW_ORDER_GRANT,
                 tradeOrder.getOrderId(),
                 quotaAmount,
                 before.getQuotaBalance(),
-                after.getQuotaBalance(),
+                afterBalance,
                 grantRemark(tradeOrder, quotaAmount)));
+        if (!recorded) {
+            markDealDoneIfNeeded(tradeOrder);
+            return;
+        }
+        userQuotaRepository.increaseQuota(tradeOrder.getUserId(), quotaAmount);
         markDealDoneIfNeeded(tradeOrder);
     }
 
@@ -389,17 +394,34 @@ public class UserQuotaService {
         userQuotaRepository.createAccountIfAbsent(tradeOrder.getUserId());
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
         UserMembershipAccount membership = buildMembership(tradeOrder.getUserId(), product);
-        userQuotaRepository.upsertMembership(membership);
-        UserQuotaAccount after = queryAccount(tradeOrder.getUserId());
-        userQuotaRepository.saveFlow(flow(
+        boolean recorded = recordGrantFlowOnce(flow(
                 tradeOrder.getUserId(),
                 FLOW_ORDER_GRANT,
                 tradeOrder.getOrderId(),
                 BigDecimal.ZERO,
                 before.getQuotaBalance(),
-                after.getQuotaBalance(),
+                before.getQuotaBalance(),
                 membershipGrantRemark(tradeOrder, membership)));
+        if (!recorded) {
+            markDealDoneIfNeeded(tradeOrder);
+            return;
+        }
+        userQuotaRepository.upsertMembership(membership);
         markDealDoneIfNeeded(tradeOrder);
+    }
+
+    /**
+     * 写入发放流水作为幂等闸门。依赖 user_quota_flow 上的唯一约束
+     * uk_user_biz_flow(user_id, flow_type, biz_id)：并发下只有一笔能写入成功，
+     * 其余命中唯一键冲突，转成幂等结果返回，不会重复发放额度。
+     */
+    private boolean recordGrantFlowOnce(UserQuotaFlow grantFlow) {
+        try {
+            userQuotaRepository.saveFlow(grantFlow);
+            return true;
+        } catch (DuplicateKeyException e) {
+            return false;
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -430,7 +452,15 @@ public class UserQuotaService {
         }
         UserQuotaFlow grantFlow = userQuotaRepository.queryFlow(tradeOrder.getUserId(), FLOW_ORDER_GRANT, tradeOrder.getOrderId())
                 .orElse(null);
-        if (grantFlow == null || grantFlow.getQuotaAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        if (grantFlow == null) {
+            return;
+        }
+        QuotaProduct product = resolveOrderProduct(tradeOrder);
+        if (isMembershipPlan(product)) {
+            rollbackMembershipForRefundedOrder(tradeOrder, product);
+            return;
+        }
+        if (grantFlow.getQuotaAmount().compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
@@ -444,6 +474,32 @@ public class UserQuotaService {
                 before.getQuotaBalance(),
                 after.getQuotaBalance(),
                 "订单退款回滚额度"));
+    }
+
+    /**
+     * 会员套餐订单退款时撤销对应的会员权益：该订单续费的回退一个会员周期，
+     * 新开通的直接到期。流水金额为 0，仅作为退款回滚的幂等标记和审计记录。
+     */
+    private void rollbackMembershipForRefundedOrder(TradeOrderEntity tradeOrder, QuotaProduct product) {
+        UserMembershipAccount membership = userQuotaRepository.queryMembership(tradeOrder.getUserId()).orElse(null);
+        if (membership != null
+                && product.getGoodsId().equals(membership.getPlanCode())
+                && membership.getCycleEndTime() != null) {
+            membership.setCycleEndTime(membership.getCycleEndTime().minusMonths(1));
+            if (!membership.getCycleEndTime().isAfter(LocalDateTime.now())) {
+                membership.setStatus("EXPIRED");
+            }
+            userQuotaRepository.upsertMembership(membership);
+        }
+        UserQuotaAccount account = queryAccount(tradeOrder.getUserId());
+        userQuotaRepository.saveFlow(flow(
+                tradeOrder.getUserId(),
+                FLOW_REFUND_ROLLBACK,
+                tradeOrder.getOrderId(),
+                BigDecimal.ZERO,
+                account.getQuotaBalance(),
+                account.getQuotaBalance(),
+                "订单退款撤销会员：" + firstText(membership == null ? "" : membership.getPlanName(), "会员套餐")));
     }
 
     private BigDecimal debitMembership(String userId, BigDecimal quotaCost, UserMembershipAccount membership) {
