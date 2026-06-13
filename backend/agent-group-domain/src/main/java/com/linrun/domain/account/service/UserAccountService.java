@@ -32,6 +32,7 @@ public class UserAccountService {
     private static final String SESSION_ACTIVE = "ACTIVE";
     private static final int SESSION_EXPIRE_DAYS = 7;
     private static final String BCRYPT_HASH_PREFIX = "$2";
+    private static final String TOKEN_HASH_PREFIX = "sha256:";
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     private final UserAccountRepository userAccountRepository;
@@ -106,7 +107,10 @@ public class UserAccountService {
         if (!StringUtils.hasText(token)) {
             throw new AppException("AUTH_0001", "请先登录");
         }
-        UserLoginSession session = userAccountRepository.querySessionByToken(cleanToken(token))
+        String cleaned = cleanToken(token);
+        // 会话表存的是令牌哈希；查不到时再按原文查一次，兼容升级前的存量明文会话
+        UserLoginSession session = userAccountRepository.querySessionByToken(hashToken(cleaned))
+                .or(() -> userAccountRepository.querySessionByToken(cleaned))
                 .orElseThrow(() -> new AppException("AUTH_0001", "登录已失效，请重新登录"));
         if (!SESSION_ACTIVE.equals(session.getStatus()) || session.getExpireTime() == null
                 || session.getExpireTime().isBefore(LocalDateTime.now())) {
@@ -116,26 +120,19 @@ public class UserAccountService {
                 .orElseThrow(() -> new AppException("AUTH_0006", "用户不存在"));
     }
 
-    public String resolveUserId(String token, String fallbackUserId) {
-        if (StringUtils.hasText(token)) {
-            return requireUserByToken(token).getUserId();
-        }
-        if (StringUtils.hasText(fallbackUserId)) {
-            return fallbackUserId;
-        }
-        throw new AppException("AUTH_0001", "请先登录");
-    }
-
     @Transactional(rollbackFor = Exception.class)
     public void logout(String token) {
         if (StringUtils.hasText(token)) {
-            userAccountRepository.invalidSession(cleanToken(token));
+            String cleaned = cleanToken(token);
+            userAccountRepository.invalidSession(hashToken(cleaned));
+            userAccountRepository.invalidSession(cleaned);
         }
     }
 
     private LoginResponse createSessionResponse(UserAccount user) {
+        String rawToken = randomToken();
         UserLoginSession session = new UserLoginSession();
-        session.setToken(randomToken());
+        session.setToken(hashToken(rawToken));
         session.setUserId(user.getUserId());
         session.setStatus(SESSION_ACTIVE);
         session.setCreateTime(LocalDateTime.now());
@@ -145,7 +142,7 @@ public class UserAccountService {
         UserQuotaAccount account = userQuotaRepository.queryAccount(user.getUserId())
                 .orElseGet(() -> emptyQuota(user.getUserId()));
         LoginResponse response = new LoginResponse();
-        response.setToken(session.getToken());
+        response.setToken(rawToken);
         response.setExpireTime(session.getExpireTime());
         response.setUserId(user.getUserId());
         response.setUsername(user.getUsername());
@@ -210,6 +207,20 @@ public class UserAccountService {
             return Base64.getEncoder().encodeToString(bytes);
         } catch (NoSuchAlgorithmException e) {
             throw new AppException("AUTH_0007", "密码摘要算法不可用");
+        }
+    }
+
+    /**
+     * 会话令牌入库前做不可逆哈希：库被拖走也拿不到可用令牌。
+     * 令牌本身是 64 位随机十六进制，熵足够高，无需加盐。
+     */
+    private String hashToken(String rawToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(safe(rawToken).getBytes(StandardCharsets.UTF_8));
+            return TOKEN_HASH_PREFIX + Base64.getEncoder().encodeToString(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            throw new AppException("AUTH_0007", "令牌摘要算法不可用");
         }
     }
 

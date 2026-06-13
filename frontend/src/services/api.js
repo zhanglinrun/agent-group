@@ -230,10 +230,6 @@ export function modelConfigReady(config, scope = "text") {
   return textReady;
 }
 
-function modelConfigPayload(config) {
-  return {};
-}
-
 function authHeader() {
   const auth = getAdminAuth();
   if (!auth?.username || !auth?.password) {
@@ -270,10 +266,16 @@ async function parseResponse(response) {
   return payload;
 }
 
+// 普通接口的默认超时；流式接口走 requestAcademicStreamInternal，自带 AbortController，不受这里影响
+const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
+
 async function request(path, options = {}) {
-  const { auth = false, userAuth = false, headers, ...rest } = options;
+  const { auth = false, userAuth = false, headers, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...rest } = options;
+  const signal = rest.signal
+    ?? (timeoutMs > 0 && typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(timeoutMs) : undefined);
   const response = await fetch(path, {
     ...rest,
+    signal,
     headers: {
       ...(auth ? authHeader() : {}),
       ...(userAuth ? userAuthHeader() : {}),
@@ -846,7 +848,6 @@ export function requestAcademicStream({
   imageUrl,
   imageName,
   sessionId = getSessionId(),
-  modelConfig,
   webSearchEnabled = false
 }, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/stream", {
@@ -861,7 +862,6 @@ export function requestAcademicStream({
     imageUrl: imageUrl || "",
     imageName: imageName || "",
     webSearchEnabled: Boolean(webSearchEnabled),
-    ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
 
@@ -869,7 +869,6 @@ export function requestAcademicResumeStream(sessionId = getSessionId(), modelCon
   return requestAcademicStreamInternal("/api/v1/academic/resume", {
     sessionId,
     webSearchEnabled: Boolean(webSearchEnabled),
-    ...modelConfigPayload(modelConfig)
   }, onEvent, onDone, onError);
 }
 
@@ -972,7 +971,8 @@ export async function createDirectOrder(product, userId) {
     body: JSON.stringify({
       userId,
       goodsId: product.id || product.goodsId,
-      idempotentKey: `IDEMP_${Date.now()}`,
+      // 时间戳 + 随机段：纯时间戳在并发下会撞键（幂等键全局唯一约束）
+      idempotentKey: `IDEMP_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
       payChannel: preferredPayChannel()
     })
   });

@@ -146,7 +146,10 @@ public class WeixinOfficialAccountClient {
         return payload;
     }
 
-    private String accessToken() throws IOException {
+    /**
+     * 加锁刷新：避免令牌过期瞬间多个请求并发刷新，重复消耗微信的获取次数配额。
+     */
+    private synchronized String accessToken() throws IOException {
         long now = Instant.now().getEpochSecond();
         if (StringUtils.hasText(cachedAccessToken) && cachedAccessTokenExpireAt > now + 60) {
             return cachedAccessToken;

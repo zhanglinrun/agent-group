@@ -22,8 +22,14 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * 交易超时补偿。批量方法对每一笔订单独立处理并吞掉单笔异常：
+ * 一笔坏单只记告警，不能让整批补偿中断或回滚，否则定时任务会一直卡在同一笔订单上。
+ */
 @Service
 public class TradeCompensationService {
+
+    private static final System.Logger LOGGER = System.getLogger(TradeCompensationService.class.getName());
 
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
@@ -60,13 +66,17 @@ public class TradeCompensationService {
         this.paymentService = paymentService;
     }
 
-    @Transactional(rollbackFor = Exception.class)
     public int closeTimeoutUnpaidOrders(LocalDateTime deadline, int limit) {
         List<String> orderIds = tradeOrderRepository.queryTimeoutPayWaitOrderIds(deadline, limit);
         int closedCount = 0;
         for (String orderId : orderIds) {
-            if (closeUnpaidOrder(orderId)) {
-                closedCount++;
+            try {
+                if (closeUnpaidOrder(orderId)) {
+                    closedCount++;
+                }
+            } catch (Exception e) {
+                LOGGER.log(System.Logger.Level.WARNING,
+                        "close timeout unpaid order failed, orderId=" + orderId + ", reason=" + e.getMessage());
             }
         }
         return closedCount;
@@ -79,9 +89,14 @@ public class TradeCompensationService {
         List<String> orderIds = tradeOrderRepository.queryTimeoutPayWaitOrderIds(deadline, limit);
         int completedCount = 0;
         for (String orderId : orderIds) {
-            PaymentWebhookResponse response = paymentService.queryGatewayAndCompleteIfPaid(orderId);
-            if (response != null && PayStatusEnumVO.SUCCESS.name().equals(response.getPayStatus())) {
-                completedCount++;
+            try {
+                PaymentWebhookResponse response = paymentService.queryGatewayAndCompleteIfPaid(orderId);
+                if (response != null && PayStatusEnumVO.SUCCESS.name().equals(response.getPayStatus())) {
+                    completedCount++;
+                }
+            } catch (Exception e) {
+                LOGGER.log(System.Logger.Level.WARNING,
+                        "reconcile timeout pay-wait order failed, orderId=" + orderId + ", reason=" + e.getMessage());
             }
         }
         return completedCount;
@@ -91,15 +106,17 @@ public class TradeCompensationService {
         List<String> orderIds = groupBuyOrderLockRepository.queryTimeoutUnsettledPaidOrderIds(deadline, limit);
         int refundCount = 0;
         for (String orderId : orderIds) {
-            RefundPaymentRequest request = new RefundPaymentRequest();
-            request.setOrderId(orderId);
-            request.setRefundReason("拼团超时未成回");
-            if (paymentService == null) {
-                tradeRefundService.refund(request);
-            } else {
+            try {
+                RefundPaymentRequest request = new RefundPaymentRequest();
+                request.setOrderId(orderId);
+                request.setRefundReason("拼团超时未成团");
+                // 定时补偿属于系统发起的退款，固定走系统退款入口，退款原因会带系统标记
                 tradeRefundService.refundFromSystem(request);
+                refundCount++;
+            } catch (Exception e) {
+                LOGGER.log(System.Logger.Level.WARNING,
+                        "refund timeout unsettled group order failed, orderId=" + orderId + ", reason=" + e.getMessage());
             }
-            refundCount++;
         }
         return refundCount;
     }
@@ -108,8 +125,13 @@ public class TradeCompensationService {
         List<String> orderIds = groupBuyOrderLockRepository.queryTimeoutUnsettledLockedOrderIds(deadline, limit);
         int closedCount = 0;
         for (String orderId : orderIds) {
-            if (closeUnpaidOrder(orderId)) {
-                closedCount++;
+            try {
+                if (closeUnpaidOrder(orderId)) {
+                    closedCount++;
+                }
+            } catch (Exception e) {
+                LOGGER.log(System.Logger.Level.WARNING,
+                        "close timeout unsettled group order failed, orderId=" + orderId + ", reason=" + e.getMessage());
             }
         }
         return closedCount;

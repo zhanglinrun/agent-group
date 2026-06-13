@@ -20,6 +20,7 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputProjector;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicImageGenerationPort;
+import com.linrun.domain.academic.runtime.security.PromptInjectionGuard;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
@@ -72,6 +73,7 @@ public class AcademicWorkspaceImageService {
         if (!StringUtils.hasText(safeRequest.getPrompt())) {
             throw new AppException("IMAGE_WORKSPACE_0001", "图像生成提示词不能为空");
         }
+        safeRequest.setPrompt(PromptInjectionGuard.sanitize(safeRequest.getPrompt()));
         UserAccount user = userAccountService.requireUserByToken(token);
         String userId = user.getUserId();
         preCheckQuota(userId);

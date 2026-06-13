@@ -81,7 +81,7 @@ public class PPTBuilderAgent extends BaseAgent {
         // 初始化意图识别器
         this.intentRecognizer = new PptIntentRecognizer(chatClient, pptInstService);
 
-        // 初始化工具记录集??
+        // 初始化工具记录集合
         this.usedTools = new HashSet<>();
     }
 
@@ -113,9 +113,9 @@ public class PPTBuilderAgent extends BaseAgent {
             return Flux.error(new IllegalStateException("该会话正在执行中，请稍后再试"));
         }
 
-        // 收集思考过??
+        // 收集思考过程
         StringBuilder thinkingBuffer = new StringBuilder();
-        // 收集最终答??
+        // 收集最终答案
         StringBuilder finalAnswerBuffer = new StringBuilder();
 
         try {
@@ -155,7 +155,7 @@ public class PPTBuilderAgent extends BaseAgent {
 
         return sink.asFlux()
                 .doOnNext(chunk -> {
-                    // 解析 JSON，分离收??text ??thinking
+                    // 解析 JSON，分离收集 text 与 thinking
                     try {
                         JSONObject json = JSON.parseObject(chunk);
                         String type = json.getString("type");
@@ -165,7 +165,7 @@ public class PPTBuilderAgent extends BaseAgent {
                             finalAnswerBuffer.append(json.getString("content"));
                         }
                     } catch (Exception e) {
-                        // 解析失败，忽??
+                        // 解析失败，忽略
                     }
                 })
                 .doOnCancel(() -> taskManager.stopTask(conversationId))
@@ -174,7 +174,7 @@ public class PPTBuilderAgent extends BaseAgent {
                     log.info("最终答案 {}", finalAnswerBuffer);
                     log.info("思考过程 {}", thinkingBuffer);
 
-                    // 保存结果到会??
+                    // 保存结果到会话
                     if (sessionService != null && currentSessionId != null && finalAnswerBuffer.length() > 0) {
                         UpdateAnswerRequest request = UpdateAnswerRequest.builder()
                                 .id(currentSessionId)
@@ -185,7 +185,7 @@ public class PPTBuilderAgent extends BaseAgent {
                         log.info("PPT结果已保存到会话: sessionId={}", currentConversationId);
                     }
 
-                    // 正常结束只移除任务状态，用户点击停止才发送停止消??
+                    // 正常结束只移除任务状态，用户点击停止才发送停止消息
                     taskManager.completeTask(conversationId);
                 })
                 .doOnError(err -> log.error("PPT处理流输出异常", err));
@@ -253,7 +253,7 @@ public class PPTBuilderAgent extends BaseAgent {
 
         sink.tryEmitNext(createThinkingResponse("正在修改PPT...\n"));
 
-        // 设置修改操作标记和修改需??
+        // 设置修改操作标记和修改需求
         strategyContext.setModifyMode(true);
         strategyContext.setModifyQuery(query);
 
@@ -278,7 +278,7 @@ public class PPTBuilderAgent extends BaseAgent {
 
         PptInstStatus status = inst.getStatusEnum();
 
-        // 如果已经是SUCCESS状态，询问用户是否要修??
+        // 如果已经是SUCCESS状态，询问用户是否要修改
         if (status == PptInstStatus.SUCCESS) {
             sink.tryEmitNext(createThinkingResponse("当前PPT已经成功生成，如果您要修改，请说明具体修改需求。\n"));
             String response = "当前PPT已经成功生成。如果您需要修改，请说明具体的修改需求";
@@ -300,12 +300,12 @@ public class PPTBuilderAgent extends BaseAgent {
         sink.tryEmitNext(createThinkingResponse("正在分析修改需求...\n"));
         sink.tryEmitNext(createThinkingResponse("正在修改PPT内容...\n"));
 
-        // 直接调用 SchemaStrategy 继续执行（会处理图片生成、渲染等??
+        // 直接调用 SchemaStrategy 继续执行（会处理图片生成、渲染等）
         PptStateStrategyFactory.getInstance().executeSchemaStrategy(inst, sink, query, thinkingBuffer, strategyContext);
     }
 
     /**
-     * 保存结果到会??
+     * 保存结果到会话
      */
     private void saveResultToSession(AiPptInst inst, String result, StringBuilder thinkingBuffer) {
         if (sessionService == null || currentSessionId == null) {

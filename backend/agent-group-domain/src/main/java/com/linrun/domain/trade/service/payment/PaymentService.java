@@ -225,13 +225,14 @@ public class PaymentService {
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
         }
 
-        PaymentRefundResult gatewayResult = paymentGatewayClient.refund(toRefundCommand(tradeOrder, payOrder, request));
+        PaymentRefundResult gatewayResult = paymentGatewayClient.refund(
+                toRefundCommand(tradeOrder, payOrder, request, systemRequest));
         LocalDateTime refundTime = LocalDateTime.now();
         RefundOrderEntity refundOrder = RefundOrderEntity.success(
                 gatewayResult.getRefundId(),
                 tradeOrder,
                 payOrder,
-                resolveRefundReason(request),
+                resolveRefundReason(request, systemRequest),
                 refundTime);
         tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
         tradeOrderRepository.saveRefundOrder(refundOrder);
@@ -520,14 +521,14 @@ public class PaymentService {
     }
 
     private PaymentRefundCommand toRefundCommand(TradeOrderEntity tradeOrder, PayOrderEntity payOrder,
-                                                 RefundPaymentRequest request) {
+                                                 RefundPaymentRequest request, boolean systemRequest) {
         PaymentRefundCommand command = new PaymentRefundCommand();
         command.setOrderId(tradeOrder.getOrderId());
         command.setPayOrderId(payOrder.getPayOrderId());
         command.setPayChannel(payOrder.getPayChannel());
         command.setGatewayTradeNo(payOrder.getOutTradeNo());
         command.setRefundAmount(payOrder.getPayAmount());
-        command.setRefundReason(resolveRefundReason(request));
+        command.setRefundReason(resolveRefundReason(request, systemRequest));
         return command;
     }
 
@@ -830,8 +831,15 @@ public class PaymentService {
         };
     }
 
-    private String resolveRefundReason(RefundPaymentRequest request) {
-        return StringUtils.hasText(request.getRefundReason()) ? request.getRefundReason() : "用户申请退款";
+    /**
+     * 退款原因兜底：系统发起（超时补偿等定时任务）和用户发起使用不同的默认文案，
+     * 落到退款单和流水里便于审计区分。
+     */
+    private String resolveRefundReason(RefundPaymentRequest request, boolean systemRequest) {
+        if (StringUtils.hasText(request.getRefundReason())) {
+            return systemRequest ? "[系统] " + request.getRefundReason() : request.getRefundReason();
+        }
+        return systemRequest ? "系统自动退款" : "用户申请退款";
     }
 
     private long elapsedMillis(long startNanos) {

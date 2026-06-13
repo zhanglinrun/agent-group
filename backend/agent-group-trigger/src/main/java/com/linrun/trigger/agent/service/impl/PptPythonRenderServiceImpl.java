@@ -21,8 +21,10 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * PPT Python 渲染服务实现
@@ -50,149 +52,136 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
             throw new RuntimeException("模板不存在 " + inst.getTemplateCode());
         }
 
-        String pythonScriptPath = getPythonScriptPath();
-        String templateFilePath = resolveTemplateFilePath(template.getFilePath());
-        String outputDir = getOutputDir();
+        // 本次渲染产生的临时文件统一登记，结束后无论成败都清理，避免长期运行后临时目录膨胀
+        List<Path> tempFiles = new ArrayList<>();
+        String outputFilePath = "";
+        try {
+            String pythonScriptPath = copyClasspathResource("bear-doctor/python/render_ppt.py",
+                    "bear_doctor_render_", ".py", tempFiles);
+            String templateFilePath = resolveTemplateFilePath(template.getFilePath(), tempFiles);
+            String outputDir = getOutputDir();
 
-        String outputFileName = "ppt_" + inst.getId() + "_" +
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".pptx";
+            String outputFileName = "ppt_" + inst.getId() + "_" +
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".pptx";
+            outputFilePath = outputDir + File.separator + outputFileName;
 
-        String outputFilePath = outputDir + File.separator + outputFileName;
-
-        File templateFile = new File(templateFilePath);
-        if (!templateFile.exists()) {
-            throw new RuntimeException("模板文件不存在 " + templateFilePath);
-        }
-
-        // ---------- 构建命令 ----------
-        List<String> command = List.of(
-                "python",
-                pythonScriptPath,
-                "--template", templateFilePath,
-                "--output", outputFilePath
-        );
-
-        log.info("执行Python命令: {}", String.join(" ", command));
-
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(true);
-
-        Map<String, String> env = pb.environment();
-
-        env.put("PYTHONIOENCODING", "utf-8");
-
-        // ---------- 处理 JSON 传参 ----------
-        // Windows 环境变量长度有限（约 32KB），大 JSON 会失败。
-        // 超过 20KB 自动写入临时文件
-        if (pptSchema.length() > 20000) {
-
-            Path tempFile = Files.createTempFile("ppt_schema_", ".json");
-            Files.writeString(tempFile, pptSchema, StandardOpenOption.TRUNCATE_EXISTING);
-
-            env.put("PPT_SCHEMA_FILE", tempFile.toAbsolutePath().toString());
-            log.info("JSON 过大，使用临时文件传参 {}", tempFile);
-
-        } else {
-            env.put("PPT_SCHEMA", pptSchema);
-        }
-
-        // ---------- 启动 ----------
-        Process process = pb.start();
-
-        // ---------- 读取输出 ----------
-        StringBuilder output = new StringBuilder();
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-                log.info("Python输出: {}", line);
+            File templateFile = new File(templateFilePath);
+            if (!templateFile.exists()) {
+                throw new RuntimeException("模板文件不存在 " + templateFilePath);
             }
-        }
 
-        // ---------- 等待（最多 5 分钟） ----------
-        long timeoutMs = 5 * 60 * 1000L;
-        long startTime = System.currentTimeMillis();
-        boolean finished = false;
+            // ---------- 构建命令 ----------
+            List<String> command = List.of(
+                    "python",
+                    pythonScriptPath,
+                    "--template", templateFilePath,
+                    "--output", outputFilePath
+            );
 
-        while (System.currentTimeMillis() - startTime < timeoutMs) {
-            try {
-                int exitCode = process.exitValue();
-                // 如果能获取到退出码，说明进程已结束
-                finished = true;
-                if (exitCode != 0) {
+            log.info("执行Python命令: {}", String.join(" ", command));
+
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.redirectErrorStream(true);
+
+            Map<String, String> env = pb.environment();
+            env.put("PYTHONIOENCODING", "utf-8");
+
+            // ---------- 处理 JSON 传参 ----------
+            // Windows 环境变量长度有限（约 32KB），大 JSON 自动改走临时文件
+            if (pptSchema.length() > 20000) {
+                Path schemaFile = Files.createTempFile("ppt_schema_", ".json");
+                Files.writeString(schemaFile, pptSchema, StandardOpenOption.TRUNCATE_EXISTING);
+                tempFiles.add(schemaFile);
+                env.put("PPT_SCHEMA_FILE", schemaFile.toAbsolutePath().toString());
+                log.info("JSON 过大，使用临时文件传参 {}", schemaFile);
+            } else {
+                env.put("PPT_SCHEMA", pptSchema);
+            }
+
+            // ---------- 启动并等待 ----------
+            // 输出在后台线程读取：如果在主线程阻塞读，Python 卡住不退出时会永远读不到 EOF，
+            // 超时控制就失效了；waitFor(超时) 才是真正的兜底
+            Process process = pb.start();
+            StringBuilder output = new StringBuilder();
+            Thread outputReader = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        synchronized (output) {
+                            output.append(line).append("\n");
+                        }
+                        log.info("Python输出: {}", line);
+                    }
+                } catch (Exception e) {
+                    log.warn("读取Python输出中断: {}", e.getMessage());
+                }
+            }, "ppt-render-output-" + inst.getId());
+            outputReader.setDaemon(true);
+            outputReader.start();
+
+            boolean finished = process.waitFor(5, TimeUnit.MINUTES);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new RuntimeException("Python执行超时");
+            }
+            outputReader.join(5000);
+
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                synchronized (output) {
                     log.error("Python执行失败: {}", output);
                     throw new RuntimeException("Python脚本执行失败:\n" + output);
                 }
-                break;
-            } catch (IllegalThreadStateException e) {
-                // 进程还在运行，继续等待。
-                Thread.sleep(1000);
+            }
+
+            // ---------- 检查输出 ----------
+            File outputFile = new File(outputFilePath);
+            if (!outputFile.exists()) {
+                throw new RuntimeException("PPT 未生成 " + outputFilePath);
+            }
+
+            // ---------- 上传到MinIO ----------
+            log.info("PPT生成成功，开始上传到MinIO");
+            byte[] fileBytes = Files.readAllBytes(outputFile.toPath());
+
+            // 构建MinIO对象名称: ppt/{conversationId}/{filename}
+            String objectName = "ppt/" + inst.getConversationId() + "/" + outputFileName;
+
+            String fileUrl = minioService.uploadFile(objectName, fileBytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+
+            log.info("PPT已上传到MinIO: {}", fileUrl);
+            return fileUrl;
+        } finally {
+            if (!outputFilePath.isEmpty()) {
+                tempFiles.add(Paths.get(outputFilePath));
+            }
+            for (Path tempFile : tempFiles) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (Exception e) {
+                    log.warn("清理渲染临时文件失败: {}", tempFile, e);
+                }
             }
         }
-
-        if (!finished) {
-            process.destroyForcibly();
-            throw new RuntimeException("Python执行超时");
-        }
-
-        int exitCode = process.exitValue();
-
-        if (exitCode != 0) {
-            log.error("Python执行失败: {}", output);
-            throw new RuntimeException("Python脚本执行失败:\n" + output);
-        }
-
-        // ---------- 检查输出 ----------
-        File outputFile = new File(outputFilePath);
-        if (!outputFile.exists()) {
-            throw new RuntimeException("PPT 未生成 " + outputFilePath);
-        }
-
-        // ---------- 上传到MinIO ----------
-        log.info("PPT生成成功，开始上传到MinIO");
-        byte[] fileBytes = Files.readAllBytes(outputFile.toPath());
-
-        // 构建MinIO对象名称: ppt/{conversationId}/{filename}
-        String objectName = "ppt/" + inst.getConversationId() + "/" + outputFileName;
-
-        String fileUrl = minioService.uploadFile(objectName, fileBytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
-
-        log.info("PPT已上传到MinIO: {}", fileUrl);
-
-        // ---------- 删除本地文件 ----------
-        try {
-            Files.deleteIfExists(outputFile.toPath());
-            log.info("本地 PPT 文件已删除 {}", outputFilePath);
-        } catch (Exception e) {
-            log.warn("删除本地文件失败: {}", outputFilePath, e);
-        }
-
-        return fileUrl;
-    }
-    /**
-     * 获取Python脚本路径
-     */
-    private String getPythonScriptPath() {
-        return copyClasspathResource("bear-doctor/python/render_ppt.py", "bear_doctor_render_", ".py");
     }
 
-    private String resolveTemplateFilePath(String configuredPath) {
+    private String resolveTemplateFilePath(String configuredPath, List<Path> tempFiles) {
         if (configuredPath != null && configuredPath.startsWith("classpath:")) {
-            return copyClasspathResource(configuredPath.substring("classpath:".length()), "bear_doctor_template_", ".pptx");
+            return copyClasspathResource(configuredPath.substring("classpath:".length()),
+                    "bear_doctor_template_", ".pptx", tempFiles);
         }
         if (configuredPath != null && new File(configuredPath).exists()) {
             return configuredPath;
         }
-        return copyClasspathResource("bear-doctor/templates/ai.pptx", "bear_doctor_template_", ".pptx");
+        return copyClasspathResource("bear-doctor/templates/ai.pptx", "bear_doctor_template_", ".pptx", tempFiles);
     }
 
-    private String copyClasspathResource(String resourcePath, String prefix, String suffix) {
+    private String copyClasspathResource(String resourcePath, String prefix, String suffix, List<Path> tempFiles) {
         try {
             ClassPathResource resource = new ClassPathResource(resourcePath);
             Path tempFile = Files.createTempFile(prefix, suffix);
+            tempFiles.add(tempFile);
             try (InputStream inputStream = resource.getInputStream()) {
                 Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
             }
