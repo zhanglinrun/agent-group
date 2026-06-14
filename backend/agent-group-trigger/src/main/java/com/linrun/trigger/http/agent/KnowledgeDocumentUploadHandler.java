@@ -11,6 +11,7 @@ import com.linrun.domain.agent.knowledge.model.CreateKnowledgeDocumentCommand;
 import com.linrun.domain.agent.knowledge.model.CreateKnowledgeFragmentCommand;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocument;
 import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentBuildResult;
+import com.linrun.domain.agent.knowledge.model.KnowledgeDocumentStatus;
 import com.linrun.domain.agent.knowledge.model.KnowledgeFragment;
 import com.linrun.domain.agent.knowledge.model.StoredKnowledgeObject;
 import com.linrun.domain.agent.knowledge.service.KnowledgeDocumentParser;
@@ -398,6 +399,12 @@ public class KnowledgeDocumentUploadHandler {
         response.setSourceType(document.getSourceType());
         response.setSourceName(document.getSourceName());
         response.setDocumentStatus(document.getDocumentStatus().name());
+        response.setParseStatus(buildResult.getFragments().isEmpty() ? "PENDING" : "PARSED");
+        response.setEmbeddingStatus(embeddingStatus(document));
+        response.setRetrievalReady(KnowledgeDocumentStatus.ENABLED.equals(document.getDocumentStatus())
+                && Boolean.TRUE.equals(document.getEnabled())
+                && !buildResult.getFragments().isEmpty());
+        response.setFailureReason(failureReason(document, buildResult.getFragments().isEmpty()));
         response.setFragmentCount(buildResult.getFragments().size());
         response.setCreateTime(document.getCreateTime());
         response.setFragments(buildResult.getFragments().stream()
@@ -422,13 +429,54 @@ public class KnowledgeDocumentUploadHandler {
         dto.setChunkType(fragment.getChunkType());
         dto.setEmbeddingEnabled(fragment.getEmbeddingEnabled());
         dto.setFragmentStatus(fragment.getFragmentStatus().name());
+        dto.setCitationLabel(citationLabel(fragment));
+        dto.setCitationSnippet(snippet(fragment.getContent(), 120));
         return dto;
+    }
+
+    private String embeddingStatus(KnowledgeDocument document) {
+        KnowledgeDocumentStatus status = document.getDocumentStatus();
+        if (KnowledgeDocumentStatus.ENABLED.equals(status)) {
+            return "READY";
+        }
+        if (KnowledgeDocumentStatus.EMBEDDING_FAILED.equals(status)) {
+            return "FAILED";
+        }
+        if (KnowledgeDocumentStatus.DISABLED.equals(status)) {
+            return "DISABLED";
+        }
+        return "PENDING";
+    }
+
+    private String failureReason(KnowledgeDocument document, boolean noFragments) {
+        if (noFragments) {
+            return "文档还没有生成可引用片段";
+        }
+        if (KnowledgeDocumentStatus.EMBEDDING_FAILED.equals(document.getDocumentStatus())) {
+            return "向量入库失败，已保留解析片段，可重新执行向量补偿";
+        }
+        return "";
+    }
+
+    private String citationLabel(KnowledgeFragment fragment) {
+        String documentId = fragment.getDocumentId() == null ? "-" : fragment.getDocumentId();
+        String rankNo = fragment.getRankNo() == null ? "-" : String.valueOf(fragment.getRankNo());
+        return documentId + "#" + rankNo;
+    }
+
+    private String snippet(String content, int limit) {
+        String text = String.valueOf(content == null ? "" : content)
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (text.length() <= limit) {
+            return text;
+        }
+        return text.substring(0, limit) + "...";
     }
 
     private record WebPageContent(String title, String content) {
     }
 }
-
 
 
 

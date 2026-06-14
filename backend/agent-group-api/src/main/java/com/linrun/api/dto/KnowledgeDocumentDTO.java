@@ -15,12 +15,15 @@ public class KnowledgeDocumentDTO implements Serializable {
     private String sourceType;
     private String sourceName;
     private String documentStatus;
+    private String parseStatus;
+    private String embeddingStatus;
+    private Boolean retrievalReady;
+    private String failureReason;
     private Boolean enabled;
     private Integer fragmentCount;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
-
 
 
 

@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TradeConsistencyCheckServiceTest {
 
@@ -38,6 +40,10 @@ class TradeConsistencyCheckServiceTest {
         TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
 
         assertEquals(TradeConsistencyCheckService.WAIT_GROUP_SETTLEMENT, item.getConclusion());
+        assertFalse(item.isQuotaGrantAllowed());
+        assertEquals("等待成团", item.getSettlementLabel());
+        assertEquals("拼团支付成功只表示名额已支付，暂不能发放额度。", item.getSettlementDetail());
+        assertTrue(item.getFacts().contains("额度到账流水：缺失"));
     }
 
     @Test
@@ -48,6 +54,37 @@ class TradeConsistencyCheckServiceTest {
         TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
 
         assertEquals(TradeConsistencyCheckService.QUOTA_GRANT_REQUIRED, item.getConclusion());
+        assertTrue(item.isQuotaGrantAllowed());
+        assertEquals("待发放额度", item.getSettlementLabel());
+        assertEquals("G10001", item.getGoodsId());
+        assertEquals("quota package", item.getGoodsName());
+        assertEquals(new BigDecimal("19.90"), item.getOrderPayAmount());
+    }
+
+    @Test
+    void shouldAllowQuotaGrantAfterGroupSettled() {
+        Fixture fixture = fixture(order(TradeBuyTypeEnumVO.GROUP_BUY, TradeOrderStatusEnumVO.GROUP_SETTLED),
+                pay(PayStatusEnumVO.SUCCESS));
+
+        TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
+
+        assertEquals(TradeConsistencyCheckService.QUOTA_GRANT_REQUIRED, item.getConclusion());
+        assertTrue(item.isQuotaGrantAllowed());
+        assertEquals("待发放额度", item.getSettlementLabel());
+    }
+
+    @Test
+    void shouldDetectGroupSettledGrantedConsistent() {
+        Fixture fixture = fixture(order(TradeBuyTypeEnumVO.GROUP_BUY, TradeOrderStatusEnumVO.GROUP_SETTLED),
+                pay(PayStatusEnumVO.SUCCESS));
+        fixture.quotaRepository.addFlow("U10001", UserQuotaService.FLOW_ORDER_GRANT, "O10001");
+
+        TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
+
+        assertEquals(TradeConsistencyCheckService.QUOTA_GRANTED_CONSISTENT, item.getConclusion());
+        assertTrue(item.isQuotaGrantAllowed());
+        assertEquals("额度已到账", item.getSettlementLabel());
+        assertTrue(item.isQuotaGrantFlowExists());
     }
 
     @Test
@@ -59,6 +96,9 @@ class TradeConsistencyCheckServiceTest {
         TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
 
         assertEquals(TradeConsistencyCheckService.QUOTA_GRANTED_CONSISTENT, item.getConclusion());
+        assertTrue(item.isQuotaGrantAllowed());
+        assertEquals("额度已到账", item.getSettlementLabel());
+        assertTrue(item.isQuotaGrantFlowExists());
     }
 
     @Test
@@ -71,6 +111,11 @@ class TradeConsistencyCheckServiceTest {
         TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
 
         assertEquals(TradeConsistencyCheckService.REFUND_ROLLBACK_REQUIRED, item.getConclusion());
+        assertTrue(item.isRefundRollbackRequired());
+        assertFalse(item.isQuotaGrantAllowed());
+        assertEquals("待回滚", item.getSettlementLabel());
+        assertEquals(new BigDecimal("19.90"), item.getRefundAmount());
+        assertTrue(item.getFacts().contains("退款回滚流水：缺失"));
     }
 
     @Test
@@ -81,6 +126,9 @@ class TradeConsistencyCheckServiceTest {
         TradeConsistencyCheckResponse.Item item = fixture.check("O10001");
 
         assertEquals(TradeConsistencyCheckService.TRADE_STATE_CONFLICT, item.getConclusion());
+        assertFalse(item.isQuotaGrantAllowed());
+        assertEquals("状态冲突", item.getSettlementLabel());
+        assertTrue(item.getFacts().contains("支付：SUCCESS/ALIPAY/19.90"));
     }
 
     private static Fixture fixture(TradeOrderEntity order, PayOrderEntity payOrder) {
@@ -96,6 +144,7 @@ class TradeConsistencyCheckServiceTest {
         order.setUserId("U10001");
         order.setGoodsId("G10001");
         order.setGoodsName("quota package");
+        order.setActivityId("A10001");
         order.setBuyType(buyType);
         order.setOriginAmount(new BigDecimal("19.90"));
         order.setPayAmount(new BigDecimal("19.90"));
@@ -283,7 +332,6 @@ class TradeConsistencyCheckServiceTest {
         }
     }
 }
-
 
 
 

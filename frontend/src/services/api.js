@@ -1177,7 +1177,7 @@ export async function queryRefundOrderList(options = {}) {
 }
 
 export async function queryTradeConsistency(options = {}) {
-  return request("/api/v1/trade/order/admin/consistency", {
+  return request("/api/v1/trade/order/admin/audit", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },

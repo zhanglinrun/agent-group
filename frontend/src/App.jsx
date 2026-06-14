@@ -67,6 +67,7 @@ import {
 } from "./agentTimeline";
 import { buildPlannerHistory } from "./plannerHistory";
 import { buildAgentRunDigest } from "./agentRunDigest";
+import { buildAgentRunEvidenceSummary } from "./agentRunEvidence";
 import {
   eventArtifacts,
   mergeArtifacts,
@@ -3132,6 +3133,7 @@ function WorkspaceHistoryPanel({
   const tools = Array.isArray(detail?.toolInvocations) ? detail.toolInvocations : [];
   const artifacts = Array.isArray(detail?.artifacts) ? detail.artifacts : [];
   const runResultPanels = runDetailToResultPanels(detail);
+  const runEvidence = buildAgentRunEvidenceSummary(detail);
   return (
     <section className="workspace-history-panel">
       <div className="workspace-history-head">
@@ -3205,6 +3207,25 @@ function WorkspaceHistoryPanel({
                 <span>{artifacts.length} 个产物</span>
                 {run.durationMillis ? <span>{run.durationMillis} ms</span> : null}
               </div>
+              {runEvidence.visible && (
+                <>
+                  <div className="workspace-run-tools">
+                    {runEvidence.metrics.map((metric) => (
+                      <div key={metric.key}>
+                        <b>{metric.value}</b>
+                        <span>{metric.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {runEvidence.highlights.length > 0 && (
+                    <div className="workspace-run-artifacts">
+                      {runEvidence.highlights.map((item, index) => (
+                        <span key={`${item}-${index}`}>{item}</span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
               {run.finalSummary && <p>{run.finalSummary}</p>}
               {run.errorMessage && <p className="danger">{run.errorMessage}</p>}
               {tools.length > 0 && (

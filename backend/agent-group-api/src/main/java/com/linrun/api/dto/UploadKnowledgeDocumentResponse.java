@@ -22,11 +22,14 @@ public class UploadKnowledgeDocumentResponse implements Serializable {
     private String contentType;
     private Long objectSize;
     private String documentStatus;
+    private String parseStatus;
+    private String embeddingStatus;
+    private Boolean retrievalReady;
+    private String failureReason;
     private Integer fragmentCount;
     private LocalDateTime createTime;
     private List<KnowledgeFragmentDTO> fragments = new ArrayList<>();
 }
-
 
 
 

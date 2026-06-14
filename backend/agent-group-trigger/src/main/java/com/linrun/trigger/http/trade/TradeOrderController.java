@@ -8,6 +8,8 @@ import com.linrun.api.dto.QueryRefundOrderListRequest;
 import com.linrun.api.dto.QueryRefundOrderListResponse;
 import com.linrun.api.dto.MockPayCallbackRequest;
 import com.linrun.api.dto.MockPayCallbackResponse;
+import com.linrun.api.dto.TradeConsistencyCheckRequest;
+import com.linrun.api.dto.TradeConsistencyCheckResponse;
 import com.linrun.api.dto.TradeStatusFlowDTO;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
@@ -16,6 +18,7 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
+import com.linrun.domain.trade.service.TradeConsistencyCheckService;
 import com.linrun.domain.trade.service.DirectBuyOrderService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.domain.trade.service.payment.MockPayCallbackService;
@@ -45,17 +48,20 @@ public class TradeOrderController {
     private final UserAccountService userAccountService;
     private final TradeOrderRepository tradeOrderRepository;
     private final MockPayCallbackService mockPayCallbackService;
+    private final TradeConsistencyCheckService tradeConsistencyCheckService;
 
     public TradeOrderController(DirectBuyOrderService directBuyOrderService,
                                 TradeStatusFlowService tradeStatusFlowService,
                                 UserAccountService userAccountService,
                                 TradeOrderRepository tradeOrderRepository,
-                                MockPayCallbackService mockPayCallbackService) {
+                                MockPayCallbackService mockPayCallbackService,
+                                TradeConsistencyCheckService tradeConsistencyCheckService) {
         this.directBuyOrderService = directBuyOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.userAccountService = userAccountService;
         this.tradeOrderRepository = tradeOrderRepository;
         this.mockPayCallbackService = mockPayCallbackService;
+        this.tradeConsistencyCheckService = tradeConsistencyCheckService;
     }
 
     @PostMapping("/direct")
@@ -139,6 +145,12 @@ public class TradeOrderController {
         return Response.success(response, RequestTraceContext.getRequestId());
     }
 
+    @PostMapping("/admin/audit")
+    public Response<TradeConsistencyCheckResponse> auditAdminOrders(
+            @RequestBody(required = false) TradeConsistencyCheckRequest request) {
+        return Response.success(tradeConsistencyCheckService.check(request), RequestTraceContext.getRequestId());
+    }
+
     @GetMapping("/my")
     public Response<QueryOrderListResponse> queryMyOrders(
             @RequestHeader(value = "Authorization", required = false) String token,
@@ -209,7 +221,6 @@ public class TradeOrderController {
         return Math.max(1, Math.min(pageSize, maxPageSize));
     }
 }
-
 
 
 

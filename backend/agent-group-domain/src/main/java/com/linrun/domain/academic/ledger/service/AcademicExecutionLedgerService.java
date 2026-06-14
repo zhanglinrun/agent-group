@@ -11,6 +11,9 @@ import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentRunPlanFactory;
+import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
 import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
@@ -28,15 +31,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Service
 public class AcademicExecutionLedgerService {
 
+    private static final Logger LOGGER = Logger.getLogger(AcademicExecutionLedgerService.class.getName());
     private static final int DEFAULT_RUN_LIMIT = 5;
 
     private final AcademicExecutionLedgerRepository ledgerRepository;
     private final AcademicReplayProjector replayProjector;
     private final AgentObservabilityMetrics metrics;
+    private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
     private final AcademicToolOutputReader toolOutputReader = new AcademicToolOutputReader();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -75,7 +82,8 @@ public class AcademicExecutionLedgerService {
         run.setDurationMillis(0L);
         try {
             ledgerRepository.createRun(run);
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            logLedgerFailure("createRun", exception);
         }
         return run;
     }
@@ -98,7 +106,8 @@ public class AcademicExecutionLedgerService {
         metrics.recordAgentRun(run.getTaskType(), run.getStatus(), run.getDurationMillis());
         try {
             ledgerRepository.finishRun(run);
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            logLedgerFailure("finishRun", exception);
         }
     }
 
@@ -137,7 +146,8 @@ public class AcademicExecutionLedgerService {
         metrics.recordTokenUsage("agent", promptTokens, completionTokens);
         try {
             ledgerRepository.createLlmInvocation(invocation);
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            logLedgerFailure("createLlmInvocation", exception);
         }
     }
 
@@ -166,7 +176,8 @@ public class AcademicExecutionLedgerService {
         try {
             ledgerRepository.createToolInvocation(invocation);
             return invocation.getInvocationId();
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            logLedgerFailure("createToolInvocation", exception);
             return "";
         }
     }
@@ -192,7 +203,8 @@ public class AcademicExecutionLedgerService {
         invocation.setLatencyMillis(Math.max(0L, latencyMillis));
         try {
             ledgerRepository.finishToolInvocation(invocation);
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            logLedgerFailure("finishToolInvocation", exception);
         }
     }
 
@@ -217,7 +229,8 @@ public class AcademicExecutionLedgerService {
             }
             try {
                 ledgerRepository.saveArtifact(artifact);
-            } catch (Exception ignored) {
+            } catch (Exception exception) {
+                logLedgerFailure("saveArtifact", exception);
             }
         }
     }
@@ -253,7 +266,8 @@ public class AcademicExecutionLedgerService {
         }
         try {
             return ledgerRepository.deleteSessionRunsSince(userId, sessionId, startedAt);
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            logLedgerFailure("deleteSessionRunsSince", exception);
             return 0;
         }
     }
@@ -318,6 +332,9 @@ public class AcademicExecutionLedgerService {
         List<AcademicArtifact> artifacts = ledgerRepository.queryArtifactsByRun(run.getRunId());
         AcademicRunDetailResponse response = new AcademicRunDetailResponse();
         response.setRun(run(run));
+        AgentDiagnosisReportDTO diagnosis = diagnosis(run, toolInvocations, llmInvocations, artifacts);
+        response.setDiagnosis(diagnosis);
+        response.setEvidence(evidence(run, toolInvocations, llmInvocations, artifacts, diagnosis));
         response.setLlmInvocations(llmInvocations.stream()
                 .map(this::llm)
                 .toList());
@@ -328,6 +345,119 @@ public class AcademicExecutionLedgerService {
                 .map(this::artifact)
                 .toList());
         return response;
+    }
+
+    private AcademicRunDetailResponse.Evidence evidence(AcademicAgentRun run,
+                                                        List<AcademicToolInvocation> toolInvocations,
+                                                        List<AcademicLlmInvocation> llmInvocations,
+                                                        List<AcademicArtifact> artifacts,
+                                                        AgentDiagnosisReportDTO diagnosis) {
+        List<AcademicToolInvocation> tools = safeList(toolInvocations);
+        AcademicRunDetailResponse.Evidence dto = new AcademicRunDetailResponse.Evidence();
+        dto.setMode(modeEvidence(run));
+        dto.setPlan(planEvidence(run, tools));
+        dto.setFailedTools(failedTools(tools));
+        dto.setReplanReasons(dto.getFailedTools().stream()
+                .filter(item -> Boolean.TRUE.equals(item.getRecoveredByLaterTool()))
+                .map(AcademicRunDetailResponse.ToolFailure::getReplanReason)
+                .filter(StringUtils::hasText)
+                .toList());
+        dto.setToolCallCount(safeList(toolInvocations).size());
+        dto.setFailedToolCount((int) tools.stream().filter(this::isFailedTool).count());
+        dto.setReplanCount(estimateReplanCount(tools));
+        dto.setLlmCallCount(safeList(llmInvocations).size());
+        dto.setArtifactCount(safeList(artifacts).size());
+        dto.setQuotaConsumed(quotaConsumed(tools));
+        dto.setToolSuccessRate(tools.isEmpty()
+                ? 1.0d
+                : (double) (tools.size() - dto.getFailedToolCount()) / tools.size());
+        if (diagnosis != null) {
+            dto.setDiagnosisLevel(diagnosis.getLevel());
+            dto.setDiagnosisSummary(diagnosis.getSummary());
+        }
+        return dto;
+    }
+
+    private AcademicRunDetailResponse.Mode modeEvidence(AcademicAgentRun run) {
+        AcademicRunDetailResponse.Mode dto = new AcademicRunDetailResponse.Mode();
+        String taskType = safe(run.getTaskType());
+        dto.setTaskType(taskType);
+        switch (normalizeTaskType(taskType)) {
+            case "deep" -> {
+                dto.setExecutionMode("Plan-Execute");
+                dto.setModeFamily("plan-execute");
+                dto.setAgentType("deep");
+                dto.setReason("深度研究任务需要多步骤规划和依赖编排");
+            }
+            case "ppt" -> {
+                dto.setExecutionMode("Flow");
+                dto.setModeFamily("flow");
+                dto.setAgentType("ppt");
+                dto.setReason("PPT 生成使用固定流程编排");
+            }
+            case "skills", "manual-skills" -> {
+                dto.setExecutionMode("Skill-SOP");
+                dto.setModeFamily("skill-sop");
+                dto.setAgentType("skill");
+                dto.setReason("技能任务按标准技能流程执行");
+            }
+            case "image" -> {
+                dto.setExecutionMode("Flow");
+                dto.setModeFamily("flow");
+                dto.setAgentType("image");
+                dto.setReason("图像生成使用固定流程编排");
+            }
+            default -> {
+                dto.setExecutionMode("ReAct");
+                dto.setModeFamily("react");
+                dto.setAgentType(normalizeTaskType(taskType));
+                dto.setReason("适合文件问答、搜索或普通学术问答的思考-行动循环");
+            }
+        }
+        return dto;
+    }
+
+    private AcademicRunDetailResponse.PlanEvidence planEvidence(AcademicAgentRun run,
+                                                                List<AcademicToolInvocation> toolInvocations) {
+        AcademicAgentPlan plan = runPlanFactory.build(run.getTaskType(), hasSearchTool(toolInvocations));
+        AcademicRunDetailResponse.PlanEvidence dto = new AcademicRunDetailResponse.PlanEvidence();
+        dto.setTitle(plan.getTitle());
+        dto.setRevisionCount(1 + estimateReplanCount(toolInvocations));
+        dto.setSteps(plan.getSteps().stream()
+                .map(this::planStep)
+                .toList());
+        return dto;
+    }
+
+    private AcademicRunDetailResponse.PlanStep planStep(AcademicPlanStep step) {
+        AcademicRunDetailResponse.PlanStep dto = new AcademicRunDetailResponse.PlanStep();
+        dto.setStepId(step.getStepId());
+        dto.setInstruction(step.getInstruction());
+        dto.setOrder(step.getOrder());
+        dto.setStatus(step.getStatus());
+        dto.setAssignedAgent(step.getAssignedAgent());
+        dto.setDependencies(step.getDependencies());
+        return dto;
+    }
+
+    private List<AcademicRunDetailResponse.ToolFailure> failedTools(List<AcademicToolInvocation> toolInvocations) {
+        List<AcademicRunDetailResponse.ToolFailure> result = new ArrayList<>();
+        List<AcademicToolInvocation> tools = safeList(toolInvocations);
+        for (int index = 0; index < tools.size(); index++) {
+            AcademicToolInvocation invocation = tools.get(index);
+            if (!isFailedTool(invocation)) {
+                continue;
+            }
+            boolean recovered = hasLaterSuccessTool(tools, index);
+            AcademicRunDetailResponse.ToolFailure dto = new AcademicRunDetailResponse.ToolFailure();
+            dto.setInvocationId(invocation.getInvocationId());
+            dto.setToolName(invocation.getToolName());
+            dto.setErrorMessage(invocation.getErrorMessage());
+            dto.setRecoveredByLaterTool(recovered);
+            dto.setReplanReason(recovered ? replanReason(invocation) : "");
+            result.add(dto);
+        }
+        return result;
     }
 
     private AcademicReplayResponse replay(AcademicAgentRun run) {
@@ -845,6 +975,46 @@ public class AcademicExecutionLedgerService {
         }
     }
 
+    private boolean hasSearchTool(List<AcademicToolInvocation> toolInvocations) {
+        for (AcademicToolInvocation invocation : safeList(toolInvocations)) {
+            String toolName = safe(invocation.getToolName()).toLowerCase();
+            if (toolName.contains("search") || toolName.contains("tavily") || toolName.contains("搜索")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String replanReason(AcademicToolInvocation invocation) {
+        String toolName = safe(invocation.getToolName());
+        String reason = safe(invocation.getErrorMessage());
+        if (StringUtils.hasText(reason)) {
+            return StringUtils.hasText(toolName)
+                    ? toolName + " 调用失败：" + limit(reason, 200)
+                    : limit(reason, 200);
+        }
+        return StringUtils.hasText(toolName) ? toolName + " 调用失败后已由后续工具恢复" : "工具调用失败后已由后续步骤恢复";
+    }
+
+    private String normalizeTaskType(String taskType) {
+        String type = safe(taskType).trim().toLowerCase();
+        return switch (type) {
+            case "paper", "file" -> "file";
+            case "ppt", "pptx" -> "ppt";
+            case "deep", "deep-research" -> "deep";
+            case "image", "image-generation", "workspace-image" -> "image";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag",
+                 "trade", "trade-flow", "group-trade", "workspace-trade" -> "data";
+            case "skills" -> "skills";
+            case "manual", "manual-skills", "skills-manual" -> "manual-skills";
+            default -> "chat";
+        };
+    }
+
+    private void logLedgerFailure(String action, Exception exception) {
+        LOGGER.log(Level.WARNING, "academic ledger " + action + " failed: " + exception.getMessage(), exception);
+    }
+
     private String nextId(String prefix) {
         return prefix + UUID.randomUUID().toString().replace("-", "");
     }
@@ -858,11 +1028,6 @@ public class AcademicExecutionLedgerService {
         return value == null ? "" : value;
     }
 }
-
-
-
-
-
 
 
 

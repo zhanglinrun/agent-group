@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class KnowledgeDocumentAdminHandlerTest {
 
@@ -30,6 +31,26 @@ class KnowledgeDocumentAdminHandlerTest {
         assertEquals(2, response.getFragmentCount());
         assertEquals("first paragraph\n\nsecond paragraph", response.getContent());
         assertEquals(1, response.getFragments().get(0).getRankNo());
+        assertEquals("PARSED", response.getParseStatus());
+        assertEquals("READY", response.getEmbeddingStatus());
+        assertEquals(Boolean.TRUE, response.getRetrievalReady());
+        assertEquals("DOC10001#1", response.getFragments().get(0).getCitationLabel());
+        assertEquals("first paragraph", response.getCitationSnippets().get(0));
+    }
+
+    @Test
+    void shouldExposeEmbeddingFailureReason() {
+        FakeKnowledgeDocumentRepository repository = new FakeKnowledgeDocumentRepository();
+        repository.document.setDocumentStatus(KnowledgeDocumentStatus.EMBEDDING_FAILED);
+        repository.document.setEnabled(false);
+        KnowledgeDocumentAdminHandler handler = new KnowledgeDocumentAdminHandler(repository);
+
+        KnowledgeDocumentDTO response = handler.queryDocuments(null, 10).getFirst();
+
+        assertEquals("PARSED", response.getParseStatus());
+        assertEquals("FAILED", response.getEmbeddingStatus());
+        assertEquals(Boolean.FALSE, response.getRetrievalReady());
+        assertTrue(response.getFailureReason().contains("向量入库失败"));
     }
 
     @Test
@@ -41,6 +62,9 @@ class KnowledgeDocumentAdminHandlerTest {
 
         assertEquals(KnowledgeDocumentStatus.DISABLED.name(), response.getDocumentStatus());
         assertFalse(response.getEnabled());
+        assertEquals("DISABLED", response.getEmbeddingStatus());
+        assertEquals(Boolean.FALSE, response.getRetrievalReady());
+        assertEquals("文档已停用，不参与检索", response.getFailureReason());
         assertEquals(KnowledgeFragmentStatus.DISABLED, repository.fragments.get(0).getFragmentStatus());
         assertFalse(repository.fragments.get(0).getEnabled());
     }
@@ -74,6 +98,14 @@ class KnowledgeDocumentAdminHandlerTest {
                     .filter(fragment -> fragment.getKnowledgeVersion().equals(knowledgeVersion)
                             && Boolean.TRUE.equals(fragment.getEnabled()))
                     .toList();
+        }
+
+        @Override
+        public List<KnowledgeDocument> queryDocumentsByStatus(KnowledgeDocumentStatus status, int limit) {
+            if (status != null && !status.equals(document.getDocumentStatus())) {
+                return List.of();
+            }
+            return List.of(document);
         }
 
         @Override
@@ -129,8 +161,6 @@ class KnowledgeDocumentAdminHandlerTest {
         }
     }
 }
-
-
 
 
 

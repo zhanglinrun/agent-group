@@ -64,9 +64,15 @@ public class KnowledgeDocumentAdminHandler {
         response.setSourceType(document.getSourceType());
         response.setSourceName(document.getSourceName());
         response.setDocumentStatus(document.getDocumentStatus() == null ? null : document.getDocumentStatus().name());
+        fillDocumentEvidence(document, fragments, response);
         response.setEnabled(document.getEnabled());
         response.setFragmentCount(fragments.size());
         response.setFragments(fragments.stream().map(this::toFragmentDTO).toList());
+        response.setCitationSnippets(response.getFragments().stream()
+                .map(KnowledgeFragmentDTO::getCitationSnippet)
+                .filter(StringUtils::hasText)
+                .limit(3)
+                .toList());
         response.setContent(fragments.stream()
                 .map(KnowledgeFragment::getContent)
                 .filter(StringUtils::hasText)
@@ -115,8 +121,10 @@ public class KnowledgeDocumentAdminHandler {
         dto.setSourceType(document.getSourceType());
         dto.setSourceName(document.getSourceName());
         dto.setDocumentStatus(document.getDocumentStatus() == null ? null : document.getDocumentStatus().name());
+        List<KnowledgeFragment> fragments = knowledgeDocumentRepository.queryFragmentsByDocumentId(document.getDocumentId());
+        fillDocumentEvidence(document, fragments, dto);
         dto.setEnabled(document.getEnabled());
-        dto.setFragmentCount(knowledgeDocumentRepository.queryFragmentsByDocumentId(document.getDocumentId()).size());
+        dto.setFragmentCount(fragments.size());
         dto.setCreateTime(document.getCreateTime());
         dto.setUpdateTime(document.getUpdateTime());
         return dto;
@@ -132,10 +140,86 @@ public class KnowledgeDocumentAdminHandler {
         dto.setContent(fragment.getContent());
         dto.setRankNo(fragment.getRankNo());
         dto.setFragmentStatus(fragment.getFragmentStatus() == null ? null : fragment.getFragmentStatus().name());
+        dto.setCitationLabel(citationLabel(fragment));
+        dto.setCitationSnippet(snippet(fragment.getContent(), 120));
         return dto;
     }
-}
 
+    private void fillDocumentEvidence(KnowledgeDocument document,
+                                      List<KnowledgeFragment> fragments,
+                                      KnowledgeDocumentDTO dto) {
+        DocumentEvidence evidence = documentEvidence(document, fragments);
+        dto.setParseStatus(evidence.parseStatus());
+        dto.setEmbeddingStatus(evidence.embeddingStatus());
+        dto.setRetrievalReady(evidence.retrievalReady());
+        dto.setFailureReason(evidence.failureReason());
+    }
+
+    private void fillDocumentEvidence(KnowledgeDocument document,
+                                      List<KnowledgeFragment> fragments,
+                                      KnowledgeDocumentFullContentResponse dto) {
+        DocumentEvidence evidence = documentEvidence(document, fragments);
+        dto.setParseStatus(evidence.parseStatus());
+        dto.setEmbeddingStatus(evidence.embeddingStatus());
+        dto.setRetrievalReady(evidence.retrievalReady());
+        dto.setFailureReason(evidence.failureReason());
+    }
+
+    private DocumentEvidence documentEvidence(KnowledgeDocument document, List<KnowledgeFragment> fragments) {
+        KnowledgeDocumentStatus status = document.getDocumentStatus();
+        boolean hasFragments = fragments != null && !fragments.isEmpty();
+        boolean retrievalReady = KnowledgeDocumentStatus.ENABLED.equals(status)
+                && Boolean.TRUE.equals(document.getEnabled())
+                && hasFragments;
+        String parseStatus = hasFragments ? "PARSED" : "PENDING";
+        String embeddingStatus = switch (status == null ? KnowledgeDocumentStatus.UPLOADED : status) {
+            case ENABLED -> "READY";
+            case EMBEDDING_FAILED -> "FAILED";
+            case DISABLED -> "DISABLED";
+            default -> "PENDING";
+        };
+        return new DocumentEvidence(
+                parseStatus,
+                embeddingStatus,
+                retrievalReady,
+                failureReason(status, hasFragments));
+    }
+
+    private String failureReason(KnowledgeDocumentStatus status, boolean hasFragments) {
+        if (!hasFragments) {
+            return "文档还没有生成可引用片段";
+        }
+        if (KnowledgeDocumentStatus.EMBEDDING_FAILED.equals(status)) {
+            return "向量入库失败，已保留解析片段，可重新执行向量补偿";
+        }
+        if (KnowledgeDocumentStatus.DISABLED.equals(status)) {
+            return "文档已停用，不参与检索";
+        }
+        return "";
+    }
+
+    private String citationLabel(KnowledgeFragment fragment) {
+        String documentId = fragment.getDocumentId() == null ? "-" : fragment.getDocumentId();
+        String rankNo = fragment.getRankNo() == null ? "-" : String.valueOf(fragment.getRankNo());
+        return documentId + "#" + rankNo;
+    }
+
+    private String snippet(String content, int limit) {
+        String text = String.valueOf(content == null ? "" : content)
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (text.length() <= limit) {
+            return text;
+        }
+        return text.substring(0, limit) + "...";
+    }
+
+    private record DocumentEvidence(String parseStatus,
+                                    String embeddingStatus,
+                                    Boolean retrievalReady,
+                                    String failureReason) {
+    }
+}
 
 
 

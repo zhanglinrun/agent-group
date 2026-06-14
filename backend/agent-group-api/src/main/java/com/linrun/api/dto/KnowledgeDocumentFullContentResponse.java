@@ -16,12 +16,16 @@ public class KnowledgeDocumentFullContentResponse implements Serializable {
     private String sourceType;
     private String sourceName;
     private String documentStatus;
+    private String parseStatus;
+    private String embeddingStatus;
+    private Boolean retrievalReady;
+    private String failureReason;
     private Boolean enabled;
     private Integer fragmentCount;
     private String content;
+    private List<String> citationSnippets = new ArrayList<>();
     private List<KnowledgeFragmentDTO> fragments = new ArrayList<>();
 }
-
 
 
 

@@ -25,6 +25,7 @@ import {
   importMcpState,
   modelConfigReady,
   queryMcpHealth,
+  queryTradeConsistency,
   queryAgentCapabilities,
   queryAgentAdminConfigs,
   queryAgentAdminRuntimeSnapshot,
@@ -124,6 +125,21 @@ describe("mcp admin api client", () => {
       headers: expect.objectContaining({
         Authorization: "Basic b3BzOnNlY3JldA=="
       })
+    }));
+  });
+
+  it("wires trade consistency audit endpoint", async () => {
+    saveAdminAuth("ops", "secret");
+
+    await queryTradeConsistency({ orderId: "O10001", userId: "U10001", pageSize: 5 });
+
+    expect(fetch).toHaveBeenCalledWith("/api/v1/trade/order/admin/audit", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Basic b3BzOnNlY3JldA==",
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify({ orderId: "O10001", userId: "U10001", pageSize: 5 })
     }));
   });
 

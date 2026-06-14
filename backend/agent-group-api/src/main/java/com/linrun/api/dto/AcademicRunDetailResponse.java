@@ -12,9 +12,63 @@ import java.util.Map;
 public class AcademicRunDetailResponse implements Serializable {
 
     private Run run;
+    private Evidence evidence;
+    private AgentDiagnosisReportDTO diagnosis;
     private List<LlmInvocation> llmInvocations = new ArrayList<>();
     private List<ToolInvocation> toolInvocations = new ArrayList<>();
     private List<AcademicSessionDetailResponse.Artifact> artifacts = new ArrayList<>();
+
+    @Data
+    public static class Evidence implements Serializable {
+        private Mode mode;
+        private PlanEvidence plan;
+        private List<ToolFailure> failedTools = new ArrayList<>();
+        private List<String> replanReasons = new ArrayList<>();
+        private Integer toolCallCount;
+        private Integer failedToolCount;
+        private Integer replanCount;
+        private Integer llmCallCount;
+        private Integer artifactCount;
+        private Double quotaConsumed;
+        private Double toolSuccessRate;
+        private String diagnosisLevel;
+        private String diagnosisSummary;
+    }
+
+    @Data
+    public static class Mode implements Serializable {
+        private String taskType;
+        private String executionMode;
+        private String modeFamily;
+        private String agentType;
+        private String reason;
+    }
+
+    @Data
+    public static class PlanEvidence implements Serializable {
+        private String title;
+        private Integer revisionCount;
+        private List<PlanStep> steps = new ArrayList<>();
+    }
+
+    @Data
+    public static class PlanStep implements Serializable {
+        private String stepId;
+        private String instruction;
+        private Integer order;
+        private String status;
+        private String assignedAgent;
+        private List<String> dependencies = new ArrayList<>();
+    }
+
+    @Data
+    public static class ToolFailure implements Serializable {
+        private String invocationId;
+        private String toolName;
+        private String errorMessage;
+        private Boolean recoveredByLaterTool;
+        private String replanReason;
+    }
 
     @Data
     public static class Run implements Serializable {
@@ -71,7 +125,6 @@ public class AcademicRunDetailResponse implements Serializable {
         private Long latencyMillis;
     }
 }
-
 
 
 

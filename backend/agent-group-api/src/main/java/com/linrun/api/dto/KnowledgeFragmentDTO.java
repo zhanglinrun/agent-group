@@ -21,8 +21,9 @@ public class KnowledgeFragmentDTO implements Serializable {
     private String chunkType;
     private Boolean embeddingEnabled;
     private String fragmentStatus;
+    private String citationLabel;
+    private String citationSnippet;
 }
-
 
 
 

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, Bell, Boxes, CreditCard, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, Tags, Upload } from "lucide-react";
+import { Activity, AlertTriangle, Bell, Boxes, CreditCard, Database, LogOut, PlayCircle, RefreshCw, RotateCcw, Save, Settings, ShieldCheck, Tags, Upload } from "lucide-react";
 import AdminAuthBar from "./AdminAuthBar";
 import ThemeToggle from "./ThemeToggle";
 import {
   compensateKnowledgeVector,
   downloadPaymentBill,
+  getKnowledgeDocumentFullContent,
   getKnowledgeDocuments,
   getLatestAgentEvaluation,
   normalizeApiMessage,
@@ -24,13 +25,14 @@ import {
 import { applyTheme, getStoredTheme, nextTheme } from "../theme";
 
 async function fetchAdminData() {
-  const [docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult] = await Promise.allSettled([
+  const [docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult, auditResult] = await Promise.allSettled([
     getKnowledgeDocuments(),
     getLatestAgentEvaluation(),
     queryAdminOrderList({ pageSize: 20 }),
     queryRefundOrderList({ userId: null, pageSize: 20 }),
     queryOperationalRules(),
-    queryOpsDashboard()
+    queryOpsDashboard(),
+    queryTradeConsistency({ pageSize: 20 })
   ]);
 
   return {
@@ -39,7 +41,8 @@ async function fetchAdminData() {
     ordersResult,
     refundsResult,
     rulesResult,
-    opsResult
+    opsResult,
+    auditResult
   };
 }
 
@@ -61,13 +64,35 @@ function formatRate(value) {
   return `${(numeric > 1 ? numeric : numeric * 100).toFixed(1)}%`;
 }
 
+function formatDateTime(value) {
+  const text = String(value || "");
+  return text ? text.replace("T", " ").slice(0, 19) : "-";
+}
+
+function auditBadgeClass(conclusion) {
+  switch (conclusion) {
+    case "QUOTA_GRANTED_CONSISTENT":
+      return "badge-green";
+    case "WAIT_GROUP_SETTLEMENT":
+      return "badge-yellow";
+    case "QUOTA_GRANT_REQUIRED":
+    case "REFUND_ROLLBACK_REQUIRED":
+    case "TRADE_STATE_CONFLICT":
+      return "badge-orange";
+    default:
+      return "badge-gray";
+  }
+}
+
 export default function AdminDashboard() {
   const [theme, setTheme] = useState(() => getStoredTheme());
   const [loadingMsg, setLoadingMsg] = useState("");
   const [documents, setDocuments] = useState([]);
+  const [knowledgeEvidence, setKnowledgeEvidence] = useState(null);
   const [evaluation, setEvaluation] = useState(null);
   const [orders, setOrders] = useState([]);
   const [refunds, setRefunds] = useState([]);
+  const [tradeAuditItems, setTradeAuditItems] = useState([]);
   const [rules, setRules] = useState([]);
   const [opsDashboard, setOpsDashboard] = useState({ activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
   const [paymentOps, setPaymentOps] = useState({ payChannel: "ALIPAY", billDate: "", refundOrderId: "", gatewayCode: "SYSTEMERROR" });
@@ -84,7 +109,7 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     setErrorMsg("");
-    const { docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult } = await fetchAdminData();
+    const { docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult, auditResult } = await fetchAdminData();
 
     if (docsResult.status === "fulfilled" && docsResult.value.code === "0000") {
       setDocuments(docsResult.value.data || []);
@@ -104,8 +129,11 @@ export default function AdminDashboard() {
     if (opsResult.status === "fulfilled" && opsResult.value.code === "0000") {
       setOpsDashboard(opsResult.value.data || { activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
     }
+    if (auditResult.status === "fulfilled" && auditResult.value.code === "0000") {
+      setTradeAuditItems(auditResult.value.data?.items || []);
+    }
 
-    const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult), resultError(opsResult)].filter(Boolean);
+    const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult), resultError(opsResult), resultError(auditResult)].filter(Boolean);
     if (errors.length > 0) {
       setErrorMsg([...new Set(errors)].join("；"));
     }
@@ -113,7 +141,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let active = true;
-    fetchAdminData().then(({ docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult }) => {
+    fetchAdminData().then(({ docsResult, evalResult, ordersResult, refundsResult, rulesResult, opsResult, auditResult }) => {
       if (!active) return;
       if (docsResult.status === "fulfilled" && docsResult.value.code === "0000") {
         setDocuments(docsResult.value.data || []);
@@ -133,7 +161,10 @@ export default function AdminDashboard() {
       if (opsResult.status === "fulfilled" && opsResult.value.code === "0000") {
         setOpsDashboard(opsResult.value.data || { activities: [], channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
       }
-      const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult), resultError(opsResult)].filter(Boolean);
+      if (auditResult.status === "fulfilled" && auditResult.value.code === "0000") {
+        setTradeAuditItems(auditResult.value.data?.items || []);
+      }
+      const errors = [resultError(docsResult), resultError(evalResult), resultError(ordersResult), resultError(refundsResult), resultError(rulesResult), resultError(opsResult), resultError(auditResult)].filter(Boolean);
       if (errors.length > 0) {
         setErrorMsg([...new Set(errors)].join("；"));
       }
@@ -166,6 +197,23 @@ export default function AdminDashboard() {
       handleAction(`上传文档 ${file.name}`, () => uploadKnowledgeDocument(file, "global", file.name, "Knowledge"));
     }
     event.target.value = null;
+  };
+
+  const loadKnowledgeEvidence = async (documentId) => {
+    if (!documentId) return;
+    setLoadingMsg("读取知识证据中...");
+    try {
+      const res = await getKnowledgeDocumentFullContent(documentId);
+      if (res.code === "0000") {
+        setKnowledgeEvidence(res.data || null);
+      } else {
+        alert(`读取知识证据失败：${normalizeApiMessage(res.info, "请求失败")}`);
+      }
+    } catch (error) {
+      alert(`读取知识证据异常：${normalizeApiMessage(error.message, "请求失败")}`);
+    } finally {
+      setLoadingMsg("");
+    }
   };
 
   const updateRuleDraft = (ruleKey, ruleValue) => {
@@ -259,7 +307,12 @@ export default function AdminDashboard() {
                     <th>文档名称</th>
                     <th>类型</th>
                     <th>状态</th>
+                    <th>解析</th>
+                    <th>向量</th>
+                    <th>可检索</th>
                     <th>解析段落</th>
+                    <th>失败原因</th>
+                    <th>引用证据</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,14 +320,34 @@ export default function AdminDashboard() {
                     <tr key={doc.documentId || doc.documentName}>
                       <td>{doc.documentName}</td>
                       <td><span className="badge badge-blue">{doc.documentType || "Doc"}</span></td>
-                      <td><span className={`badge ${doc.documentStatus === "EMBEDDED" ? "badge-green" : "badge-yellow"}`}>{doc.documentStatus}</span></td>
+                      <td><span className={`badge ${doc.retrievalReady ? "badge-green" : "badge-yellow"}`}>{doc.documentStatus}</span></td>
+                      <td><span className="badge badge-gray">{doc.parseStatus || "-"}</span></td>
+                      <td><span className={`badge ${doc.embeddingStatus === "READY" ? "badge-green" : doc.embeddingStatus === "FAILED" ? "badge-orange" : "badge-gray"}`}>{doc.embeddingStatus || "-"}</span></td>
+                      <td>{doc.retrievalReady ? "是" : "否"}</td>
                       <td>{doc.fragmentCount || 0}</td>
+                      <td>{doc.failureReason || "-"}</td>
+                      <td>
+                        <button className="admin-btn outline" onClick={() => loadKnowledgeEvidence(doc.documentId)}>
+                          <Database size={14} /> 查看
+                        </button>
+                      </td>
                     </tr>
                   ))}
-                  {documents.length === 0 && <tr><td colSpan="4" className="empty-cell">暂无数据</td></tr>}
+                  {documents.length === 0 && <tr><td colSpan="9" className="empty-cell">暂无数据</td></tr>}
                 </tbody>
               </table>
             </div>
+            {knowledgeEvidence && (
+              <div className="evidence-panel">
+                <div className="metric-caption">{knowledgeEvidence.documentName || knowledgeEvidence.documentId} 的引用片段</div>
+                <div className="audit-facts">
+                  {(knowledgeEvidence.citationSnippets || []).map((snippet) => (
+                    <span key={snippet}>{snippet}</span>
+                  ))}
+                  {(knowledgeEvidence.citationSnippets || []).length === 0 && <span>暂无可引用片段</span>}
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -353,6 +426,69 @@ export default function AdminDashboard() {
                     </tr>
                   ))}
                   {orders.length === 0 && <tr><td colSpan="6" className="empty-cell">暂无真实订单数据，请在前台发起购买</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-card full-width">
+          <div className="admin-card-header">
+            <div className="admin-title-line">
+              <ShieldCheck size={18} color="#0f766e" />
+              <h3>交易只读审计</h3>
+            </div>
+          </div>
+          <div className="admin-card-body">
+            <p className="admin-desc">
+              只展示后台订单、支付、退款和额度流水事实，不提供补发、退款或人工补偿操作。
+            </p>
+            <div className="table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>订单号</th>
+                    <th>额度包</th>
+                    <th>核对结论</th>
+                    <th>说明</th>
+                    <th>可发额度</th>
+                    <th>需回滚</th>
+                    <th>创建时间</th>
+                    <th>事实快照</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tradeAuditItems.map((item, index) => (
+                    <tr key={`${item.orderId || item.payOrderId || "audit"}-${index}`}>
+                      <td className="mono">{item.orderId || "-"}</td>
+                      <td>{item.goodsName || item.goodsId || "-"}</td>
+                      <td>
+                        <span className={`badge ${auditBadgeClass(item.conclusion)}`}>
+                          {item.settlementLabel || item.conclusion || "-"}
+                        </span>
+                      </td>
+                      <td>{item.settlementDetail || item.message || "-"}</td>
+                      <td>
+                        <span className={`badge ${item.quotaGrantAllowed ? "badge-green" : "badge-gray"}`}>
+                          {item.quotaGrantAllowed ? "允许" : "不允许"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${item.refundRollbackRequired ? "badge-orange" : "badge-gray"}`}>
+                          {item.refundRollbackRequired ? "需要" : "无需"}
+                        </span>
+                      </td>
+                      <td>{formatDateTime(item.orderCreateTime)}</td>
+                      <td>
+                        <div className="audit-facts">
+                          {(item.facts || []).slice(0, 4).map((fact) => (
+                            <span key={fact}>{fact}</span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {tradeAuditItems.length === 0 && <tr><td colSpan="8" className="empty-cell">暂无交易审计结果</td></tr>}
                 </tbody>
               </table>
             </div>
