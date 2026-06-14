@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RabbitTradeEventListenerTest {
 
@@ -45,6 +46,23 @@ class RabbitTradeEventListenerTest {
         assertEquals(5, record.getConsumeCount());
     }
 
+    @Test
+    void shouldMarkDeadLetterOnFourthConsumeFailure() {
+        FakeTradeEventConsumeRecordRepository repository = new FakeTradeEventConsumeRecordRepository();
+        repository.failConsumed = true;
+        RabbitTradeEventListener listener = new RabbitTradeEventListener(repository);
+        TradeEventMessageEntity message = message("E20003");
+        TradeEventConsumeRecordEntity record = TradeEventConsumeRecordEntity.fromMessage(message);
+        record.setConsumeCount(3);
+        record.setConsumeStatus(TradeEventConsumeRecordEntity.STATUS_RETRY);
+        repository.records.put(record.getEventId(), record);
+
+        assertThrows(IllegalStateException.class, () -> listener.consume(message));
+
+        assertEquals(TradeEventConsumeRecordEntity.STATUS_DEAD_LETTER, record.getConsumeStatus());
+        assertEquals(4, record.getConsumeCount());
+    }
+
     private TradeEventMessageEntity message(String eventId) {
         TradeEventMessageEntity message = new TradeEventMessageEntity();
         message.setFlowId(eventId);
@@ -65,6 +83,7 @@ class RabbitTradeEventListenerTest {
     private static class FakeTradeEventConsumeRecordRepository implements TradeEventConsumeRecordRepository {
 
         private final Map<String, TradeEventConsumeRecordEntity> records = new HashMap<>();
+        private boolean failConsumed;
 
         @Override
         public void save(TradeEventConsumeRecordEntity record) {
@@ -90,6 +109,9 @@ class RabbitTradeEventListenerTest {
         public int updateStatusConsumed(TradeEventConsumeRecordEntity record) {
             if (record.getConsumeStatus() != TradeEventConsumeRecordEntity.STATUS_PROCESSING) {
                 return 0;
+            }
+            if (failConsumed) {
+                throw new IllegalStateException("consumer failed");
             }
             record.setConsumeCount(record.getConsumeCount() + 1);
             record.setConsumeStatus(TradeEventConsumeRecordEntity.STATUS_CONSUMED);
@@ -119,7 +141,6 @@ class RabbitTradeEventListenerTest {
         }
     }
 }
-
 
 
 

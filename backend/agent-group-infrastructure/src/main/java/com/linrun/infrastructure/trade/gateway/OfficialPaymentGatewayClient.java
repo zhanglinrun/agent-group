@@ -344,7 +344,7 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     }
 
     private PaymentRefundResult refundMock(PaymentRefundCommand command) {
-        return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), nextNo("R"), "mock refund success");
+        return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), refundId(command), "mock refund success");
     }
 
     private PaymentWebhookResult queryMockPayment(PaymentReconcileCommand command) {
@@ -445,7 +445,7 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     private PaymentRefundResult refundAlipay(PaymentRefundCommand command) {
         ensureAlipayReady();
-        String refundId = nextNo("R");
+        String refundId = refundId(command);
         try {
             AlipayTradeRefundRequest request = new AlipayTradeRefundRequest();
             AlipayTradeRefundModel model = new AlipayTradeRefundModel();
@@ -539,7 +539,7 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     private PaymentRefundResult refundWechat(PaymentRefundCommand command) {
         ensureWechatReady();
-        String refundId = nextNo("R");
+        String refundId = refundId(command);
         CreateRequest request = new CreateRequest();
         request.setOutTradeNo(command.getPayOrderId());
         request.setOutRefundNo(refundId);
@@ -556,6 +556,10 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 command.getPayOrderId(),
                 firstText(refund.getRefundId(), refundId),
                 "微信支付退款已受理");
+    }
+
+    private String refundId(PaymentRefundCommand command) {
+        return StringUtils.hasText(command.getRefundId()) ? command.getRefundId() : nextNo("R");
     }
 
     private PaymentBillDownloadResult downloadAlipayBill(PaymentBillDownloadCommand command) {
@@ -1194,8 +1198,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     private record BillParseSummary(int totalCount, BigDecimal totalAmount, String summary) {
     }
 }
-
-
 
 
 

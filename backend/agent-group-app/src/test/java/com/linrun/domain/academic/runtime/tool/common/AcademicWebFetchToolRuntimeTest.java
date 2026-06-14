@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -37,7 +38,7 @@ class AcademicWebFetchToolRuntimeTest {
         server.start();
         try {
             String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/article";
-            AcademicWebFetchToolRuntime webFetchTool = new AcademicWebFetchToolRuntime();
+            AcademicWebFetchToolRuntime webFetchTool = new AcademicWebFetchToolRuntime(HttpClient.newHttpClient(), true);
             AcademicToolRuntimeRegistry registry = new AcademicToolRuntimeRegistry();
             registry.registerStructured(AcademicWebFetchToolRuntime.definition(), webFetchTool::call);
 
@@ -66,8 +67,31 @@ class AcademicWebFetchToolRuntimeTest {
 
         assertEquals("WEB_FETCH_0001", exception.getCode());
     }
-}
 
+    @Test
+    void shouldRejectLoopbackUrlByDefault() {
+        AcademicWebFetchToolRuntime webFetchTool = new AcademicWebFetchToolRuntime();
+
+        AppException exception = assertThrows(AppException.class,
+                () -> webFetchTool.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.WEB_FETCH)
+                        .arguments(Map.of("url", "http://127.0.0.1:8080/article"))
+                        .build()));
+
+        assertEquals("WEB_FETCH_0005", exception.getCode());
+    }
+
+    @Test
+    void shouldRejectCloudMetadataAddressByDefault() {
+        AcademicWebFetchToolRuntime webFetchTool = new AcademicWebFetchToolRuntime();
+
+        AppException exception = assertThrows(AppException.class,
+                () -> webFetchTool.call(AcademicToolCallCommand.builder(AcademicToolOutputNames.WEB_FETCH)
+                        .arguments(Map.of("url", "http://169.254.169.254/latest/meta-data"))
+                        .build()));
+
+        assertEquals("WEB_FETCH_0005", exception.getCode());
+    }
+}
 
 
 

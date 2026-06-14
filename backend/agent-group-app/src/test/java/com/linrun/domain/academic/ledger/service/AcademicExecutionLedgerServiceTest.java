@@ -30,9 +30,11 @@ class AcademicExecutionLedgerServiceTest {
         repository.tools.add(tool("TOOL1001", "RUN1001", "code_interpreter", AcademicAgentRun.STATUS_FAILED,
                 "script timeout", ""));
         repository.tools.add(tool("TOOL1002", "RUN1001", "report_tool", AcademicAgentRun.STATUS_SUCCESS,
-                "", "{\"summary\":\"report generated\"}"));
+                "", "{\"summary\":\"report generated\",\"metadata\":{\"eventType\":\"replanned\"}}"));
         repository.tools.add(tool("TOOL1003", "RUN1001", AcademicToolOutputNames.QUOTA_USAGE, AcademicAgentRun.STATUS_SUCCESS,
                 "", "{\"metadata\":{\"estimatedConsumedQuota\":12.5}}"));
+        repository.tools.add(tool("TOOL1004", "RUN1001", AcademicToolOutputNames.QUOTA_USAGE, AcademicAgentRun.STATUS_SUCCESS,
+                "", "{\"metadata\":{\"estimatedConsumedQuota\":7.5}}"));
         repository.artifacts.add(artifact("ART1001", "RUN1001", "TOOL1002"));
 
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector());
@@ -45,12 +47,12 @@ class AcademicExecutionLedgerServiceTest {
         assertEquals("深度任务", detail.getEvidence().getPlan().getTitle());
         assertEquals(2, detail.getEvidence().getPlan().getRevisionCount());
         assertFalse(detail.getEvidence().getPlan().getSteps().isEmpty());
-        assertEquals(3, detail.getEvidence().getToolCallCount());
+        assertEquals(4, detail.getEvidence().getToolCallCount());
         assertEquals(1, detail.getEvidence().getFailedToolCount());
         assertEquals(1, detail.getEvidence().getReplanCount());
         assertEquals(1, detail.getEvidence().getLlmCallCount());
         assertEquals(1, detail.getEvidence().getArtifactCount());
-        assertEquals(12.5d, detail.getEvidence().getQuotaConsumed());
+        assertEquals(20.0d, detail.getEvidence().getQuotaConsumed());
         assertTrue(detail.getEvidence().getToolSuccessRate() > 0.6d);
         assertEquals(1, detail.getEvidence().getFailedTools().size());
         assertTrue(detail.getEvidence().getFailedTools().getFirst().getRecoveredByLaterTool());
@@ -97,7 +99,7 @@ class AcademicExecutionLedgerServiceTest {
         assertEquals("RUN3001", diagnosis.getRunId());
         assertEquals(2, diagnosis.getToolCallCount());
         assertEquals(1, diagnosis.getFailedToolCount());
-        assertEquals(1, diagnosis.getReplanCount());
+        assertEquals(0, diagnosis.getReplanCount());
         assertFalse(diagnosis.getIssues().isEmpty());
     }
 

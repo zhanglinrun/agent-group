@@ -11,25 +11,24 @@ import java.util.Optional;
 @Repository
 public class MyBatisQuotaOrderSnapshotRepository implements QuotaOrderSnapshotRepository {
 
-    private final IQuotaOrderSnapshotDao QuotaOrderSnapshotDao;
+    private final IQuotaOrderSnapshotDao quotaOrderSnapshotDao;
 
-    public MyBatisQuotaOrderSnapshotRepository(IQuotaOrderSnapshotDao QuotaOrderSnapshotDao) {
-        this.QuotaOrderSnapshotDao = QuotaOrderSnapshotDao;
+    public MyBatisQuotaOrderSnapshotRepository(IQuotaOrderSnapshotDao quotaOrderSnapshotDao) {
+        this.quotaOrderSnapshotDao = quotaOrderSnapshotDao;
     }
 
     @Override
     public void save(QuotaOrderSnapshot snapshot) {
         if (snapshot != null) {
-            QuotaOrderSnapshotDao.insert(AgentPOConverter.toPO(snapshot));
+            quotaOrderSnapshotDao.insert(AgentPOConverter.toPO(snapshot));
         }
     }
 
     @Override
     public Optional<QuotaOrderSnapshot> queryByDecisionId(String decisionId) {
-        return Optional.ofNullable(AgentPOConverter.toEntity(QuotaOrderSnapshotDao.queryByDecisionId(decisionId)));
+        return Optional.ofNullable(AgentPOConverter.toEntity(quotaOrderSnapshotDao.queryByDecisionId(decisionId)));
     }
 }
-
 
 
 

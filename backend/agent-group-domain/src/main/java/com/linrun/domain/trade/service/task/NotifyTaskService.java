@@ -160,7 +160,8 @@ public class NotifyTaskService {
     }
 
     private boolean shouldMarkError(NotifyTask task) {
-        return task.getNotifyCount() != null && task.getNotifyCount() >= MAX_RETRY_COUNT;
+        int currentNotifyCount = task.getNotifyCount() == null ? 0 : task.getNotifyCount();
+        return currentNotifyCount + 1 >= MAX_RETRY_COUNT;
     }
 
     private String dispatch(NotifyTask task) {
@@ -219,7 +220,6 @@ public class NotifyTaskService {
         }
     }
 }
-
 
 
 

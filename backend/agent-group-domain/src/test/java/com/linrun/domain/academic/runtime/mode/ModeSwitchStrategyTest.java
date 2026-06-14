@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -60,6 +61,34 @@ class ModeSwitchStrategyTest {
         var mode = strategy.selectMode("今天天气怎么样？", List.of());
 
         assertEquals("react", mode.modeName());
+    }
+
+    @Test
+    void testSelectMode_ExplicitTaskTypeWinsOverAttachment() {
+        AgentExecutionMode.ExecutionContext context = new AgentExecutionMode.ExecutionContext(
+                null,
+                null,
+                "根据文件生成 PPT",
+                List.of(new Object()),
+                Map.of("taskType", "ppt"));
+
+        var mode = strategy.selectMode(context);
+
+        assertEquals("flow", mode.modeName());
+    }
+
+    @Test
+    void testSelectMode_SkillAliasesUseSkillSop() {
+        AgentExecutionMode.ExecutionContext context = new AgentExecutionMode.ExecutionContext(
+                null,
+                null,
+                "调用技能",
+                List.of(),
+                Map.of("taskType", "manual-skills"));
+
+        var mode = strategy.selectMode(context);
+
+        assertEquals("skill-sop", mode.modeName());
     }
 
     static class TestReActMode implements AgentExecutionMode {

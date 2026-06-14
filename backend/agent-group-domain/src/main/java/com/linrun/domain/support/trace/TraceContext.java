@@ -1,6 +1,10 @@
 package com.linrun.domain.support.trace;
 
 import java.util.HashMap;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -12,7 +16,7 @@ public class TraceContext {
 
     private static final ThreadLocal<String> TRACE_ID = new ThreadLocal<>();
     private static final ThreadLocal<String> SPAN_ID = new ThreadLocal<>();
-    private static final ThreadLocal<String> PARENT_SPAN_ID = new ThreadLocal<>();
+    private static final ThreadLocal<Deque<String>> PARENT_SPAN_STACK = new ThreadLocal<>();
     private static final ThreadLocal<Map<String, String>> TAGS = new ThreadLocal<>();
 
     /**
@@ -21,7 +25,7 @@ public class TraceContext {
     public static void startTrace(String traceId) {
         TRACE_ID.set(traceId != null ? traceId : generateTraceId());
         SPAN_ID.set(generateSpanId());
-        PARENT_SPAN_ID.remove();
+        PARENT_SPAN_STACK.set(new ArrayDeque<>());
         TAGS.set(new HashMap<>());
     }
 
@@ -31,12 +35,15 @@ public class TraceContext {
     public static String startSpan(String operation) {
         String currentSpan = SPAN_ID.get();
         String newSpan = generateSpanId();
-        
-        PARENT_SPAN_ID.set(currentSpan);
+
+        Deque<String> stack = parentSpanStack();
+        if (currentSpan != null) {
+            stack.push(currentSpan);
+        }
         SPAN_ID.set(newSpan);
-        
+
         addTag("operation", operation);
-        
+
         return newSpan;
     }
 
@@ -44,10 +51,9 @@ public class TraceContext {
      * 结束当前 Span
      */
     public static void endSpan() {
-        String parentSpan = PARENT_SPAN_ID.get();
-        if (parentSpan != null) {
-            SPAN_ID.set(parentSpan);
-            PARENT_SPAN_ID.remove();
+        Deque<String> stack = PARENT_SPAN_STACK.get();
+        if (stack != null && !stack.isEmpty()) {
+            SPAN_ID.set(stack.pop());
         }
     }
 
@@ -81,7 +87,8 @@ public class TraceContext {
      * 获取父级 SpanId。
      */
     public static String parentSpanId() {
-        return PARENT_SPAN_ID.get();
+        Deque<String> stack = PARENT_SPAN_STACK.get();
+        return stack == null || stack.isEmpty() ? null : stack.peek();
     }
 
     /**
@@ -98,7 +105,7 @@ public class TraceContext {
     public static void clear() {
         TRACE_ID.remove();
         SPAN_ID.remove();
-        PARENT_SPAN_ID.remove();
+        PARENT_SPAN_STACK.remove();
         TAGS.remove();
     }
 
@@ -113,7 +120,16 @@ public class TraceContext {
      * 生成 SpanId
      */
     private static String generateSpanId() {
-        return UUID.randomUUID().toString().substring(0, 16).replace("-", "");
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+    }
+
+    private static Deque<String> parentSpanStack() {
+        Deque<String> stack = PARENT_SPAN_STACK.get();
+        if (stack == null) {
+            stack = new ArrayDeque<>();
+            PARENT_SPAN_STACK.set(stack);
+        }
+        return stack;
     }
 
     /**
@@ -123,13 +139,25 @@ public class TraceContext {
         private final String traceId;
         private final String spanId;
         private final String parentSpanId;
+        private final List<String> parentSpanStack;
         private final Map<String, String> tags;
 
         public TraceSnapshot(String traceId, String spanId, String parentSpanId, 
                            Map<String, String> tags) {
+            this(traceId, spanId, parentSpanId,
+                    parentSpanId == null ? List.of() : List.of(parentSpanId),
+                    tags);
+        }
+
+        private TraceSnapshot(String traceId,
+                              String spanId,
+                              String parentSpanId,
+                              List<String> parentSpanStack,
+                              Map<String, String> tags) {
             this.traceId = traceId;
             this.spanId = spanId;
             this.parentSpanId = parentSpanId;
+            this.parentSpanStack = parentSpanStack == null ? List.of() : new ArrayList<>(parentSpanStack);
             this.tags = tags != null ? new HashMap<>(tags) : new HashMap<>();
         }
 
@@ -149,6 +177,10 @@ public class TraceContext {
             return tags;
         }
 
+        private List<String> getParentSpanStack() {
+            return parentSpanStack;
+        }
+
         @Override
         public String toString() {
             return String.format("TraceSnapshot{traceId='%s', spanId='%s', parentSpanId='%s', tags=%s}",
@@ -160,10 +192,12 @@ public class TraceContext {
      * 获取当前追踪快照
      */
     public static TraceSnapshot snapshot() {
+        Deque<String> stack = PARENT_SPAN_STACK.get();
         return new TraceSnapshot(
                 currentTraceId(),
                 currentSpanId(),
                 parentSpanId(),
+                stack == null ? List.of() : new ArrayList<>(stack),
                 getTags()
         );
     }
@@ -172,15 +206,16 @@ public class TraceContext {
      * 从快照恢复上下文
      */
     public static void restore(TraceSnapshot snapshot) {
-        if (snapshot != null) {
-            TRACE_ID.set(snapshot.getTraceId());
-            SPAN_ID.set(snapshot.getSpanId());
-            PARENT_SPAN_ID.set(snapshot.getParentSpanId());
-            TAGS.set(new HashMap<>(snapshot.getTags()));
+        if (snapshot == null) {
+            clear();
+            return;
         }
+        TRACE_ID.set(snapshot.getTraceId());
+        SPAN_ID.set(snapshot.getSpanId());
+        PARENT_SPAN_STACK.set(new ArrayDeque<>(snapshot.getParentSpanStack()));
+        TAGS.set(new HashMap<>(snapshot.getTags()));
     }
 }
-
 
 
 

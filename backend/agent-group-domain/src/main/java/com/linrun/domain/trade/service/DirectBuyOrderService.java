@@ -30,51 +30,51 @@ public class DirectBuyOrderService {
 
     private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
-    private final QuotaProductRepository QuotaProductRepository;
+    private final QuotaProductRepository quotaProductRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
-    private final QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator;
+    private final QuotaOrderSnapshotValidator quotaOrderSnapshotValidator;
     private final PaymentService paymentService;
 
-    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
+    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService) {
-        this(QuotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+        this(quotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
                 new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository.noop()), null);
     }
 
-    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
+    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 QuotaOrderSnapshotRepository QuotaOrderSnapshotRepository) {
-        this(QuotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository), null);
+                                 QuotaOrderSnapshotRepository quotaOrderSnapshotRepository) {
+        this(quotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                new QuotaOrderSnapshotValidator(quotaOrderSnapshotRepository), null);
     }
 
-    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
+    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator) {
-        this(QuotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                QuotaOrderSnapshotValidator, null);
+                                 QuotaOrderSnapshotValidator quotaOrderSnapshotValidator) {
+        this(quotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
+                quotaOrderSnapshotValidator, null);
     }
 
     @Autowired
-    public DirectBuyOrderService(QuotaProductRepository QuotaProductRepository,
+    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
-                                 QuotaOrderSnapshotValidator QuotaOrderSnapshotValidator,
+                                 QuotaOrderSnapshotValidator quotaOrderSnapshotValidator,
                                  PaymentService paymentService) {
-        this.QuotaProductRepository = QuotaProductRepository;
+        this.quotaProductRepository = quotaProductRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
-        this.QuotaOrderSnapshotValidator = QuotaOrderSnapshotValidator;
+        this.quotaOrderSnapshotValidator = quotaOrderSnapshotValidator;
         this.paymentService = paymentService;
     }
 
@@ -102,10 +102,10 @@ public class DirectBuyOrderService {
             return toResponse(existed, existingPayOrder, request.getDecisionId(), payment);
         }
 
-        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(request.getGoodsId())
+        QuotaProduct product = quotaProductRepository.queryProductByGoodsId(request.getGoodsId())
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         if (StringUtils.hasText(request.getDecisionId())) {
-            QuotaOrderSnapshotValidator.validateDirect(
+            quotaOrderSnapshotValidator.validateDirect(
                     request.getDecisionId(),
                     request.getUserId(),
                     request.getGoodsId(),
@@ -226,7 +226,6 @@ public class DirectBuyOrderService {
         return StringUtils.hasText(value) && value.toLowerCase().contains("<form");
     }
 }
-
 
 
 

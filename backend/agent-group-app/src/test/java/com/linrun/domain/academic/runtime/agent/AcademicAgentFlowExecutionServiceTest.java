@@ -68,6 +68,38 @@ class AcademicAgentFlowExecutionServiceTest {
         assertTrue(result.getFinalPlan().getSteps().stream().allMatch(AcademicPlanStep::isCompleted));
     }
 
+    @Test
+    void shouldConvertExecutorExceptionToBlockedStepAndReplan() {
+        AcademicAgentPlan plan = new AcademicAgentPlan("异常兜底", List.of(
+                step("S1", "读取论文摘要", 1),
+                step("S2", "调用工具", 2, "S1"),
+                step("S3", "整理结论", 3, "S2")
+        ));
+        AcademicAgentFlowExecutionService service = new AcademicAgentFlowExecutionService(
+                new AcademicAgentFlowProjector(), 1);
+        AtomicBoolean failedOnce = new AtomicBoolean(false);
+
+        AcademicAgentFlowExecutionResult result = service.execute("RUN1004", plan, (step, context) -> {
+            if ("S2".equals(step.getStepId()) && failedOnce.compareAndSet(false, true)) {
+                throw new IllegalStateException("tool unavailable");
+            }
+            return AcademicAgentStepExecutionResult.success("done " + step.getStepId());
+        }, request -> List.of(
+                step("R1", "使用备用工具", 2),
+                step("S3", "整理结论", 3, "R1")
+        ));
+
+        assertTrue(result.isCompleted());
+        assertEquals(1, result.getReplanCount());
+        assertEquals(1, result.getEvents().stream()
+                .filter(event -> AcademicAgentFlowExecutionEvent.TYPE_STEP_BLOCKED.equals(event.getEventType())
+                        && event.getNote().contains("IllegalStateException"))
+                .count());
+        assertEquals(List.of("S1", "R1", "S3"), result.getFinalPlan().getSteps().stream()
+                .map(AcademicPlanStep::getStepId)
+                .toList());
+    }
+
     private AcademicPlanStep step(String stepId, String instruction, int order, String... dependencies) {
         return AcademicPlanStep.builder(stepId, instruction)
                 .order(order)
@@ -75,7 +107,6 @@ class AcademicAgentFlowExecutionServiceTest {
                 .build();
     }
 }
-
 
 
 

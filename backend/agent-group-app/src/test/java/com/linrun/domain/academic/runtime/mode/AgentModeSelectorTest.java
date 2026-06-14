@@ -66,6 +66,44 @@ class AgentModeSelectorTest {
     }
 
     @Test
+    void testSelectMode_ExplicitModeWinsOverAttachment() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult result = selector.selectMode(
+                "根据这个文件生成一份答辩 PPT",
+                new AgentModeSelector.ModeSelectionContext(true, "file", true, "ppt")
+        );
+
+        assertEquals("Flow", result.getExecutionMode());
+        assertEquals("ppt", result.getAgentType());
+        assertEquals("flow", result.getModeFamily());
+    }
+
+    @Test
+    void testSelectMode_SkillSopAlias() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult result = selector.selectMode(
+                "调用技能整理实验数据",
+                AgentModeSelector.ModeSelectionContext.simple("skill-sop")
+        );
+
+        assertEquals("Skill-SOP", result.getExecutionMode());
+        assertEquals("skill", result.getAgentType());
+        assertEquals("skill-sop", result.getModeFamily());
+    }
+
+    @Test
+    void testSelectMode_NullContextUsesDefaultContext() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult result = selector.selectMode("你好", null);
+
+        assertEquals("ReAct", result.getExecutionMode());
+        assertEquals("chat", result.getAgentType());
+    }
+
+    @Test
     void testSelectMode_SimpleChat() {
         AgentModeSelector selector = new AgentModeSelector();
         String question = "你好";

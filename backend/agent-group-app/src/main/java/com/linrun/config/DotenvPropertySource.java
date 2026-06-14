@@ -59,7 +59,7 @@ final class DotenvPropertySource {
                 parseEnvLine(line, values);
             }
         } catch (IOException ignored) {
-            // ?? .env ????????????????????????
+            // 无法读取 .env 时忽略，继续使用系统环境变量。
         }
     }
 

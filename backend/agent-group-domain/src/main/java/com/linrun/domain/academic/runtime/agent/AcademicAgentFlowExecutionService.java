@@ -3,8 +3,10 @@ package com.linrun.domain.academic.runtime.agent;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class AcademicAgentFlowExecutionService {
@@ -107,8 +109,13 @@ public class AcademicAgentFlowExecutionService {
                                                         AcademicPlanStep step) {
         AcademicAgentFlowExecutionContext context = new AcademicAgentFlowExecutionContext(
                 runId, stageIndex, replanCount, currentPlan);
-        AcademicAgentStepExecutionResult result = stepExecutor.execute(step.copy(), context);
-        return result == null ? AcademicAgentStepExecutionResult.failed("step executor returned empty result") : result;
+        try {
+            AcademicAgentStepExecutionResult result = stepExecutor.execute(step.copy(), context);
+            return result == null ? AcademicAgentStepExecutionResult.failed("step executor returned empty result") : result;
+        } catch (RuntimeException e) {
+            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getClass().getSimpleName() + ": " + e.getMessage();
+            return AcademicAgentStepExecutionResult.failed(message);
+        }
     }
 
     private AcademicPlanStep mutableStep(AcademicAgentPlan plan, String stepId) {
@@ -131,6 +138,7 @@ public class AcademicAgentFlowExecutionService {
                                                  List<AcademicPlanStep> replannedRemaining) {
         List<AcademicPlanStep> merged = new ArrayList<>();
         Set<String> usedStepIds = new LinkedHashSet<>();
+        Map<String, String> stepIdRemap = new HashMap<>();
         for (AcademicPlanStep completed : completedSteps(currentPlan)) {
             AcademicPlanStep copy = completed.copy();
             copy.setStatus(AcademicPlanLifecycleService.STATUS_COMPLETED);
@@ -140,8 +148,13 @@ public class AcademicAgentFlowExecutionService {
         }
         for (AcademicPlanStep remaining : replannedRemaining) {
             AcademicPlanStep copy = remaining.copy();
+            String originalStepId = copy.getStepId();
+            copy.setDependencies(remapDependencies(copy.getDependencies(), stepIdRemap));
             if (!StringUtils.hasText(copy.getStepId()) || usedStepIds.contains(copy.getStepId())) {
                 copy.setStepId("S" + (merged.size() + 1));
+            }
+            if (StringUtils.hasText(originalStepId) && !originalStepId.equals(copy.getStepId())) {
+                stepIdRemap.put(originalStepId, copy.getStepId());
             }
             copy.setStatus(AcademicPlanLifecycleService.STATUS_NOT_STARTED);
             copy.setOrder(merged.size() + 1);
@@ -149,6 +162,15 @@ public class AcademicAgentFlowExecutionService {
             usedStepIds.add(copy.getStepId());
         }
         return new AcademicAgentPlan(currentPlan.getTitle(), merged);
+    }
+
+    private List<String> remapDependencies(List<String> dependencies, Map<String, String> stepIdRemap) {
+        if (dependencies == null || dependencies.isEmpty() || stepIdRemap.isEmpty()) {
+            return dependencies == null ? List.of() : dependencies;
+        }
+        return dependencies.stream()
+                .map(dependency -> stepIdRemap.getOrDefault(dependency, dependency))
+                .toList();
     }
 
     private AcademicAgentFlowExecutionEvent stepEvent(String eventType,
@@ -159,7 +181,6 @@ public class AcademicAgentFlowExecutionService {
                 step.getStepId(), step.getInstruction(), note);
     }
 }
-
 
 
 

@@ -43,7 +43,7 @@ import java.math.BigDecimal;
 @Service
 public class MarketTradeFacadeHandler {
 
-    private final QuotaProductRepository QuotaProductRepository;
+    private final QuotaProductRepository quotaProductRepository;
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;
     private final GroupBuyLockOrderService groupBuyLockOrderService;
@@ -54,7 +54,7 @@ public class MarketTradeFacadeHandler {
     private final GroupBuyMarketTrialService groupBuyMarketTrialService;
     private final HumanApprovalHandler humanApprovalService;
 
-    public MarketTradeFacadeHandler(QuotaProductRepository QuotaProductRepository,
+    public MarketTradeFacadeHandler(QuotaProductRepository quotaProductRepository,
                                     GroupBuyActivityRepository groupBuyActivityRepository,
                                     GroupBuyOrderLockRepository groupBuyOrderLockRepository,
                                     GroupBuyLockOrderService groupBuyLockOrderService,
@@ -64,7 +64,7 @@ public class MarketTradeFacadeHandler {
                                     DynamicConfigService dynamicConfigService,
                                     GroupBuyMarketTrialService groupBuyMarketTrialService,
                                     HumanApprovalHandler humanApprovalService) {
-        this.QuotaProductRepository = QuotaProductRepository;
+        this.quotaProductRepository = quotaProductRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
         this.groupBuyLockOrderService = groupBuyLockOrderService;
@@ -290,7 +290,7 @@ public class MarketTradeFacadeHandler {
     }
 
     private QuotaProduct queryProduct(String goodsId) {
-        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(goodsId)
+        QuotaProduct product = quotaProductRepository.queryProductByGoodsId(goodsId)
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
         if (product.getOriginPrice() == null) {
             product.setOriginPrice(BigDecimal.ZERO);
@@ -307,7 +307,6 @@ public class MarketTradeFacadeHandler {
                 .orElse(outTradeNo);
     }
 }
-
 
 
 

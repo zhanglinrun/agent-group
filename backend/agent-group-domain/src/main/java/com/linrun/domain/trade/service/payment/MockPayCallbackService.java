@@ -101,8 +101,8 @@ public class MockPayCallbackService {
             return;
         }
         if (settledOrderIds != null && !settledOrderIds.isEmpty()) {
-            userQuotaService.grantQuotaForOrderIds(settledOrderIds);
-            markCurrentOrderDealDoneIfSettled(tradeOrder, settledOrderIds);
+            List<String> processedOrderIds = userQuotaService.grantQuotaForOrderIds(settledOrderIds);
+            markCurrentOrderDealDoneIfSettled(tradeOrder, processedOrderIds);
             return;
         }
         userQuotaService.grantQuotaForPaidOrder(tradeOrder);
@@ -149,7 +149,6 @@ public class MockPayCallbackService {
         return response;
     }
 }
-
 
 
 

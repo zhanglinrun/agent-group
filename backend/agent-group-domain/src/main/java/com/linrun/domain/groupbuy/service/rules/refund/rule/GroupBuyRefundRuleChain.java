@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * 拼团退款流程，按固定顺序执行：
- * 参数校验 → 订单加载 → 拼团类型校验 → 退款幂等（已有退款单只补做名额释放） →
+ * 参数校验 → 订单加载 → 拼团类型校验 → 退款幂等（已有退款单补做名额释放和通知任务） →
  * 按订单状态路由退款策略 → 创建退款通知任务。
  */
 public class GroupBuyRefundRuleChain {
@@ -50,8 +50,11 @@ public class GroupBuyRefundRuleChain {
 
         RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(orderId).orElse(null);
         if (existed != null) {
-            // 退款单已存在：按幂等结果返回，只补做名额释放，不再重复退款和通知
-            return groupBuyCompensationService.releaseRefundedOrder(request);
+            GroupBuyCompensationResponse response = groupBuyCompensationService.releaseRefundedOrder(request);
+            if (notifyTaskService != null && response != null) {
+                notifyTaskService.createGroupRefundTask(response);
+            }
+            return response;
         }
 
         GroupBuyCompensationResponse response = groupBuyRefundStrategyRouter.refund(request, tradeOrder, payOrder);

@@ -17,16 +17,33 @@ public class AcademicAgentReflectionService {
      * 对计划执行结果进行反思。
      */
     public ReflectionResult reflect(AcademicAgentPlan plan, List<AcademicPlanStep> completedSteps) {
-        if (plan == null || completedSteps == null || completedSteps.isEmpty()) {
+        if (plan == null) {
             return ReflectionResult.empty();
         }
 
-        double quality = evaluatePlanQuality(completedSteps);
-        List<String> improvements = identifyImprovements(plan, completedSteps);
+        List<AcademicPlanStep> observedSteps = observedSteps(plan, completedSteps);
+        if (observedSteps.isEmpty()) {
+            return ReflectionResult.empty();
+        }
+
+        double quality = evaluatePlanQuality(observedSteps);
+        List<String> improvements = identifyImprovements(plan, observedSteps);
         boolean needReplan = quality < 0.7 || !improvements.isEmpty();
         String summary = generateReflectionSummary(quality, improvements, needReplan);
 
         return new ReflectionResult(quality, improvements, needReplan, summary);
+    }
+
+    private List<AcademicPlanStep> observedSteps(AcademicAgentPlan plan, List<AcademicPlanStep> completedSteps) {
+        if (completedSteps != null && !completedSteps.isEmpty()) {
+            return completedSteps;
+        }
+        if (plan.getSteps().isEmpty()) {
+            return List.of();
+        }
+        return plan.getSteps().stream()
+                .filter(step -> !AcademicPlanLifecycleService.STATUS_NOT_STARTED.equals(step.getStatus()))
+                .toList();
     }
 
     /**
@@ -158,7 +175,6 @@ public class AcademicAgentReflectionService {
         }
     }
 }
-
 
 
 

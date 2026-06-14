@@ -74,7 +74,8 @@ public class TradeEventOutboxDispatchService {
     }
 
     private boolean shouldMarkDeadLetter(TradeEventOutboxEntity outbox) {
-        return outbox.getSendCount() != null && outbox.getSendCount() >= MAX_RETRY_COUNT;
+        int currentSendCount = outbox.getSendCount() == null ? 0 : outbox.getSendCount();
+        return currentSendCount + 1 >= MAX_RETRY_COUNT;
     }
 
     private String trimError(Exception e) {
@@ -102,7 +103,6 @@ public class TradeEventOutboxDispatchService {
         return item;
     }
 }
-
 
 
 

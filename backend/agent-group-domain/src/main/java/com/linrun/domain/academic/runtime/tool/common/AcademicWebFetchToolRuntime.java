@@ -9,8 +9,10 @@ import com.linrun.types.exception.AppException;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -28,10 +30,13 @@ public class AcademicWebFetchToolRuntime {
 
     private static final int DEFAULT_TIMEOUT_SECONDS = 10;
     private static final int DEFAULT_MAX_CONTENT_CHARS = 4000;
+    private static final int MAX_REDIRECT_COUNT = 3;
+    private static final String CLOUD_METADATA_IP = "169.254.169.254";
     private static final Pattern TITLE_PATTERN = Pattern.compile("(?is)<title[^>]*>(.*?)</title>");
 
     private final AcademicWebFetchPort remotePort;
     private final HttpClient httpClient;
+    private final boolean allowPrivateAddresses;
 
     public AcademicWebFetchToolRuntime() {
         this((AcademicWebFetchPort) null);
@@ -39,18 +44,29 @@ public class AcademicWebFetchToolRuntime {
 
     public AcademicWebFetchToolRuntime(AcademicWebFetchPort remotePort) {
         this(remotePort, HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
+                .followRedirects(Redirect.NEVER)
                 .connectTimeout(Duration.ofSeconds(DEFAULT_TIMEOUT_SECONDS))
-                .build());
+                .build(), false);
     }
 
     public AcademicWebFetchToolRuntime(HttpClient httpClient) {
-        this(null, httpClient);
+        this(null, httpClient, false);
+    }
+
+    public AcademicWebFetchToolRuntime(HttpClient httpClient, boolean allowPrivateAddresses) {
+        this(null, httpClient, allowPrivateAddresses);
     }
 
     public AcademicWebFetchToolRuntime(AcademicWebFetchPort remotePort, HttpClient httpClient) {
+        this(remotePort, httpClient, false);
+    }
+
+    public AcademicWebFetchToolRuntime(AcademicWebFetchPort remotePort,
+                                       HttpClient httpClient,
+                                       boolean allowPrivateAddresses) {
         this.remotePort = remotePort;
         this.httpClient = httpClient == null ? HttpClient.newHttpClient() : httpClient;
+        this.allowPrivateAddresses = allowPrivateAddresses;
     }
 
     public static AcademicToolDefinition definition() {
@@ -94,14 +110,8 @@ public class AcademicWebFetchToolRuntime {
             }
         }
 
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(Duration.ofSeconds(Math.max(1, timeoutSeconds)))
-                .header("User-Agent", "agent-group-academic-web-fetch/1.0")
-                .GET()
-                .build();
         try {
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = fetch(uri, Math.max(1, timeoutSeconds), 0);
             String body = response.body() == null ? "" : response.body();
             String title = htmlText(extractTitle(body));
             String readableText = truncate(extractReadableText(body), maxContentChars);
@@ -126,6 +136,31 @@ public class AcademicWebFetchToolRuntime {
         }
     }
 
+    private HttpResponse<String> fetch(URI uri, int timeoutSeconds, int redirectCount)
+            throws IOException, InterruptedException {
+        URI checkedUri = validateUri(uri.toString());
+        HttpRequest request = HttpRequest.newBuilder(checkedUri)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .header("User-Agent", "agent-group-academic-web-fetch/1.0")
+                .GET()
+                .build();
+        HttpResponse<String> response = httpClient.send(request,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (!isRedirect(response.statusCode())) {
+            return response;
+        }
+        if (redirectCount >= MAX_REDIRECT_COUNT) {
+            throw new AppException("WEB_FETCH_0004", "too many redirects");
+        }
+        String location = response.headers().firstValue("location").orElse("");
+        if (!StringUtils.hasText(location)) {
+            return response;
+        }
+        URI redirected = checkedUri.resolve(location);
+        validateUri(redirected.toString());
+        return fetch(redirected, timeoutSeconds, redirectCount + 1);
+    }
+
     private URI validateUri(String url) {
         try {
             URI uri = new URI(url);
@@ -136,10 +171,52 @@ public class AcademicWebFetchToolRuntime {
             if (!StringUtils.hasText(uri.getHost())) {
                 throw new AppException("WEB_FETCH_0001", "URL host cannot be blank");
             }
+            validateHost(uri.getHost());
             return uri;
         } catch (URISyntaxException e) {
             throw new AppException("WEB_FETCH_0001", "invalid URL: " + url);
         }
+    }
+
+    private void validateHost(String host) {
+        String normalizedHost = host == null ? "" : host.trim().toLowerCase(Locale.ROOT);
+        if (!StringUtils.hasText(normalizedHost)) {
+            throw new AppException("WEB_FETCH_0001", "URL host cannot be blank");
+        }
+        if (allowPrivateAddresses) {
+            return;
+        }
+        if ("localhost".equals(normalizedHost) || CLOUD_METADATA_IP.equals(normalizedHost)) {
+            throw new AppException("WEB_FETCH_0005", "private or metadata address is not allowed");
+        }
+        try {
+            for (InetAddress address : InetAddress.getAllByName(normalizedHost)) {
+                if (isBlockedAddress(address)) {
+                    throw new AppException("WEB_FETCH_0005", "private or metadata address is not allowed");
+                }
+            }
+        } catch (AppException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new AppException("WEB_FETCH_0006", "URL host cannot be resolved");
+        }
+    }
+
+    private boolean isBlockedAddress(InetAddress address) {
+        return address.isAnyLocalAddress()
+                || address.isLoopbackAddress()
+                || address.isLinkLocalAddress()
+                || address.isSiteLocalAddress()
+                || address.isMulticastAddress()
+                || CLOUD_METADATA_IP.equals(address.getHostAddress());
+    }
+
+    private boolean isRedirect(int statusCode) {
+        return statusCode == 301
+                || statusCode == 302
+                || statusCode == 303
+                || statusCode == 307
+                || statusCode == 308;
     }
 
     private String extractTitle(String html) {
@@ -208,7 +285,6 @@ public class AcademicWebFetchToolRuntime {
         return "agent-group-web-" + UUID.randomUUID().toString().replace("-", "");
     }
 }
-
 
 
 

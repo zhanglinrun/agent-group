@@ -38,7 +38,7 @@ import {
   TOOL_LABELS,
   WORKSPACES,
   workspaceAgentMode,
-  userWorkspaceFromPath,
+  workspaceFromPath,
   workspacePath
 } from "./workspaces";
 import {
@@ -746,7 +746,7 @@ function App() {
 function AgentWorkspaceApp() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routeWorkspace = userWorkspaceFromPath(location.pathname);
+  const routeWorkspace = workspaceFromPath(location.pathname);
   const [theme, setTheme] = useState(() => getStoredTheme());
   const [auth, setAuth] = useState(() => getUserAuth());
   const [loginOpen, setLoginOpen] = useState(() => !getUserAuth()?.token);
@@ -2555,20 +2555,24 @@ function AgentWorkspaceApp() {
 
   const payExistingOrder = async (order) => {
     if (!order?.orderId) return;
-    const payUrl = order.payUrl || "";
-    setPaymentDialog({
-      orderId: order.orderId,
-      productName: order.productName || order.productId || "额度订单",
-      amount: order.payAmount || order.totalAmount,
-      marketType: order.marketType,
-      quotaAmount: 0,
-      payUrl,
-      payFormHtml: isPaymentFormHtml(payUrl) ? payUrl : "",
-      paymentType: isPaymentFormHtml(payUrl) ? "PAGE_FORM" : "",
-      payChannel: order.payChannel || preferredFrontendPayChannel(),
-      source: "existing"
-    });
-  };
+  const payUrl = order.payUrl || "";
+  setPaymentDialog({
+    orderId: order.orderId,
+    productName: order.productName || order.goodsName || order.productId || "额度订单",
+    amount: order.payAmount || order.totalAmount,
+    marketType: order.marketType,
+    teamId: order.teamId || order.groupTeamId || "",
+    teamSize: order.teamSize || order.targetCount || "",
+    quotaAmount: 0,
+    productType: order.productType || order.goodsType || "",
+    payUrl,
+    payFormHtml: isPaymentFormHtml(payUrl) ? payUrl : "",
+    paymentType: isPaymentFormHtml(payUrl) ? "PAGE_FORM" : "",
+    payChannel: order.payChannel || preferredFrontendPayChannel(),
+    gatewayTradeNo: order.gatewayTradeNo || order.outTradeNo || "",
+    source: "existing"
+  });
+};
 
   const confirmPayment = async () => {
     if (!paymentDialog?.orderId) return;
@@ -5535,10 +5539,10 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
           <CreditCard size={24} />
         </div>
         <h3>{mockPayment ? "确认模拟支付" : "进入支付宝支付"}</h3>
-        <p>{isMembershipOrder
-          ? (mockPayment ? "本地模拟支付完成后，会员会按后端交易状态生效。" : "支付完成并回调成功后会员会自动生效。")
-          : isGroupOrder
-            ? "支付完成后先等待成团，成团后额度才会到账。"
+        <p>{isGroupOrder
+          ? (isMembershipOrder ? "支付完成后先等待成团，成团后会员才会生效。" : "支付完成后先等待成团，成团后额度才会到账。")
+          : isMembershipOrder
+            ? (mockPayment ? "本地模拟支付完成后，会员会按后端交易状态生效。" : "支付完成并回调成功后会员会自动生效。")
             : (mockPayment ? "本地模拟支付完成后，额度会按后端交易状态到账。" : "支付完成并回调成功后额度会自动到账。")}</p>
         <div className="payment-summary">
           <div>

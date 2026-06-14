@@ -9,13 +9,23 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.types.exception.AppException;
 import org.springframework.util.StringUtils;
 
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public class AcademicScriptRunnerToolRuntime {
 
     private static final int DEFAULT_TIMEOUT_SECONDS = 120;
+    private static final int MAX_TIMEOUT_SECONDS = 300;
+    private static final int MAX_NAME_LENGTH = 80;
+    private static final int MAX_PATH_LENGTH = 240;
+    private static final int MAX_ARGV_COUNT = 20;
+    private static final int MAX_ARGV_ITEM_LENGTH = 256;
+    private static final Set<String> ALLOWED_RUNTIMES = Set.of("python", "node", "shell", "powershell", "bat");
 
     private final AcademicScriptRunnerPort scriptRunnerPort;
 
@@ -51,17 +61,7 @@ public class AcademicScriptRunnerToolRuntime {
             throw new AppException("SCRIPT_RUNNER_0001", "script runner port is not configured");
         }
         Map<String, Object> arguments = command == null ? Map.of() : command.getArguments();
-        AcademicScriptRunnerPort.AcademicScriptRunRequest request =
-                new AcademicScriptRunnerPort.AcademicScriptRunRequest(
-                        text(arguments.get("requestId")),
-                        text(arguments.get("skillName")),
-                        text(arguments.get("skillBasePath")),
-                        text(arguments.get("scriptName")),
-                        text(arguments.get("scriptPath")),
-                        defaultText(arguments.get("runtime"), "python"),
-                        objectMap(arguments.get("arguments")),
-                        stringList(arguments.get("argv")),
-                        Math.max(1, integer(arguments.get("timeoutSeconds"), DEFAULT_TIMEOUT_SECONDS)));
+        AcademicScriptRunnerPort.AcademicScriptRunRequest request = validatedRequest(arguments);
         AcademicScriptRunnerPort.AcademicScriptRunResult result = scriptRunnerPort.run(request);
         if (result == null) {
             throw new AppException("SCRIPT_RUNNER_0002", "script runner returned empty result");
@@ -91,6 +91,91 @@ public class AcademicScriptRunnerToolRuntime {
                 .metadata(metadata)
                 .fileRefs(fileRefs(result.fileRefs()))
                 .build();
+    }
+
+    private AcademicScriptRunnerPort.AcademicScriptRunRequest validatedRequest(Map<String, Object> arguments) {
+        String runtime = validateRuntime(defaultText(arguments.get("runtime"), "python"));
+        return new AcademicScriptRunnerPort.AcademicScriptRunRequest(
+                validateOptionalText(text(arguments.get("requestId")), "requestId", MAX_NAME_LENGTH),
+                validateName(text(arguments.get("skillName")), "skillName"),
+                validateOptionalText(text(arguments.get("skillBasePath")), "skillBasePath", MAX_PATH_LENGTH),
+                validateName(text(arguments.get("scriptName")), "scriptName"),
+                validateScriptPath(text(arguments.get("scriptPath"))),
+                runtime,
+                objectMap(arguments.get("arguments")),
+                validateArgv(arguments.get("argv")),
+                Math.min(MAX_TIMEOUT_SECONDS, Math.max(1, integer(arguments.get("timeoutSeconds"), DEFAULT_TIMEOUT_SECONDS))));
+    }
+
+    private String validateName(String value, String fieldName) {
+        String text = validateOptionalText(value, fieldName, MAX_NAME_LENGTH);
+        if (!StringUtils.hasText(text)) {
+            throw new AppException("SCRIPT_RUNNER_0003", fieldName + " cannot be blank");
+        }
+        if (text.contains("/") || text.contains("\\")) {
+            throw new AppException("SCRIPT_RUNNER_0003", fieldName + " cannot contain path separator");
+        }
+        return text;
+    }
+
+    private String validateOptionalText(String value, String fieldName, int maxLength) {
+        String text = text(value);
+        if (!StringUtils.hasText(text)) {
+            return "";
+        }
+        if (text.length() > maxLength || containsControlChar(text) || text.indexOf('\0') >= 0) {
+            throw new AppException("SCRIPT_RUNNER_0003", fieldName + " is invalid");
+        }
+        return text;
+    }
+
+    private String validateRuntime(String runtime) {
+        String normalized = text(runtime).toLowerCase(Locale.ROOT);
+        if (!ALLOWED_RUNTIMES.contains(normalized)) {
+            throw new AppException("SCRIPT_RUNNER_0004", "script runtime is not allowed");
+        }
+        return normalized;
+    }
+
+    private String validateScriptPath(String scriptPath) {
+        String text = validateOptionalText(scriptPath, "scriptPath", MAX_PATH_LENGTH).replace('\\', '/');
+        if (!StringUtils.hasText(text)) {
+            return "";
+        }
+        if (text.startsWith("/") || text.matches("^[A-Za-z]:.*")) {
+            throw new AppException("SCRIPT_RUNNER_0005", "scriptPath must be relative");
+        }
+        try {
+            Path normalized = Path.of(text).normalize();
+            String normalizedText = normalized.toString().replace('\\', '/');
+            if (!StringUtils.hasText(normalizedText)
+                    || normalized.isAbsolute()
+                    || normalizedText.equals("..")
+                    || normalizedText.startsWith("../")
+                    || normalizedText.contains("/../")) {
+                throw new AppException("SCRIPT_RUNNER_0005", "scriptPath escapes skill directory");
+            }
+            return normalizedText;
+        } catch (InvalidPathException e) {
+            throw new AppException("SCRIPT_RUNNER_0005", "scriptPath is invalid");
+        }
+    }
+
+    private List<String> validateArgv(Object value) {
+        List<String> argv = stringList(value);
+        if (argv.size() > MAX_ARGV_COUNT) {
+            throw new AppException("SCRIPT_RUNNER_0006", "too many script arguments");
+        }
+        for (String item : argv) {
+            if (item.length() > MAX_ARGV_ITEM_LENGTH || containsControlChar(item) || item.indexOf('\0') >= 0) {
+                throw new AppException("SCRIPT_RUNNER_0006", "script argument is invalid");
+            }
+        }
+        return argv;
+    }
+
+    private boolean containsControlChar(String value) {
+        return value.chars().anyMatch(ch -> Character.isISOControl(ch) && ch != '\t');
     }
 
     private List<AcademicToolFileRef> fileRefs(List<AcademicToolFileRef> fileRefs) {
@@ -146,7 +231,6 @@ public class AcademicScriptRunnerToolRuntime {
         return value == null ? "" : String.valueOf(value).trim();
     }
 }
-
 
 
 

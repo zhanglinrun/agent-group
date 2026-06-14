@@ -7,6 +7,7 @@ import com.linrun.domain.academic.runtime.agent.AcademicAgentReplanStrategy;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentStepExecutionResult;
 import com.linrun.domain.academic.runtime.agent.AcademicPlanLifecycleService;
 import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,18 +76,23 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
                                                         FailureAnalysis analysis) {
         AcademicAgentPlan originalPlan = request.planSnapshot();
         AcademicPlanStep failedStep = request.failedStep();
+        if (originalPlan == null || failedStep == null || !StringUtils.hasText(failedStep.getStepId())) {
+            return replanFromScratch(request);
+        }
 
         List<AcademicPlanStep> remainingSteps = getRemainingSteps(originalPlan, failedStep);
+        AcademicPlanStep replacementStep;
 
         if ("切换工具".equals(analysis.getSuggestedStrategy())) {
-            AcademicPlanStep adjustedStep = adjustStepForAlternativeTool(failedStep);
-            remainingSteps.add(0, adjustedStep);
+            replacementStep = adjustStepForAlternativeTool(failedStep);
         } else if ("调整步骤".equals(analysis.getSuggestedStrategy())) {
-            AcademicPlanStep simplifiedStep = simplifyStep(failedStep);
-            remainingSteps.add(0, simplifiedStep);
+            replacementStep = simplifyStep(failedStep);
         } else {
-            remainingSteps.add(0, failedStep);
+            replacementStep = failedStep.copy();
         }
+
+        rerouteDependencies(remainingSteps, failedStep.getStepId(), replacementStep.getStepId());
+        remainingSteps.add(0, replacementStep);
 
         return remainingSteps;
     }
@@ -101,9 +107,15 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
 
     private List<AcademicPlanStep> getRemainingSteps(AcademicAgentPlan plan, AcademicPlanStep failedStep) {
         List<AcademicPlanStep> remaining = new ArrayList<>();
+        if (plan == null || failedStep == null || !StringUtils.hasText(failedStep.getStepId())) {
+            return remaining;
+        }
         boolean foundFailed = false;
 
         for (AcademicPlanStep step : plan.getSteps()) {
+            if (step == null || !StringUtils.hasText(step.getStepId())) {
+                continue;
+            }
             if (foundFailed) {
                 remaining.add(step);
             }
@@ -115,12 +127,30 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
         return remaining;
     }
 
+    private void rerouteDependencies(List<AcademicPlanStep> steps, String oldStepId, String newStepId) {
+        if (!StringUtils.hasText(oldStepId)
+                || !StringUtils.hasText(newStepId)
+                || oldStepId.equals(newStepId)) {
+            return;
+        }
+        for (AcademicPlanStep step : steps) {
+            if (step == null) {
+                continue;
+            }
+            List<String> dependencies = step.getDependencies().stream()
+                    .map(dependency -> oldStepId.equals(dependency) ? newStepId : dependency)
+                    .toList();
+            step.setDependencies(dependencies);
+        }
+    }
+
     private AcademicPlanStep adjustStepForAlternativeTool(AcademicPlanStep failedStep) {
         String newInstruction = failedStep.getInstruction() + "（使用替代方法或工具）";
         return AcademicPlanStep.builder(
                 failedStep.getStepId() + "_retry",
                 newInstruction)
                 .order(failedStep.getOrder())
+                .assignedAgent(failedStep.getAssignedAgent())
                 .dependencies(failedStep.getDependencies())
                 .build();
     }
@@ -131,6 +161,7 @@ public class AcademicAgentIntelligentReplanStrategy implements AcademicAgentRepl
                 failedStep.getStepId() + "_simplified",
                 newInstruction)
                 .order(failedStep.getOrder())
+                .assignedAgent(failedStep.getAssignedAgent())
                 .dependencies(failedStep.getDependencies())
                 .build();
     }

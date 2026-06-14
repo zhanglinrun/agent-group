@@ -6,17 +6,14 @@ package com.linrun.domain.trade.service.payment;
 
 
 
-import com.linrun.trigger.support.tool.ToolExecution;
-import com.linrun.trigger.support.tool.ToolExecutor;
-import com.linrun.domain.trade.service.*;
-import com.linrun.domain.trade.service.payment.*;
-import com.linrun.domain.trade.service.task.NotifyTaskService;
-import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.api.dto.CreatePaymentRequest;
 import com.linrun.api.dto.PaymentWebhookRequest;
+import com.linrun.api.dto.QueryPaymentRefundRequest;
+import com.linrun.api.dto.QueryPaymentRefundResponse;
 import com.linrun.api.dto.ReconcilePaymentRequest;
 import com.linrun.api.dto.RefundPaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
+import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
 import com.linrun.api.dto.RefundPaymentResponse;
@@ -28,6 +25,8 @@ import com.linrun.domain.trade.model.payment.PaymentCreateResult;
 import com.linrun.domain.trade.model.payment.PaymentReconcileCommand;
 import com.linrun.domain.trade.model.payment.PaymentReconcileResult;
 import com.linrun.domain.trade.model.payment.PaymentRefundCommand;
+import com.linrun.domain.trade.model.payment.PaymentRefundQueryCommand;
+import com.linrun.domain.trade.model.payment.PaymentRefundQueryResult;
 import com.linrun.domain.trade.model.payment.PaymentRefundResult;
 import com.linrun.domain.trade.model.payment.PaymentWebhookCommand;
 import com.linrun.domain.trade.model.payment.PaymentWebhookResult;
@@ -41,6 +40,7 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
 import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -216,8 +216,121 @@ class PaymentServiceTest {
 
         assertEquals(TradeOrderStatusEnumVO.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatusEnumVO.REFUNDED, fixture.repository.payOrder.getPayStatus());
-        assertNotNull(response.getRefundId());
+        assertEquals("RO10001", response.getRefundId());
+        assertEquals("RO10001", fixture.gateway.refundCommand.getRefundId());
         assertEquals("用户申请退款", fixture.repository.refundOrder.getRefundReason());
+    }
+
+    @Test
+    void shouldRejectRefundBeforeGatewayWhenOrderIsNotRefundable() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_WAIT, PayStatusEnumVO.WAIT_PAY);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        RefundPaymentRequest request = new RefundPaymentRequest();
+        request.setOrderId("O10001");
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.refund(request));
+
+        assertEquals("TRADE_0015", exception.getCode());
+        assertEquals(0, fixture.gateway.refundCallCount);
+        assertEquals(null, fixture.repository.refundOrder);
+    }
+
+    @Test
+    void shouldRejectRefundBeforeGatewayWhenGatewayTradeNoMissing() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        RefundPaymentRequest request = new RefundPaymentRequest();
+        request.setOrderId("O10001");
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.refund(request));
+
+        assertEquals("PAY_0018", exception.getCode());
+        assertEquals(0, fixture.gateway.refundCallCount);
+        assertEquals(null, fixture.repository.refundOrder);
+    }
+
+    @Test
+    void shouldApplySuccessfulRefundQueryToLocalState() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.repository.payOrder.setOutTradeNo("GT10001");
+        fixture.gateway.refundQueryStatus = "SUCCESS";
+        fixture.gateway.refundQueryRefundId = "RO10001";
+        fixture.gateway.refundQueryAmount = new BigDecimal("2399.00");
+        QueryPaymentRefundRequest request = new QueryPaymentRefundRequest();
+        request.setOrderId("O10001");
+
+        QueryPaymentRefundResponse response = fixture.service.queryRefund(request);
+
+        assertTrue(response.isVerified());
+        assertEquals("SUCCESS", response.getRefundStatus());
+        assertEquals(TradeOrderStatusEnumVO.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.REFUNDED, fixture.repository.payOrder.getPayStatus());
+        assertEquals("RO10001", fixture.repository.refundOrder.getRefundId());
+        assertTrue(fixture.flowRepository.flows.stream()
+                .anyMatch(flow -> TradeStatusFlowService.EVENT_REFUND_SUCCESS.equals(flow.getEventType())));
+    }
+
+    @Test
+    void shouldApplySuccessfulRefundWebhookToLocalState() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.repository.payOrder.setOutTradeNo("GT10001");
+        fixture.gateway.refundWebhookStatus = "SUCCESS";
+        fixture.gateway.refundWebhookRefundId = "RO10001";
+        fixture.gateway.refundWebhookAmount = new BigDecimal("2399.00");
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+        request.setPayOrderId("P10001");
+        request.setGatewayTradeNo("GT10001");
+
+        QueryPaymentRefundResponse response = fixture.service.handleRefundWebhook(request);
+
+        assertTrue(response.isVerified());
+        assertEquals("SUCCESS", response.getRefundStatus());
+        assertEquals(TradeOrderStatusEnumVO.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
+        assertEquals(PayStatusEnumVO.REFUNDED, fixture.repository.payOrder.getPayStatus());
+        assertEquals("RO10001", fixture.repository.refundOrder.getRefundId());
+    }
+
+    @Test
+    void shouldRejectDuplicateSuccessWebhookWhenGatewayTradeNoMismatches() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.repository.payOrder.setOutTradeNo("GT10001");
+        fixture.gateway.webhookPayOrderId = "P10001";
+        fixture.gateway.webhookGatewayTradeNo = "GT20001";
+        fixture.gateway.webhookAmount = new BigDecimal("2399.00");
+        fixture.gateway.webhookTradeStatus = "TRADE_SUCCESS";
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+
+        AppException exception = assertThrows(AppException.class, () -> fixture.service.handleWebhook(request));
+
+        assertEquals("PAY_0015", exception.getCode());
+        assertEquals(0, fixture.callbackService.paySuccessCount);
+    }
+
+    @Test
+    void shouldRunSuccessPostProcessingForDuplicateWebhook() {
+        Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
+        fixture.repository.payOrder.setPayChannel("ALIPAY");
+        fixture.repository.payOrder.setOutTradeNo("GT10001");
+        fixture.gateway.webhookPayOrderId = "P10001";
+        fixture.gateway.webhookGatewayTradeNo = "GT10001";
+        fixture.gateway.webhookAmount = new BigDecimal("2399.00");
+        fixture.gateway.webhookTradeStatus = "TRADE_SUCCESS";
+        PaymentWebhookRequest request = new PaymentWebhookRequest();
+        request.setPayChannel("ALIPAY");
+        request.setOrderId("O10001");
+
+        PaymentWebhookResponse response = fixture.service.handleWebhook(request);
+
+        assertTrue(response.isVerified());
+        assertEquals(1, fixture.callbackService.paySuccessCount);
+        assertEquals(0, fixture.repository.updatePaySuccessCount);
     }
 
     @Test
@@ -266,7 +379,7 @@ class PaymentServiceTest {
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         TradeStatusFlowService flowService = new TradeStatusFlowService(flowRepository);
         TradeOrderService tradeOrderService = new TradeOrderService();
-        MockPayCallbackService callbackService = new MockPayCallbackService(
+        CountingMockPayCallbackService callbackService = new CountingMockPayCallbackService(
                 repository,
                 tradeOrderService,
                 new GroupBuySettlementService(null, repository, flowService),
@@ -277,18 +390,40 @@ class PaymentServiceTest {
                         gateway, replayGuard, flowService),
                 repository,
                 flowRepository,
-                gateway);
+                gateway,
+                callbackService);
     }
 
     private record Fixture(PaymentService service,
                            FakeTradeOrderRepository repository,
                            FakeTradeStatusFlowRepository flowRepository,
-                           FakePaymentGatewayClient gateway) {
+                           FakePaymentGatewayClient gateway,
+                           CountingMockPayCallbackService callbackService) {
+    }
+
+    private static class CountingMockPayCallbackService extends MockPayCallbackService {
+
+        private int paySuccessCount;
+
+        private CountingMockPayCallbackService(TradeOrderRepository tradeOrderRepository,
+                                               TradeOrderService tradeOrderService,
+                                               GroupBuySettlementService groupBuySettlementService,
+                                               TradeStatusFlowService tradeStatusFlowService) {
+            super(tradeOrderRepository, tradeOrderService, groupBuySettlementService, tradeStatusFlowService);
+        }
+
+        @Override
+        public MockPayCallbackResponse paySuccess(com.linrun.api.dto.MockPayCallbackRequest request) {
+            paySuccessCount++;
+            return super.paySuccess(request);
+        }
     }
 
     private static class FakePaymentGatewayClient implements PaymentGatewayClient {
 
         private PaymentCreateCommand createCommand;
+        private PaymentRefundCommand refundCommand;
+        private int refundCallCount;
         private String webhookPayOrderId;
         private String webhookGatewayTradeNo;
         private BigDecimal webhookAmount;
@@ -297,6 +432,12 @@ class PaymentServiceTest {
         private String queryGatewayTradeNo;
         private BigDecimal queryAmount;
         private String queryTradeStatus;
+        private String refundQueryStatus;
+        private String refundQueryRefundId;
+        private BigDecimal refundQueryAmount;
+        private String refundWebhookStatus;
+        private String refundWebhookRefundId;
+        private BigDecimal refundWebhookAmount;
 
         @Override
         public PaymentCreateResult createPayment(PaymentCreateCommand command) {
@@ -326,7 +467,9 @@ class PaymentServiceTest {
 
         @Override
         public PaymentRefundResult refund(PaymentRefundCommand command) {
-            return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), "R10001", "refunded");
+            this.refundCommand = command;
+            refundCallCount++;
+            return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), command.getRefundId(), "refunded");
         }
 
         @Override
@@ -353,6 +496,45 @@ class PaymentServiceTest {
                     queryAmount,
                     queryTradeStatus,
                     "query paid");
+        }
+
+        @Override
+        public PaymentRefundQueryResult queryRefund(PaymentRefundQueryCommand command) {
+            return refundQueryResult(
+                    command,
+                    refundQueryStatus,
+                    refundQueryRefundId,
+                    refundQueryAmount,
+                    "refund query");
+        }
+
+        @Override
+        public PaymentRefundQueryResult verifyRefundWebhook(PaymentRefundQueryCommand command) {
+            return refundQueryResult(
+                    command,
+                    refundWebhookStatus,
+                    refundWebhookRefundId,
+                    refundWebhookAmount,
+                    "refund webhook");
+        }
+
+        private PaymentRefundQueryResult refundQueryResult(PaymentRefundQueryCommand command,
+                                                           String refundStatus,
+                                                           String refundId,
+                                                           BigDecimal refundAmount,
+                                                           String message) {
+            return new PaymentRefundQueryResult(
+                    command.payChannel(),
+                    command.orderId(),
+                    command.payOrderId(),
+                    command.gatewayTradeNo(),
+                    refundId == null ? command.refundId() : refundId,
+                    refundStatus == null ? "UNKNOWN" : refundStatus,
+                    refundAmount,
+                    LocalDateTime.of(2026, 5, 14, 10, 0),
+                    refundStatus != null,
+                    "",
+                    message);
         }
     }
 
@@ -476,12 +658,6 @@ class PaymentServiceTest {
         }
     }
 }
-
-
-
-
-
-
 
 
 

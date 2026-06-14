@@ -113,7 +113,7 @@ public class PaymentController {
 
     @PostMapping("/refund/query")
     public Response<QueryPaymentRefundResponse> queryRefund(@RequestBody QueryPaymentRefundRequest request) {
-        return Response.success(paymentService.queryRefund(request), RequestTraceContext.getRequestId());
+        return Response.success(tradeRefundService.queryRefund(request), RequestTraceContext.getRequestId());
     }
 
     @PostMapping(value = "/refund/webhook/{payChannel}", consumes = MediaType.ALL_VALUE)
@@ -125,7 +125,7 @@ public class PaymentController {
         request.setPayChannel(payChannel);
         request.setHeaders(headers);
         request.setRequestBody(StringUtils.hasText(requestBody) ? requestBody : formBody(params));
-        return Response.success(paymentService.handleRefundWebhook(request), RequestTraceContext.getRequestId());
+        return Response.success(tradeRefundService.handleRefundWebhook(request), RequestTraceContext.getRequestId());
     }
 
     @PostMapping("/certificate/refresh")
@@ -158,7 +158,6 @@ public class PaymentController {
         return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 }
-
 
 
 

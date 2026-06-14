@@ -1,6 +1,7 @@
 package com.linrun.domain.academic.runtime.mode;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 根据任务特征自动选择执行模式。
@@ -21,6 +22,15 @@ public class ModeSwitchStrategy {
     }
 
     public AgentExecutionMode selectMode(AgentExecutionMode.ExecutionContext context) {
+        if (context == null) {
+            return registry.getMode("react")
+                    .orElse(registry.selectMode(null));
+        }
+        String explicitMode = explicitMode(context);
+        if (explicitMode != null) {
+            return registry.getMode(explicitMode)
+                    .orElse(registry.selectMode(context));
+        }
         String userQuery = context.getUserQuery();
 
         if (context.hasAttachments()) {
@@ -81,6 +91,28 @@ public class ModeSwitchStrategy {
         return lower.startsWith("/")
                 || lower.contains("执行技能")
                 || lower.contains("运行技能");
+    }
+
+    private String explicitMode(AgentExecutionMode.ExecutionContext context) {
+        Object taskType = context.getMetadata("taskType");
+        if (taskType == null) {
+            taskType = context.getMetadata("explicitMode");
+        }
+        String normalized = normalizeMode(taskType == null ? "" : String.valueOf(taskType));
+        if (normalized.isEmpty() || "chat".equals(normalized)) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private String normalizeMode(String mode) {
+        String normalized = mode == null ? "" : mode.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "deep", "research" -> "plan-execute";
+            case "ppt" -> "flow";
+            case "skill", "skills", "manual-skills", "skill-sop" -> "skill-sop";
+            default -> normalized;
+        };
     }
 
     public ModeSuggestion suggestMode(String userQuery, List<Object> attachments) {

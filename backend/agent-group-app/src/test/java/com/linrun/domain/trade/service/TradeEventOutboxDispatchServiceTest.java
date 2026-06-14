@@ -1,17 +1,5 @@
 package com.linrun.domain.trade.service;
 
-
-
-
-
-
-
-import com.linrun.trigger.support.tool.ToolExecution;
-import com.linrun.trigger.support.tool.ToolExecutor;
-import com.linrun.domain.trade.service.*;
-import com.linrun.domain.trade.service.payment.*;
-import com.linrun.domain.trade.service.task.NotifyTaskService;
-import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.api.dto.TradeEventOutboxDispatchResponse;
 import com.linrun.domain.trade.adapter.repository.TradeEventOutboxRepository;
 import com.linrun.domain.trade.adapter.repository.TradeEventPublisher;
@@ -48,7 +36,7 @@ class TradeEventOutboxDispatchServiceTest {
     @Test
     void shouldRetryThenMoveToDeadLetterAfterMaxFailures() {
         FakeTradeEventOutboxRepository repository = new FakeTradeEventOutboxRepository();
-        TradeEventOutboxEntity outbox = outbox("E10002", 3, TradeEventOutboxEntity.STATUS_INIT);
+        TradeEventOutboxEntity outbox = outbox("E10002", 2, TradeEventOutboxEntity.STATUS_INIT);
         repository.save(outbox);
         FakeTradeEventPublisher publisher = new FakeTradeEventPublisher(true);
         TradeEventOutboxDispatchService service = new TradeEventOutboxDispatchService(repository, publisher);
@@ -56,10 +44,12 @@ class TradeEventOutboxDispatchServiceTest {
         TradeEventOutboxDispatchResponse retryResponse = service.execDispatchJob();
         assertEquals(1, retryResponse.getRetryCount());
         assertEquals(TradeEventOutboxEntity.STATUS_RETRY, outbox.getSendStatus());
+        assertEquals(3, outbox.getSendCount());
 
         TradeEventOutboxDispatchResponse deadLetterResponse = service.execDispatchJob();
         assertEquals(1, deadLetterResponse.getDeadLetterCount());
         assertEquals(TradeEventOutboxEntity.STATUS_DEAD_LETTER, outbox.getSendStatus());
+        assertEquals(4, outbox.getSendCount());
     }
 
     private TradeEventOutboxEntity outbox(String eventId, int sendCount, int sendStatus) {
@@ -158,8 +148,6 @@ class TradeEventOutboxDispatchServiceTest {
         }
     }
 }
-
-
 
 
 

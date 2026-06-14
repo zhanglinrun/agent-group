@@ -6,6 +6,7 @@ public class PaymentRefundCommand {
 
     private String orderId;
     private String payOrderId;
+    private String refundId;
     private String payChannel;
     private String gatewayTradeNo;
     private BigDecimal refundAmount;
@@ -25,6 +26,14 @@ public class PaymentRefundCommand {
 
     public void setPayOrderId(String payOrderId) {
         this.payOrderId = payOrderId;
+    }
+
+    public String getRefundId() {
+        return refundId;
+    }
+
+    public void setRefundId(String refundId) {
+        this.refundId = refundId;
     }
 
     public String getPayChannel() {
@@ -59,7 +68,6 @@ public class PaymentRefundCommand {
         this.refundReason = refundReason;
     }
 }
-
 
 
 

@@ -5,6 +5,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class AgentRouter {
@@ -19,7 +20,7 @@ public class AgentRouter {
             case "deep" -> "深度任务需要资料收集、证据整理和结果输出";
             case "ppt" -> "PPT 任务按需求、资料、大纲和渲染流程推进";
             case "file" -> "文件任务优先读取材料并做引用回答";
-            case "manual-skills", "skills" -> "Skill 任务由技能流程组合多个工具完成";
+            case "manual-skills" -> "Skill 任务由技能流程组合多个工具完成";
             case "image" -> "图像任务沿用图像生成工作区并记录产物";
             default -> webSearchEnabled ? "已开启联网搜索，按搜索增强对话执行" : "普通问题使用轻量对话 Agent";
         };
@@ -28,14 +29,14 @@ public class AgentRouter {
 
     private String normalizeAgentType(String requestedTaskType,
                                       AgentModeSelector.ModeSelectionResult selection) {
-        String requested = requestedTaskType == null ? "" : requestedTaskType.trim();
+        String requested = normalize(requestedTaskType);
         if (StringUtils.hasText(requested) && !"chat".equals(requested)) {
-            return requested;
+            return normalizeSkillAgentType(requested);
         }
         String selected = selection == null ? "" : selection.getAgentType();
-        return switch (selected) {
+        return switch (normalize(selected)) {
             case "search" -> "chat";
-            case "skill" -> "manual-skills";
+            case "skill", "skills", "skill-sop", "manual-skills" -> "manual-skills";
             case "" -> "chat";
             default -> selected;
         };
@@ -48,12 +49,23 @@ public class AgentRouter {
                     : List.of("TaskPlannerAgent", hasFile ? "FileAgent" : "ContextAgent", "ReportAgent");
             case "ppt" -> List.of("RequirementAgent", "OutlineAgent", webSearchEnabled ? "SearchAgent" : "MaterialAgent", "PptRenderAgent");
             case "file" -> List.of("FileAgent", "CitationAgent", "AnswerAgent");
-            case "manual-skills", "skills" -> List.of("SkillSelectorAgent", "ToolExecutionAgent", "ArtifactAgent");
+            case "manual-skills" -> List.of("SkillSelectorAgent", "ToolExecutionAgent", "ArtifactAgent");
             case "image" -> List.of("ImagePromptAgent", "ImageGenerationAgent", "ArtifactAgent");
             default -> webSearchEnabled
                     ? List.of("ChatAgent", "WebSearchAgent", "AnswerAgent")
                     : List.of("ChatAgent", hasFile ? "FileAgent" : "AnswerAgent");
         };
+    }
+
+    private String normalizeSkillAgentType(String agentType) {
+        return switch (agentType) {
+            case "skill", "skills", "skill-sop", "manual-skills" -> "manual-skills";
+            default -> agentType;
+        };
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     public record RoutingResult(String agentType, List<String> selectedAgents, String reason) {

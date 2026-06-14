@@ -95,7 +95,8 @@ public class RabbitTradeEventListener {
     }
 
     private boolean shouldMarkDeadLetter(TradeEventConsumeRecordEntity record) {
-        return record.getConsumeCount() != null && record.getConsumeCount() >= MAX_RETRY_COUNT;
+        int currentConsumeCount = record.getConsumeCount() == null ? 0 : record.getConsumeCount();
+        return currentConsumeCount + 1 >= MAX_RETRY_COUNT;
     }
 
     private String trimError(Exception e) {
@@ -106,7 +107,6 @@ public class RabbitTradeEventListener {
         return message.length() > 512 ? message.substring(0, 512) : message;
     }
 }
-
 
 
 

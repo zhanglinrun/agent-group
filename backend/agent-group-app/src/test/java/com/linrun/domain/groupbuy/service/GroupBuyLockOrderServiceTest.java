@@ -1,17 +1,5 @@
 package com.linrun.domain.groupbuy.service;
 
-
-
-
-
-
-
-import com.linrun.trigger.support.tool.ToolExecution;
-import com.linrun.trigger.support.tool.ToolExecutor;
-import com.linrun.domain.trade.service.*;
-import com.linrun.domain.trade.service.payment.*;
-import com.linrun.domain.trade.service.task.NotifyTaskService;
-import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.api.dto.LockGroupBuyOrderRequest;
 import com.linrun.api.dto.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.dto.RefundGroupBuyOrderRequest;
@@ -52,7 +40,13 @@ import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
+import com.linrun.domain.trade.service.TradeCompensationService;
 import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.domain.trade.service.TradeRefundService;
+import com.linrun.domain.trade.service.TradeStatusFlowService;
+import com.linrun.domain.trade.service.payment.MockPayCallbackService;
+import com.linrun.domain.trade.service.payment.PaymentService;
+import com.linrun.domain.trade.service.payment.PaymentWebhookReplayGuard;
 import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
 import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
 import com.linrun.types.exception.AppException;
@@ -329,7 +323,7 @@ class GroupBuyLockOrderServiceTest {
         callbackService.paySuccess(callback(lockResponse.getOrderId(), "T30002"));
         RefundGroupBuyOrderRequest refundRequest = new RefundGroupBuyOrderRequest();
         refundRequest.setOrderId(lockResponse.getOrderId());
-        refundRequest.setRefundReason("???????");
+        refundRequest.setRefundReason("用户申请拼团退款");
 
         GroupBuyCompensationResponse response = tradeRefundService.refundGroupBuy(refundRequest);
 
@@ -344,7 +338,7 @@ class GroupBuyLockOrderServiceTest {
         assertEquals(PayStatusEnumVO.REFUNDED, tradeOrderRepository.payOrders.get(lockResponse.getOrderId()).getPayStatus());
         assertTrue(flowRepository.flows.stream()
                 .anyMatch(flow -> TradeStatusFlowService.EVENT_REFUND_SUCCESS.equals(flow.getEventType())));
-        assertEquals("???????", tradeOrderRepository.refundOrders.get(lockResponse.getOrderId()).getRefundReason());
+        assertEquals("用户申请拼团退款", tradeOrderRepository.refundOrders.get(lockResponse.getOrderId()).getRefundReason());
     }
 
     @Test
@@ -526,7 +520,7 @@ class GroupBuyLockOrderServiceTest {
                                              GroupBuyTeamStockRepository teamStockRepository,
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository,
-                                             QuotaOrderSnapshotRepository QuotaOrderSnapshotRepository) {
+                                             QuotaOrderSnapshotRepository quotaOrderSnapshotRepository) {
         return new GroupBuyLockOrderService(
                 new FakeQuotaProductRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", END_TIME)),
@@ -536,7 +530,7 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository),
-                QuotaOrderSnapshotRepository);
+                quotaOrderSnapshotRepository);
     }
 
     private LockGroupBuyOrderRequest request(String teamId, String idempotentKey) {
@@ -674,7 +668,7 @@ class GroupBuyLockOrderServiceTest {
         public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
             QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
-            product.setGoodsName("???????");
+            product.setGoodsName("学术研究额度包");
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
             return Optional.of(product);
@@ -764,7 +758,7 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public GroupBuySettlementResult settlePaidOrder(String orderId) {
             GroupBuyOrderLock orderLock = queryLockByOrderId(orderId)
-                    .orElseThrow(() -> new AppException("GROUP_0011", "???????"));
+                    .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
             boolean repeated = GroupBuyLockStatus.PAID.equals(orderLock.getLockStatus());
             if (!repeated) {
                 orderLock.setLockStatus(GroupBuyLockStatus.PAID);
@@ -789,7 +783,7 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public GroupBuySettlementResult releaseLockedOrder(String orderId) {
             GroupBuyOrderLock orderLock = queryLockByOrderId(orderId)
-                    .orElseThrow(() -> new AppException("GROUP_0011", "???????"));
+                    .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
             boolean repeated = GroupBuyLockStatus.RELEASED.equals(orderLock.getLockStatus());
             if (!repeated && GroupBuyLockStatus.LOCKED.equals(orderLock.getLockStatus())) {
                 orderLock.setLockStatus(GroupBuyLockStatus.RELEASED);
@@ -802,7 +796,7 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public GroupBuySettlementResult releasePaidOrder(String orderId) {
             GroupBuyOrderLock orderLock = queryLockByOrderId(orderId)
-                    .orElseThrow(() -> new AppException("GROUP_0011", "???????"));
+                    .orElseThrow(() -> new AppException("GROUP_0011", "拼团锁单不存在"));
             boolean repeated = GroupBuyLockStatus.RELEASED.equals(orderLock.getLockStatus());
             if (!repeated && GroupBuyLockStatus.PAID.equals(orderLock.getLockStatus())) {
                 orderLock.setLockStatus(GroupBuyLockStatus.RELEASED);
@@ -1039,12 +1033,6 @@ class GroupBuyLockOrderServiceTest {
         }
     }
 }
-
-
-
-
-
-
 
 
 

@@ -163,6 +163,30 @@ class UserQuotaServiceTest {
     }
 
     @Test
+    void grantQuotaForOrderIdsReturnsOnlyProcessedGrantableOrders() {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        TradeOrderRepository tradeOrderRepository = mock(TradeOrderRepository.class);
+        UserQuotaService service = serviceWithProduct(
+                quotaRepository,
+                quotaProduct("G1001", new BigDecimal("20.00")),
+                tradeOrderRepository);
+        TradeOrderEntity waitingGroupOrder = order("O_WAIT", TradeBuyTypeEnumVO.GROUP_BUY, TradeOrderStatusEnumVO.PAY_SUCCESS);
+        TradeOrderEntity directPaidOrder = order("O_READY", TradeBuyTypeEnumVO.DIRECT, TradeOrderStatusEnumVO.PAY_SUCCESS);
+        when(tradeOrderRepository.queryTradeOrderByOrderId("O_WAIT")).thenReturn(Optional.of(waitingGroupOrder));
+        when(tradeOrderRepository.queryTradeOrderByOrderId("O_READY")).thenReturn(Optional.of(directPaidOrder));
+        when(tradeOrderRepository.queryTradeOrderByOrderId("O_MISSING")).thenReturn(Optional.empty());
+
+        List<String> processedOrderIds = service.grantQuotaForOrderIds(List.of("O_WAIT", "O_READY", "O_MISSING", " "));
+
+        assertEquals(List.of("O_READY"), processedOrderIds);
+        assertEquals(1, quotaRepository.flows.size());
+        assertEquals("O_READY", quotaRepository.flows.get(0).getBizId());
+        assertEquals(new BigDecimal("20.00"), quotaRepository.balance);
+        assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, waitingGroupOrder.getOrderStatus());
+        assertEquals(TradeOrderStatusEnumVO.DEAL_DONE, directPaidOrder.getOrderStatus());
+    }
+
+    @Test
     void refundRollbackUsesGrantFlowAndIsIdempotent() {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
         UserQuotaService service = serviceWithProduct(quotaRepository, quotaProduct("G1001", new BigDecimal("20.00")));
@@ -219,9 +243,15 @@ class UserQuotaServiceTest {
     }
 
     private static UserQuotaService serviceWithProduct(InMemoryQuotaRepository quotaRepository, QuotaProduct product) {
-        QuotaProductRepository QuotaProductRepository = mock(QuotaProductRepository.class);
-        when(QuotaProductRepository.queryProductByGoodsId(product.getGoodsId())).thenReturn(Optional.of(product));
-        return new UserQuotaService(quotaRepository, QuotaProductRepository, mock(TradeOrderRepository.class));
+        return serviceWithProduct(quotaRepository, product, mock(TradeOrderRepository.class));
+    }
+
+    private static UserQuotaService serviceWithProduct(InMemoryQuotaRepository quotaRepository,
+                                                       QuotaProduct product,
+                                                       TradeOrderRepository tradeOrderRepository) {
+        QuotaProductRepository quotaProductRepository = mock(QuotaProductRepository.class);
+        when(quotaProductRepository.queryProductByGoodsId(product.getGoodsId())).thenReturn(Optional.of(product));
+        return new UserQuotaService(quotaRepository, quotaProductRepository, tradeOrderRepository);
     }
 
     private static QuotaProduct quotaProduct(String goodsId, BigDecimal quotaAmount) {
@@ -369,8 +399,6 @@ class UserQuotaServiceTest {
         }
     }
 }
-
-
 
 
 

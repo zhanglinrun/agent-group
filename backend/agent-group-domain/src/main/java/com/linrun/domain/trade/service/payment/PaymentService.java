@@ -42,6 +42,7 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -224,12 +225,14 @@ public class PaymentService {
         if (existed != null) {
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
         }
+        validateRefundableOrder(tradeOrder, payOrder);
 
+        String refundId = nextRefundId(tradeOrder.getOrderId());
         PaymentRefundResult gatewayResult = paymentGatewayClient.refund(
-                toRefundCommand(tradeOrder, payOrder, request, systemRequest));
+                toRefundCommand(tradeOrder, payOrder, request, systemRequest, refundId));
         LocalDateTime refundTime = LocalDateTime.now();
         RefundOrderEntity refundOrder = RefundOrderEntity.success(
-                gatewayResult.getRefundId(),
+                StringUtils.hasText(gatewayResult.getRefundId()) ? gatewayResult.getRefundId() : refundId,
                 tradeOrder,
                 payOrder,
                 resolveRefundReason(request, systemRequest),
@@ -274,12 +277,16 @@ public class PaymentService {
         return toBillDownloadResponse(result);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public QueryPaymentRefundResponse queryRefund(QueryPaymentRefundRequest request) {
         PaymentRefundQueryCommand command = toRefundQueryCommand(request);
         rejectMockPayChannel(command.payChannel());
-        return toRefundQueryResponse(paymentGatewayClient.queryRefund(command));
+        PaymentRefundQueryResult result = paymentGatewayClient.queryRefund(command);
+        applyRefundResultIfSuccess(result);
+        return toRefundQueryResponse(result);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public QueryPaymentRefundResponse handleRefundWebhook(PaymentWebhookRequest request) {
         if (request == null || !StringUtils.hasText(request.getPayChannel())) {
             throw new AppException("0001", "支付渠道不能为空");
@@ -293,7 +300,9 @@ public class PaymentService {
                 null,
                 request.getRequestBody(),
                 request.getHeaders());
-        return toRefundQueryResponse(paymentGatewayClient.verifyRefundWebhook(command));
+        PaymentRefundQueryResult result = paymentGatewayClient.verifyRefundWebhook(command);
+        applyRefundResultIfSuccess(result);
+        return toRefundQueryResponse(result);
     }
 
     public RefreshPaymentCertificateResponse refreshCertificate(RefreshPaymentCertificateRequest request) {
@@ -331,7 +340,7 @@ public class PaymentService {
     public PaymentWebhookResponse queryGatewayAndCompleteIfPaid(String orderId) {
         long startNanos = System.nanoTime();
         if (!StringUtils.hasText(orderId)) {
-            throw new AppException("0001", "璁㈠崟缂栧彿涓嶈兘涓虹┖");
+            throw new AppException("0001", "订单编号不能为空");
         }
         TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
         PayOrderEntity payOrder = queryPayOrder(orderId);
@@ -346,7 +355,7 @@ public class PaymentService {
                     payOrder.getPayAmount(),
                     successTradeStatus(payChannel),
                     "local payment already success");
-            return toWebhookResponse(result, existingCallbackResponse(tradeOrder, payOrder));
+            return queryExistingWebhookResponse(result);
         }
         if (!PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
             return null;
@@ -473,6 +482,13 @@ public class PaymentService {
                 && !StringUtils.hasText(webhookResult.getGatewayTradeNo())) {
             throw new AppException("PAY_0013", "payment webhook missing gateway trade no");
         }
+        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
+                && PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())
+                && StringUtils.hasText(payOrder.getOutTradeNo())
+                && StringUtils.hasText(webhookResult.getGatewayTradeNo())
+                && !payOrder.getOutTradeNo().equals(webhookResult.getGatewayTradeNo())) {
+            throw new AppException("PAY_0015", "payment webhook gateway trade no mismatch");
+        }
         if (webhookResult.getPayAmount() != null
                 && normalize(webhookResult.getPayAmount()).compareTo(normalize(payOrder.getPayAmount())) != 0) {
             throw new AppException("PAY_0012", "payment webhook amount mismatch");
@@ -493,7 +509,11 @@ public class PaymentService {
         if (!PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
             return null;
         }
-        return toWebhookResponse(webhookResult, existingCallbackResponse(tradeOrder, payOrder));
+        MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
+        callbackRequest.setOrderId(webhookResult.getOrderId());
+        callbackRequest.setOutTradeNo(resolveGatewayTradeNo(webhookResult));
+        callbackRequest.setPayTime(webhookResult.getPayTime() == null ? LocalDateTime.now() : webhookResult.getPayTime());
+        return toWebhookResponse(webhookResult, mockPayCallbackService.paySuccess(callbackRequest));
     }
 
     private MockPayCallbackResponse existingCallbackResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
@@ -520,11 +540,111 @@ public class PaymentService {
         return true;
     }
 
+    private void validateRefundableOrder(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        TradeOrderStatusEnumVO orderStatus = tradeOrder.getOrderStatus();
+        if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
+            throw new AppException("TRADE_0015", "当前订单状态不能退款");
+        }
+        if (!PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
+            throw new AppException("TRADE_0016", "当前支付单状态不能退款");
+        }
+        if (!StringUtils.hasText(payOrder.getOutTradeNo())) {
+            throw new AppException("PAY_0018", "退款缺少网关交易号");
+        }
+    }
+
+    private String nextRefundId(String orderId) {
+        String normalized = orderId == null ? "" : orderId.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
+        if (StringUtils.hasText(normalized)) {
+            return "R" + normalized;
+        }
+        return "R" + LocalDateTime.now().format(ORDER_TIME_FORMATTER)
+                + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
+    private void applyRefundResultIfSuccess(PaymentRefundQueryResult result) {
+        if (result == null) {
+            throw new AppException("PAY_0018", "退款查询结果为空");
+        }
+        if (!result.verified() || !isRefundSuccessStatus(result.refundStatus())) {
+            return;
+        }
+        if (!StringUtils.hasText(result.orderId())) {
+            throw new AppException("PAY_0020", "退款结果缺少订单编号");
+        }
+        TradeOrderEntity tradeOrder = queryTradeOrder(result.orderId());
+        PayOrderEntity payOrder = queryPayOrder(result.orderId());
+        validateRefundResultConsistency(result, tradeOrder, payOrder);
+        RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
+        if (isLocalRefunded(tradeOrder, payOrder)) {
+            return;
+        }
+        if (existed == null) {
+            validateRefundableOrder(tradeOrder, payOrder);
+            existed = RefundOrderEntity.success(
+                    StringUtils.hasText(result.refundId()) ? result.refundId() : nextRefundId(tradeOrder.getOrderId()),
+                    tradeOrder,
+                    payOrder,
+                    "网关退款结果确认",
+                    result.refundTime() == null ? LocalDateTime.now() : result.refundTime());
+            tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
+            tradeOrderRepository.saveRefundOrder(existed);
+            tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
+            recordRefundFlow(tradeOrder, payOrder, existed);
+            return;
+        }
+        validateRefundableOrder(tradeOrder, payOrder);
+        tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
+        tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
+        recordRefundFlow(tradeOrder, payOrder, existed);
+    }
+
+    private void validateRefundResultConsistency(PaymentRefundQueryResult result,
+                                                 TradeOrderEntity tradeOrder,
+                                                 PayOrderEntity payOrder) {
+        if (StringUtils.hasText(result.payChannel())
+                && !PaymentChannel.parse(payOrder.getPayChannel()).equals(PaymentChannel.parse(result.payChannel()))) {
+            throw new AppException("PAY_0020", "退款结果支付渠道不匹配");
+        }
+        if (StringUtils.hasText(result.payOrderId()) && !result.payOrderId().equals(payOrder.getPayOrderId())) {
+            throw new AppException("PAY_0020", "退款结果支付单号不匹配");
+        }
+        if (StringUtils.hasText(result.gatewayTradeNo())
+                && StringUtils.hasText(payOrder.getOutTradeNo())
+                && !result.gatewayTradeNo().equals(payOrder.getOutTradeNo())) {
+            throw new AppException("PAY_0020", "退款结果网关交易号不匹配");
+        }
+        if (result.refundAmount() != null
+                && result.refundAmount().compareTo(BigDecimal.ZERO) > 0
+                && normalize(result.refundAmount()).compareTo(normalize(payOrder.getPayAmount())) != 0) {
+            throw new AppException("PAY_0020", "退款金额和支付金额不匹配");
+        }
+    }
+
+    private boolean isLocalRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        return TradeOrderStatusEnumVO.REFUNDED.equals(tradeOrder.getOrderStatus())
+                && PayStatusEnumVO.REFUNDED.equals(payOrder.getPayStatus());
+    }
+
+    private boolean isRefundSuccessStatus(String refundStatus) {
+        if (!StringUtils.hasText(refundStatus)) {
+            return false;
+        }
+        String normalized = refundStatus.trim().toUpperCase(Locale.ROOT);
+        return "SUCCESS".equals(normalized)
+                || "REFUND_SUCCESS".equals(normalized)
+                || "REFUNDED".equals(normalized);
+    }
+
     private PaymentRefundCommand toRefundCommand(TradeOrderEntity tradeOrder, PayOrderEntity payOrder,
-                                                 RefundPaymentRequest request, boolean systemRequest) {
+                                                 RefundPaymentRequest request, boolean systemRequest,
+                                                 String refundId) {
         PaymentRefundCommand command = new PaymentRefundCommand();
         command.setOrderId(tradeOrder.getOrderId());
         command.setPayOrderId(payOrder.getPayOrderId());
+        command.setRefundId(refundId);
         command.setPayChannel(payOrder.getPayChannel());
         command.setGatewayTradeNo(payOrder.getOutTradeNo());
         command.setRefundAmount(payOrder.getPayAmount());
@@ -846,10 +966,6 @@ public class PaymentService {
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }
-
-
-
-
 
 
 

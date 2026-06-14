@@ -1,6 +1,6 @@
 package com.linrun.trigger.agent.service;
 
-import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.*;
 
 /**
- * Agent任务管理??
+ * Agent 任务管理器。
  * 用于管理流式输出的停止和中断
  */
 @Slf4j
@@ -37,23 +37,23 @@ public class AgentTaskManager implements InitializingBean, DisposableBean {
     private final String instanceId;
 
     /**
-     * Redisson 客户??
+     * Redisson 客户端。
      */
     private final RedissonClient redissonClient;
 
     /**
-     * 停止消息的发布订阅主??
+     * 停止消息的发布订阅主题。
      */
     private final RTopic stopTopic;
 
     /**
-     * 本地任务映射（conversationId -> TaskInfo??
-     * 仅包含当前实例上运行的任??
+     * 本地任务映射（conversationId -> TaskInfo）。
+     * 仅包含当前实例上运行的任务。
      */
     private final Map<String, TaskInfo> taskMap = new ConcurrentHashMap<>();
 
     /**
-     * TTL 刷新定时??
+     * TTL 刷新定时器。
      */
     private final ScheduledExecutorService ttlRefreshScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "agent-ttl-refresh");
@@ -62,7 +62,7 @@ public class AgentTaskManager implements InitializingBean, DisposableBean {
     });
 
     /**
-     * 发布订阅监听器ID（用于销毁时移除??
+     * 发布订阅监听器 ID，用于销毁时移除。
      */
     private int listenerId;
 
@@ -353,7 +353,6 @@ public class AgentTaskManager implements InitializingBean, DisposableBean {
         return JSON.toJSONString(obj);
     }
 }
-
 
 
 

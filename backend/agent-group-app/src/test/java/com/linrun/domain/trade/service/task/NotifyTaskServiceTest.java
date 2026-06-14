@@ -1,17 +1,5 @@
 package com.linrun.domain.trade.service.task;
 
-
-
-
-
-
-
-import com.linrun.trigger.support.tool.ToolExecution;
-import com.linrun.trigger.support.tool.ToolExecutor;
-import com.linrun.domain.trade.service.*;
-import com.linrun.domain.trade.service.payment.*;
-import com.linrun.domain.trade.service.task.NotifyTaskService;
-import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
 import com.linrun.api.dto.NotifyTaskExecuteResponse;
@@ -92,7 +80,7 @@ class NotifyTaskServiceTest {
         task.setNotifyCategory(NotifyTask.CATEGORY_TRADE_SETTLEMENT);
         task.setNotifyType(NotifyTask.TYPE_MQ);
         task.setNotifyMq("agent.group.notify.group-settlement");
-        task.setNotifyCount(4);
+        task.setNotifyCount(3);
         task.setNotifyStatus(NotifyTask.STATUS_RETRY);
         task.setParameterJson("{}");
         task.setUuid("T10003_trade_settlement");
@@ -109,6 +97,7 @@ class NotifyTaskServiceTest {
 
         assertEquals(1, response.getErrorCount());
         assertEquals(NotifyTask.STATUS_ERROR, task.getNotifyStatus());
+        assertEquals(4, task.getNotifyCount());
     }
 
     @Test
@@ -211,6 +200,7 @@ class NotifyTaskServiceTest {
             if (notifyTask.getNotifyStatus() != NotifyTask.STATUS_PROCESSING) {
                 return 0;
             }
+            notifyTask.setNotifyCount(notifyTask.getNotifyCount() + 1);
             notifyTask.setNotifyStatus(NotifyTask.STATUS_SUCCESS);
             return 1;
         }
@@ -220,6 +210,7 @@ class NotifyTaskServiceTest {
             if (notifyTask.getNotifyStatus() != NotifyTask.STATUS_PROCESSING) {
                 return 0;
             }
+            notifyTask.setNotifyCount(notifyTask.getNotifyCount() + 1);
             notifyTask.setNotifyStatus(NotifyTask.STATUS_RETRY);
             return 1;
         }
@@ -229,6 +220,7 @@ class NotifyTaskServiceTest {
             if (notifyTask.getNotifyStatus() != NotifyTask.STATUS_PROCESSING) {
                 return 0;
             }
+            notifyTask.setNotifyCount(notifyTask.getNotifyCount() + 1);
             notifyTask.setNotifyStatus(NotifyTask.STATUS_ERROR);
             return 1;
         }
@@ -259,8 +251,6 @@ class NotifyTaskServiceTest {
         }
     }
 }
-
-
 
 
 

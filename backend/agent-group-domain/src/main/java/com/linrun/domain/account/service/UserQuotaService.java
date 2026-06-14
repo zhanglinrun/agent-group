@@ -62,7 +62,7 @@ public class UserQuotaService {
     private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
     private final UserQuotaRepository userQuotaRepository;
-    private final QuotaProductRepository QuotaProductRepository;
+    private final QuotaProductRepository quotaProductRepository;
     private final TradeOrderRepository tradeOrderRepository;
     private final DynamicConfigService dynamicConfigService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -71,18 +71,18 @@ public class UserQuotaService {
     private String modelConfigCryptoSecret = "";
 
     public UserQuotaService(UserQuotaRepository userQuotaRepository,
-                            QuotaProductRepository QuotaProductRepository,
+                            QuotaProductRepository quotaProductRepository,
                             TradeOrderRepository tradeOrderRepository) {
-        this(userQuotaRepository, QuotaProductRepository, tradeOrderRepository, null);
+        this(userQuotaRepository, quotaProductRepository, tradeOrderRepository, null);
     }
 
     @Autowired
     public UserQuotaService(UserQuotaRepository userQuotaRepository,
-                            QuotaProductRepository QuotaProductRepository,
+                            QuotaProductRepository quotaProductRepository,
                             TradeOrderRepository tradeOrderRepository,
                             DynamicConfigService dynamicConfigService) {
         this.userQuotaRepository = userQuotaRepository;
-        this.QuotaProductRepository = QuotaProductRepository;
+        this.quotaProductRepository = quotaProductRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.dynamicConfigService = dynamicConfigService;
     }
@@ -352,24 +352,27 @@ public class UserQuotaService {
 
     @Transactional(rollbackFor = Exception.class)
     public void grantQuotaForPaidOrder(TradeOrderEntity tradeOrder) {
+        grantQuotaForPaidOrderInternal(tradeOrder);
+    }
+
+    private boolean grantQuotaForPaidOrderInternal(TradeOrderEntity tradeOrder) {
         if (tradeOrder == null || !StringUtils.hasText(tradeOrder.getUserId()) || !StringUtils.hasText(tradeOrder.getOrderId())) {
-            return;
+            return false;
         }
         if (!isQuotaGrantable(tradeOrder)) {
-            return;
+            return false;
         }
         if (userQuotaRepository.queryFlow(tradeOrder.getUserId(), FLOW_ORDER_GRANT, tradeOrder.getOrderId()).isPresent()) {
             markDealDoneIfNeeded(tradeOrder);
-            return;
+            return true;
         }
         QuotaProduct product = resolveOrderProduct(tradeOrder);
         if (isMembershipPlan(product)) {
-            grantMembershipForPaidOrder(tradeOrder, product);
-            return;
+            return grantMembershipForPaidOrder(tradeOrder, product);
         }
         BigDecimal quotaAmount = resolveOrderQuota(tradeOrder, product);
         if (quotaAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
+            return false;
         }
         userQuotaRepository.createAccountIfAbsent(tradeOrder.getUserId());
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
@@ -384,13 +387,17 @@ public class UserQuotaService {
                 grantRemark(tradeOrder, quotaAmount)));
         if (!recorded) {
             markDealDoneIfNeeded(tradeOrder);
-            return;
+            return true;
         }
-        userQuotaRepository.increaseQuota(tradeOrder.getUserId(), quotaAmount);
+        int affected = userQuotaRepository.increaseQuota(tradeOrder.getUserId(), quotaAmount);
+        if (affected <= 0) {
+            throw new AppException("QUOTA_0002", "额度发放失败，请稍后重试");
+        }
         markDealDoneIfNeeded(tradeOrder);
+        return true;
     }
 
-    private void grantMembershipForPaidOrder(TradeOrderEntity tradeOrder, QuotaProduct product) {
+    private boolean grantMembershipForPaidOrder(TradeOrderEntity tradeOrder, QuotaProduct product) {
         userQuotaRepository.createAccountIfAbsent(tradeOrder.getUserId());
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
         UserMembershipAccount membership = buildMembership(tradeOrder.getUserId(), product);
@@ -404,10 +411,11 @@ public class UserQuotaService {
                 membershipGrantRemark(tradeOrder, membership)));
         if (!recorded) {
             markDealDoneIfNeeded(tradeOrder);
-            return;
+            return true;
         }
         userQuotaRepository.upsertMembership(membership);
         markDealDoneIfNeeded(tradeOrder);
+        return true;
     }
 
     /**
@@ -433,10 +441,7 @@ public class UserQuotaService {
                 .filter(StringUtils::hasText)
                 .map(String::trim)
                 .filter(orderId -> tradeOrderRepository.queryTradeOrderByOrderId(orderId)
-                        .map(order -> {
-                            grantQuotaForPaidOrder(order);
-                            return true;
-                        })
+                        .map(this::grantQuotaForPaidOrderInternal)
                         .orElse(false))
                 .toList();
         return processedOrderIds;
@@ -464,16 +469,22 @@ public class UserQuotaService {
             return;
         }
         UserQuotaAccount before = queryAccount(tradeOrder.getUserId());
-        userQuotaRepository.decreaseQuotaAllowNegative(tradeOrder.getUserId(), grantFlow.getQuotaAmount());
-        UserQuotaAccount after = queryAccount(tradeOrder.getUserId());
-        userQuotaRepository.saveFlow(flow(
+        BigDecimal afterBalance = before.getQuotaBalance().subtract(grantFlow.getQuotaAmount());
+        boolean recorded = recordRollbackFlowOnce(flow(
                 tradeOrder.getUserId(),
                 FLOW_REFUND_ROLLBACK,
                 tradeOrder.getOrderId(),
                 grantFlow.getQuotaAmount().negate(),
                 before.getQuotaBalance(),
-                after.getQuotaBalance(),
+                afterBalance,
                 "订单退款回滚额度"));
+        if (!recorded) {
+            return;
+        }
+        int affected = userQuotaRepository.decreaseQuotaAllowNegative(tradeOrder.getUserId(), grantFlow.getQuotaAmount());
+        if (affected <= 0) {
+            throw new AppException("QUOTA_0003", "退款回滚额度失败，请稍后重试");
+        }
     }
 
     /**
@@ -482,6 +493,18 @@ public class UserQuotaService {
      */
     private void rollbackMembershipForRefundedOrder(TradeOrderEntity tradeOrder, QuotaProduct product) {
         UserMembershipAccount membership = userQuotaRepository.queryMembership(tradeOrder.getUserId()).orElse(null);
+        UserQuotaAccount account = queryAccount(tradeOrder.getUserId());
+        boolean recorded = recordRollbackFlowOnce(flow(
+                tradeOrder.getUserId(),
+                FLOW_REFUND_ROLLBACK,
+                tradeOrder.getOrderId(),
+                BigDecimal.ZERO,
+                account.getQuotaBalance(),
+                account.getQuotaBalance(),
+                "订单退款撤销会员：" + firstText(membership == null ? "" : membership.getPlanName(), "会员套餐")));
+        if (!recorded) {
+            return;
+        }
         if (membership != null
                 && product.getGoodsId().equals(membership.getPlanCode())
                 && membership.getCycleEndTime() != null) {
@@ -491,15 +514,15 @@ public class UserQuotaService {
             }
             userQuotaRepository.upsertMembership(membership);
         }
-        UserQuotaAccount account = queryAccount(tradeOrder.getUserId());
-        userQuotaRepository.saveFlow(flow(
-                tradeOrder.getUserId(),
-                FLOW_REFUND_ROLLBACK,
-                tradeOrder.getOrderId(),
-                BigDecimal.ZERO,
-                account.getQuotaBalance(),
-                account.getQuotaBalance(),
-                "订单退款撤销会员：" + firstText(membership == null ? "" : membership.getPlanName(), "会员套餐")));
+    }
+
+    private boolean recordRollbackFlowOnce(UserQuotaFlow rollbackFlow) {
+        try {
+            userQuotaRepository.saveFlow(rollbackFlow);
+            return true;
+        } catch (DuplicateKeyException e) {
+            return false;
+        }
     }
 
     private BigDecimal debitMembership(String userId, BigDecimal quotaCost, UserMembershipAccount membership) {
@@ -589,7 +612,7 @@ public class UserQuotaService {
         if (tradeOrder == null || !StringUtils.hasText(tradeOrder.getGoodsId())) {
             return null;
         }
-        return QuotaProductRepository.queryProductByGoodsId(tradeOrder.getGoodsId()).orElse(null);
+        return quotaProductRepository.queryProductByGoodsId(tradeOrder.getGoodsId()).orElse(null);
     }
 
     private BigDecimal resolveOrderQuota(TradeOrderEntity tradeOrder) {
@@ -904,9 +927,6 @@ public class UserQuotaService {
                                  BigDecimal customModelServiceRate) {
     }
 }
-
-
-
 
 
 

@@ -37,14 +37,23 @@ public class UnifiedAgentOrchestrator {
     private AgentModeSelector.ModeSelectionContext selectionContext(String requestedTaskType,
                                                                     String fileIds,
                                                                     AcademicAgentStreamRequest request) {
-        if (StringUtils.hasText(fileIds)) {
-            String imageUrl = request == null ? "" : request.getImageUrl();
-            return AgentModeSelector.ModeSelectionContext.withAttachment(StringUtils.hasText(imageUrl) ? "image" : "file");
+        boolean hasFile = StringUtils.hasText(fileIds);
+        String imageUrl = request == null ? "" : request.getImageUrl();
+        String attachmentType = hasFile ? (StringUtils.hasText(imageUrl) ? "image" : "file") : "";
+        if (isExplicitTaskType(requestedTaskType)) {
+            return new AgentModeSelector.ModeSelectionContext(hasFile, attachmentType, true, requestedTaskType);
         }
-        if (StringUtils.hasText(requestedTaskType)) {
-            return AgentModeSelector.ModeSelectionContext.simple(requestedTaskType);
+        if (hasFile) {
+            return AgentModeSelector.ModeSelectionContext.withAttachment(attachmentType);
         }
         return AgentModeSelector.ModeSelectionContext.empty();
+    }
+
+    private boolean isExplicitTaskType(String requestedTaskType) {
+        if (!StringUtils.hasText(requestedTaskType)) {
+            return false;
+        }
+        return !"chat".equalsIgnoreCase(requestedTaskType.trim());
     }
 
     public record OrchestrationPlan(AgentModeSelector.ModeSelectionResult modeSelection,

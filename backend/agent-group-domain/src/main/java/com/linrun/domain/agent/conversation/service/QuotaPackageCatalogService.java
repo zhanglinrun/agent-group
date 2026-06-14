@@ -17,19 +17,19 @@ public class QuotaPackageCatalogService {
     private static final String QUOTA_PACKAGE = "QUOTA_PACKAGE";
     private static final String MEMBERSHIP_PLAN = "MEMBERSHIP_PLAN";
 
-    private final QuotaProductRepository QuotaProductRepository;
+    private final QuotaProductRepository quotaProductRepository;
     private final GroupBuyActivityService groupBuyActivityService;
 
-    public QuotaPackageCatalogService(QuotaProductRepository QuotaProductRepository,
+    public QuotaPackageCatalogService(QuotaProductRepository quotaProductRepository,
                                       GroupBuyActivityService groupBuyActivityService) {
-        this.QuotaProductRepository = QuotaProductRepository;
+        this.quotaProductRepository = quotaProductRepository;
         this.groupBuyActivityService = groupBuyActivityService;
     }
 
     public List<QuotaProduct> listPackages(String keyword, int limit) {
         int safeLimit = limit <= 0 ? 20 : Math.min(limit, 50);
         String query = StringUtils.hasText(keyword) ? keyword : "";
-        return QuotaProductRepository.queryCandidateProducts(query, safeLimit).stream()
+        return quotaProductRepository.queryCandidateProducts(query, safeLimit).stream()
                 .filter(this::isUpgradeProduct)
                 .map(this::enrichGroupBuy)
                 .toList();
@@ -39,7 +39,7 @@ public class QuotaPackageCatalogService {
         if (!StringUtils.hasText(goodsId)) {
             throw new AppException("0001", "额度包编号不能为空");
         }
-        QuotaProduct product = QuotaProductRepository.queryProductByGoodsId(goodsId)
+        QuotaProduct product = quotaProductRepository.queryProductByGoodsId(goodsId)
                 .filter(this::isUpgradeProduct)
                 .orElseThrow(() -> new AppException("DATA_0003", "套餐不存在或已下架"));
         return enrichGroupBuy(product);
@@ -77,7 +77,6 @@ public class QuotaPackageCatalogService {
         return product;
     }
 }
-
 
 
 

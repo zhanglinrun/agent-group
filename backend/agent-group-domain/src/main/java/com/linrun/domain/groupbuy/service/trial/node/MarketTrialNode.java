@@ -32,7 +32,7 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     private final GroupBuyActivityRepository groupBuyActivityRepository;
     private final GroupBuyMarketRepository groupBuyMarketRepository;
-    private final QuotaProductRepository QuotaProductRepository;
+    private final QuotaProductRepository quotaProductRepository;
     private final GroupBuyStockRepository groupBuyStockRepository;
     private final Executor executor;
     private final Map<String, DiscountCalculateService> discountCalculateServiceMap;
@@ -40,24 +40,24 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     public MarketTrialNode(GroupBuyActivityRepository groupBuyActivityRepository,
                            GroupBuyMarketRepository groupBuyMarketRepository,
-                           QuotaProductRepository QuotaProductRepository,
+                           QuotaProductRepository quotaProductRepository,
                            GroupBuyStockRepository groupBuyStockRepository,
                            Map<String, DiscountCalculateService> discountCalculateServiceMap,
                            StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next) {
-        this(groupBuyActivityRepository, groupBuyMarketRepository, QuotaProductRepository, groupBuyStockRepository,
+        this(groupBuyActivityRepository, groupBuyMarketRepository, quotaProductRepository, groupBuyStockRepository,
                 ForkJoinPool.commonPool(), discountCalculateServiceMap, next);
     }
 
     public MarketTrialNode(GroupBuyActivityRepository groupBuyActivityRepository,
                            GroupBuyMarketRepository groupBuyMarketRepository,
-                           QuotaProductRepository QuotaProductRepository,
+                           QuotaProductRepository quotaProductRepository,
                            GroupBuyStockRepository groupBuyStockRepository,
                            Executor executor,
                            Map<String, DiscountCalculateService> discountCalculateServiceMap,
                            StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next) {
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyMarketRepository = groupBuyMarketRepository;
-        this.QuotaProductRepository = QuotaProductRepository;
+        this.quotaProductRepository = quotaProductRepository;
         this.groupBuyStockRepository = groupBuyStockRepository == null ? GroupBuyStockRepository.noop() : groupBuyStockRepository;
         this.executor = executor == null ? ForkJoinPool.commonPool() : executor;
         this.discountCalculateServiceMap = discountCalculateServiceMap;
@@ -111,7 +111,7 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     private GroupBuyMarketSku resolveSku(String goodsId) {
         return groupBuyMarketRepository.querySkuByGoodsId(goodsId)
-                .or(() -> QuotaProductRepository.queryProductByGoodsId(goodsId).map(this::toSku))
+                .or(() -> quotaProductRepository.queryProductByGoodsId(goodsId).map(this::toSku))
                 .orElseThrow(() -> new AppException("DATA_0003", "额度包不存在或已下架"));
     }
 
@@ -202,7 +202,6 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
         return Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
     }
 }
-
 
 
 

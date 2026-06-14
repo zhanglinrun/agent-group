@@ -395,7 +395,7 @@ public class AcademicExecutionLedgerService {
                 dto.setAgentType("ppt");
                 dto.setReason("PPT 生成使用固定流程编排");
             }
-            case "skills", "manual-skills" -> {
+            case "skill", "skills", "manual-skills", "skill-sop" -> {
                 dto.setExecutionMode("Skill-SOP");
                 dto.setModeFamily("skill-sop");
                 dto.setAgentType("skill");
@@ -516,14 +516,42 @@ public class AcademicExecutionLedgerService {
     }
 
     private int estimateReplanCount(List<AcademicToolInvocation> toolInvocations) {
-        List<AcademicToolInvocation> tools = safeList(toolInvocations);
-        int count = 0;
-        for (int index = 0; index < tools.size(); index++) {
-            if (isFailedTool(tools.get(index)) && hasLaterSuccessTool(tools, index)) {
-                count++;
-            }
+        return (int) safeList(toolInvocations).stream()
+                .filter(this::isReplanEvent)
+                .count();
+    }
+
+    private boolean isReplanEvent(AcademicToolInvocation invocation) {
+        if (invocation == null) {
+            return false;
         }
-        return count;
+        String toolName = safe(invocation.getToolName()).toLowerCase();
+        if (isReplanMarker(toolName)) {
+            return true;
+        }
+        Map<String, Object> result = parseJsonObject(invocation.getResultJson());
+        Map<String, Object> metadata = parseNestedObject(result.get("metadata"));
+        String marker = firstObjectText(
+                result.get("type"),
+                result.get("eventType"),
+                result.get("event"),
+                result.get("status"),
+                metadata.get("type"),
+                metadata.get("eventType"),
+                metadata.get("event"),
+                metadata.get("status"));
+        return isReplanMarker(marker)
+                || booleanValue(result.get("replanned"))
+                || booleanValue(metadata.get("replanned"));
+    }
+
+    private boolean isReplanMarker(String marker) {
+        String normalized = safe(marker).trim().toLowerCase();
+        return "replan".equals(normalized)
+                || "replanned".equals(normalized)
+                || "agent_replan".equals(normalized)
+                || "plan_replan".equals(normalized)
+                || "type_replanned".equals(normalized);
     }
 
     private boolean hasLaterSuccessTool(List<AcademicToolInvocation> tools, int currentIndex) {
@@ -536,18 +564,24 @@ public class AcademicExecutionLedgerService {
     }
 
     private double quotaConsumed(List<AcademicToolInvocation> toolInvocations) {
+        double total = 0.0d;
         for (AcademicToolInvocation invocation : safeList(toolInvocations)) {
             if (AcademicToolOutputNames.QUOTA_USAGE.equals(safe(invocation.getToolName()))) {
                 Map<String, Object> result = parseJsonObject(invocation.getResultJson());
                 Map<String, Object> metadata = parseNestedObject(result.get("metadata"));
-                Object value = metadata.get("estimatedConsumedQuota");
-                double parsed = doubleValue(value);
+                double parsed = firstPositiveDouble(
+                        metadata.get("estimatedConsumedQuota"),
+                        metadata.get("consumedQuota"),
+                        metadata.get("quotaConsumed"),
+                        result.get("estimatedConsumedQuota"),
+                        result.get("consumedQuota"),
+                        result.get("quotaConsumed"));
                 if (parsed > 0) {
-                    return parsed;
+                    total += parsed;
                 }
             }
         }
-        return 0.0d;
+        return total;
     }
 
     private AcademicRunDetailResponse.Run run(AcademicAgentRun run) {
@@ -975,6 +1009,23 @@ public class AcademicExecutionLedgerService {
         }
     }
 
+    private double firstPositiveDouble(Object... values) {
+        for (Object value : values) {
+            double parsed = doubleValue(value);
+            if (parsed > 0) {
+                return parsed;
+            }
+        }
+        return 0.0d;
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return "true".equalsIgnoreCase(text(value));
+    }
+
     private boolean hasSearchTool(List<AcademicToolInvocation> toolInvocations) {
         for (AcademicToolInvocation invocation : safeList(toolInvocations)) {
             String toolName = safe(invocation.getToolName()).toLowerCase();
@@ -1028,8 +1079,6 @@ public class AcademicExecutionLedgerService {
         return value == null ? "" : value;
     }
 }
-
-
 
 
 

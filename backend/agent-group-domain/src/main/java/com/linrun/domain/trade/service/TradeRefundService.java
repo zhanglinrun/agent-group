@@ -2,6 +2,9 @@ package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.RefundGroupBuyOrderRequest;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
+import com.linrun.api.dto.PaymentWebhookRequest;
+import com.linrun.api.dto.QueryPaymentRefundRequest;
+import com.linrun.api.dto.QueryPaymentRefundResponse;
 import com.linrun.api.dto.RefundPaymentRequest;
 import com.linrun.api.dto.RefundPaymentResponse;
 import com.linrun.domain.account.service.UserQuotaService;
@@ -17,6 +20,7 @@ import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class TradeRefundService {
@@ -77,6 +81,20 @@ public class TradeRefundService {
         return response;
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public QueryPaymentRefundResponse queryRefund(QueryPaymentRefundRequest request) {
+        QueryPaymentRefundResponse response = paymentService.queryRefund(request);
+        rollbackQuotaIfRefundConfirmed(response);
+        return response;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public QueryPaymentRefundResponse handleRefundWebhook(PaymentWebhookRequest request) {
+        QueryPaymentRefundResponse response = paymentService.handleRefundWebhook(request);
+        rollbackQuotaIfRefundConfirmed(response);
+        return response;
+    }
+
     private void releaseGroupBuyIfNeeded(String orderId, String refundReason) {
         TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
         if (!TradeBuyTypeEnumVO.GROUP_BUY.equals(tradeOrder.getBuyType())) {
@@ -97,13 +115,30 @@ public class TradeRefundService {
         }
     }
 
+    private void rollbackQuotaIfRefundConfirmed(QueryPaymentRefundResponse response) {
+        if (response == null || !response.isVerified() || !isRefundSuccessStatus(response.getRefundStatus())) {
+            return;
+        }
+        String orderId = response.getOrderId();
+        rollbackQuotaIfAvailable(orderId);
+        releaseGroupBuyIfNeeded(orderId, "网关退款结果确认");
+    }
+
+    private boolean isRefundSuccessStatus(String refundStatus) {
+        if (!StringUtils.hasText(refundStatus)) {
+            return false;
+        }
+        String normalized = refundStatus.trim().toUpperCase();
+        return "SUCCESS".equals(normalized)
+                || "REFUND_SUCCESS".equals(normalized)
+                || "REFUNDED".equals(normalized);
+    }
+
     private TradeOrderEntity queryTradeOrder(String orderId) {
         return tradeOrderRepository.queryTradeOrderByOrderId(orderId)
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
     }
 }
-
-
 
 
 

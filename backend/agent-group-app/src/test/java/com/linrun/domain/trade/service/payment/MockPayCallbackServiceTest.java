@@ -1,24 +1,15 @@
 package com.linrun.domain.trade.service.payment;
 
-
-
-
-
-
-
-import com.linrun.trigger.support.tool.ToolExecution;
-import com.linrun.trigger.support.tool.ToolExecutor;
-import com.linrun.domain.trade.service.*;
-import com.linrun.domain.trade.service.payment.*;
-import com.linrun.domain.trade.service.task.NotifyTaskService;
-import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.api.dto.MockPayCallbackRequest;
 import com.linrun.api.dto.MockPayCallbackResponse;
+import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
+import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
+import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
 import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
@@ -30,6 +21,7 @@ import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
+import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +32,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class MockPayCallbackServiceTest {
 
@@ -90,6 +84,26 @@ class MockPayCallbackServiceTest {
     }
 
     @Test
+    void shouldKeepGroupSettledWhenQuotaGrantReturnsNoProcessedOrder() {
+        TradeOrderEntity tradeOrder = waitPayOrder();
+        tradeOrder.setBuyType(TradeBuyTypeEnumVO.GROUP_BUY);
+        FakeTradeOrderRepository repository = new FakeTradeOrderRepository(tradeOrder, waitPay());
+        FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
+        UserQuotaService userQuotaService = mock(UserQuotaService.class);
+        when(userQuotaService.grantQuotaForOrderIds(List.of("O10001"))).thenReturn(List.of());
+        MockPayCallbackService service = service(
+                repository,
+                flowRepository,
+                new SuccessGroupBuyOrderLockRepository(),
+                userQuotaService);
+
+        MockPayCallbackResponse response = service.paySuccess(request("O10001", "T10001", PAY_TIME));
+
+        assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED.name(), response.getOrderStatus());
+        assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED, repository.tradeOrder.getOrderStatus());
+    }
+
+    @Test
     void shouldThrowWhenOrderMissing() {
         MockPayCallbackService service = service(new FakeTradeOrderRepository(null, null));
 
@@ -125,12 +139,20 @@ class MockPayCallbackServiceTest {
 
     private MockPayCallbackService service(FakeTradeOrderRepository repository,
                                            FakeTradeStatusFlowRepository flowRepository) {
+        return service(repository, flowRepository, new EmptyGroupBuyOrderLockRepository(), null);
+    }
+
+    private MockPayCallbackService service(FakeTradeOrderRepository repository,
+                                           FakeTradeStatusFlowRepository flowRepository,
+                                           GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                           UserQuotaService userQuotaService) {
         TradeStatusFlowService tradeStatusFlowService = new TradeStatusFlowService(flowRepository);
         return new MockPayCallbackService(
                 repository,
                 new TradeOrderService(),
-                new GroupBuySettlementService(new EmptyGroupBuyOrderLockRepository(), repository, tradeStatusFlowService),
-                tradeStatusFlowService);
+                new GroupBuySettlementService(groupBuyOrderLockRepository, repository, tradeStatusFlowService),
+                tradeStatusFlowService,
+                userQuotaService);
     }
 
     private TradeOrderEntity waitPayOrder() {
@@ -265,6 +287,32 @@ class MockPayCallbackServiceTest {
         }
     }
 
+    private static class SuccessGroupBuyOrderLockRepository extends EmptyGroupBuyOrderLockRepository {
+
+        @Override
+        public GroupBuySettlementResult settlePaidOrder(String orderId) {
+            GroupBuyOrderLock lock = new GroupBuyOrderLock();
+            lock.setLockId("L10001");
+            lock.setOrderId(orderId);
+            lock.setTeamId("T10001");
+            lock.setActivityId("A10001");
+            lock.setGoodsId("G10001");
+            lock.setLockStatus(GroupBuyLockStatus.PAID);
+
+            GroupBuyTeam team = new GroupBuyTeam();
+            team.setTeamId("T10001");
+            team.setActivityId("A10001");
+            team.setGoodsId("G10001");
+            team.setTeamStatus(GroupBuyTeamStatus.SUCCESS);
+            return new GroupBuySettlementResult(lock, team, false);
+        }
+
+        @Override
+        public List<String> queryPaidOrderIdsByTeamId(String teamId) {
+            return List.of("O10001");
+        }
+    }
+
     private static class FakeTradeStatusFlowRepository implements TradeStatusFlowRepository {
 
         private final List<TradeStatusFlowEntity> flows = new java.util.ArrayList<>();
@@ -282,8 +330,6 @@ class MockPayCallbackServiceTest {
         }
     }
 }
-
-
 
 
 

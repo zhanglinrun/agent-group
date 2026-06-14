@@ -2,6 +2,8 @@ package com.linrun.domain.academic.runtime.mode;
 
 import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningService;
 
+import java.util.Locale;
+
 /**
  * Agent 模式选择器
  * 根据用户问题和上下文自动选择最优执行模式
@@ -25,21 +27,22 @@ public class AgentModeSelector {
         if (question == null || question.trim().isEmpty()) {
             return ModeSelectionResult.fallback();
         }
+        ModeSelectionContext safeContext = context == null ? ModeSelectionContext.empty() : context;
 
         // 使用推理服务分析任务
         AcademicAgentReasoningService.TaskAnalysisResult analysis = 
                 reasoningService.analyzeTask(question);
 
         // 根据上下文优先选择
-        if (context.hasAttachment()) {
-            if (context.getAttachmentType().equals("image")) {
+        if (safeContext.isExplicitMode()) {
+            return selectByExplicitMode(safeContext.getExplicitMode(), analysis);
+        }
+
+        if (safeContext.hasAttachment()) {
+            if ("image".equals(safeContext.getAttachmentType())) {
                 return ModeSelectionResult.image(analysis);
             }
             return ModeSelectionResult.fileReact(analysis);
-        }
-
-        if (context.isExplicitMode()) {
-            return selectByExplicitMode(context.getExplicitMode(), analysis);
         }
 
         // 根据任务类型自动选择
@@ -68,7 +71,7 @@ public class AgentModeSelector {
 
     private ModeSelectionResult selectByExplicitMode(String mode, 
             AcademicAgentReasoningService.TaskAnalysisResult analysis) {
-        switch (mode) {
+        switch (normalizeMode(mode)) {
             case "deep":
             case "research":
                 return ModeSelectionResult.planExecute(analysis);
@@ -77,13 +80,19 @@ public class AgentModeSelector {
             case "search":
                 return ModeSelectionResult.webSearchReact(analysis);
             case "skill":
+            case "skills":
             case "manual-skills":
+            case "skill-sop":
                 return ModeSelectionResult.skillsReact(analysis);
             case "image":
                 return ModeSelectionResult.image(analysis);
             default:
                 return ModeSelectionResult.react(analysis);
         }
+    }
+
+    private String normalizeMode(String mode) {
+        return mode == null ? "" : mode.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -104,7 +113,7 @@ public class AgentModeSelector {
         }
 
         public static ModeSelectionContext simple(String explicitMode) {
-            return new ModeSelectionContext(false, "", explicitMode != null, explicitMode);
+            return new ModeSelectionContext(false, "", explicitMode != null && !explicitMode.isBlank(), explicitMode);
         }
 
         public static ModeSelectionContext withAttachment(String attachmentType) {
@@ -205,7 +214,7 @@ public class AgentModeSelector {
             return new ModeSelectionResult(
                     "skill",
                     "Skill-SOP",
-                    "skill",
+                    "skill-sop",
                     "调用预定义技能",
                     analysis
             );

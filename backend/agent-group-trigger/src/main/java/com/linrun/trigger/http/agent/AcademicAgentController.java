@@ -44,14 +44,14 @@ import java.nio.file.Files;
 public class AcademicAgentController {
 
     private final AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler;
-    private final QuotaStreamControlRepository QuotaStreamControlRepository;
+    private final QuotaStreamControlRepository quotaStreamControlRepository;
     private final ObjectMapper objectMapper;
 
     public AcademicAgentController(AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler,
-                                   QuotaStreamControlRepository QuotaStreamControlRepository,
+                                   QuotaStreamControlRepository quotaStreamControlRepository,
                                    ObjectMapper objectMapper) {
         this.academicBearDoctorAgentHandler = academicBearDoctorAgentHandler;
-        this.QuotaStreamControlRepository = QuotaStreamControlRepository;
+        this.quotaStreamControlRepository = quotaStreamControlRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -76,7 +76,7 @@ public class AcademicAgentController {
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam String sessionId) {
         Map<String, Object> status = academicBearDoctorAgentHandler.queryTaskStatus(token, sessionId);
-        status.put("stopped", QuotaStreamControlRepository.isStopped(sessionId));
+        status.put("stopped", quotaStreamControlRepository.isStopped(sessionId));
         return Response.success(status, RequestTraceContext.getRequestId());
     }
 
@@ -91,7 +91,7 @@ public class AcademicAgentController {
                 ? safeRequest.getSessionId()
                 : "AS" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
-        QuotaStreamControlRepository.clearStopped(sessionId);
+        quotaStreamControlRepository.clearStopped(sessionId);
         return academicBearDoctorAgentHandler.backgroundStreamEventFlux(
                         token,
                         safeRequest,
@@ -126,7 +126,7 @@ public class AcademicAgentController {
         String sessionId = request == null ? "" : request.get("sessionId");
         boolean stopped = true;
         if (StringUtils.hasText(sessionId)) {
-            QuotaStreamControlRepository.markStopped(sessionId);
+            quotaStreamControlRepository.markStopped(sessionId);
             stopped = academicBearDoctorAgentHandler.stop(token, sessionId);
         }
         return Response.success(stopped, RequestTraceContext.getRequestId());
@@ -241,8 +241,6 @@ public class AcademicAgentController {
         }
     }
 }
-
-
 
 
 

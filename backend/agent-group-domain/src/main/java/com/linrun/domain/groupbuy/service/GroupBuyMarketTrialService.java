@@ -29,18 +29,18 @@ public class GroupBuyMarketTrialService {
 
     public GroupBuyMarketTrialService(GroupBuyActivityRepository groupBuyActivityRepository,
                                       GroupBuyMarketRepository groupBuyMarketRepository,
-                                      QuotaProductRepository QuotaProductRepository,
+                                      QuotaProductRepository quotaProductRepository,
                                       DynamicConfigService dynamicConfigService,
                                       Map<String, DiscountCalculateService> discountCalculateServiceMap) {
         this(groupBuyActivityRepository, groupBuyMarketRepository, GroupBuyStockRepository.noop(),
-                QuotaProductRepository, dynamicConfigService, discountCalculateServiceMap);
+                quotaProductRepository, dynamicConfigService, discountCalculateServiceMap);
     }
 
     @Autowired
     public GroupBuyMarketTrialService(GroupBuyActivityRepository groupBuyActivityRepository,
                                       GroupBuyMarketRepository groupBuyMarketRepository,
                                       GroupBuyStockRepository groupBuyStockRepository,
-                                      QuotaProductRepository QuotaProductRepository,
+                                      QuotaProductRepository quotaProductRepository,
                                       DynamicConfigService dynamicConfigService,
                                       Map<String, DiscountCalculateService> discountCalculateServiceMap) {
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> endNode =
@@ -48,7 +48,7 @@ public class GroupBuyMarketTrialService {
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> tagNode =
                 new TagTrialNode(groupBuyMarketRepository, endNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> marketNode =
-                new MarketTrialNode(groupBuyActivityRepository, groupBuyMarketRepository, QuotaProductRepository,
+                new MarketTrialNode(groupBuyActivityRepository, groupBuyMarketRepository, quotaProductRepository,
                         groupBuyStockRepository, discountCalculateServiceMap, tagNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> switchNode =
                 new SwitchTrialNode(dynamicConfigService, marketNode);
@@ -66,7 +66,6 @@ public class GroupBuyMarketTrialService {
         }
     }
 }
-
 
 
 
