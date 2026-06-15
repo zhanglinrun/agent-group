@@ -118,6 +118,52 @@ class AgentModeSelectorTest {
     }
 
     @Test
+    void shouldKeepExplicitSearchQuestionsInSearchReact() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult latestResult = selector.selectMode(
+                "帮我查找 2025 年以来关于向量数据库的综述",
+                AgentModeSelector.ModeSelectionContext.empty()
+        );
+        AgentModeSelector.ModeSelectionResult comparisonResult = selector.selectMode(
+                "检索 pgvector 与 Milvus 的性能对比资料",
+                AgentModeSelector.ModeSelectionContext.empty()
+        );
+
+        assertEquals("ReAct", latestResult.getExecutionMode());
+        assertEquals("search", latestResult.getAgentType());
+        assertEquals("ReAct", comparisonResult.getExecutionMode());
+        assertEquals("search", comparisonResult.getAgentType());
+    }
+
+    @Test
+    void shouldSelectPlanExecuteForAcademicResearchPlanning() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult result = selector.selectMode(
+                "调研近三年大语言模型推理加速的主要技术路线",
+                AgentModeSelector.ModeSelectionContext.empty()
+        );
+
+        assertEquals("Plan-Execute", result.getExecutionMode());
+        assertEquals("deep", result.getAgentType());
+        assertTrue(result.getTaskAnalysis().needsMultipleSources());
+    }
+
+    @Test
+    void shouldKeepConceptExplanationInReact() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult result = selector.selectMode(
+                "请介绍一下 Spring Boot 的自动装配机制",
+                AgentModeSelector.ModeSelectionContext.empty()
+        );
+
+        assertEquals("ReAct", result.getExecutionMode());
+        assertEquals("chat", result.getAgentType());
+    }
+
+    @Test
     void testTaskAnalysisIncluded() {
         AgentModeSelector selector = new AgentModeSelector();
         String question = "深入分析区块链技术的应用场景";

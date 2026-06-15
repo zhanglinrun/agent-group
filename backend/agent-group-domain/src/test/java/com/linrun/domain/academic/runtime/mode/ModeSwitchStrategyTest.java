@@ -64,6 +64,27 @@ class ModeSwitchStrategyTest {
     }
 
     @Test
+    void shouldKeepExplicitSearchQuestionsInReact() {
+        var mode = strategy.selectMode("检索 pgvector 与 Milvus 的性能对比资料", List.of());
+
+        assertEquals("react", mode.modeName());
+    }
+
+    @Test
+    void shouldSelectPlanExecuteForResearchPlanning() {
+        var mode = strategy.selectMode("调研近三年大语言模型推理加速的主要技术路线", List.of());
+
+        assertEquals("plan-execute", mode.modeName());
+    }
+
+    @Test
+    void shouldKeepConceptExplanationInReact() {
+        var mode = strategy.selectMode("请介绍一下 Spring Boot 的自动装配机制", List.of());
+
+        assertEquals("react", mode.modeName());
+    }
+
+    @Test
     void testSelectMode_ExplicitTaskTypeWinsOverAttachment() {
         AgentExecutionMode.ExecutionContext context = new AgentExecutionMode.ExecutionContext(
                 null,

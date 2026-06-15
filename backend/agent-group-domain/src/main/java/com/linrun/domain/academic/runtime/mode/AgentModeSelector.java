@@ -45,6 +45,10 @@ public class AgentModeSelector {
             return ModeSelectionResult.fileReact(analysis);
         }
 
+        if (isSkillInvocation(question)) {
+            return ModeSelectionResult.skillsReact(analysis);
+        }
+
         // 根据任务类型自动选择
         String taskType = analysis.getTaskType();
         if (taskType.contains("深度分析") || taskType.contains("研究")) {
@@ -59,14 +63,15 @@ public class AgentModeSelector {
             return ModeSelectionResult.webSearchReact(analysis);
         }
 
-        if (question.toLowerCase().contains("skill") 
-                || question.contains("技能") 
-                || question.contains("调用")) {
-            return ModeSelectionResult.skillsReact(analysis);
-        }
-
         // 默认使用 ReAct 模式
         return ModeSelectionResult.react(analysis);
+    }
+
+    private boolean isSkillInvocation(String question) {
+        String lower = question.toLowerCase(Locale.ROOT);
+        return lower.contains("skill")
+                || question.contains("技能")
+                || question.contains("调用");
     }
 
     private ModeSelectionResult selectByExplicitMode(String mode, 

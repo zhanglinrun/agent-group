@@ -2,6 +2,7 @@ package com.linrun.trigger.agent.agent.deepresearch;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.trigger.agent.entity.record.CritiqueResult;
 import com.linrun.trigger.agent.entity.record.PlanTask;
 import org.junit.jupiter.api.Test;
 
@@ -40,6 +41,20 @@ class PlanExecuteAgentEventTest {
         assertEquals("replan", root.path("type").asText());
         assertEquals("第 2 轮补充执行计划", root.path("title").asText());
         assertEquals("R1", root.path("structuredSteps").get(0).path("stepId").asText());
+    }
+
+    @Test
+    void shouldCreateReflectionEvent() throws Exception {
+        String event = PlanExecuteAgent.createReflectionEvent(2,
+                new CritiqueResult(false, "缺少多源对比"));
+
+        JsonNode root = objectMapper.readTree(event);
+
+        assertEquals("reflection", root.path("type").asText());
+        assertEquals(2, root.path("round").asInt());
+        assertEquals(false, root.path("passed").asBoolean());
+        assertEquals("缺少多源对比", root.path("feedback").asText());
+        assertEquals("replan", root.path("action").asText());
     }
 }
 

@@ -823,6 +823,16 @@ public class PlanExecuteAgent extends BaseAgent {
         return JSON.toJSONString(payload);
     }
 
+    static String createReflectionEvent(int round, CritiqueResult critique) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "reflection");
+        payload.put("round", Math.max(1, round));
+        payload.put("passed", critique != null && critique.passed());
+        payload.put("feedback", critique == null ? "" : Objects.toString(critique.feedback(), ""));
+        payload.put("action", critique != null && critique.passed() ? "summarize" : "replan");
+        return JSON.toJSONString(payload);
+    }
+
     private static Map<String, Object> planTaskPayload(PlanTask task) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("stepId", StringUtils.hasText(task.id()) ? task.id() : "S" + Math.max(1, task.order()));
@@ -1158,6 +1168,7 @@ public class PlanExecuteAgent extends BaseAgent {
         String raw = chatClient.prompt(prompt).call().content();
 
         CritiqueResult result = converter.convert(ThinkTagParser.stripThinkTags(raw));
+        sink.tryEmitNext(createReflectionEvent(state.getRound(), result));
 
         if (result.passed()) {
             emit(sink, hasSentFinal, "\n研究结果评估通过，准备生成最终报告\n", "thinking", thinkingBuffer);

@@ -38,8 +38,8 @@ public class ModeSwitchStrategy {
                     .orElse(registry.selectMode(context));
         }
 
-        if (containsDeepResearchKeywords(userQuery)) {
-            return registry.getMode("plan-execute")
+        if (isSkillInvocation(userQuery)) {
+            return registry.getMode("skill-sop")
                     .orElse(registry.selectMode(context));
         }
 
@@ -48,16 +48,55 @@ public class ModeSwitchStrategy {
                     .orElse(registry.selectMode(context));
         }
 
-        if (isSkillInvocation(userQuery)) {
-            return registry.getMode("skill-sop")
+        if (containsSearchKeywords(userQuery) && !containsStrongPlanningKeywords(userQuery)) {
+            return registry.getMode("react")
                     .orElse(registry.selectMode(context));
         }
 
-        return registry.getMode("react")
-                .orElse(registry.selectMode(context));
+        if (containsDeepResearchKeywords(userQuery)) {
+            return registry.getMode("plan-execute")
+                    .orElse(registry.selectMode(context));
+        }
+
+        return registry.getMode("react").orElse(registry.selectMode(context));
     }
 
     private boolean containsDeepResearchKeywords(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return false;
+        }
+
+        String lower = query.toLowerCase();
+        boolean strongPlanning = lower.contains("深度研究")
+                || lower.contains("深度调研")
+                || lower.contains("全面分析")
+                || lower.contains("系统研究")
+                || lower.contains("系统分析")
+                || lower.contains("深入分析")
+                || lower.contains("深入研究");
+        boolean hasTaskAction = lower.contains("研究")
+                || lower.contains("分析")
+                || lower.contains("调研")
+                || lower.contains("综述")
+                || lower.contains("梳理")
+                || lower.contains("总结");
+        boolean hasAcademicFocus = lower.contains("对比")
+                || lower.contains("比较")
+                || lower.contains("现状")
+                || lower.contains("趋势")
+                || lower.contains("路线")
+                || lower.contains("机制")
+                || lower.contains("问题")
+                || lower.contains("风险")
+                || lower.contains("挑战")
+                || lower.contains("流程")
+                || lower.contains("多源")
+                || lower.contains("近三年")
+                || lower.contains("近年来");
+        return strongPlanning || (hasTaskAction && hasAcademicFocus);
+    }
+
+    private boolean containsStrongPlanningKeywords(String query) {
         if (query == null || query.trim().isEmpty()) {
             return false;
         }
@@ -67,7 +106,9 @@ public class ModeSwitchStrategy {
                 || lower.contains("深度调研")
                 || lower.contains("全面分析")
                 || lower.contains("系统研究")
-                || (lower.contains("研究") && lower.length() > 20);
+                || lower.contains("系统分析")
+                || lower.contains("深入分析")
+                || lower.contains("深入研究");
     }
 
     private boolean containsPPTKeywords(String query) {
@@ -80,6 +121,18 @@ public class ModeSwitchStrategy {
                 || lower.contains("幻灯片")
                 || lower.contains("演示文稿")
                 || lower.contains("powerpoint");
+    }
+
+    private boolean containsSearchKeywords(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return false;
+        }
+
+        String lower = query.toLowerCase();
+        return lower.contains("搜索")
+                || lower.contains("查找")
+                || lower.contains("检索")
+                || lower.contains("查询");
     }
 
     private boolean isSkillInvocation(String query) {

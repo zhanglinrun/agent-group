@@ -355,6 +355,9 @@ public class AcademicBearDoctorAgentHandler {
                 case "text" -> answerEvents(node, sessionId, requestId, sequence, runState);
                 case "thinking" -> List.of(event("task_status", sessionId, requestId, sequence,
                         status("THINKING", content(node))));
+                case "reasoning" -> List.of(event("task_status", sessionId, requestId, sequence,
+                        status("REASONING", content(node))));
+                case "reflection" -> reflectionEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_start" -> toolStartEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_end" -> toolEndEvents(node, sessionId, requestId, sequence, runState);
                 case "plan_update" -> planUpdateEvents(node, sessionId, requestId, sequence, runState);
@@ -393,6 +396,30 @@ public class AcademicBearDoctorAgentHandler {
         runState.currentFlowStageIndex = progress.getCurrentStageIndex();
         events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         return events;
+    }
+
+    private List<QuotaStreamEvent<?>> reflectionEvents(JsonNode node,
+                                                       String sessionId,
+                                                       String requestId,
+                                                       AtomicInteger sequence,
+                                                       RunState runState) {
+        boolean passed = booleanValue(node, "passed", false);
+        String feedback = firstText(node, "feedback", "message", "content", "detail");
+        String action = firstText(node, "action");
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", runState.run.getRunId());
+        data.put("round", integer(node, "round", 1));
+        data.put("passed", passed);
+        data.put("feedback", feedback);
+        data.put("action", StringUtils.hasText(action) ? action : (passed ? "summarize" : "replan"));
+        String message = passed ? "反思评估通过，准备生成最终报告" : "反思评估建议调整计划";
+        if (StringUtils.hasText(feedback)) {
+            message = message + "：" + feedback;
+        }
+        return List.of(
+                event("task_status", sessionId, requestId, sequence, status("REFLECTION", message)),
+                event("reflection_delta", sessionId, requestId, sequence, data)
+        );
     }
 
     private List<QuotaStreamEvent<?>> replanEvents(JsonNode node,
@@ -1530,6 +1557,23 @@ public class AcademicBearDoctorAgentHandler {
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    private boolean booleanValue(JsonNode node, String field, boolean fallback) {
+        JsonNode value = node == null ? null : node.get(field);
+        if (value == null || value.isNull()) {
+            return fallback;
+        }
+        if (value.isBoolean()) {
+            return value.asBoolean(fallback);
+        }
+        String text = value.asText();
+        if (!StringUtils.hasText(text)) {
+            return fallback;
+        }
+        return "true".equalsIgnoreCase(text)
+                || "1".equals(text)
+                || "yes".equalsIgnoreCase(text);
     }
 
     private String firstText(JsonNode node, String... fields) {
