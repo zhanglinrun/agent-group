@@ -22,11 +22,11 @@ public class AcademicPlanStep {
     private AcademicPlanStep(Builder builder) {
         this.stepId = safe(builder.stepId);
         this.instruction = safe(builder.instruction);
-        this.order = Math.max(1, builder.order);
-        this.status = StringUtils.hasText(builder.status) ? builder.status.trim() : AcademicPlanLifecycleService.STATUS_NOT_STARTED;
+        this.order = normalizeOrder(builder.order);
+        this.status = normalizeStatus(builder.status);
         this.note = safe(builder.note);
         this.assignedAgent = safe(builder.assignedAgent);
-        this.dependencies = builder.dependencies == null ? new ArrayList<>() : new ArrayList<>(builder.dependencies);
+        this.dependencies = copyDependencies(builder.dependencies);
         if (!StringUtils.hasText(this.stepId)) {
             throw new IllegalArgumentException("plan step id cannot be blank");
         }
@@ -74,7 +74,7 @@ public class AcademicPlanStep {
     }
 
     public void setOrder(int order) {
-        this.order = Math.max(1, order);
+        this.order = normalizeOrder(order);
     }
 
     public String getStatus() {
@@ -82,7 +82,7 @@ public class AcademicPlanStep {
     }
 
     public void setStatus(String status) {
-        this.status = StringUtils.hasText(status) ? status.trim() : AcademicPlanLifecycleService.STATUS_NOT_STARTED;
+        this.status = normalizeStatus(status);
     }
 
     public String getNote() {
@@ -106,11 +106,23 @@ public class AcademicPlanStep {
     }
 
     public void setDependencies(List<String> dependencies) {
-        this.dependencies = dependencies == null ? new ArrayList<>() : new ArrayList<>(dependencies);
+        this.dependencies = copyDependencies(dependencies);
     }
 
     private static String safe(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private static int normalizeOrder(int order) {
+        return Math.max(1, order);
+    }
+
+    private static String normalizeStatus(String status) {
+        return StringUtils.hasText(status) ? status.trim() : AcademicPlanLifecycleService.STATUS_NOT_STARTED;
+    }
+
+    private static List<String> copyDependencies(List<String> dependencies) {
+        return dependencies == null ? new ArrayList<>() : new ArrayList<>(dependencies);
     }
 
     public static final class Builder {
@@ -149,7 +161,7 @@ public class AcademicPlanStep {
         }
 
         public Builder dependencies(List<String> dependencies) {
-            this.dependencies = dependencies == null ? new ArrayList<>() : new ArrayList<>(dependencies);
+            this.dependencies = copyDependencies(dependencies);
             return this;
         }
 

@@ -1,9 +1,5 @@
 package com.linrun.domain.academic.runtime.agent;
 
-import org.springframework.util.StringUtils;
-
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record AcademicReActTurn(int roundIndex,
@@ -22,13 +18,13 @@ public record AcademicReActTurn(int roundIndex,
 
     public AcademicReActTurn {
         roundIndex = Math.max(1, roundIndex);
-        thought = safe(thought);
-        actionName = safe(actionName);
-        actionArguments = copyMap(actionArguments);
-        status = safe(status);
-        observation = safe(observation);
-        observationMetadata = copyMap(observationMetadata);
-        answer = safe(answer);
+        thought = AcademicAgentValues.safe(thought);
+        actionName = AcademicAgentValues.safe(actionName);
+        actionArguments = AcademicAgentValues.copyMap(actionArguments);
+        status = AcademicAgentValues.safe(status);
+        observation = AcademicAgentValues.safe(observation);
+        observationMetadata = AcademicAgentValues.copyMap(observationMetadata);
+        answer = AcademicAgentValues.safe(answer);
     }
 
     public static AcademicReActTurn observed(int roundIndex,
@@ -74,22 +70,6 @@ public record AcademicReActTurn(int roundIndex,
                 "");
     }
 
-    private static Map<String, Object> copyMap(Map<String, Object> values) {
-        if (values == null || values.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, Object> result = new LinkedHashMap<>();
-        values.forEach((key, value) -> {
-            if (StringUtils.hasText(key)) {
-                result.put(key.trim(), value == null ? "" : value);
-            }
-        });
-        return Collections.unmodifiableMap(result);
-    }
-
-    private static String safe(String value) {
-        return value == null ? "" : value.trim();
-    }
 }
 
 

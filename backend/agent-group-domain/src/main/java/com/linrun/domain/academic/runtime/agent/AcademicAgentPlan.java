@@ -17,7 +17,7 @@ public class AcademicAgentPlan {
 
     public AcademicAgentPlan(String title, List<AcademicPlanStep> steps) {
         this.title = safe(title);
-        this.steps = steps == null ? new ArrayList<>() : copySteps(steps);
+        this.steps = new ArrayList<>(AcademicPlanSteps.copyAll(steps));
     }
 
     public static AcademicAgentPlan create(String title, List<String> instructions) {
@@ -69,21 +69,15 @@ public class AcademicAgentPlan {
     }
 
     public List<AcademicPlanStep> getSteps() {
-        return copySteps(steps);
+        return AcademicPlanSteps.copyAll(steps);
     }
 
     public void setSteps(List<AcademicPlanStep> steps) {
-        this.steps = steps == null ? new ArrayList<>() : copySteps(steps);
+        this.steps = new ArrayList<>(AcademicPlanSteps.copyAll(steps));
     }
 
     List<AcademicPlanStep> mutableSteps() {
         return steps;
-    }
-
-    private static List<AcademicPlanStep> copySteps(List<AcademicPlanStep> steps) {
-        return steps.stream()
-                .map(AcademicPlanStep::copy)
-                .toList();
     }
 
     private static String safe(String value) {

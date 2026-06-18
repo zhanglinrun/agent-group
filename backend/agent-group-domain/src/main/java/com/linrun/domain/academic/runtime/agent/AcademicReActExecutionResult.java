@@ -9,12 +9,8 @@ public record AcademicReActExecutionResult(List<AcademicReActTurn> turns,
 
     public AcademicReActExecutionResult {
         turns = turns == null ? List.of() : List.copyOf(turns);
-        answer = safe(answer);
-        stopReason = safe(stopReason);
-    }
-
-    private static String safe(String value) {
-        return value == null ? "" : value.trim();
+        answer = AcademicAgentValues.safe(answer);
+        stopReason = AcademicAgentValues.safe(stopReason);
     }
 }
 

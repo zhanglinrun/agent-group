@@ -1,6 +1,7 @@
 import { AlertTriangle, BookOpen, FileText, Loader2, Plus, RotateCcw, ShieldCheck } from "lucide-react";
 
 import { buildAcademicProjectWorkspace } from "../academicProjectWorkspace";
+import { WorkspacePanelHeader } from "./WorkspacePanelHeader";
 
 export function AcademicProjectPanel({
   projects = [],
@@ -23,13 +24,13 @@ export function AcademicProjectPanel({
   );
   return (
     <section className={`academic-project-panel ${hasProjectDetails ? "" : "compact"}`}>
-      <div className="academic-project-head">
-        <div>
-          <span className="academic-project-kicker">工作上下文</span>
-          <strong>{workspace.title}</strong>
-          <em>{workspace.subtitle || workspace.contextSummary}</em>
-        </div>
-        <div className="academic-project-actions">
+      <WorkspacePanelHeader
+        className="academic-project-head"
+        eyebrow={<span className="academic-project-kicker">工作上下文</span>}
+        title={workspace.title}
+        subtitleElement={<em>{workspace.subtitle || workspace.contextSummary}</em>}
+        trailing={(
+          <div className="academic-project-actions">
           {projects.length > 0 && (
             <select
               value={activeProjectId}
@@ -51,7 +52,8 @@ export function AcademicProjectPanel({
             <span>新建</span>
           </button>
         </div>
-      </div>
+        )}
+      />
       {error && <div className="academic-project-error"><AlertTriangle size={14} /> <span>{error}</span></div>}
       <div className="academic-project-metrics">
         <span><b>{workspace.statusLabel}</b>状态</span>
@@ -60,49 +62,66 @@ export function AcademicProjectPanel({
       </div>
       {hasProjectDetails ? (
         <div className="academic-project-grid">
-          <div className="academic-project-column">
-            <div className="academic-project-column-head">
-              <FileText size={14} />
-              <strong>工作材料</strong>
-            </div>
-            {visibleDrafts.map((file) => (
-              <ProjectFileRow file={file} key={file.fileId || file.fileName} />
-            ))}
-            {visibleDrafts.length === 0 && <div className="academic-project-empty">暂无工作材料</div>}
-          </div>
-          <div className="academic-project-column">
-            <div className="academic-project-column-head">
-              <BookOpen size={14} />
-              <strong>参考资料</strong>
-            </div>
-            {visibleReferences.map((file) => (
-              <ProjectFileRow file={file} key={file.fileId || file.fileName} />
-            ))}
-            {visibleReferences.length === 0 && <div className="academic-project-empty">暂无参考资料</div>}
-          </div>
-          <div className="academic-project-column">
-            <div className="academic-project-column-head">
-              <ShieldCheck size={14} />
-              <strong>待确认补丁</strong>
-            </div>
-            {visiblePatches.map((patch) => (
-              <article className="academic-patch-row" key={patch.patchId || patch.title}>
-                <div>
-                  <b>{patch.title || patch.patchId}</b>
-                  <span>{patch.reason || patch.fileId || "等待人工确认"}</span>
-                </div>
-                <button type="button" onClick={() => onApplyPatch?.(patch)} disabled={loading}>
-                  确认
-                </button>
-              </article>
-            ))}
-            {visiblePatches.length === 0 && <div className="academic-project-empty">暂无待确认补丁</div>}
-          </div>
+          <ProjectFileColumn
+            icon={<FileText size={14} />}
+            title="工作材料"
+            files={visibleDrafts}
+            emptyText="暂无工作材料"
+          />
+          <ProjectFileColumn
+            icon={<BookOpen size={14} />}
+            title="参考资料"
+            files={visibleReferences}
+            emptyText="暂无参考资料"
+          />
+          <ProjectPatchColumn
+            patches={visiblePatches}
+            loading={loading}
+            onApplyPatch={onApplyPatch}
+          />
         </div>
       ) : !hasProject ? (
         <div className="academic-project-empty wide">创建项目后，上传文件会自动进入当前工作项目</div>
       ) : null}
     </section>
+  );
+}
+
+function ProjectFileColumn({ icon, title, files = [], emptyText }) {
+  return (
+    <div className="academic-project-column">
+      <div className="academic-project-column-head">
+        {icon}
+        <strong>{title}</strong>
+      </div>
+      {files.map((file) => (
+        <ProjectFileRow file={file} key={file.fileId || file.fileName} />
+      ))}
+      {files.length === 0 && <div className="academic-project-empty">{emptyText}</div>}
+    </div>
+  );
+}
+
+function ProjectPatchColumn({ patches = [], loading, onApplyPatch }) {
+  return (
+    <div className="academic-project-column">
+      <div className="academic-project-column-head">
+        <ShieldCheck size={14} />
+        <strong>待确认补丁</strong>
+      </div>
+      {patches.map((patch) => (
+        <article className="academic-patch-row" key={patch.patchId || patch.title}>
+          <div>
+            <b>{patch.title || patch.patchId}</b>
+            <span>{patch.reason || patch.fileId || "等待人工确认"}</span>
+          </div>
+          <button type="button" onClick={() => onApplyPatch?.(patch)} disabled={loading}>
+            确认
+          </button>
+        </article>
+      ))}
+      {patches.length === 0 && <div className="academic-project-empty">暂无待确认补丁</div>}
+    </div>
   );
 }
 

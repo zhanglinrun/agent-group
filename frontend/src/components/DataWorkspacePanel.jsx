@@ -1,6 +1,7 @@
 import { BookOpen, Loader2 } from "lucide-react";
 
 import { buildWorkspaceDataCatalogDraft } from "../workspaceServices";
+import { WorkspacePanelHeader } from "./WorkspacePanelHeader";
 
 export function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogError }) {
   const models = Array.isArray(catalog?.models) ? catalog.models : [];
@@ -17,11 +18,11 @@ export function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, c
   };
   return (
     <section className="data-workspace-panel">
-      <div className="data-workspace-head">
-        <div>
-          <strong>数据上下文</strong>
-          <span>结构化数据会随下一次数据问答一起提交</span>
-        </div>
+      <WorkspacePanelHeader
+        className="data-workspace-head"
+        title="数据上下文"
+        subtitle="结构化数据会随下一次数据问答一起提交"
+        trailing={(
         <div>
           <button type="button" onClick={applyCatalog} disabled={catalogLoading || models.length === 0}>
             {catalogLoading ? <Loader2 size={14} className="spin" /> : <BookOpen size={14} />}
@@ -29,7 +30,8 @@ export function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, c
           </button>
           <button type="button" onClick={clear}>清空</button>
         </div>
-      </div>
+        )}
+      />
       {catalogError && <div className="data-workspace-catalog-error">{catalogError}</div>}
       {models.length > 0 && (
         <div className="data-workspace-catalog">

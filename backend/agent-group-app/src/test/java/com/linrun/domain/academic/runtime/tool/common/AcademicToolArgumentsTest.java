@@ -40,13 +40,16 @@ class AcademicToolArgumentsTest {
 
     @Test
     void shouldCopyMapArguments() {
-        Map<String, Object> source = new LinkedHashMap<>();
+        Map<Object, Object> source = new LinkedHashMap<>();
         source.put("k1", "v1");
+        source.put(100, "ignored");
 
         Map<String, Object> copied = AcademicToolArguments.objectMap(source);
         source.put("k1", "changed");
 
         assertEquals(Map.of("k1", "v1"), copied);
-        assertEquals(List.of(Map.of("k2", "v2")), AcademicToolArguments.mapList(List.of(Map.of("k2", "v2"), "skip")));
+        assertEquals(
+                List.of(Map.of("k2", "v2"), Map.of()),
+                AcademicToolArguments.mapList(List.of(Map.of("k2", "v2"), Map.of(1, "ignored"), Map.of(), "skip")));
     }
 }

@@ -2,12 +2,14 @@ package com.linrun.domain.academic.runtime.agent;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AcademicReActExecutionServiceTest {
@@ -86,6 +88,50 @@ class AcademicReActExecutionServiceTest {
         assertFalse(result.completed());
         assertEquals(AcademicReActExecutionService.STOP_REASON_MISSING_ACTION, result.stopReason());
         assertEquals(AcademicReActTurn.STATUS_BLOCKED, result.turns().getFirst().status());
+    }
+
+    @Test
+    void shouldNormalizeReActValuesWithDefensiveCopies() {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put(" query ", " retrieval augmented generation ");
+        arguments.put(" ", "ignored");
+        arguments.put(null, "ignored");
+        arguments.put("limit", null);
+
+        AcademicReActDecision decision = AcademicReActDecision.action(
+                " Need evidence before answering. ",
+                " literature_search ",
+                arguments);
+        arguments.put("mutated", true);
+
+        assertEquals("Need evidence before answering.", decision.thought());
+        assertEquals("literature_search", decision.actionName());
+        assertEquals(" retrieval augmented generation ", decision.actionArguments().get("query"));
+        assertEquals("", decision.actionArguments().get("limit"));
+        assertFalse(decision.actionArguments().containsKey("mutated"));
+        assertThrows(UnsupportedOperationException.class,
+                () -> decision.actionArguments().put("extra", "value"));
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put(" hitCount ", 3);
+        metadata.put("source", null);
+        AcademicReActObservation observation = AcademicReActObservation.success(" Found papers. ", metadata);
+        metadata.put("mutated", true);
+
+        assertEquals("Found papers.", observation.content());
+        assertEquals(3, observation.metadata().get("hitCount"));
+        assertEquals("", observation.metadata().get("source"));
+        assertFalse(observation.metadata().containsKey("mutated"));
+        assertThrows(UnsupportedOperationException.class,
+                () -> observation.metadata().put("extra", "value"));
+
+        AcademicReActTurn turn = AcademicReActTurn.observed(0, decision, observation);
+
+        assertEquals(1, turn.roundIndex());
+        assertEquals("Need evidence before answering.", turn.thought());
+        assertEquals("literature_search", turn.actionName());
+        assertEquals("Found papers.", turn.observation());
+        assertEquals(3, turn.observationMetadata().get("hitCount"));
     }
 }
 

@@ -41,74 +41,109 @@ export function WorkspaceEmptyState({ workspace, profile, capabilities, pageMode
       )}
       <h2>{useSimpleEmpty ? "今天想做什么？" : workspace.name}</h2>
       {!useSimpleEmpty && <p>{serviceProfile.summary}</p>}
-      {showWorkspaceRuntime && (
-        <div className="workspace-meter">
-          {capabilityStatus.map((item) => (
-            <span key={item.key} className={item.active ? "active" : ""}>{item.label}</span>
-          ))}
-        </div>
-      )}
-      {showWorkspaceRuntime && (
-        <div className={`workspace-readiness-card ${toolReadiness.status}`}>
-          <div className="workspace-readiness-head">
-            <strong>工具状态</strong>
-            <em>{toolReadiness.statusLabel}</em>
-          </div>
-          <div className="workspace-readiness-metrics">
-            <span><b>可用</b>{toolReadiness.readyTools.length}/{toolReadiness.requiredTools.length}</span>
-          </div>
-          {toolReadiness.missingTools.length > 0 && (
-            <div className="workspace-readiness-missing">
-              {toolReadiness.missingTools.slice(0, 4).map((toolName) => (
-                <span key={toolName}>{TOOL_LABELS[toolName] || toolName}</span>
-              ))}
-            </div>
-          )}
-          {toolReadiness.actions[0] && <small>{toolReadiness.actions[0]}</small>}
-        </div>
-      )}
-      {showWorkspaceRuntime && (
-        <div className={`workspace-runtime-coverage ${runtimeCoverage.status}`}>
-          <span><b>覆盖</b>{runtimeCoverage.statusLabel}</span>
-          <span><b>运行</b>{runtimeCoverage.runReady ? "已接入" : "未接入"}</span>
-          <span><b>历史</b>{runtimeCoverage.historyReady ? "已接入" : "未接入"}</span>
-          <span><b>工具</b>{runtimeCoverage.availableTools.length}/{runtimeCoverage.availableTools.length + runtimeCoverage.missingTools.length}</span>
-        </div>
-      )}
-      {showWorkspaceRuntime && (
-        <div className="workspace-tool-strip">
-          {serviceProfile.primaryTools.map((toolName) => (
-            <span key={toolName}>{TOOL_LABELS[toolName] || toolName}</span>
-          ))}
-        </div>
-      )}
-      {manualSkills.length > 0 && !useSimpleEmpty && (
-        <div className="workspace-skill-strip">
-          {manualSkills.map((skill) => (
-            <span key={skill.name || skill.description}>
-              <b>{skill.name}</b>
-              {Number(skill.scriptCount || 0) > 0 && <em>{skill.scriptCount} scripts</em>}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="quick-actions workspace-actions">
-        {prompts.map((item) => {
-          const Icon = PROMPT_ICONS[item.icon] || BookOpen;
-          return (
-            <button type="button" className="quick-action" key={item.title} onClick={() => onPrompt(item.prompt)}>
-              <Icon size={18} />
-              <span>{item.title}</span>
-            </button>
-          );
-        })}
-        {isTrade && (
-          <button type="button" className="quick-action" onClick={onOpenRecharge}>
-            <Wallet size={18} />
-            <span>额度购买</span>
-          </button>
-        )}
-      </div>
+      {showWorkspaceRuntime && <WorkspaceCapabilityMeter items={capabilityStatus} />}
+      {showWorkspaceRuntime && <WorkspaceReadinessCard readiness={toolReadiness} />}
+      {showWorkspaceRuntime && <WorkspaceRuntimeCoverage coverage={runtimeCoverage} />}
+      {showWorkspaceRuntime && <WorkspaceToolStrip toolNames={serviceProfile.primaryTools} />}
+      {manualSkills.length > 0 && !useSimpleEmpty && <WorkspaceSkillStrip skills={manualSkills} />}
+      <WorkspaceQuickActions
+        prompts={prompts}
+        isTrade={isTrade}
+        onPrompt={onPrompt}
+        onOpenRecharge={onOpenRecharge}
+      />
     </div>
   );
+}
+
+function WorkspaceCapabilityMeter({ items = [] }) {
+  return (
+    <div className="workspace-meter">
+      {items.map((item) => (
+        <span key={item.key} className={item.active ? "active" : ""}>{item.label}</span>
+      ))}
+    </div>
+  );
+}
+
+function WorkspaceReadinessCard({ readiness }) {
+  return (
+    <div className={`workspace-readiness-card ${readiness.status}`}>
+      <div className="workspace-readiness-head">
+        <strong>工具状态</strong>
+        <em>{readiness.statusLabel}</em>
+      </div>
+      <div className="workspace-readiness-metrics">
+        <span><b>可用</b>{readiness.readyTools.length}/{readiness.requiredTools.length}</span>
+      </div>
+      {readiness.missingTools.length > 0 && (
+        <div className="workspace-readiness-missing">
+          {readiness.missingTools.slice(0, 4).map((toolName) => (
+            <span key={toolName}>{toolLabel(toolName)}</span>
+          ))}
+        </div>
+      )}
+      {readiness.actions[0] && <small>{readiness.actions[0]}</small>}
+    </div>
+  );
+}
+
+function WorkspaceRuntimeCoverage({ coverage }) {
+  return (
+    <div className={`workspace-runtime-coverage ${coverage.status}`}>
+      <span><b>覆盖</b>{coverage.statusLabel}</span>
+      <span><b>运行</b>{coverage.runReady ? "已接入" : "未接入"}</span>
+      <span><b>历史</b>{coverage.historyReady ? "已接入" : "未接入"}</span>
+      <span><b>工具</b>{coverage.availableTools.length}/{coverage.availableTools.length + coverage.missingTools.length}</span>
+    </div>
+  );
+}
+
+function WorkspaceToolStrip({ toolNames = [] }) {
+  return (
+    <div className="workspace-tool-strip">
+      {toolNames.map((toolName) => (
+        <span key={toolName}>{toolLabel(toolName)}</span>
+      ))}
+    </div>
+  );
+}
+
+function WorkspaceSkillStrip({ skills = [] }) {
+  return (
+    <div className="workspace-skill-strip">
+      {skills.map((skill) => (
+        <span key={skill.name || skill.description}>
+          <b>{skill.name}</b>
+          {Number(skill.scriptCount || 0) > 0 && <em>{skill.scriptCount} scripts</em>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function WorkspaceQuickActions({ prompts = [], isTrade, onPrompt, onOpenRecharge }) {
+  return (
+    <div className="quick-actions workspace-actions">
+      {prompts.map((item) => {
+        const Icon = PROMPT_ICONS[item.icon] || BookOpen;
+        return (
+          <button type="button" className="quick-action" key={item.title} onClick={() => onPrompt(item.prompt)}>
+            <Icon size={18} />
+            <span>{item.title}</span>
+          </button>
+        );
+      })}
+      {isTrade && (
+        <button type="button" className="quick-action" onClick={onOpenRecharge}>
+          <Wallet size={18} />
+          <span>额度购买</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function toolLabel(toolName) {
+  return TOOL_LABELS[toolName] || toolName;
 }

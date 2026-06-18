@@ -1,3 +1,5 @@
+import { WorkspacePanelHeader } from "./WorkspacePanelHeader";
+
 const IMAGE_QUALITY_OPTIONS = [
   { value: "auto", label: "自动" },
   { value: "high", label: "高" },
@@ -37,13 +39,12 @@ export function ImageWorkspacePanel({ draft, onChange, hasReference, compact = f
   });
   return (
     <section className={`image-workspace-panel ${compact ? "composer-image-settings" : ""}`}>
-      <div className="image-workspace-head">
-        <div>
-          <strong>图像参数</strong>
-          <span>模型、质量、比例和张数</span>
-        </div>
-        <span className={hasReference ? "ready" : ""}>{hasReference ? "已有参考图" : "无参考图"}</span>
-      </div>
+      <WorkspacePanelHeader
+        className="image-workspace-head"
+        title="图像参数"
+        subtitle="模型、质量、比例和张数"
+        trailing={<span className={hasReference ? "ready" : ""}>{hasReference ? "已有参考图" : "无参考图"}</span>}
+      />
       <div className="image-workspace-grid">
         <label className="image-model-field">
           <span>模型</span>

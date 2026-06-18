@@ -2,6 +2,7 @@ import { Eye, Loader2, RotateCcw, Wallet } from "lucide-react";
 
 import { formatTradeNumber, tradeOrderAmount } from "../appFormatters";
 import { tradeOrderStatusLabel, tradeSettlementHint } from "../tradeWorkspace";
+import { WorkspacePanelHeader } from "./WorkspacePanelHeader";
 
 export function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onOpenOrderRecords }) {
   const stats = [
@@ -13,11 +14,11 @@ export function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharg
 
   return (
     <section className="trade-workspace-panel">
-      <div className="trade-workspace-head">
-        <div>
-          <strong>交易闭环看板</strong>
-          <span>把额度账户、拼团订单、支付状态和额度流水放在同一个工作区核对</span>
-        </div>
+      <WorkspacePanelHeader
+        className="trade-workspace-head"
+        title="交易闭环看板"
+        subtitle="把额度账户、拼团订单、支付状态和额度流水放在同一个工作区核对"
+        trailing={(
         <div>
           <button type="button" onClick={onOpenRecharge}>
             <Wallet size={15} />
@@ -28,7 +29,8 @@ export function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharg
             <span>刷新订单</span>
           </button>
         </div>
-      </div>
+        )}
+      />
       <div className="trade-stat-grid">
         {stats.map((item) => (
           <div className={`trade-stat-card ${item.danger ? "danger" : ""}`} key={item.label}>

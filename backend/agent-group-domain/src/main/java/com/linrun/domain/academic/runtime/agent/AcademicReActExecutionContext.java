@@ -8,14 +8,10 @@ public record AcademicReActExecutionContext(String runId,
                                             List<AcademicReActTurn> previousTurns) {
 
     public AcademicReActExecutionContext {
-        runId = safe(runId);
-        userInput = safe(userInput);
+        runId = AcademicAgentValues.safe(runId);
+        userInput = AcademicAgentValues.safe(userInput);
         roundIndex = Math.max(1, roundIndex);
         previousTurns = previousTurns == null ? List.of() : List.copyOf(previousTurns);
-    }
-
-    private static String safe(String value) {
-        return value == null ? "" : value.trim();
     }
 }
 

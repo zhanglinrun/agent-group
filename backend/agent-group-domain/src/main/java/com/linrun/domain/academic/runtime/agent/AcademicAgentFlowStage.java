@@ -9,9 +9,7 @@ public class AcademicAgentFlowStage {
 
     public AcademicAgentFlowStage(int stageIndex, List<AcademicPlanStep> steps) {
         this.stageIndex = Math.max(0, stageIndex);
-        this.steps = steps == null ? List.of() : steps.stream()
-                .map(AcademicPlanStep::copy)
-                .toList();
+        this.steps = AcademicPlanSteps.copyAll(steps);
     }
 
     public int getStageIndex() {
@@ -19,15 +17,11 @@ public class AcademicAgentFlowStage {
     }
 
     public List<AcademicPlanStep> getSteps() {
-        return steps.stream()
-                .map(AcademicPlanStep::copy)
-                .toList();
+        return AcademicPlanSteps.copyAll(steps);
     }
 
     public List<String> stepIds() {
-        return steps.stream()
-                .map(AcademicPlanStep::getStepId)
-                .toList();
+        return AcademicPlanSteps.ids(steps);
     }
 }
 

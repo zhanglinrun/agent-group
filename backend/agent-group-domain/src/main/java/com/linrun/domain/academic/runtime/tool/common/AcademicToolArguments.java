@@ -58,19 +58,35 @@ final class AcademicToolArguments {
                 .toList();
     }
 
-    @SuppressWarnings("unchecked")
     static Map<String, Object> objectMap(Object value) {
-        return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, entryValue) -> {
+            if (key instanceof String textKey) {
+                result.put(textKey, entryValue);
+            }
+        });
+        return result;
     }
 
-    @SuppressWarnings("unchecked")
     static List<Map<String, Object>> mapList(Object value) {
         if (!(value instanceof List<?> list)) {
             return List.of();
         }
         return list.stream()
                 .filter(Map.class::isInstance)
-                .map(item -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) item))
+                .map(AcademicToolArguments::objectMapEntry)
+                .filter(entry -> entry != null)
                 .toList();
+    }
+
+    private static Map<String, Object> objectMapEntry(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return null;
+        }
+        Map<String, Object> map = objectMap(value);
+        return !map.isEmpty() || raw.isEmpty() ? map : null;
     }
 }
