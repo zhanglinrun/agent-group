@@ -11,12 +11,15 @@ import com.linrun.domain.academic.runtime.tool.AcademicToolDefinition;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.types.exception.AppException;
-import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.integer;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
 
 public class AcademicPlanningToolRuntime {
 
@@ -150,8 +153,9 @@ public class AcademicPlanningToolRuntime {
         if (finished) {
             return "plan finished";
         }
-        if (StringUtils.hasText(currentStep)) {
-            return command + ": current step is " + currentStep;
+        String stepText = firstPresent(currentStep);
+        if (!stepText.isEmpty()) {
+            return command + ": current step is " + stepText;
         }
         return command + ": no executable step";
     }
@@ -160,35 +164,6 @@ public class AcademicPlanningToolRuntime {
         if (currentPlan == null) {
             throw new AppException("PLAN_0002", "plan does not exist");
         }
-    }
-
-    private List<String> stringList(Object value) {
-        if (value instanceof List<?> list) {
-            List<String> result = new ArrayList<>();
-            for (Object item : list) {
-                String text = text(item);
-                if (StringUtils.hasText(text)) {
-                    result.add(text);
-                }
-            }
-            return result;
-        }
-        return List.of();
-    }
-
-    private int integer(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(text(value));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

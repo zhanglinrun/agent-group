@@ -7,11 +7,14 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicMultimodalAnalysisPort;
 import com.linrun.types.exception.AppException;
-import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
 
 public class AcademicMultimodalAgentToolRuntime {
 
@@ -75,29 +78,6 @@ public class AcademicMultimodalAgentToolRuntime {
 
     private List<AcademicToolFileRef> fileRefs(List<AcademicToolFileRef> fileRefs) {
         return fileRefs == null ? List.of() : fileRefs;
-    }
-
-    private List<String> stringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

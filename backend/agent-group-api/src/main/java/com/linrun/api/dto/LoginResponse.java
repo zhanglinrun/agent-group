@@ -10,12 +10,15 @@ import java.time.LocalDateTime;
 public class LoginResponse implements Serializable {
 
     private String token;
+    private String accessToken;
+    private String refreshToken;
     private LocalDateTime expireTime;
     private String userId;
     private String username;
     private String nickname;
     private String role;
     private BigDecimal quotaBalance;
+    private UserProfileResponse user;
 }
 
 

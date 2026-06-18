@@ -20,7 +20,9 @@ import {
   generateWorkspaceImage,
   getKnowledgeDocumentFullContent,
   getKnowledgeFragments,
+  getUserAuth,
   getUserModelConfig,
+  login,
   importAgentAdminState,
   importMcpState,
   modelConfigReady,
@@ -41,6 +43,7 @@ import {
   queryWorkspaceDataHistory,
   queryWorkspaceImageHistory,
   queryWorkspaceMragHistory,
+  register,
   registerMcpServer,
   proposeAcademicProjectPatch,
   requestAcademicResumeStream,
@@ -76,6 +79,18 @@ function jsonResponse(payload = { code: "0000", data: {} }) {
   };
 }
 
+function errorJsonResponse(status, payload = {}) {
+  return {
+    ok: false,
+    status,
+    headers: {
+      get: (name) => name.toLowerCase() === "content-type" ? "application/json" : ""
+    },
+    json: vi.fn(async () => payload),
+    text: vi.fn(async () => JSON.stringify(payload))
+  };
+}
+
 function streamResponse(chunks = []) {
   const encoder = new TextEncoder();
   let index = 0;
@@ -100,6 +115,67 @@ function streamResponse(chunks = []) {
     }
   };
 }
+
+describe("auth api client", () => {
+  beforeEach(() => {
+    const sessionStorage = createStorage();
+    const localStorage = createStorage();
+    globalThis.localStorage = localStorage;
+    globalThis.window = {
+      sessionStorage,
+      btoa: (value) => Buffer.from(value, "utf8").toString("base64")
+    };
+    globalThis.fetch = vi.fn(async () => jsonResponse());
+    clearAdminAuth();
+    clearUserAuth();
+  });
+
+  it("stores docAI style access token login responses", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({
+      code: 200,
+      data: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        user: {
+          id: "U10001",
+          username: "alice",
+          role: "USER"
+        }
+      }
+    }));
+
+    const res = await login("alice", "Password1!");
+
+    expect(res.data.token).toBe("access-token");
+    expect(res.data.userId).toBe("U10001");
+    expect(getUserAuth().token).toBe("access-token");
+  });
+
+  it("stores current register responses and normalizes user auth", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({
+      code: "0000",
+      data: {
+        token: "register-token",
+        userId: "U20002",
+        username: "bob"
+      }
+    }));
+
+    const res = await register({ username: "bob", password: "123456", nickname: "", email: "" });
+
+    expect(res.data.accessToken).toBe("register-token");
+    expect(getUserAuth().username).toBe("bob");
+  });
+
+  it("clears stale user auth when a protected request returns 401", async () => {
+    saveUserAuth({ token: "expired-token", userId: "U1", username: "demo" });
+    globalThis.fetch = vi.fn(async () => errorJsonResponse(401, { info: "登录已失效，请重新登录" }));
+
+    await expect(queryAcademicSessions()).rejects.toThrow("登录已失效");
+
+    expect(getUserAuth()).toBeNull();
+  });
+});
 
 describe("mcp admin api client", () => {
   beforeEach(() => {

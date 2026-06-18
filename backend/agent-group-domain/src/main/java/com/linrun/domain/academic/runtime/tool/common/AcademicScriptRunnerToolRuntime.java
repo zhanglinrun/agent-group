@@ -17,6 +17,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.defaultText;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.integer;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.objectMap;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
+
 public class AcademicScriptRunnerToolRuntime {
 
     private static final int DEFAULT_TIMEOUT_SECONDS = 120;
@@ -182,53 +189,9 @@ public class AcademicScriptRunnerToolRuntime {
         return fileRefs == null ? List.of() : fileRefs;
     }
 
-    private List<String> stringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> objectMap(Object value) {
-        return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
-    }
-
-    private int integer(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(text(value));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private String defaultText(Object value, String fallback) {
-        String text = text(value);
-        return StringUtils.hasText(text) ? text : fallback;
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
     private String limit(String value) {
         String text = text(value);
         return text.length() <= 180 ? text : text.substring(0, 180);
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

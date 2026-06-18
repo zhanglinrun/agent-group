@@ -142,6 +142,33 @@ export class ApiError extends Error {
   }
 }
 
+function apiMessage(payload, fallback = "操作失败") {
+  if (!payload || typeof payload !== "object") {
+    return fallback;
+  }
+  return payload.info || payload.message || payload.error || fallback;
+}
+
+function apiOk(res = {}) {
+  return res.code === "0000" || res.code === 200 || res.code === "200" || res.code === 0;
+}
+
+function normalizeLoginData(data = {}) {
+  const user = data.user || {};
+  const token = data.token || data.accessToken || "";
+  return {
+    ...data,
+    token,
+    accessToken: data.accessToken || token,
+    refreshToken: data.refreshToken || "",
+    userId: data.userId || user.id || user.userId || "",
+    username: data.username || user.username || "",
+    nickname: data.nickname || user.nickname || user.username || "",
+    role: data.role || user.role || "USER",
+    quotaBalance: data.quotaBalance || 0
+  };
+}
+
 export function getSessionId() {
   let sessionId = localStorage.getItem("agentGroupSessionId");
   if (!sessionId) {
@@ -256,12 +283,15 @@ async function parseResponse(response) {
   const payload = isJson ? await response.json().catch(() => null) : await response.text().catch(() => "");
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearUserAuth();
+    }
     const fallback = response.status === 401
-      ? "未登录或账号密码不正确"
+      ? "未登录或登录已失效"
       : response.status === 403
         ? "当前账号权限不足"
         : `请求失败：${response.status}`;
-    throw new ApiError(normalizeApiMessage(payload?.info || payload?.message, fallback), response.status, payload);
+    throw new ApiError(normalizeApiMessage(apiMessage(payload, fallback), fallback), response.status, payload);
   }
   return payload;
 }
@@ -291,7 +321,8 @@ export async function login(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password })
   });
-  if (res.code === "0000" && res.data?.token) {
+  if (apiOk(res) && (res.data?.token || res.data?.accessToken)) {
+    res.data = normalizeLoginData(res.data);
     saveUserAuth(res.data);
   }
   return res;
@@ -303,7 +334,8 @@ export async function register({ username, password, nickname, email }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, nickname, email })
   });
-  if (res.code === "0000" && res.data?.token) {
+  if (apiOk(res) && (res.data?.token || res.data?.accessToken)) {
+    res.data = normalizeLoginData(res.data);
     saveUserAuth(res.data);
   }
   return res;

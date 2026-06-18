@@ -14,6 +14,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.integer;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
+
 /**
  * 异常订单只读诊断工具运行时：把已有的交易一致性巡检能力暴露为 Agent 可调用的工具，
  * 让诊断 Agent 用原生 function-calling 编排"列出订单 → 深度诊断"的只读闭环。
@@ -197,29 +201,5 @@ public class AcademicTradeDiagnosisToolRuntime {
 
     private int clamp(int value) {
         return Math.max(1, Math.min(value, MAX_PAGE_SIZE));
-    }
-
-    private int integer(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(text(value));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }

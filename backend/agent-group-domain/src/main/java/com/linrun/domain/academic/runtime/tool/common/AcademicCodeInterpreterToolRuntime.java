@@ -7,11 +7,15 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicCodeInterpreterPort;
 import com.linrun.types.exception.AppException;
-import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.defaultText;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
 
 public class AcademicCodeInterpreterToolRuntime {
 
@@ -86,30 +90,6 @@ public class AcademicCodeInterpreterToolRuntime {
         return fileRefs == null ? List.of() : fileRefs;
     }
 
-    private List<String> stringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
-    private String defaultText(Object value, String fallback) {
-        String text = text(value);
-        return StringUtils.hasText(text) ? text : fallback;
-    }
-
     private String permissionProfile(Object value) {
         try {
             return AcademicCodeInterpreterPort.normalizePermissionProfile(text(value));
@@ -121,10 +101,6 @@ public class AcademicCodeInterpreterToolRuntime {
     private String limit(String value) {
         String text = text(value);
         return text.length() <= 180 ? text : text.substring(0, 180);
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

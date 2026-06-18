@@ -6,12 +6,18 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.types.exception.AppException;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.bool;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.defaultText;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.mapList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
 
 public class AcademicNl2SqlToolRuntime {
 
@@ -101,50 +107,6 @@ public class AcademicNl2SqlToolRuntime {
         return String.join("\n\n", candidates.stream()
                 .map(candidate -> text(candidate.query()) + "\n" + text(candidate.sql()))
                 .toList());
-    }
-
-    private boolean bool(Object value, boolean fallback) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        String text = text(value);
-        return StringUtils.hasText(text) ? Boolean.parseBoolean(text) : fallback;
-    }
-
-    private List<String> stringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream().map(this::text).filter(StringUtils::hasText).toList();
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> mapList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .filter(Map.class::isInstance)
-                .map(item -> (Map<String, Object>) new LinkedHashMap<>((Map<String, Object>) item))
-                .toList();
-    }
-
-    private String defaultText(Object value, String fallback) {
-        String text = text(value);
-        return StringUtils.hasText(text) ? text : fallback;
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

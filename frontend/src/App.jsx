@@ -5,7 +5,6 @@ import {
   ArrowUp,
   ArrowLeft,
   BarChart3,
-  BookOpen,
   Check,
   Copy,
   CreditCard,
@@ -24,7 +23,6 @@ import {
   RotateCcw,
   Search,
   Settings,
-  ShieldCheck,
   Square,
   Trash2,
   UserPlus,
@@ -32,6 +30,13 @@ import {
   X
 } from "lucide-react";
 import ThemeToggle from "./components/ThemeToggle";
+import { MarkdownRenderer } from "./components/MarkdownRenderer";
+import { ImageWorkspacePanel } from "./components/ImageWorkspacePanel";
+import { DataWorkspacePanel } from "./components/DataWorkspacePanel";
+import { TradeWorkspacePanel } from "./components/TradeWorkspacePanel";
+import { AcademicProjectPanel } from "./components/AcademicProjectPanel";
+import { SessionMemoryPanel } from "./components/SessionMemoryPanel";
+import { WorkspaceEmptyState } from "./components/WorkspaceEmptyState";
 
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
 import {
@@ -50,8 +55,6 @@ import {
   knowledgeBaseCatalogKey,
   normalizeWorkspaceHistoryItems,
   workspaceAcceptsFile,
-  workspaceCapabilityStatus,
-  workspaceServiceProfile,
   workspaceSupportsHistory
 } from "./workspaceServices";
 import {
@@ -79,8 +82,31 @@ import {
   toUiArtifact,
   toolResultPanels
 } from "./taskArtifacts";
-import { normalizeFileUrlForBrowser } from "./fileUrl";
 import { buildArtifactPreviewModel } from "./artifactPreview";
+import {
+  apiSucceeded,
+  attachReplayTimeline,
+  createLocalPreviewUrl,
+  createRuntimeId,
+  hasAssistantPayload,
+  isImageArtifact,
+  isImageUpload,
+  isMockPayment,
+  isOperatorAuthText,
+  isPaymentFormHtml,
+  latestAssistantWithPayload,
+  openGatewayPayment,
+  paymentReturnUrl,
+  preferredFrontendPayChannel,
+  revokeLocalPreviewUrl,
+  safeExternalUrl,
+  safeResourceUrl,
+  toUiReference,
+  workspaceDataToolResultEvent,
+  workspaceImageArtifacts,
+  workspaceImageToolResultEvent,
+  workspaceMragToolResultEvent
+} from "./appRuntime";
 import {
   applyAcademicProjectPatch,
   bindAcademicProjectFile,
@@ -139,13 +165,19 @@ import {
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
 import { APP_ROUTES } from "./routes";
 import { USER_AGENT_MODES } from "./agentModes";
-import {
-  summarizeTradeWorkspace,
-  tradeSettlementHint,
-  tradeOrderStatusLabel
-} from "./tradeWorkspace";
+import { summarizeTradeWorkspace } from "./tradeWorkspace";
 import { buildWorkspacePageModel } from "./workspacePageModel";
 import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
+import {
+  artifactMetaLabel,
+  artifactSourceLabel,
+  assistantReasoningMeta,
+  buildDataChartPreview,
+  formatFileSize,
+  formatPanelValue,
+  hostFromUrl,
+  normalizeRecommendItems
+} from "./appFormatters";
 
 const AGENTS = USER_AGENT_MODES;
 
@@ -239,493 +271,17 @@ const COMPOSER_AGENT_ICONS = {
   "manual-skills": Settings
 };
 
-const PROMPT_ICONS = {
-  book: BookOpen,
-  file: FileText,
-  globe: Globe2,
-  image: ImagePlus,
-  chart: BarChart3,
-  credit: CreditCard
-};
-
 const EMPTY_MESSAGES = [];
 
 const normalizeUserMessage = normalizeApiMessage;
 
+const DEMO_AUTH_FORM = {
+  username: "demo",
+  password: "123456",
+  nickname: "演示用户",
+  email: "demo@example.com"
+};
 
-function apiSucceeded(res) {
-  return res?.code === "0000" || res?.code === 200 || res?.code === "200";
-}
-
-function isOperatorAuthText(value = "") {
-  const text = String(value || "");
-  return text.includes("\u8fd0\u8425\u8d26\u53f7") || text.includes("\u8fd0\u8425\u8d26\u53f7\u8bbf\u95ee\u8be5\u63a5\u53e3");
-}
-
-function createRuntimeId(prefix) {
-  return `${prefix}${Date.now()}`;
-}
-
-function attachReplayTimeline(messages = [], timeline = [], artifacts = [], resultPanels = []) {
-  if (!timeline.length && !artifacts.length && !resultPanels.length) return messages;
-  const index = [...messages].reverse().findIndex((message) => message.role === "assistant");
-  if (index < 0) return messages;
-  const targetIndex = messages.length - 1 - index;
-  return messages.map((message, messageIndex) => (
-    messageIndex === targetIndex
-      ? {
-          ...message,
-          timeline: timeline.length ? timeline : message.timeline,
-          artifacts: artifacts.length ? mergeArtifacts(message.artifacts, artifacts) : message.artifacts,
-          resultPanels: resultPanels.length ? mergeResultPanels(message.resultPanels, resultPanels) : message.resultPanels,
-          showTimeline: false
-        }
-      : message
-  ));
-}
-
-function hasAssistantPayload(message = {}) {
-  return Boolean(
-    String(message.content || "").trim()
-      || (message.timeline || []).length
-      || (message.reference || []).length
-      || (message.artifacts || []).length
-      || (message.resultPanels || []).length
-      || (message.recommend || []).length
-  );
-}
-
-function latestAssistantWithPayload(messages = []) {
-  return [...messages].reverse().find((message) => message.role === "assistant" && hasAssistantPayload(message)) || null;
-}
-
-function hasSessionMemory(memory = {}) {
-  return Boolean(
-    (memory.runs || []).length
-      || (memory.toolObservations || []).length
-      || (memory.reusableArtifacts || []).length
-  );
-}
-
-function toUiReference(data = {}) {
-  return {
-    title: data.title || data.fileId || "参考资料",
-    url: data.url || data.link || "",
-    text: data.content || data.snippet || data.summary || data.text || ""
-  };
-}
-
-function safeExternalUrl(url = "") {
-  const value = String(url || "").trim();
-  if (!value) return "";
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
-  } catch {
-    return "";
-  }
-}
-
-function safeResourceUrl(url = "") {
-  const value = normalizeFileUrlForBrowser(url);
-  if (!value) return "";
-  if (value.startsWith("/") && !value.startsWith("//")) return value;
-  return safeExternalUrl(value);
-}
-
-function paymentReturnUrl(orderId = "") {
-  if (typeof window === "undefined") return "";
-  const url = new URL(window.location.origin);
-  url.searchParams.set("paymentReturn", "1");
-  if (orderId) url.searchParams.set("orderId", orderId);
-  return url.toString();
-}
-
-function submitPaymentForm(payHtml = "", targetWindow = null) {
-  const html = String(payHtml || "").trim();
-  if (!html) return false;
-  const page = `<!doctype html><html><head><meta charset="UTF-8"><title>支付宝支付</title></head><body>${html}<script>window.opener=null;var form=document.forms[0];if(form){form.submit();}</script></body></html>`;
-  if (targetWindow && !targetWindow.closed) {
-    targetWindow.document.open();
-    targetWindow.document.write(page);
-    targetWindow.document.close();
-    return true;
-  }
-  const container = document.createElement("div");
-  container.hidden = true;
-  container.innerHTML = html;
-  const form = container.querySelector("form");
-  if (!form) return false;
-  form.target = "_blank";
-  document.body.appendChild(container);
-  form.submit();
-  window.setTimeout(() => container.remove(), 1000);
-  return true;
-}
-
-function isPaymentFormHtml(value = "") {
-  return /<form[\s>]/i.test(String(value || ""));
-}
-
-function preferredFrontendPayChannel(explicitChannel = "") {
-  const configured = String(explicitChannel || import.meta.env?.VITE_PAYMENT_CHANNEL || "").trim();
-  if (configured) return configured.toUpperCase();
-  const host = typeof window !== "undefined" ? window.location?.hostname : "";
-  return host === "localhost" || host === "127.0.0.1" || host === "::1" ? "MOCK_PAY" : "ALIPAY";
-}
-
-function isMockPayment(payment = {}) {
-  const channel = String(payment.payChannel || "").toUpperCase();
-  const payUrl = String(payment.payUrl || "");
-  return channel === "MOCK_PAY" || payUrl.startsWith("mock://");
-}
-
-function openGatewayPayment(payment = {}, targetWindow = null) {
-  const payFormHtml = payment.payFormHtml || (payment.paymentType === "PAGE_FORM" ? payment.payUrl : "");
-  if (payFormHtml && submitPaymentForm(payFormHtml, targetWindow)) {
-    return true;
-  }
-  const payUrl = safeExternalUrl(payment.payUrl || "");
-  if (!payUrl) return false;
-  if (targetWindow && !targetWindow.closed) {
-    targetWindow.opener = null;
-    targetWindow.location.href = payUrl;
-  } else {
-    window.open(payUrl, "_blank", "noopener,noreferrer");
-  }
-  return true;
-}
-
-function isImageArtifact(artifact = {}) {
-  const type = String(artifact.contentType || artifact.type || "").toLowerCase();
-  const name = String(artifact.fileName || artifact.title || artifact.previewUrl || artifact.downloadUrl || "").toLowerCase();
-  return type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)(\?.*)?$/.test(name);
-}
-
-function isImageUpload(file = {}) {
-  return isImageArtifact({
-    contentType: file.type || file.contentType || file.fileType || "",
-    fileName: file.name || file.fileName || ""
-  });
-}
-
-function createLocalPreviewUrl(file) {
-  if (!isImageUpload(file) || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
-    return "";
-  }
-  return URL.createObjectURL(file);
-}
-
-function revokeLocalPreviewUrl(url = "") {
-  if (String(url || "").startsWith("blob:") && typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function") {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function workspaceImageArtifacts(data = {}) {
-  return [
-    ...(Array.isArray(data.fileRefs) ? data.fileRefs : []),
-    ...(Array.isArray(data.artifactRefs) ? data.artifactRefs : [])
-  ].map(toUiArtifact).filter((artifact) => artifact.fileName || artifact.downloadUrl || artifact.previewUrl);
-}
-
-function workspaceImageToolResultEvent(data = {}, fallbackInvocationId = "") {
-  return {
-    event: "tool_result",
-    data: {
-      invocationId: data.invocationId || fallbackInvocationId,
-      toolName: data.toolName || "image_generation",
-      status: "SUCCESS",
-      resultSummary: data.summary || data.title || "",
-      fileRefs: Array.isArray(data.fileRefs) ? data.fileRefs : [],
-      artifactRefs: Array.isArray(data.artifactRefs) ? data.artifactRefs : [],
-      structuredOutput: {
-        title: data.title || "image generation",
-        summary: data.summary || "",
-        metadata: data.metadata || {},
-        fileRefs: Array.isArray(data.fileRefs) ? data.fileRefs : []
-      }
-    }
-  };
-}
-
-function workspaceDataToolResultEvent(result = {}) {
-  return {
-    event: "tool_result",
-    data: {
-      invocationId: result.invocationId || `${result.toolName || "data"}_${Date.now()}`,
-      toolName: result.toolName || "data_analysis",
-      status: "SUCCESS",
-      resultSummary: result.summary || result.title || "",
-      structuredOutput: result.structuredOutput || {
-        title: result.title || result.toolName || "data result",
-        summary: result.summary || "",
-        content: result.content || ""
-      },
-      fileRefs: Array.isArray(result.fileRefs) ? result.fileRefs : []
-    }
-  };
-}
-
-function workspaceMragToolResultEvent(result = {}) {
-  return {
-    event: "tool_result",
-    data: {
-      invocationId: result.invocationId || `${result.toolName || "mrag"}_${Date.now()}`,
-      toolName: result.toolName || "multimodal_agent",
-      status: "SUCCESS",
-      resultSummary: result.summary || result.title || "",
-      structuredOutput: result.structuredOutput || {
-        title: result.title || result.toolName || "mrag result",
-        summary: result.summary || "",
-        content: result.content || ""
-      },
-      fileRefs: Array.isArray(result.fileRefs) ? result.fileRefs : []
-    }
-  };
-}
-
-const TABLE_SEPARATOR_RE = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/;
-const UNORDERED_LIST_RE = /^\s*(?:[-*+]|\u2022)\s+(.+)$/;
-const ORDERED_LIST_RE = /^\s*\d+\.\s+(.+)$/;
-
-function splitTrailingUrlPunctuation(url) {
-  let href = url || "";
-  let suffix = "";
-  while (/[.,;:!?\u3001\u3002\uff0c\uff1b\uff1a\uff01\uff1f]$/.test(href)) {
-    suffix = href.slice(-1) + suffix;
-    href = href.slice(0, -1);
-  }
-  return { href, suffix };
-}
-
-function renderInlineMarkdown(text, keyPrefix) {
-  const source = String(text || "");
-  const nodes = [];
-  const inlineTokenRe = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<)]+)|<br\s*\/?>|\*\*([^*]+)\*\*)/gi;
-  let lastIndex = 0;
-  let match;
-  let tokenIndex = 0;
-
-  while ((match = inlineTokenRe.exec(source)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(source.slice(lastIndex, match.index));
-    }
-
-    const tokenKey = `${keyPrefix}-inline-${tokenIndex++}`;
-    const fullToken = match[0];
-
-    if (/^<br\s*\/?>$/i.test(fullToken)) {
-      nodes.push(<br key={tokenKey} />);
-    } else if (match[2] && match[3]) {
-      const href = safeExternalUrl(match[3]);
-      nodes.push(
-        href ? (
-          <a className="markdown-link" key={tokenKey} href={href} target="_blank" rel="noreferrer">
-            {renderInlineMarkdown(match[2], tokenKey)}
-          </a>
-        ) : (
-          match[2]
-        )
-      );
-    } else if (match[4]) {
-      const { href: rawHref, suffix } = splitTrailingUrlPunctuation(match[4]);
-      const href = safeExternalUrl(rawHref);
-      nodes.push(
-        href ? (
-          <a className="markdown-link" key={tokenKey} href={href} target="_blank" rel="noreferrer">
-            {rawHref}
-          </a>
-        ) : (
-          match[4]
-        )
-      );
-      if (suffix) nodes.push(suffix);
-    } else if (match[5]) {
-      nodes.push(
-        <strong className="markdown-strong" key={tokenKey}>
-          {renderInlineMarkdown(match[5], tokenKey)}
-        </strong>
-      );
-    }
-
-    lastIndex = inlineTokenRe.lastIndex;
-  }
-
-  if (lastIndex < source.length) {
-    nodes.push(source.slice(lastIndex));
-  }
-
-  return nodes.length ? nodes : source;
-}
-
-function splitMarkdownTableRow(line) {
-  return String(line || "")
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
-}
-
-function isTableStart(lines, index) {
-  return Boolean(lines[index]?.includes("|") && TABLE_SEPARATOR_RE.test(lines[index + 1] || ""));
-}
-
-function isMarkdownBlockStart(lines, index) {
-  const line = lines[index] || "";
-  return Boolean(
-    /^#{1,6}\s+/.test(line) ||
-      /^-{3,}$/.test(line.trim()) ||
-      /^\s*>\s?/.test(line) ||
-      UNORDERED_LIST_RE.test(line) ||
-      ORDERED_LIST_RE.test(line) ||
-      isTableStart(lines, index)
-  );
-}
-
-function MarkdownRenderer({ content = "" }) {
-  const lines = String(content || "").replace(/\r\n/g, "\n").split("\n");
-  const blocks = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    const blockKey = `markdown-block-${index}`;
-
-    if (!trimmed) {
-      index += 1;
-      continue;
-    }
-
-    if (/^-{3,}$/.test(trimmed)) {
-      blocks.push(<hr className="markdown-divider" key={blockKey} />);
-      index += 1;
-      continue;
-    }
-
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    if (headingMatch) {
-      const HeadingTag = headingMatch[1].length === 1 ? "h3" : "h4";
-      blocks.push(
-        <HeadingTag className="markdown-heading" key={blockKey}>
-          {renderInlineMarkdown(headingMatch[2], blockKey)}
-        </HeadingTag>
-      );
-      index += 1;
-      continue;
-    }
-
-    if (isTableStart(lines, index)) {
-      const headers = splitMarkdownTableRow(lines[index]);
-      const rows = [];
-      index += 2;
-      while (index < lines.length && lines[index].trim() && lines[index].includes("|")) {
-        rows.push(splitMarkdownTableRow(lines[index]));
-        index += 1;
-      }
-      blocks.push(
-        <div className="markdown-table-wrap" key={blockKey}>
-          <table className="markdown-table">
-            <thead>
-              <tr>
-                {headers.map((header, cellIndex) => (
-                  <th key={`${blockKey}-head-${cellIndex}`}>{renderInlineMarkdown(header, `${blockKey}-head-${cellIndex}`)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, rowIndex) => (
-                <tr key={`${blockKey}-row-${rowIndex}`}>
-                  {headers.map((_, cellIndex) => (
-                    <td key={`${blockKey}-row-${rowIndex}-${cellIndex}`}>
-                      {renderInlineMarkdown(row[cellIndex] || "", `${blockKey}-row-${rowIndex}-${cellIndex}`)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-      continue;
-    }
-
-    if (/^\s*>\s?/.test(line)) {
-      const quoteLines = [];
-      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
-        quoteLines.push(lines[index].replace(/^\s*>\s?/, ""));
-        index += 1;
-      }
-      blocks.push(
-        <blockquote className="markdown-quote" key={blockKey}>
-          {quoteLines.map((quoteLine, quoteIndex) => (
-            <p key={`${blockKey}-quote-${quoteIndex}`}>
-              {renderInlineMarkdown(quoteLine, `${blockKey}-quote-${quoteIndex}`)}
-            </p>
-          ))}
-        </blockquote>
-      );
-      continue;
-    }
-
-    const unorderedMatch = line.match(UNORDERED_LIST_RE);
-    if (unorderedMatch) {
-      const items = [];
-      while (index < lines.length) {
-        const itemMatch = lines[index].match(UNORDERED_LIST_RE);
-        if (!itemMatch) break;
-        items.push(itemMatch[1]);
-        index += 1;
-      }
-      blocks.push(
-        <ul className="markdown-list" key={blockKey}>
-          {items.map((item, itemIndex) => (
-            <li key={`${blockKey}-item-${itemIndex}`}>
-              {renderInlineMarkdown(item, `${blockKey}-item-${itemIndex}`)}
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    const orderedMatch = line.match(ORDERED_LIST_RE);
-    if (orderedMatch) {
-      const items = [];
-      while (index < lines.length) {
-        const itemMatch = lines[index].match(ORDERED_LIST_RE);
-        if (!itemMatch) break;
-        items.push(itemMatch[1]);
-        index += 1;
-      }
-      blocks.push(
-        <ol className="markdown-list" key={blockKey}>
-          {items.map((item, itemIndex) => (
-            <li key={`${blockKey}-item-${itemIndex}`}>
-              {renderInlineMarkdown(item, `${blockKey}-item-${itemIndex}`)}
-            </li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    const paragraphLines = [];
-    while (index < lines.length && lines[index].trim() && !isMarkdownBlockStart(lines, index)) {
-      paragraphLines.push(lines[index].trim());
-      index += 1;
-    }
-    blocks.push(
-      <p className="markdown-paragraph" key={blockKey}>
-        {renderInlineMarkdown(paragraphLines.join(" "), blockKey)}
-      </p>
-    );
-  }
-
-  return <div className="text-content markdown-body">{blocks}</div>;
-}
 
 function App() {
   return (
@@ -761,6 +317,7 @@ function AgentWorkspaceApp() {
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({ username: "", password: "", nickname: "", email: "" });
   const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
   const [adminForm, setAdminForm] = useState(() => {
     const saved = getAdminAuth();
     return { username: saved?.username || "", password: saved?.password || "" };
@@ -1760,21 +1317,62 @@ function AgentWorkspaceApp() {
     await loadGroupMarketConfig(pkg);
   };
 
-  const handleAuthSubmit = async (event) => {
-    event.preventDefault();
+  const validateAuthForm = (form, mode) => {
+    const username = String(form.username || "").trim();
+    const password = String(form.password || "");
+    if (!username || !password) {
+      return "请填写账号和密码";
+    }
+    if (mode === "register" && password.length < 6) {
+      return "密码长度不能少于 6 位";
+    }
+    const email = String(form.email || "").trim();
+    if (mode === "register" && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return "邮箱格式不正确";
+    }
+    return "";
+  };
+
+  const submitAuth = async (nextForm = authForm, nextMode = authMode) => {
     setAuthError("");
+    const validationError = validateAuthForm(nextForm, nextMode);
+    if (validationError) {
+      setAuthError(validationError);
+      return;
+    }
+    setAuthLoading(true);
     try {
-      const res = authMode === "login" ? await login(authForm.username, authForm.password) : await register(authForm);
-      if (res.code === "0000") {
+      const payload = {
+        ...nextForm,
+        username: String(nextForm.username || "").trim(),
+        password: String(nextForm.password || ""),
+        nickname: String(nextForm.nickname || "").trim(),
+        email: String(nextForm.email || "").trim()
+      };
+      const res = nextMode === "login" ? await login(payload.username, payload.password) : await register(payload);
+      if (apiSucceeded(res) && res.data?.token) {
         setAuth(res.data);
         setLoginOpen(false);
-        setToast("登录成功");
+        setToast(nextMode === "login" ? "登录成功" : "注册成功，已登录");
       } else {
-        setAuthError(normalizeUserMessage(res.info, "登录失败"));
+        setAuthError(normalizeUserMessage(res.info || res.message, nextMode === "login" ? "登录失败" : "注册失败"));
       }
     } catch (error) {
-      setAuthError(normalizeUserMessage(error.message, "登录失败"));
+      setAuthError(normalizeUserMessage(error.message, nextMode === "login" ? "登录失败" : "注册失败"));
+    } finally {
+      setAuthLoading(false);
     }
+  };
+
+  const handleAuthSubmit = async (event) => {
+    event.preventDefault();
+    await submitAuth();
+  };
+
+  const handleDemoAuth = async () => {
+    setAuthMode("login");
+    setAuthForm(DEMO_AUTH_FORM);
+    await submitAuth(DEMO_AUTH_FORM, "login");
   };
 
   const handleLogout = async () => {
@@ -3073,7 +2671,9 @@ function AgentWorkspaceApp() {
           form={authForm}
           setForm={setAuthForm}
           error={authError}
+          loading={authLoading}
           onSubmit={handleAuthSubmit}
+          onDemoLogin={handleDemoAuth}
           onClose={() => setLoginOpen(false)}
         />
       )}
@@ -3275,418 +2875,6 @@ function WorkspaceHistoryPanel({
           )}
         </div>
       )}
-    </section>
-  );
-}
-
-function AcademicProjectPanel({
-  projects = [],
-  model,
-  activeProjectId = "",
-  loading,
-  error,
-  onRefresh,
-  onCreate,
-  onSelect,
-  onApplyPatch
-}) {
-  const workspace = model || buildAcademicProjectWorkspace(null);
-  const hasProject = Boolean(activeProjectId);
-  const visibleDrafts = workspace.draftFiles.slice(0, 3);
-  const visibleReferences = workspace.referenceFiles.slice(0, 3);
-  const visiblePatches = workspace.pendingPatches.slice(0, 3);
-  const hasProjectDetails = hasProject && (
-    visibleDrafts.length > 0 || visibleReferences.length > 0 || visiblePatches.length > 0
-  );
-  return (
-    <section className={`academic-project-panel ${hasProjectDetails ? "" : "compact"}`}>
-      <div className="academic-project-head">
-        <div>
-          <span className="academic-project-kicker">工作上下文</span>
-          <strong>{workspace.title}</strong>
-          <em>{workspace.subtitle || workspace.contextSummary}</em>
-        </div>
-        <div className="academic-project-actions">
-          {projects.length > 0 && (
-            <select
-              value={activeProjectId}
-              onChange={(event) => onSelect?.(event.target.value)}
-              disabled={loading}
-            >
-              {projects.map((project) => (
-                <option key={project.projectId} value={project.projectId}>
-                  {project.title || project.projectId}
-                </option>
-              ))}
-            </select>
-          )}
-          <button type="button" onClick={onRefresh} disabled={loading}>
-            {loading ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
-          </button>
-          <button type="button" className="primary" onClick={onCreate} disabled={loading}>
-            <Plus size={14} />
-            <span>新建</span>
-          </button>
-        </div>
-      </div>
-      {error && <div className="academic-project-error"><AlertTriangle size={14} /> <span>{error}</span></div>}
-      <div className="academic-project-metrics">
-        <span><b>{workspace.statusLabel}</b>状态</span>
-        <span><b>{workspace.fileCount}</b>材料</span>
-        <span><b>{workspace.pendingPatchCount}</b>待确认补丁</span>
-      </div>
-      {hasProjectDetails ? (
-        <div className="academic-project-grid">
-          <div className="academic-project-column">
-            <div className="academic-project-column-head">
-              <FileText size={14} />
-              <strong>工作材料</strong>
-            </div>
-            {visibleDrafts.map((file) => (
-              <ProjectFileRow file={file} key={file.fileId || file.fileName} />
-            ))}
-            {visibleDrafts.length === 0 && <div className="academic-project-empty">暂无工作材料</div>}
-          </div>
-          <div className="academic-project-column">
-            <div className="academic-project-column-head">
-              <BookOpen size={14} />
-              <strong>参考资料</strong>
-            </div>
-            {visibleReferences.map((file) => (
-              <ProjectFileRow file={file} key={file.fileId || file.fileName} />
-            ))}
-            {visibleReferences.length === 0 && <div className="academic-project-empty">暂无参考资料</div>}
-          </div>
-          <div className="academic-project-column">
-            <div className="academic-project-column-head">
-              <ShieldCheck size={14} />
-              <strong>待确认补丁</strong>
-            </div>
-            {visiblePatches.map((patch) => (
-              <article className="academic-patch-row" key={patch.patchId || patch.title}>
-                <div>
-                  <b>{patch.title || patch.patchId}</b>
-                  <span>{patch.reason || patch.fileId || "等待人工确认"}</span>
-                </div>
-                <button type="button" onClick={() => onApplyPatch?.(patch)} disabled={loading}>
-                  确认
-                </button>
-              </article>
-            ))}
-            {visiblePatches.length === 0 && <div className="academic-project-empty">暂无待确认补丁</div>}
-          </div>
-        </div>
-      ) : !hasProject ? (
-        <div className="academic-project-empty wide">创建项目后，上传文件会自动进入当前工作项目</div>
-      ) : null}
-    </section>
-  );
-}
-
-function ProjectFileRow({ file = {} }) {
-  return (
-    <article className="academic-project-file-row">
-      <div>
-        <b>{file.fileName || file.fileId || "未命名文件"}</b>
-        <span>{file.summary || file.folderType || "暂无摘要"}</span>
-      </div>
-      <em>{file.fileType || file.folderType || "-"}</em>
-    </article>
-  );
-}
-
-const IMAGE_QUALITY_OPTIONS = [
-  { value: "auto", label: "自动" },
-  { value: "high", label: "高" },
-  { value: "medium", label: "中" },
-  { value: "low", label: "低" }
-];
-
-const IMAGE_RATIO_PRESETS = [
-  { id: "1:1", label: "1:1", aspectRatio: "1:1", size: "1024x1024", shape: "square" },
-  { id: "3:2", label: "3:2", aspectRatio: "3:2", size: "1536x1024", shape: "landscape" },
-  { id: "2:3", label: "2:3", aspectRatio: "2:3", size: "1024x1536", shape: "portrait" },
-  { id: "4:3", label: "4:3", aspectRatio: "4:3", size: "1600x1200", shape: "landscape" },
-  { id: "3:4", label: "3:4", aspectRatio: "3:4", size: "1200x1600", shape: "portrait" },
-  { id: "16:9", label: "16:9", aspectRatio: "16:9", size: "1920x1080", shape: "landscape" },
-  { id: "9:16", label: "9:16", aspectRatio: "9:16", size: "1080x1920", shape: "portrait" },
-  { id: "1:1-2k", label: "1:1 2K", aspectRatio: "1:1", size: "2048x2048", shape: "square" },
-  { id: "16:9-2k", label: "16:9 2K", aspectRatio: "16:9", size: "2560x1440", shape: "landscape" },
-  { id: "9:16-2k", label: "9:16 2K", aspectRatio: "9:16", size: "1440x2560", shape: "portrait" },
-  { id: "16:9-4k", label: "16:9 4K", aspectRatio: "16:9", size: "3840x2160", shape: "landscape" },
-  { id: "9:16-4k", label: "9:16 4K", aspectRatio: "9:16", size: "2160x3840", shape: "portrait" },
-  { id: "auto", label: "自动", aspectRatio: "auto", size: "auto", shape: "auto" }
-];
-
-const IMAGE_BATCH_OPTIONS = Array.from({ length: 10 }, (_, index) => index + 1);
-
-function ImageWorkspacePanel({ draft, onChange, hasReference, compact = false }) {
-  const update = (field, value) => onChange({ ...draft, [field]: value });
-  const selectedPreset = IMAGE_RATIO_PRESETS.find((preset) => (
-    draft.ratioPreset === preset.id
-    || (preset.aspectRatio === draft.aspectRatio && preset.size === draft.size)
-  )) || IMAGE_RATIO_PRESETS.find((preset) => preset.id === "16:9-4k");
-  const updatePreset = (preset) => onChange({
-    ...draft,
-    ratioPreset: preset.id,
-    aspectRatio: preset.aspectRatio,
-    size: preset.size
-  });
-  return (
-    <section className={`image-workspace-panel ${compact ? "composer-image-settings" : ""}`}>
-      <div className="image-workspace-head">
-        <div>
-          <strong>图像参数</strong>
-          <span>模型、质量、比例和张数</span>
-        </div>
-        <span className={hasReference ? "ready" : ""}>{hasReference ? "已有参考图" : "无参考图"}</span>
-      </div>
-      <div className="image-workspace-grid">
-        <label className="image-model-field">
-          <span>模型</span>
-          <input
-            list="image-model-options"
-            value={draft.model || "gpt-image-2"}
-            onChange={(event) => update("model", event.target.value)}
-            placeholder="gpt-image-2"
-          />
-          <datalist id="image-model-options">
-            <option value="gpt-image-2" />
-          </datalist>
-        </label>
-        <div className="image-option-group image-quality-field">
-          <span>质量</span>
-          <div className="image-segmented-options">
-            {IMAGE_QUALITY_OPTIONS.map((option) => (
-              <button
-                type="button"
-                key={option.value}
-                className={(draft.quality || "auto") === option.value ? "active" : ""}
-                onClick={() => update("quality", option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="image-option-group image-ratio-field">
-          <div className="image-option-title">
-            <span>比例与尺寸</span>
-            <em>{selectedPreset?.size === "auto" ? "自动" : selectedPreset?.size}</em>
-          </div>
-          <div className="image-ratio-options">
-            {IMAGE_RATIO_PRESETS.map((preset) => (
-              <button
-                type="button"
-                key={preset.id}
-                className={selectedPreset?.id === preset.id ? "active" : ""}
-                onClick={() => updatePreset(preset)}
-              >
-                <i className={`ratio-icon ${preset.shape}`} />
-                <span>{preset.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="image-option-group image-batch-field">
-          <span>生成张数</span>
-          <div className="image-batch-options">
-            {IMAGE_BATCH_OPTIONS.map((count) => (
-              <button
-                type="button"
-                key={count}
-                className={Number(draft.batchCount || 1) === count ? "active" : ""}
-                onClick={() => update("batchCount", count)}
-              >
-                {count} 张
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DataWorkspacePanel({ draft, onChange, catalog, catalogLoading, catalogError }) {
-  const models = Array.isArray(catalog?.models) ? catalog.models : [];
-  const update = (field, value) => onChange({ ...draft, [field]: value });
-  const clear = () => onChange({
-    rowsJson: "",
-    columnsText: "",
-    modelCodeText: "",
-    schemaInfoJson: "",
-    businessKnowledge: ""
-  });
-  const applyCatalog = () => {
-    onChange({ ...draft, ...buildWorkspaceDataCatalogDraft(catalog) });
-  };
-  return (
-    <section className="data-workspace-panel">
-      <div className="data-workspace-head">
-        <div>
-          <strong>数据上下文</strong>
-          <span>结构化数据会随下一次数据问答一起提交</span>
-        </div>
-        <div>
-          <button type="button" onClick={applyCatalog} disabled={catalogLoading || models.length === 0}>
-            {catalogLoading ? <Loader2 size={14} className="spin" /> : <BookOpen size={14} />}
-            使用目录
-          </button>
-          <button type="button" onClick={clear}>清空</button>
-        </div>
-      </div>
-      {catalogError && <div className="data-workspace-catalog-error">{catalogError}</div>}
-      {models.length > 0 && (
-        <div className="data-workspace-catalog">
-          {models.map((model) => (
-            <span key={model.modelCode || model.tableName}>
-              <b>{model.displayName || model.modelCode}</b>
-              {model.modelCode || model.tableName}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="data-workspace-grid">
-        <label>
-          <span>字段列表</span>
-          <input
-            value={draft.columnsText}
-            onChange={(event) => update("columnsText", event.target.value)}
-            placeholder="pay_status, count, amount"
-          />
-        </label>
-        <label>
-          <span>模型编码</span>
-          <input
-            value={draft.modelCodeText}
-            onChange={(event) => update("modelCodeText", event.target.value)}
-            placeholder="trade_order, quota_flow"
-          />
-        </label>
-        <label className="wide">
-          <span>业务知识</span>
-          <textarea
-            value={draft.businessKnowledge}
-            onChange={(event) => update("businessKnowledge", event.target.value)}
-            placeholder="补充口径、枚举和业务规则"
-          />
-        </label>
-        <label className="wide">
-          <span>表格行 JSON</span>
-          <textarea
-            value={draft.rowsJson}
-            onChange={(event) => update("rowsJson", event.target.value)}
-            placeholder='[{"pay_status":"PAY_SUCCESS","count":12}]'
-          />
-        </label>
-        <label className="wide">
-          <span>表结构 JSON</span>
-          <textarea
-            value={draft.schemaInfoJson}
-            onChange={(event) => update("schemaInfoJson", event.target.value)}
-            placeholder='[{"table":"trade_order","columns":["pay_status","order_status"]}]'
-          />
-        </label>
-      </div>
-    </section>
-  );
-}
-
-function formatTradeNumber(value) {
-  return Number(value || 0).toFixed(2);
-}
-
-function tradeOrderAmount(order = {}) {
-  return formatTradeNumber(order.payAmount || order.totalAmount || order.amount || order.lockAmount);
-}
-
-function TradeWorkspacePanel({ summary, loading, onRefresh, onOpenRecharge, onOpenOrderRecords }) {
-  const stats = [
-    { label: "当前余额", value: `${formatTradeNumber(summary.quotaBalance)} 点` },
-    { label: "已用额度", value: `${formatTradeNumber(summary.usedQuota)} 点` },
-    { label: "拼团订单", value: `${summary.groupOrders} 单` },
-    { label: "待成团", value: `${summary.waitingGroupOrders} 单`, danger: summary.waitingGroupOrders > 0 }
-  ];
-
-  return (
-    <section className="trade-workspace-panel">
-      <div className="trade-workspace-head">
-        <div>
-          <strong>交易闭环看板</strong>
-          <span>把额度账户、拼团订单、支付状态和额度流水放在同一个工作区核对</span>
-        </div>
-        <div>
-          <button type="button" onClick={onOpenRecharge}>
-            <Wallet size={15} />
-            <span>购买额度</span>
-          </button>
-          <button type="button" onClick={onRefresh} disabled={loading}>
-            {loading ? <Loader2 size={15} className="spin" /> : <RotateCcw size={15} />}
-            <span>刷新订单</span>
-          </button>
-        </div>
-      </div>
-      <div className="trade-stat-grid">
-        {stats.map((item) => (
-          <div className={`trade-stat-card ${item.danger ? "danger" : ""}`} key={item.label}>
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
-      </div>
-      <div className="trade-consistency-list">
-        {summary.consistencyHints.map((hint) => (
-          <span key={hint}>{hint}</span>
-        ))}
-      </div>
-      <div className="trade-workspace-grid">
-        <div>
-          <div className="trade-workspace-subhead">
-            <strong>最近订单</strong>
-            <span>{summary.totalOrders} 单</span>
-          </div>
-          {summary.recentOrders.length === 0 && <p className="trade-workspace-empty">暂无订单</p>}
-          {summary.recentOrders.map((order, index) => {
-            const status = order.orderStatus || order.status || order.payStatus;
-            const settlementHint = tradeSettlementHint(order);
-            return (
-              <article className="trade-order-card" key={order.orderId || order.outTradeNo || index}>
-                <div>
-                  <strong>{order.productName || order.goodsName || order.productId || "额度订单"}</strong>
-                  <span>{order.orderId || order.outTradeNo || "未生成订单号"}</span>
-                </div>
-                <em>{Number(order.marketType || 0) === 1 ? "拼团" : "直购"}</em>
-                <b>{tradeOrderStatusLabel(status)}</b>
-                <small className={`trade-settlement-hint ${settlementHint.tone}`} title={settlementHint.detail}>
-                  {settlementHint.label}
-                </small>
-                <span>￥{tradeOrderAmount(order)}</span>
-                <button type="button" className="trade-order-audit" onClick={() => onOpenOrderRecords?.()}>
-                  <Eye size={14} />
-                  <span>订单</span>
-                </button>
-              </article>
-            );
-          })}
-        </div>
-        <div>
-          <div className="trade-workspace-subhead">
-            <strong>最近额度流水</strong>
-            <span>{summary.recentFlows.length} 条</span>
-          </div>
-          {summary.recentFlows.length === 0 && <p className="trade-workspace-empty">暂无流水</p>}
-          {summary.recentFlows.map((flow, index) => (
-            <article className="trade-flow-card" key={flow.flowId || flow.bizId || index}>
-              <div>
-                <strong>{flow.bizType || flow.flowType || "额度流水"}</strong>
-                <span>{flow.bizId || flow.remark || flow.createTime || ""}</span>
-              </div>
-              <b>{formatTradeNumber(flow.quotaAmount)}</b>
-            </article>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
@@ -3896,186 +3084,6 @@ function MragKnowledgePanel({
       )}
     </section>
   );
-}
-
-function WorkspaceEmptyState({ workspace, profile, capabilities, pageModel, onPrompt, onOpenRecharge }) {
-  const page = pageModel || buildWorkspacePageModel(workspace.id, capabilities);
-  const prompts = page.prompts;
-  const serviceProfile = profile || page.profile || workspaceServiceProfile(workspace.id);
-  const capabilityStatus = workspaceCapabilityStatus(workspace.id, capabilities);
-  const toolReadiness = page.toolReadiness;
-  const runtimeCoverage = page.runtimeCoverage;
-  const isImage = workspace.id === "image";
-  const isTrade = workspace.id === "trade";
-  const isAgent = workspace.id === "agent";
-  const useSimpleEmpty = isAgent || isImage;
-  const showWorkspaceRuntime = !useSimpleEmpty && (page.supportsHistory || page.dedicatedRun || isTrade);
-  const manualSkills = Array.isArray(capabilities?.manualSkills)
-    ? capabilities.manualSkills.slice(0, 6)
-    : [];
-  return (
-    <div className={`empty-state workspace-empty workspace-empty-${workspace.id}`}>
-      {!useSimpleEmpty && (
-        <div className="empty-icon-wrapper">
-          <div className="empty-icon">{workspace.icon}</div>
-          <div className="icon-glow" />
-        </div>
-      )}
-      <h2>{useSimpleEmpty ? "今天想做什么？" : workspace.name}</h2>
-      {!useSimpleEmpty && <p>{serviceProfile.summary}</p>}
-      {showWorkspaceRuntime && (
-        <div className="workspace-meter">
-          {capabilityStatus.map((item) => (
-            <span key={item.key} className={item.active ? "active" : ""}>{item.label}</span>
-          ))}
-        </div>
-      )}
-      {showWorkspaceRuntime && (
-        <div className={`workspace-readiness-card ${toolReadiness.status}`}>
-          <div className="workspace-readiness-head">
-            <strong>工具状态</strong>
-            <em>{toolReadiness.statusLabel}</em>
-          </div>
-          <div className="workspace-readiness-metrics">
-            <span><b>可用</b>{toolReadiness.readyTools.length}/{toolReadiness.requiredTools.length}</span>
-          </div>
-          {toolReadiness.missingTools.length > 0 && (
-            <div className="workspace-readiness-missing">
-              {toolReadiness.missingTools.slice(0, 4).map((toolName) => (
-                <span key={toolName}>{TOOL_LABELS[toolName] || toolName}</span>
-              ))}
-            </div>
-          )}
-          {toolReadiness.actions[0] && <small>{toolReadiness.actions[0]}</small>}
-        </div>
-      )}
-      {showWorkspaceRuntime && (
-        <div className={`workspace-runtime-coverage ${runtimeCoverage.status}`}>
-          <span><b>覆盖</b>{runtimeCoverage.statusLabel}</span>
-          <span><b>运行</b>{runtimeCoverage.runReady ? "已接入" : "未接入"}</span>
-          <span><b>历史</b>{runtimeCoverage.historyReady ? "已接入" : "未接入"}</span>
-          <span><b>工具</b>{runtimeCoverage.availableTools.length}/{runtimeCoverage.availableTools.length + runtimeCoverage.missingTools.length}</span>
-        </div>
-      )}
-      {showWorkspaceRuntime && (
-        <div className="workspace-tool-strip">
-          {serviceProfile.primaryTools.map((toolName) => (
-            <span key={toolName}>{TOOL_LABELS[toolName] || toolName}</span>
-          ))}
-        </div>
-      )}
-      {manualSkills.length > 0 && !useSimpleEmpty && (
-        <div className="workspace-skill-strip">
-          {manualSkills.map((skill) => (
-            <span key={skill.name || skill.description}>
-              <b>{skill.name}</b>
-              {Number(skill.scriptCount || 0) > 0 && <em>{skill.scriptCount} scripts</em>}
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="quick-actions workspace-actions">
-        {prompts.map((item) => {
-          const Icon = PROMPT_ICONS[item.icon] || BookOpen;
-          return (
-            <button type="button" className="quick-action" key={item.title} onClick={() => onPrompt(item.prompt)}>
-              <Icon size={18} />
-              <span>{item.title}</span>
-            </button>
-          );
-        })}
-        {isTrade && (
-          <button type="button" className="quick-action" onClick={onOpenRecharge}>
-            <Wallet size={18} />
-            <span>额度购买</span>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SessionMemoryPanel({ memory }) {
-  if (!hasSessionMemory(memory)) return null;
-  const runs = memory.runs || [];
-  const observations = memory.toolObservations || [];
-  const artifacts = memory.reusableArtifacts || [];
-  const latestArtifact = artifacts[0];
-  return (
-    <section className="session-memory-panel">
-      <div className="session-memory-head">
-        <strong>会话记忆</strong>
-        <span>{memory.summary || "会话中的关键上下文会显示在这里"}</span>
-      </div>
-      <div className="session-memory-stats">
-        <span>运行 <b>{runs.length}</b></span>
-        <span>工具观察 <b>{observations.length}</b></span>
-        <span>可复用产物 <b>{artifacts.length}</b></span>
-      </div>
-      {latestArtifact && (
-        <div className="session-memory-artifact">
-          可复用：{latestArtifact.title || latestArtifact.fileName || latestArtifact.artifactId}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function formatPanelValue(value) {
-  if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
-
-function artifactSourceLabel(file = {}) {
-  const source = file.toolName || file.sourceName || file.toolInvocationId || file.invocationId || file.toolCallId;
-  if (!source) return "";
-  return TOOL_LABELS[source] || String(source);
-}
-
-function artifactMetaLabel(file = {}) {
-  const typeLabel = file.fileSize ? formatFileSize(file.fileSize) : file.type || file.contentType || "文件";
-  const sourceLabel = artifactSourceLabel(file);
-  return sourceLabel ? `${typeLabel} · 来源 ${sourceLabel}` : typeLabel;
-}
-
-function hostFromUrl(url = "") {
-  const value = String(url || "").trim();
-  if (!value) return "";
-  try {
-    return new URL(value.startsWith("http") ? value : `https://${value}`).hostname.replace(/^www\./, "");
-  } catch {
-    return value.replace(/^https?:\/\//, "").split("/")[0] || value;
-  }
-}
-
-function numericValue(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value.replace(/,/g, ""));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function buildDataChartPreview(panel = {}) {
-  const rows = Array.isArray(panel.rows) ? panel.rows : [];
-  const columns = Array.isArray(panel.columns) ? panel.columns : [];
-  if (!rows.length || !columns.length) return null;
-  const measure = columns.find((column) => rows.some((row) => numericValue(row?.[column]) !== null));
-  if (!measure) return null;
-  const dimension = columns.find((column) => column !== measure && rows.some((row) => numericValue(row?.[column]) === null))
-    || columns.find((column) => column !== measure)
-    || measure;
-  const points = rows
-    .slice(0, 6)
-    .map((row, index) => ({
-      label: formatPanelValue(row?.[dimension] ?? `#${index + 1}`),
-      value: numericValue(row?.[measure]) ?? 0
-    }));
-  const maxValue = Math.max(...points.map((item) => Math.abs(item.value)), 0);
-  if (!maxValue) return null;
-  return { dimension, measure, points, maxValue };
 }
 
 function ResultPanelList({ panels = [], onDownloadArtifact }) {
@@ -4495,58 +3503,6 @@ function ArtifactInlinePreview({ preview }) {
   return null;
 }
 
-function numberFrom(value, fallback = 0) {
-  const parsed = Number(value ?? fallback);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function formatReasoningDuration(ms) {
-  const value = numberFrom(ms, 0);
-  if (value <= 0) return "";
-  if (value < 1000) return `${Math.max(1, Math.round(value))} ms`;
-  const seconds = value / 1000;
-  if (seconds < 10) return `${seconds.toFixed(1).replace(/\.0$/, "")} 秒`;
-  if (seconds < 60) return `${Math.round(seconds)} 秒`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = Math.round(seconds % 60);
-  return rest > 0 ? `${minutes} 分 ${rest} 秒` : `${minutes} 分`;
-}
-
-function reasoningElapsedMs(timeline = []) {
-  const diagnosis = [...timeline].reverse().find((item) => item?.type === "diagnosis" && numberFrom(item?.metrics?.elapsedMs, 0) > 0);
-  if (diagnosis) return numberFrom(diagnosis.metrics.elapsedMs, 0);
-  return timeline.reduce((sum, item) => sum + numberFrom(item?.latencyMillis, 0), 0);
-}
-
-function reasoningToolCount(timeline = []) {
-  const seen = new Set();
-  let anonymous = 0;
-  timeline.forEach((item) => {
-    if (item?.type !== "tool") return;
-    const key = String(item.invocationId || item.toolCallId || "").trim();
-    if (key) {
-      seen.add(key);
-      return;
-    }
-    if (String(item.status || "").toLowerCase() !== "running") {
-      anonymous += 1;
-    }
-  });
-  return seen.size || anonymous || timeline.filter((item) => item?.type === "tool").length;
-}
-
-function assistantReasoningMeta(message = {}, plannerHistory = []) {
-  const timeline = message.timeline || [];
-  const pieces = [];
-  const elapsed = formatReasoningDuration(reasoningElapsedMs(timeline));
-  const tools = reasoningToolCount(timeline);
-  if (elapsed) pieces.push(`用时 ${elapsed}`);
-  if (tools > 0) pieces.push(`${tools} 次工具`);
-  if (plannerHistory.length > 0) pieces.push(`${plannerHistory.length} 版计划`);
-  if ((message.artifacts || []).length > 0) pieces.push(`${message.artifacts.length} 个产物`);
-  return pieces.slice(0, 3).join(" · ");
-}
-
 function TimelineContent({ timeline = [] }) {
   return (
     <div className="timeline-content">
@@ -4954,27 +3910,49 @@ function MessageItem({
   );
 }
 
-function AuthDialog({ mode, setMode, form, setForm, error, onSubmit, onClose }) {
+function AuthDialog({ mode, setMode, form, setForm, error, loading = false, onSubmit, onDemoLogin, onClose }) {
+  const passwordReady = String(form.password || "").length >= 6;
   return (
     <div className="modal-overlay">
       <form className="auth-dialog" onSubmit={onSubmit}>
-        <button type="button" className="modal-close" onClick={onClose}><X size={18} /></button>
-        <img className="auth-logo" src="/bear-doctor-logo.png" alt="熊博士Agent" />
-        <h3>{mode === "login" ? "登录熊博士Agent" : "注册账号"}</h3>
+        <button type="button" className="modal-close" onClick={onClose} disabled={loading}><X size={18} /></button>
+        <img className="auth-logo" src="/bear-doctor-logo.png" alt="熊博士 Agent" />
+        <h3>{mode === "login" ? "登录熊博士 Agent" : "创建用户账号"}</h3>
+        <p className="auth-tip">这里是普通用户入口；后台管理请使用运营端账号认证。</p>
         <div className="auth-switch">
-          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>登录</button>
-          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>注册</button>
+          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")} disabled={loading}>登录</button>
+          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")} disabled={loading}>注册</button>
         </div>
-        <input name="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="账号" autoComplete="username" required />
-        <input name="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" placeholder="密码" autoComplete={mode === "login" ? "current-password" : "new-password"} required />
+        <label className="auth-field">
+          <span>账号</span>
+          <input name="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} placeholder="请输入账号" autoComplete="username" disabled={loading} required />
+        </label>
+        <label className="auth-field">
+          <span>密码</span>
+          <input name="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} type="password" placeholder="请输入密码" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} required />
+        </label>
         {mode === "register" && (
           <>
-            <input name="nickname" value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} placeholder="昵称" autoComplete="nickname" />
-            <input name="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="邮箱" autoComplete="email" />
+            <label className="auth-field">
+              <span>昵称</span>
+              <input name="nickname" value={form.nickname} onChange={(event) => setForm({ ...form, nickname: event.target.value })} placeholder="可选" autoComplete="nickname" disabled={loading} />
+            </label>
+            <label className="auth-field">
+              <span>邮箱</span>
+              <input name="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="可选" autoComplete="email" disabled={loading} />
+            </label>
+            <div className={`auth-password-rule ${passwordReady ? "ready" : ""}`}>密码至少 6 位</div>
           </>
         )}
         {error && <div className="auth-error">{error}</div>}
-        <button className="auth-submit" type="submit">{mode === "login" ? "登录" : "注册并登录"}</button>
+        <button className="auth-submit" type="submit" disabled={loading}>
+          {loading ? "处理中..." : (mode === "login" ? "登录" : "注册并登录")}
+        </button>
+        {mode === "login" && (
+          <button className="auth-demo" type="button" onClick={onDemoLogin} disabled={loading}>
+            使用演示账号
+          </button>
+        )}
       </form>
     </div>
   );
@@ -5592,36 +4570,6 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
       </div>
     </div>
   );
-}
-
-function formatFileSize(size = 0) {
-  if (!size) return "-";
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function normalizeRecommendItems(value) {
-  let raw = value;
-  if (typeof raw === "string") {
-    try {
-      raw = JSON.parse(raw);
-    } catch {
-      raw = [raw];
-    }
-  }
-  if (raw && !Array.isArray(raw)) {
-    raw = raw.items || raw.questions || raw.recommends || [raw];
-  }
-  return (Array.isArray(raw) ? raw : [])
-    .map((item) => {
-      if (typeof item === "string") return item;
-      if (!item || typeof item !== "object") return "";
-      return item.question || item.content || item.title || item.text || item.name || "";
-    })
-    .map((item) => String(item || "").trim())
-    .filter(Boolean)
-    .slice(0, 6);
 }
 
 export default App;

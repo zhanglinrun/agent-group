@@ -18,6 +18,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.integer;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
+
 public class AcademicDataAnalysisToolRuntime {
 
     private final AcademicDataAnalysisPort remotePort;
@@ -55,7 +59,7 @@ public class AcademicDataAnalysisToolRuntime {
         String task = text(arguments.get("task"));
         List<Map<String, Object>> rows = rows(arguments.get("rows"));
         List<String> columns = columns(arguments.get("columns"), rows);
-        List<String> modelCodeList = strings(arguments.get("modelCodeList"));
+        List<String> modelCodeList = stringList(arguments.get("modelCodeList"));
         if (remotePort != null && !modelCodeList.isEmpty()) {
             AcademicDataAnalysisPort.AcademicDataAnalysisResult remoteResult = remotePort.analyze(
                     new AcademicDataAnalysisPort.AcademicDataAnalysisRequest(
@@ -113,26 +117,13 @@ public class AcademicDataAnalysisToolRuntime {
 
     private List<String> columns(Object value, List<Map<String, Object>> rows) {
         if (value instanceof List<?> list && !list.isEmpty()) {
-            return list.stream()
-                    .map(this::text)
-                    .filter(StringUtils::hasText)
-                    .toList();
+            return stringList(list);
         }
         Set<String> columns = new LinkedHashSet<>();
         for (Map<String, Object> row : rows) {
             columns.addAll(row.keySet());
         }
         return new ArrayList<>(columns);
-    }
-
-    private List<String> strings(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
     }
 
     private Map<String, Integer> missingValues(List<Map<String, Object>> rows, List<String> columns) {
@@ -200,21 +191,6 @@ public class AcademicDataAnalysisToolRuntime {
             return new BigDecimal(String.valueOf(value).trim());
         } catch (NumberFormatException e) {
             return null;
-        }
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
-    }
-
-    private int integer(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(text(value));
-        } catch (NumberFormatException e) {
-            return fallback;
         }
     }
 

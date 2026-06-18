@@ -15,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
+
 public class AcademicReportToolRuntime {
 
     private final AcademicReportPort remotePort;
@@ -56,7 +59,7 @@ public class AcademicReportToolRuntime {
         String title = firstText(arguments.get("title"), task);
         String summary = text(arguments.get("summary"));
         List<ReportSection> sections = sections(arguments.get("sections"));
-        List<String> evidence = strings(arguments.get("evidence"));
+        List<String> evidence = stringList(arguments.get("evidence"));
         if (remotePort != null && shouldUseRemote(arguments)) {
             AcademicReportPort.AcademicReportResult remoteResult = remotePort.generate(
                     new AcademicReportPort.AcademicReportRequest(
@@ -66,7 +69,7 @@ public class AcademicReportToolRuntime {
                             summary,
                             sectionMaps(arguments.get("sections"), sections),
                             evidence,
-                            strings(arguments.get("fileNames")),
+                            stringList(arguments.get("fileNames")),
                             firstText(arguments.get("fileName"), defaultFileName(title)),
                             firstText(arguments.get("fileType"), "markdown"),
                             firstText(arguments.get("templateType"), "html"),
@@ -103,7 +106,7 @@ public class AcademicReportToolRuntime {
     private boolean shouldUseRemote(Map<String, Object> arguments) {
         return StringUtils.hasText(text(arguments.get("task")))
                 || StringUtils.hasText(text(arguments.get("fileName")))
-                || !strings(arguments.get("fileNames")).isEmpty();
+                || !stringList(arguments.get("fileNames")).isEmpty();
     }
 
     private String markdown(String title,
@@ -182,16 +185,6 @@ public class AcademicReportToolRuntime {
                 .toList();
     }
 
-    private List<String> strings(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
     private String taskText(String task,
                             String title,
                             String summary,
@@ -222,10 +215,6 @@ public class AcademicReportToolRuntime {
         }
         String content = sections.getFirst().content();
         return content.length() <= 160 ? content : content.substring(0, 160);
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private String firstText(Object... values) {

@@ -7,11 +7,16 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicImageGenerationPort;
 import com.linrun.types.exception.AppException;
-import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.defaultText;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.integer;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
 
 public class AcademicImageGenerationToolRuntime {
 
@@ -103,45 +108,6 @@ public class AcademicImageGenerationToolRuntime {
 
     private List<AcademicToolFileRef> fileRefs(List<AcademicToolFileRef> fileRefs) {
         return fileRefs == null ? List.of() : fileRefs;
-    }
-
-    private List<String> stringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
-    private int integer(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(text(value));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private String defaultText(Object value, String fallback) {
-        String text = text(value);
-        return StringUtils.hasText(text) ? text : fallback;
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

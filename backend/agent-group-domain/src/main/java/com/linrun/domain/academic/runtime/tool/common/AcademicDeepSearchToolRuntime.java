@@ -7,11 +7,17 @@ import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolStructuredOutput;
 import com.linrun.domain.academic.runtime.tool.port.AcademicDeepSearchPort;
 import com.linrun.types.exception.AppException;
-import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.bool;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.firstPresent;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.integer;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.objectMap;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.stringList;
+import static com.linrun.domain.academic.runtime.tool.common.AcademicToolArguments.text;
 
 public class AcademicDeepSearchToolRuntime {
 
@@ -100,8 +106,9 @@ public class AcademicDeepSearchToolRuntime {
     }
 
     private void putIfPresent(Map<String, Object> map, String key, String value) {
-        if (StringUtils.hasText(value)) {
-            map.put(key, value.trim());
+        String text = firstPresent(value);
+        if (!text.isEmpty()) {
+            map.put(key, text);
         }
     }
 
@@ -109,56 +116,9 @@ public class AcademicDeepSearchToolRuntime {
         return Math.max(min, Math.min(max, value));
     }
 
-    private boolean bool(Object value, boolean fallback) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        String text = text(value);
-        return StringUtils.hasText(text) ? Boolean.parseBoolean(text) : fallback;
-    }
-
-    private int integer(Object value, int fallback) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(text(value));
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
-    }
-
-    private List<String> stringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-                .map(this::text)
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> objectMap(Object value) {
-        return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
-    }
-
-    private String firstPresent(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value.trim();
-            }
-        }
-        return "";
-    }
-
     private String limit(String value) {
         String text = text(value);
         return text.length() <= 240 ? text : text.substring(0, 240);
-    }
-
-    private String text(Object value) {
-        return value == null ? "" : String.valueOf(value).trim();
     }
 }
 

@@ -160,7 +160,7 @@ agent:
       operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
       operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
       mock-payment-enabled: ${AGENT_GROUP_MOCK_PAYMENT_ENABLED:true}
-      demo-user-enabled: ${AGENT_GROUP_DEMO_USER_ENABLED:false}
+      demo-user-enabled: ${AGENT_GROUP_DEMO_USER_ENABLED:true}
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:

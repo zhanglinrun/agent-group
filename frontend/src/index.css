@@ -8137,6 +8137,14 @@ body {
   color: var(--text-primary);
 }
 
+.bear-doctor-app .auth-tip {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .bear-doctor-app .auth-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -8145,6 +8153,7 @@ body {
 
 .bear-doctor-app .auth-switch button,
 .bear-doctor-app .auth-submit,
+.bear-doctor-app .auth-demo,
 .bear-doctor-app .refresh-btn,
 .bear-doctor-app .pkg-actions button,
 .bear-doctor-app .admin-auth-box button {
@@ -8165,6 +8174,13 @@ body {
   font-weight: 700;
 }
 
+.bear-doctor-app .auth-field {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 .bear-doctor-app .auth-dialog input,
 .bear-doctor-app .admin-auth-box input {
   height: 42px;
@@ -8179,6 +8195,33 @@ body {
 .bear-doctor-app .auth-dialog input:focus,
 .bear-doctor-app .admin-auth-box input:focus {
   border-color: var(--primary-light);
+}
+
+.bear-doctor-app .auth-password-rule {
+  color: var(--text-secondary);
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.bear-doctor-app .auth-password-rule.ready {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.bear-doctor-app .auth-demo {
+  background: transparent;
+}
+
+.bear-doctor-app .auth-switch button:disabled,
+.bear-doctor-app .auth-submit:disabled,
+.bear-doctor-app .auth-demo:disabled,
+.bear-doctor-app .auth-dialog input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .bear-doctor-app .auth-error {
@@ -9653,6 +9696,7 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .skill-picker button,
 .bear-doctor-app[data-theme] .copy-btn,
 .bear-doctor-app[data-theme] .auth-switch button,
+.bear-doctor-app[data-theme] .auth-demo,
 .bear-doctor-app[data-theme] .refresh-btn,
 .bear-doctor-app[data-theme] .pkg-actions button,
 .bear-doctor-app[data-theme] .model-config-actions button,
@@ -10198,6 +10242,12 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .model-config-dialog input:focus {
   border-color: var(--app-primary);
   box-shadow: 0 0 0 3px var(--app-primary-soft);
+}
+
+.bear-doctor-app[data-theme] .auth-tip,
+.bear-doctor-app[data-theme] .auth-field,
+.bear-doctor-app[data-theme] .auth-password-rule {
+  color: var(--app-muted);
 }
 
 .bear-doctor-app[data-theme] .quota-card div,

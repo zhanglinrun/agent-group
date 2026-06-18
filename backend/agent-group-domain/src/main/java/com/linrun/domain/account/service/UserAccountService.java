@@ -55,20 +55,29 @@ public class UserAccountService {
             throw new AppException("AUTH_0003", "账号已存在");
         });
 
+        UserAccount user = createEnabledUser(
+                username,
+                request.getPassword(),
+                request.getNickname(),
+                request.getEmail());
+        return createSessionResponse(user);
+    }
+
+    private UserAccount createEnabledUser(String username, String password, String nickname, String email) {
         UserAccount user = new UserAccount();
         user.setUserId(nextNo("U"));
         user.setUsername(username);
         user.setPasswordSalt("");
-        user.setPasswordHash(hashPassword(request.getPassword()));
-        user.setNickname(StringUtils.hasText(request.getNickname()) ? request.getNickname().trim() : username);
-        user.setEmail(StringUtils.hasText(request.getEmail()) ? request.getEmail().trim() : "");
+        user.setPasswordHash(hashPassword(password));
+        user.setNickname(StringUtils.hasText(nickname) ? nickname.trim() : username);
+        user.setEmail(StringUtils.hasText(email) ? email.trim() : "");
         user.setRole(DEFAULT_ROLE);
         user.setStatus(ENABLED);
         user.setCreateTime(LocalDateTime.now());
         user.setUpdateTime(user.getCreateTime());
         userAccountRepository.saveUser(user);
         userQuotaRepository.createAccountIfAbsent(user.getUserId());
-        return createSessionResponse(user);
+        return user;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -90,17 +99,7 @@ public class UserAccountService {
         UserAccount user = requireUserByToken(token);
         UserQuotaAccount account = userQuotaRepository.queryAccount(user.getUserId())
                 .orElseGet(() -> emptyQuota(user.getUserId()));
-        UserProfileResponse response = new UserProfileResponse();
-        response.setUserId(user.getUserId());
-        response.setUsername(user.getUsername());
-        response.setNickname(user.getNickname());
-        response.setEmail(user.getEmail());
-        response.setRole(user.getRole());
-        response.setStatus(user.getStatus());
-        response.setQuotaBalance(account.getQuotaBalance());
-        response.setFrozenQuota(account.getFrozenQuota());
-        response.setUsedQuota(account.getUsedQuota());
-        return response;
+        return toUserProfileResponse(user, account);
     }
 
     public UserAccount requireUserByToken(String token) {
@@ -143,12 +142,15 @@ public class UserAccountService {
                 .orElseGet(() -> emptyQuota(user.getUserId()));
         LoginResponse response = new LoginResponse();
         response.setToken(rawToken);
+        response.setAccessToken(rawToken);
+        response.setRefreshToken("");
         response.setExpireTime(session.getExpireTime());
         response.setUserId(user.getUserId());
         response.setUsername(user.getUsername());
         response.setNickname(user.getNickname());
         response.setRole(user.getRole());
         response.setQuotaBalance(account.getQuotaBalance());
+        response.setUser(toUserProfileResponse(user, account));
         return response;
     }
 
@@ -157,14 +159,8 @@ public class UserAccountService {
         if (!demoUserEnabled || !"demo".equalsIgnoreCase(username) || !"123456".equals(request.getPassword())) {
             throw new AppException("AUTH_0005", "账号或密码不正确");
         }
-        RegisterRequest registerRequest = new RegisterRequest();
-        registerRequest.setUsername("demo");
-        registerRequest.setPassword("123456");
-        registerRequest.setNickname("演示用户");
-        registerRequest.setEmail("demo@example.com");
-        register(registerRequest);
         return userAccountRepository.queryByUsername("demo")
-                .orElseThrow(() -> new AppException("AUTH_0006", "演示用户初始化失败"));
+                .orElseGet(() -> createEnabledUser("demo", "123456", "演示用户", "demo@example.com"));
     }
 
     private UserQuotaAccount emptyQuota(String userId) {
@@ -173,12 +169,30 @@ public class UserAccountService {
         return account;
     }
 
+    private UserProfileResponse toUserProfileResponse(UserAccount user, UserQuotaAccount account) {
+        UserProfileResponse response = new UserProfileResponse();
+        response.setUserId(user.getUserId());
+        response.setUsername(user.getUsername());
+        response.setNickname(user.getNickname());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+        response.setStatus(user.getStatus());
+        response.setQuotaBalance(account.getQuotaBalance());
+        response.setFrozenQuota(account.getFrozenQuota());
+        response.setUsedQuota(account.getUsedQuota());
+        return response;
+    }
+
     private void validateRegister(RegisterRequest request) {
         if (request == null || !StringUtils.hasText(request.getUsername())) {
             throw new AppException("0001", "账号不能为空");
         }
         if (!StringUtils.hasText(request.getPassword()) || request.getPassword().length() < 6) {
             throw new AppException("0001", "密码长度不能少于 6 位");
+        }
+        String email = request.getEmail();
+        if (StringUtils.hasText(email) && !email.trim().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new AppException("0001", "邮箱格式不正确");
         }
     }
 
