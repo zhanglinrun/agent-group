@@ -4,10 +4,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class BearDoctorNativeAgentServiceCapabilitiesTest {
+class AcademicAgentNativeServiceCapabilitiesTest {
 
     @Test
     void smokeTest() {
-        assertNotNull(BearDoctorNativeAgentServiceCapabilitiesTest.class);
+        assertNotNull(AcademicAgentNativeServiceCapabilitiesTest.class);
     }
 }

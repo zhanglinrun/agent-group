@@ -43,14 +43,14 @@ import java.nio.file.Files;
 @RequestMapping("/api/v1/academic")
 public class AcademicAgentController {
 
-    private final AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler;
+    private final AcademicAgentHandler academicAgentHandler;
     private final QuotaStreamControlRepository quotaStreamControlRepository;
     private final ObjectMapper objectMapper;
 
-    public AcademicAgentController(AcademicBearDoctorAgentHandler academicBearDoctorAgentHandler,
+    public AcademicAgentController(AcademicAgentHandler academicAgentHandler,
                                    QuotaStreamControlRepository quotaStreamControlRepository,
                                    ObjectMapper objectMapper) {
-        this.academicBearDoctorAgentHandler = academicBearDoctorAgentHandler;
+        this.academicAgentHandler = academicAgentHandler;
         this.quotaStreamControlRepository = quotaStreamControlRepository;
         this.objectMapper = objectMapper;
     }
@@ -66,7 +66,7 @@ public class AcademicAgentController {
     public Flux<String> resume(@RequestHeader(value = "Authorization", required = false) String token,
                                @RequestBody(required = false) AcademicAgentStreamRequest request) {
         String sessionId = request == null ? "" : request.getSessionId();
-        AcademicAgentStreamRequest resumeRequest = academicBearDoctorAgentHandler.resumeRequest(token, sessionId);
+        AcademicAgentStreamRequest resumeRequest = academicAgentHandler.resumeRequest(token, sessionId);
         copyRuntimeLlmConfig(request, resumeRequest);
         return startStream(token, resumeRequest);
     }
@@ -75,14 +75,14 @@ public class AcademicAgentController {
     public Response<Map<String, Object>> taskStatus(
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam String sessionId) {
-        Map<String, Object> status = academicBearDoctorAgentHandler.queryTaskStatus(token, sessionId);
+        Map<String, Object> status = academicAgentHandler.queryTaskStatus(token, sessionId);
         status.put("stopped", quotaStreamControlRepository.isStopped(sessionId));
         return Response.success(status, RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/capabilities")
     public Response<Map<String, Object>> capabilities() {
-        return Response.success(academicBearDoctorAgentHandler.capabilities(), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.capabilities(), RequestTraceContext.getRequestId());
     }
 
     private Flux<String> startStream(String token, AcademicAgentStreamRequest request) {
@@ -92,7 +92,7 @@ public class AcademicAgentController {
                 : "AS" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
         quotaStreamControlRepository.clearStopped(sessionId);
-        return academicBearDoctorAgentHandler.backgroundStreamEventFlux(
+        return academicAgentHandler.backgroundStreamEventFlux(
                         token,
                         safeRequest,
                         sessionId,
@@ -109,7 +109,7 @@ public class AcademicAgentController {
             return Flux.just(toJson(QuotaStreamEvent.of("error", "", requestId, 1,
                     Map.of("code", "0001", "message", "会话编号不能为空"))));
         }
-        return academicBearDoctorAgentHandler.attachEventFlux(token, sessionId, requestId)
+        return academicAgentHandler.attachEventFlux(token, sessionId, requestId)
                 .map(this::toJson);
     }
 
@@ -117,7 +117,7 @@ public class AcademicAgentController {
     public Response<AcademicFileUploadResponse> upload(@RequestHeader(value = "Authorization", required = false) String token,
                                                        @RequestParam("file") MultipartFile file,
                                                        @RequestParam(required = false) String sessionId) {
-        return Response.success(academicBearDoctorAgentHandler.upload(token, file, sessionId), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.upload(token, file, sessionId), RequestTraceContext.getRequestId());
     }
 
     @PostMapping("/stop")
@@ -127,7 +127,7 @@ public class AcademicAgentController {
         boolean stopped = true;
         if (StringUtils.hasText(sessionId)) {
             quotaStreamControlRepository.markStopped(sessionId);
-            stopped = academicBearDoctorAgentHandler.stop(token, sessionId);
+            stopped = academicAgentHandler.stop(token, sessionId);
         }
         return Response.success(stopped, RequestTraceContext.getRequestId());
     }
@@ -136,14 +136,14 @@ public class AcademicAgentController {
     public Response<List<AcademicSessionSummaryDTO>> sessions(
             @RequestHeader(value = "Authorization", required = false) String token,
             @RequestParam(defaultValue = "20") int limit) {
-        return Response.success(academicBearDoctorAgentHandler.querySessions(token, limit), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.querySessions(token, limit), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/sessions/{sessionId}")
     public Response<AcademicSessionDetailResponse> detail(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String sessionId) {
-        return Response.success(academicBearDoctorAgentHandler.queryDetail(token, sessionId), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.queryDetail(token, sessionId), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/sessions/{sessionId}/runs")
@@ -151,42 +151,42 @@ public class AcademicAgentController {
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String sessionId,
             @RequestParam(defaultValue = "20") int limit) {
-        return Response.success(academicBearDoctorAgentHandler.queryRuns(token, sessionId, limit), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.queryRuns(token, sessionId, limit), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/sessions/{sessionId}/replay")
     public Response<List<AcademicReplayResponse>> replay(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String sessionId) {
-        return Response.success(academicBearDoctorAgentHandler.queryReplay(token, sessionId), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.queryReplay(token, sessionId), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/runs/{runId}")
     public Response<AcademicRunDetailResponse> runDetail(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String runId) {
-        return Response.success(academicBearDoctorAgentHandler.queryRunDetail(token, runId), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.queryRunDetail(token, runId), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/runs/{runId}/diagnosis")
     public Response<AgentDiagnosisReportDTO> runDiagnosis(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String runId) {
-        return Response.success(academicBearDoctorAgentHandler.queryRunDiagnosis(token, runId), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.queryRunDiagnosis(token, runId), RequestTraceContext.getRequestId());
     }
 
     @GetMapping("/runs/{runId}/replay")
     public Response<AcademicReplayResponse> runReplay(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String runId) {
-        return Response.success(academicBearDoctorAgentHandler.queryRunReplay(token, runId), RequestTraceContext.getRequestId());
+        return Response.success(academicAgentHandler.queryRunReplay(token, runId), RequestTraceContext.getRequestId());
     }
 
     @DeleteMapping("/sessions/{sessionId}")
     public Response<Boolean> deleteSession(
             @RequestHeader(value = "Authorization", required = false) String token,
             @PathVariable String sessionId) {
-        academicBearDoctorAgentHandler.deleteSession(token, sessionId);
+        academicAgentHandler.deleteSession(token, sessionId);
         return Response.success(true, RequestTraceContext.getRequestId());
     }
 
@@ -196,7 +196,7 @@ public class AcademicAgentController {
             @PathVariable String sessionId,
             @RequestBody Map<String, String> request) {
         String messageId = request == null ? "" : request.getOrDefault("messageId", "");
-        return Response.success(academicBearDoctorAgentHandler.rollbackSession(token, sessionId, messageId),
+        return Response.success(academicAgentHandler.rollbackSession(token, sessionId, messageId),
                 RequestTraceContext.getRequestId());
     }
 
@@ -206,7 +206,7 @@ public class AcademicAgentController {
             @RequestParam String sessionId,
             @RequestParam String artifactId) throws Exception {
         AcademicArtifactService.DownloadArtifact artifact =
-                academicBearDoctorAgentHandler.downloadArtifact(token, sessionId, artifactId);
+                academicAgentHandler.downloadArtifact(token, sessionId, artifactId);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(artifact.contentType()))
                 .contentLength(artifact.size())
@@ -231,6 +231,7 @@ public class AcademicAgentController {
         target.setLlmModel(source.getLlmModel());
         target.setWebSearchEnabled(source.getWebSearchEnabled());
         target.setOutputStyle(source.getOutputStyle());
+        target.setContinueTraceId(source.getContinueTraceId());
     }
 
     private String toJson(QuotaStreamEvent<?> event) {
@@ -241,7 +242,6 @@ public class AcademicAgentController {
         }
     }
 }
-
 
 
 

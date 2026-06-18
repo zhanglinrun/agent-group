@@ -21,8 +21,8 @@ class UnifiedAgentOrchestratorTest {
                 false,
                 request);
 
-        assertEquals("Flow", plan.modeSelection().getExecutionMode());
-        assertEquals("flow", plan.modeSelection().getModeFamily());
+        assertEquals("PPT Workflow", plan.modeSelection().getExecutionMode());
+        assertEquals("ppt-workflow", plan.modeSelection().getModeFamily());
         assertEquals("ppt", plan.modeSelection().getAgentType());
         assertEquals("ppt", plan.routing().agentType());
     }

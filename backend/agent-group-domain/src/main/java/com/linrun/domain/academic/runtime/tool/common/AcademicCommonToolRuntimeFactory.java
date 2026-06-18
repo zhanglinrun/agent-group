@@ -12,6 +12,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
+import com.linrun.domain.trade.service.TradeConsistencyCheckService;
 
 public class AcademicCommonToolRuntimeFactory {
 
@@ -26,6 +27,7 @@ public class AcademicCommonToolRuntimeFactory {
     private final AcademicScriptRunnerPort scriptRunnerPort;
     private final AcademicTableRagPort tableRagPort;
     private final AcademicNl2SqlPort nl2SqlPort;
+    private final TradeConsistencyCheckService tradeConsistencyCheckService;
 
     private AcademicCommonToolRuntimeFactory(Builder builder) {
         this.codeInterpreterPort = builder.codeInterpreterPort;
@@ -39,6 +41,7 @@ public class AcademicCommonToolRuntimeFactory {
         this.scriptRunnerPort = builder.scriptRunnerPort;
         this.tableRagPort = builder.tableRagPort;
         this.nl2SqlPort = builder.nl2SqlPort;
+        this.tradeConsistencyCheckService = builder.tradeConsistencyCheckService;
     }
 
     public static Builder builder() {
@@ -85,6 +88,12 @@ public class AcademicCommonToolRuntimeFactory {
         if (nl2SqlPort != null) {
             target.registerStructured(AcademicNl2SqlToolRuntime.definition(), new AcademicNl2SqlToolRuntime(nl2SqlPort)::call);
         }
+        if (tradeConsistencyCheckService != null) {
+            AcademicTradeDiagnosisToolRuntime tradeRuntime =
+                    new AcademicTradeDiagnosisToolRuntime(tradeConsistencyCheckService);
+            target.registerStructured(AcademicTradeDiagnosisToolRuntime.diagnoseDefinition(), tradeRuntime::diagnose);
+            target.registerStructured(AcademicTradeDiagnosisToolRuntime.listDefinition(), tradeRuntime::list);
+        }
         return target;
     }
 
@@ -101,6 +110,7 @@ public class AcademicCommonToolRuntimeFactory {
         private AcademicScriptRunnerPort scriptRunnerPort;
         private AcademicTableRagPort tableRagPort;
         private AcademicNl2SqlPort nl2SqlPort;
+        private TradeConsistencyCheckService tradeConsistencyCheckService;
 
         private Builder() {
         }
@@ -160,23 +170,13 @@ public class AcademicCommonToolRuntimeFactory {
             return this;
         }
 
+        public Builder tradeConsistencyCheckService(TradeConsistencyCheckService tradeConsistencyCheckService) {
+            this.tradeConsistencyCheckService = tradeConsistencyCheckService;
+            return this;
+        }
+
         public AcademicCommonToolRuntimeFactory build() {
             return new AcademicCommonToolRuntimeFactory(this);
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

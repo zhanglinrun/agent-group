@@ -33,7 +33,7 @@ class AgentModeSelectorTest {
                 AgentModeSelector.ModeSelectionContext.empty()
         );
 
-        assertEquals("Flow", result.getExecutionMode());
+        assertEquals("PPT Workflow", result.getExecutionMode());
         assertEquals("ppt", result.getAgentType());
     }
 
@@ -74,9 +74,9 @@ class AgentModeSelectorTest {
                 new AgentModeSelector.ModeSelectionContext(true, "file", true, "ppt")
         );
 
-        assertEquals("Flow", result.getExecutionMode());
+        assertEquals("PPT Workflow", result.getExecutionMode());
         assertEquals("ppt", result.getAgentType());
-        assertEquals("flow", result.getModeFamily());
+        assertEquals("ppt-workflow", result.getModeFamily());
     }
 
     @Test
@@ -88,9 +88,9 @@ class AgentModeSelectorTest {
                 AgentModeSelector.ModeSelectionContext.simple("skill-sop")
         );
 
-        assertEquals("Skill-SOP", result.getExecutionMode());
+        assertEquals("Skill Orchestration", result.getExecutionMode());
         assertEquals("skill", result.getAgentType());
-        assertEquals("skill-sop", result.getModeFamily());
+        assertEquals("skill-orchestration", result.getModeFamily());
     }
 
     @Test

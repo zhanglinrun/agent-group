@@ -1,6 +1,9 @@
 package com.linrun.trigger.agent.agent.skills;
 
 import com.linrun.trigger.agent.agent.BaseAgent;
+import com.linrun.trigger.agent.checkpoint.AgentCheckpoint;
+import com.linrun.trigger.agent.checkpoint.AgentCheckpointSerializer;
+import com.linrun.trigger.agent.checkpoint.AgentCheckpointStore;
 import com.linrun.trigger.agent.context.ContextCompactor;
 import com.linrun.trigger.agent.context.ContextPolicy;
 import com.linrun.trigger.agent.entity.AiSession;
@@ -27,6 +30,7 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
@@ -59,11 +63,16 @@ public class SkillsReactAgent extends BaseAgent {
 
     private final List<ToolRecord> toolRecords = Collections.synchronizedList(new ArrayList<>());
 
+    private AgentCheckpointStore checkpointStore;
+    private final AgentCheckpointSerializer checkpointSerializer = new AgentCheckpointSerializer();
+    private String continueTraceId;
+
     public SkillsReactAgent(String name, ChatModel chatModel, List<ToolCallback> tools,
                             String systemPrompt, int maxRounds, int maxRetries, ChatMemory chatMemory,
                             AiSessionService sessionService, AgentTaskManager taskManager,
-                            ContextPolicy contextPolicy) {
-        super(name, chatModel, "skills");
+                            ContextPolicy contextPolicy, AgentCheckpointStore checkpointStore,
+                            String continueTraceId) {
+        super(name, chatModel, checkpointAgentType(name));
         this.tools = tools;
         this.systemPrompt = systemPrompt;
         this.maxRounds = maxRounds;
@@ -72,6 +81,8 @@ public class SkillsReactAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
         this.usedTools = new HashSet<>();
+        this.checkpointStore = checkpointStore;
+        this.continueTraceId = continueTraceId;
 
         initChatClient();
 
@@ -154,37 +165,79 @@ public class SkillsReactAgent extends BaseAgent {
             this.currentFileId = fileId;
         }
 
-        // ===== 加载 System Prompt =====
-        String fullSystemPrompt = ReactAgentPrompts.getSkillsPrompt();
-        if (StringUtils.isNotBlank(systemPrompt)) {
-            fullSystemPrompt = fullSystemPrompt + "\n" + systemPrompt;
+        // ===== 断点续跑凭证初始化 =====
+        if (StringUtils.isBlank(continueTraceId)) {
+            continueTraceId = "ckpt-" + UUID.randomUUID().toString().replace("-", "");
         }
-        messages.add(new SystemMessage(fullSystemPrompt));
 
-        // ===== 加载历史记忆 =====
-        loadChatHistory(conversationId, messages, true, true);
-
-        // ===== 用户消息 =====
-        messages.add(new UserMessage("<question>" + question + "</question>"));
-        if (this.currentFileId != null) {
-            messages.add(new UserMessage("<fileid>" + this.currentFileId + "</fileid>"));
+        boolean restoredFromCheckpoint = false;
+        int restoredRound = 0;
+        if (checkpointStore != null) {
+            AgentCheckpoint snapshot = checkpointStore.load(continueTraceId).orElse(null);
+            if (snapshot != null) {
+                if (matchesCheckpoint(snapshot, conversationId)) {
+                    messages.addAll(checkpointSerializer.deserializeMessages(snapshot.getMessages()));
+                    if (snapshot.getToolRecords() != null) {
+                        toolRecords.addAll(snapshot.getToolRecords());
+                    }
+                    if (snapshot.getExecutedSignatures() != null && usedTools != null) {
+                        usedTools.addAll(snapshot.getExecutedSignatures());
+                    }
+                    restoredRound = Math.max(0, snapshot.getRound());
+                    restoredFromCheckpoint = true;
+                    if (snapshot.getQuestion() != null) {
+                        currentQuestion = snapshot.getQuestion();
+                    }
+                    if (snapshot.getFileId() != null) {
+                        this.currentFileId = snapshot.getFileId();
+                    }
+                    if (snapshot.getCurrentSessionId() > 0) {
+                        currentSessionId = snapshot.getCurrentSessionId();
+                    }
+                    log.info("断点续跑恢复：traceId={}, 恢复轮次={}, 消息数={}", continueTraceId, restoredRound, messages.size());
+                } else {
+                    log.warn("断点续跑快照不匹配，忽略恢复：traceId={}, currentConversation={}, snapshotConversation={}, currentAgent={}, snapshotAgent={}",
+                            continueTraceId, conversationId, snapshot.getConversationId(), getAgentType(), snapshot.getAgentType());
+                }
+            }
         }
-        currentQuestion = question;
 
-        // 保存用户问题到数据库
-        if (sessionService != null) {
-            AiSession savedSession = sessionService.saveQuestion(
-                    SaveQuestionRequest.builder()
-                            .sessionId(conversationId)
-                            .question(question)
-                            .fileid(this.currentFileId)
-                            .build()
-            );
-            currentSessionId = savedSession.getId();
+        // 下发 continueTraceId 给客户端，中断后回传即可续跑
+        sink.tryEmitNext(new AgentStreamEvent.Checkpoint(continueTraceId, restoredRound).toJSON());
+
+        if (!restoredFromCheckpoint) {
+            // ===== 加载 System Prompt =====
+            String fullSystemPrompt = ReactAgentPrompts.getSkillsPrompt();
+            if (StringUtils.isNotBlank(systemPrompt)) {
+                fullSystemPrompt = fullSystemPrompt + "\n" + systemPrompt;
+            }
+            messages.add(new SystemMessage(fullSystemPrompt));
+
+            // ===== 加载历史记忆 =====
+            loadChatHistory(conversationId, messages, true, true);
+
+            // ===== 用户消息 =====
+            messages.add(new UserMessage("<question>" + question + "</question>"));
+            if (this.currentFileId != null) {
+                messages.add(new UserMessage("<fileid>" + this.currentFileId + "</fileid>"));
+            }
+            currentQuestion = question;
+
+            // 首次执行才写库；续跑复用首次的会话主键，避免对同一问题重复落库
+            if (sessionService != null) {
+                AiSession savedSession = sessionService.saveQuestion(
+                        SaveQuestionRequest.builder()
+                                .sessionId(conversationId)
+                                .question(question)
+                                .fileid(this.currentFileId)
+                                .build()
+                );
+                currentSessionId = savedSession.getId();
+            }
         }
 
         // 迭代轮次
-        AtomicLong roundCounter = new AtomicLong(0);
+        AtomicLong roundCounter = new AtomicLong(restoredRound);
         AtomicBoolean hasSentFinalResult = new AtomicBoolean(false);
 
         // 收集最终答案
@@ -224,6 +277,15 @@ public class SkillsReactAgent extends BaseAgent {
                     // 保存结果到会话
                     saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer);
 
+                    // 断点续跑：取消（CANCEL）时保存当前快照供续跑，其余信号清理快照
+                    if (checkpointStore != null && StringUtils.isNotBlank(continueTraceId)) {
+                        if (signalType == SignalType.CANCEL) {
+                            snapshotCheckpoint(messages, roundCounter.get(), conversationId);
+                        } else {
+                            clearCheckpoint();
+                        }
+                    }
+
                     // 流正常结束时只移除任务状态，用户点击停止才发送停止消息
                     if (taskManager != null) {
                         taskManager.completeTask(conversationId);
@@ -250,6 +312,66 @@ public class SkillsReactAgent extends BaseAgent {
             sessionService.updateAnswer(request);
             log.info("结果已保存到会话: sessionId={}", conversationId);
         }
+    }
+
+    /**
+     * 保存当前执行快照（轮次边界调用），供断点续跑恢复。
+     */
+    private void snapshotCheckpoint(List<Message> messages, long round, String conversationId) {
+        if (checkpointStore == null || StringUtils.isBlank(continueTraceId)) {
+            return;
+        }
+        try {
+            AgentCheckpoint checkpoint = new AgentCheckpoint();
+            checkpoint.setContinueTraceId(continueTraceId);
+            checkpoint.setAgentType(getAgentType());
+            checkpoint.setConversationId(conversationId != null ? conversationId : "");
+            checkpoint.setQuestion(currentQuestion != null ? currentQuestion : "");
+            checkpoint.setFileId(currentFileId);
+            checkpoint.setCurrentSessionId(currentSessionId != null ? currentSessionId : 0L);
+            checkpoint.setRound((int) round);
+            checkpoint.setExecutedSignatures(new ArrayList<>(usedTools != null ? usedTools : new HashSet<>()));
+            // messages / toolRecords 是 synchronizedList，遍历前先在各自监视器上拷贝，避免 reactor 线程并发修改
+            List<Message> messageSnapshot;
+            synchronized (messages) {
+                messageSnapshot = new ArrayList<>(messages);
+            }
+            List<ToolRecord> toolSnapshot;
+            synchronized (toolRecords) {
+                toolSnapshot = new ArrayList<>(toolRecords);
+            }
+            checkpoint.setToolRecords(toolSnapshot);
+            checkpoint.setMessages(checkpointSerializer.serializeMessages(messageSnapshot));
+            checkpointStore.save(checkpoint);
+        } catch (Exception e) {
+            log.warn("checkpoint 快照失败，忽略：traceId={}, reason={}", continueTraceId, e.getMessage());
+        }
+    }
+
+    /**
+     * 任务完成后清理断点快照。
+     */
+    private void clearCheckpoint() {
+        if (checkpointStore == null || StringUtils.isBlank(continueTraceId)) {
+            return;
+        }
+        checkpointStore.clear(continueTraceId);
+    }
+
+    private boolean matchesCheckpoint(AgentCheckpoint snapshot, String conversationId) {
+        if (snapshot == null) {
+            return false;
+        }
+        String currentConversation = conversationId == null ? "" : conversationId;
+        return currentConversation.equals(snapshot.getConversationId())
+                && getAgentType().equals(snapshot.getAgentType());
+    }
+
+    private static String checkpointAgentType(String name) {
+        if (StringUtils.isBlank(name)) {
+            return "skills";
+        }
+        return name.trim().toLowerCase(Locale.ROOT);
     }
 
     private void scheduleRound(List<Message> messages, Sinks.Many<String> sink,
@@ -395,6 +517,8 @@ public class SkillsReactAgent extends BaseAgent {
 
         executeToolCalls(sink, state.toolCalls, messages, hasSentFinalResult, () -> {
             if (!hasSentFinalResult.get()) {
+                // 轮次边界（工具已完成、下一轮 LLM 调用前）保存断点快照
+                snapshotCheckpoint(messages, roundCounter.get(), conversationId);
                 scheduleRound(messages, sink, roundCounter, hasSentFinalResult,
                         conversationId, finalAnswerBuffer, thinkingBuffer);
             }
@@ -589,6 +713,8 @@ public class SkillsReactAgent extends BaseAgent {
         private AiSessionService sessionService;
         private AgentTaskManager taskManager;
         private ContextPolicy contextPolicy;
+        private AgentCheckpointStore checkpointStore;
+        private String continueTraceId;
 
         public Builder name(String name) {
             this.name = name;
@@ -645,6 +771,16 @@ public class SkillsReactAgent extends BaseAgent {
             return this;
         }
 
+        public Builder checkpointStore(AgentCheckpointStore checkpointStore) {
+            this.checkpointStore = checkpointStore;
+            return this;
+        }
+
+        public Builder continueTraceId(String continueTraceId) {
+            this.continueTraceId = continueTraceId;
+            return this;
+        }
+
         public SkillsReactAgent build() {
             if (chatModel == null) {
                 throw new IllegalArgumentException("chatModel 不能为空");
@@ -653,7 +789,7 @@ public class SkillsReactAgent extends BaseAgent {
                 throw new IllegalArgumentException("tools 不能为空");
             }
             return new SkillsReactAgent(name, chatModel, tools, systemPrompt, maxRounds, maxRetries,
-                    chatMemory, sessionService, taskManager, contextPolicy);
+                    chatMemory, sessionService, taskManager, contextPolicy, checkpointStore, continueTraceId);
         }
     }
 }

@@ -4,7 +4,7 @@ import { AGENT_MODES } from "./agentModes";
 import { buildAgentExecutionSummary } from "./agentExecutionSummary";
 
 describe("agent execution summary", () => {
-  it("summarizes local agent modes as complete multi-agent coverage", () => {
+  it("summarizes local agent modes as complete execution strategy coverage", () => {
     const summary = buildAgentExecutionSummary(AGENT_MODES);
 
     expect(summary.status).toBe("ready");
@@ -17,7 +17,7 @@ describe("agent execution summary", () => {
       { key: "modes", label: "模式", value: String(AGENT_MODES.length), tone: "good" },
       { key: "replan", label: "重规划", value: "1", tone: "good" }
     ]);
-    expect(summary.actions).toEqual(["多智能体执行模式覆盖完整"]);
+    expect(summary.actions).toEqual(["执行策略覆盖完整"]);
   });
 
   it("accepts backend capability field names", () => {
@@ -26,12 +26,12 @@ describe("agent execution summary", () => {
       {
         agentId: "deep",
         family: "plan-execute",
-        executionMode: "Plan Execute",
+        executionMode: "Plan-Execute",
         replanEnabled: true,
         replanEvidence: ["flow_delta:REPLANNED"]
       },
-      { agentId: "ppt", family: "flow", executionMode: "Flow" },
-      { agentId: "skills", family: "skill-sop", executionMode: "Skill + SOP" }
+      { agentId: "ppt", family: "ppt-workflow", executionMode: "PPT Workflow" },
+      { agentId: "skills", family: "skill-orchestration", executionMode: "Skill Orchestration" }
     ]);
 
     expect(summary.status).toBe("ready");
@@ -42,13 +42,13 @@ describe("agent execution summary", () => {
   it("marks partial coverage when families or replan evidence are missing", () => {
     const summary = buildAgentExecutionSummary([
       { id: "chat", executionFamily: "react", executionMode: "ReAct" },
-      { id: "ppt", executionFamily: "flow", executionMode: "Flow" }
+      { id: "ppt", executionFamily: "ppt-workflow", executionMode: "PPT Workflow" }
     ]);
 
     expect(summary.status).toBe("partial");
-    expect(summary.missingFamilies.map((family) => family.key)).toEqual(["plan-execute", "skill-sop"]);
+    expect(summary.missingFamilies.map((family) => family.key)).toEqual(["plan-execute", "skill-orchestration"]);
     expect(summary.actions).toEqual([
-      "补齐 Plan Execute、Skill SOP 执行模式",
+      "补齐 Plan-Execute、Skill Orchestration 执行策略",
       "接入动态重规划证据"
     ]);
   });

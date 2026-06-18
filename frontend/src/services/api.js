@@ -848,7 +848,8 @@ export function requestAcademicStream({
   imageUrl,
   imageName,
   sessionId = getSessionId(),
-  webSearchEnabled = false
+  webSearchEnabled = false,
+  continueTraceId = ""
 }, onEvent, onDone, onError) {
   return requestAcademicStreamInternal("/api/v1/academic/stream", {
     sessionId,
@@ -862,13 +863,29 @@ export function requestAcademicStream({
     imageUrl: imageUrl || "",
     imageName: imageName || "",
     webSearchEnabled: Boolean(webSearchEnabled),
+    continueTraceId: continueTraceId || "",
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicResumeStream(sessionId = getSessionId(), modelConfig, webSearchEnabled = false, onEvent, onDone, onError) {
+export function requestAcademicResumeStream(
+  sessionId = getSessionId(),
+  modelConfig,
+  webSearchEnabled = false,
+  continueTraceId = "",
+  onEvent,
+  onDone,
+  onError
+) {
+  if (typeof continueTraceId === "function") {
+    onError = onDone;
+    onDone = onEvent;
+    onEvent = continueTraceId;
+    continueTraceId = "";
+  }
   return requestAcademicStreamInternal("/api/v1/academic/resume", {
     sessionId,
     webSearchEnabled: Boolean(webSearchEnabled),
+    continueTraceId: continueTraceId || "",
   }, onEvent, onDone, onError);
 }
 

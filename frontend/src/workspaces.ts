@@ -1,6 +1,6 @@
 export type WorkspaceId = "agent" | "image" | "data" | "mrag" | "trade";
 
-export type AgentMode = "chat" | "image" | "data" | "mrag";
+export type AgentMode = "chat" | "image" | "data" | "mrag" | "trade-diagnosis";
 
 export interface WorkspaceDefinition {
   id: WorkspaceId;
@@ -22,7 +22,7 @@ export const WORKSPACES: WorkspaceDefinition[] = [
   { id: "image", name: "图像生成", path: "/workspace/image", icon: "🖼", agentId: "image" },
   { id: "data", name: "数据问答", path: "/workspace/data", icon: "📈", agentId: "data", userVisible: false },
   { id: "mrag", name: "MRAG 知识问答", path: "/workspace/mrag", icon: "MR", agentId: "mrag", userVisible: false },
-  { id: "trade", name: "拼团交易", path: "/workspace/trade", icon: "💳", agentId: "data", userVisible: false }
+  { id: "trade", name: "拼团交易", path: "/workspace/trade", icon: "💳", agentId: "trade-diagnosis", userVisible: false }
 ];
 
 export const USER_WORKSPACES: WorkspaceDefinition[] = WORKSPACES.filter((workspace) => workspace.userVisible !== false);

@@ -348,9 +348,10 @@ describe("mcp admin api client", () => {
       sessionId: "S1001",
       question: "讲一下项目亮点",
       taskType: "deep",
-      webSearchEnabled: true
+      webSearchEnabled: true,
+      continueTraceId: "TRACE-1"
     });
-    requestAcademicResumeStream("S1001", {}, true);
+    requestAcademicResumeStream("S1001", {}, true, "TRACE-1");
 
     expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/stream", expect.objectContaining({
       method: "POST",
@@ -369,14 +370,16 @@ describe("mcp admin api client", () => {
         selectedFileIds: [],
         imageUrl: "",
         imageName: "",
-        webSearchEnabled: true
+        webSearchEnabled: true,
+        continueTraceId: "TRACE-1"
       })
     }));
     expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/academic/resume", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({
         sessionId: "S1001",
-        webSearchEnabled: true
+        webSearchEnabled: true,
+        continueTraceId: "TRACE-1"
       })
     }));
   });

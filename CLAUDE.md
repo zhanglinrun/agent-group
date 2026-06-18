@@ -59,7 +59,7 @@ DDD 分层，依赖方向是 trigger → domain ← infrastructure，app 负责�
 
 这是项目的核心特色，理解结构再动手：
 
-- `mode`：四种执行模式的抽象——`ReAct`（思考-行动循环）、`Plan-Execute`（依赖驱动分层执行）、`Flow`（固定流程编排）、`Skill-SOP`（标准技能流程），根据任务特征自动选择
+- `mode`：执行策略选择——当前主 `Agent`（智能体）架构是 `ReAct`（思考-行动循环）和 `Plan-Execute`（规划-执行）；`PPT Workflow`（PPT 工作流）和 `Skill Orchestration`（技能编排）是业务编排策略，不作为标准 `Agent`（智能体）架构模式包装
 - `reasoning`：任务分析、智能重规划（失败时分析原因、复用已完成步骤）、反思评估（质量低于阈值触发重规划）
 - `orchestration` / `executor`：计划编排与步骤执行
 - `tool`：工具调用

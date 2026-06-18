@@ -6534,11 +6534,13 @@ body {
   color: #c7d2fe;
 }
 
+.bear-doctor-app .agent-mode-ppt-workflow,
 .bear-doctor-app .agent-mode-flow {
   background: rgba(245, 158, 11, 0.14);
   color: #fde68a;
 }
 
+.bear-doctor-app .agent-mode-skill-orchestration,
 .bear-doctor-app .agent-mode-skill-sop {
   background: rgba(236, 72, 153, 0.14);
   color: #fbcfe8;

@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 import { AGENT_MODES, USER_AGENT_MODES, agentModeById } from "./agentModes";
 
 describe("agent mode model", () => {
-  it("keeps core multi-agent execution families visible", () => {
+  it("keeps core execution strategies visible", () => {
     expect(agentModeById("chat").executionFamily).toBe("react");
     expect(agentModeById("deep").executionFamily).toBe("plan-execute");
-    expect(agentModeById("deep").executionMode).toBe("Plan Execute");
+    expect(agentModeById("deep").executionMode).toBe("Plan-Execute");
     expect(agentModeById("deep").replanEnabled).toBe(true);
     expect(agentModeById("deep").replanLabel).toBe("重规划");
-    expect(agentModeById("ppt").executionFamily).toBe("flow");
-    expect(agentModeById("manual-skills").executionFamily).toBe("skill-sop");
+    expect(agentModeById("ppt").executionFamily).toBe("ppt-workflow");
+    expect(agentModeById("manual-skills").executionFamily).toBe("skill-orchestration");
     expect(agentModeById("manual-skills").name).toBe("Skill");
   });
 

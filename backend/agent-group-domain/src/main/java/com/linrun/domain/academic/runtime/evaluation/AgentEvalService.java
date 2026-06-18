@@ -4,6 +4,7 @@ import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowExecutionResult
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowExecutionService;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProjector;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentReplanStrategy;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentStepExecutionResult;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentStepExecutor;
 import com.linrun.domain.academic.runtime.mode.AgentModeSelector;
@@ -40,20 +41,37 @@ public class AgentEvalService {
     }
 
     public AgentEvalReport evaluate(List<AgentEvalCase> cases) {
+        return evaluate(cases, null);
+    }
+
+    /**
+     * 执行评测，并允许注入自定义重规划策略。
+     * <p>
+     * 默认走规则基线 {@link com.linrun.domain.academic.runtime.reasoning.AcademicAgentIntelligentReplanStrategy}；
+     * 注入 LLM 反思策略后，可在同一批用例上跑出“规则基线 vs LLM 反思重规划”的恢复成功率对比，
+     * 验证反思机制对复杂失败场景的泛化能力。规则基线评测（默认入口）行为保持不变。
+     *
+     * @param cases          评测用例
+     * @param replanStrategy 注入的重规划策略；为 null 时回退到规则基线
+     */
+    public AgentEvalReport evaluate(List<AgentEvalCase> cases, AcademicAgentReplanStrategy replanStrategy) {
         List<AgentEvalCaseResult> results = new ArrayList<>();
         if (cases == null) {
             return new AgentEvalReport(results);
         }
+        AcademicAgentReplanStrategy effectiveStrategy = replanStrategy != null
+                ? replanStrategy
+                : new AcademicAgentIntelligentReplanStrategy();
         for (AgentEvalCase evalCase : cases) {
             if (evalCase == null || evalCase.question().isBlank()) {
                 continue;
             }
-            results.add(evaluateCase(evalCase));
+            results.add(evaluateCase(evalCase, effectiveStrategy));
         }
         return new AgentEvalReport(results);
     }
 
-    private AgentEvalCaseResult evaluateCase(AgentEvalCase evalCase) {
+    private AgentEvalCaseResult evaluateCase(AgentEvalCase evalCase, AcademicAgentReplanStrategy replanStrategy) {
         long startNanos = System.nanoTime();
         AgentModeSelector.ModeSelectionContext context = evalCase.hasAttachment()
                 ? AgentModeSelector.ModeSelectionContext.withAttachment(evalCase.attachmentType())
@@ -64,7 +82,7 @@ public class AgentEvalService {
                 && evalCase.expectedExecutionMode().equals(selection.getExecutionMode());
 
         AcademicAgentPlan plan = buildPlan(evalCase, selection);
-        AcademicAgentFlowExecutionResult executionResult = executePlan(evalCase, plan);
+        AcademicAgentFlowExecutionResult executionResult = executePlan(evalCase, plan, replanStrategy);
 
         long elapsedMillis = Math.max(0L, (System.nanoTime() - startNanos) / 1_000_000L);
         return new AgentEvalCaseResult(
@@ -94,7 +112,9 @@ public class AgentEvalService {
         return AcademicAgentPlan.create("eval:" + evalCase.caseId(), instructions);
     }
 
-    private AcademicAgentFlowExecutionResult executePlan(AgentEvalCase evalCase, AcademicAgentPlan plan) {
+    private AcademicAgentFlowExecutionResult executePlan(AgentEvalCase evalCase,
+                                                         AcademicAgentPlan plan,
+                                                         AcademicAgentReplanStrategy replanStrategy) {
         AtomicBoolean failureInjected = new AtomicBoolean(false);
         AcademicAgentStepExecutor stepExecutor = (step, context) -> {
             if (evalCase.simulateStepFailure()
@@ -108,6 +128,6 @@ public class AgentEvalService {
         AcademicAgentFlowExecutionService executionService = new AcademicAgentFlowExecutionService(
                 new AcademicAgentFlowProjector(), MAX_REPLAN_ATTEMPTS);
         return executionService.execute("eval-" + evalCase.caseId(), plan, stepExecutor,
-                new AcademicAgentIntelligentReplanStrategy());
+                replanStrategy);
     }
 }

@@ -183,38 +183,38 @@ const COMPOSER_MODE_INTENTS = {
   },
   ppt: {
     label: "PPT 生成流水线",
-    executionMode: "Flow",
+    executionMode: "PPT Workflow",
     route: "需求澄清 -> 大纲 -> 素材 -> 渲染",
     hint: "不是只切换标签，会按阶段产出大纲、页面结构和可下载文件。",
-    agents: "需求 Agent / 内容 Agent / PPT 生成 Agent",
+    agents: "需求澄清 / 内容整理 / PPT 生成",
     outputs: "大纲、页面结构、演示文稿文件",
     trace: "阶段流转、工具调用、产物记录"
   },
   deep: {
-    label: "多 Agent 深度任务",
+    label: "Plan-Execute 深度任务",
     executionMode: "Plan-Execute",
     route: "规划 -> 搜索/文件 -> 报告 -> 反思",
     hint: "复杂任务会展示任务拆解、协作角色、工具调用和必要时的重规划。",
-    agents: "规划 Agent / 搜索 Agent / 文件 Agent / 报告 Agent",
+    agents: "任务规划 / 搜索或文件工具 / 报告生成",
     outputs: "结构化报告、证据列表、风险和待确认项",
     trace: "任务分析、计划版本、重规划、诊断"
   },
   image: {
     label: "图像产物生成",
-    executionMode: "Image Flow",
+    executionMode: "ReAct",
     route: "提示词整理 -> 图像生成 -> 产物记录",
     hint: "图像生成逻辑保持原样，只统一进入执行过程和产物展示。",
-    agents: "提示词 Agent / 图像服务 / 产物记录",
+    agents: "提示词整理 / 图像工具 / 产物记录",
     outputs: "图片、提示词、下载和复用记录",
     trace: "参数整理、生成状态、产物落库"
   },
   "manual-skills": {
     label: "技能自动化流程",
-    executionMode: "Skill-SOP",
+    executionMode: "Skill Orchestration",
     route: "技能发现 -> 步骤读取 -> 工具组合执行",
     hint: "第一版支持本地技能发现、读取、执行和产物记录。",
     agents: "Skill 路由 / 本地技能 / 工具运行时",
-    outputs: "固定流程结果、文件或报告产物",
+    outputs: "编排结果、文件或报告产物",
     trace: "技能选择、步骤执行、工具输入输出"
   }
 };
@@ -825,6 +825,7 @@ function AgentWorkspaceApp() {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [taskStatusByChat, setTaskStatusByChat] = useState({});
+  const [checkpointByChat, setCheckpointByChat] = useState({});
   const [buyingKey, setBuyingKey] = useState("");
   const [toast, setToast] = useState("");
   const [copiedId, setCopiedId] = useState("");
@@ -1368,6 +1369,20 @@ function AgentWorkspaceApp() {
 
   const processStreamEvent = useCallback((chatId, messageId, event) => {
     const data = event.data || {};
+    if (event.event === "checkpoint") {
+      const continueTraceId = String(data.continueTraceId || "");
+      if (!continueTraceId) return;
+      const checkpoint = {
+        continueTraceId,
+        round: Number(data.round || 0) || 0
+      };
+      setCheckpointByChat((prev) => ({ ...prev, [chatId]: checkpoint }));
+      setTaskStatusByChat((prev) => ({
+        ...prev,
+        [chatId]: { ...(prev[chatId] || {}), ...checkpoint }
+      }));
+      return;
+    }
     if (event.event === "answer_delta") {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
@@ -2291,6 +2306,9 @@ function AgentWorkspaceApp() {
       sessionId,
       modelConfig,
       webSearchEnabled,
+      checkpointByChat[sessionId]?.continueTraceId
+        || taskStatusByChat[sessionId]?.continueTraceId
+        || "",
       (event) => processStreamEvent(sessionId, assistantId, event),
       () => {
         delete streamControllersRef.current[sessionId];

@@ -11,7 +11,8 @@ public sealed interface AgentStreamEvent permits
         AgentStreamEvent.ToolStart,
         AgentStreamEvent.ToolEnd,
         AgentStreamEvent.Error,
-        AgentStreamEvent.Complete {
+        AgentStreamEvent.Complete,
+        AgentStreamEvent.Checkpoint {
 
     /**
      * LLM 思考过??
@@ -76,6 +77,18 @@ public sealed interface AgentStreamEvent permits
         @Override
         public String toJSON() {
             return "{\"type\":\"complete\"}";
+        }
+    }
+
+    /**
+     * Checkpoint event: emits the continueTraceId and resumed round so the client
+     * can replay from this trace id after an interruption.
+     */
+    record Checkpoint(String continueTraceId, int round) implements AgentStreamEvent {
+        @Override
+        public String toJSON() {
+            return "{\"type\":\"checkpoint\",\"continueTraceId\":" + escapeJson(continueTraceId)
+                    + ",\"round\":" + round + "}";
         }
     }
 

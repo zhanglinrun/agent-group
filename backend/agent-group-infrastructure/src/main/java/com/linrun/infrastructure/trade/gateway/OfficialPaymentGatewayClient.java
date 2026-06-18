@@ -52,6 +52,10 @@ import com.wechat.pay.java.service.refund.RefundService;
 import com.wechat.pay.java.service.refund.model.AmountReq;
 import com.wechat.pay.java.service.refund.model.CreateRequest;
 import com.wechat.pay.java.service.refund.model.Refund;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.retry.Retry;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -75,6 +79,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Component
 public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
@@ -97,6 +102,13 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     private final String wechatPrivateKeyPath;
     private final String wechatMerchantSerialNo;
     private final String wechatApiV3Key;
+
+    @Autowired
+    @Qualifier("paymentGatewayCircuitBreaker")
+    private CircuitBreaker circuitBreaker;
+    @Autowired
+    @Qualifier("paymentGatewayRetry")
+    private Retry retry;
 
     public OfficialPaymentGatewayClient(
             @Value("${agent.group.payment.alipay.gateway-url:https://openapi-sandbox.dl.alipaydev.com/gateway.do}") String alipayGatewayUrl,
@@ -129,12 +141,15 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     @Override
     public PaymentCreateResult createPayment(PaymentCreateCommand command) {
-        PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
-        return switch (channel) {
-            case ALIPAY -> createAlipayPayment(command);
-            case WECHAT_PAY -> createWechatPayment(command);
-            case MOCK_PAY -> createMockPayment(command);
-        };
+        // 创建支付靠商户单号幂等，瞬时失败可重试；外部网关持续故障时由熔断器快速失败
+        return guard(() -> {
+            PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
+            return switch (channel) {
+                case ALIPAY -> createAlipayPayment(command);
+                case WECHAT_PAY -> createWechatPayment(command);
+                case MOCK_PAY -> createMockPayment(command);
+            };
+        }, true);
     }
 
     @Override
@@ -149,12 +164,15 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     @Override
     public PaymentRefundResult refund(PaymentRefundCommand command) {
-        PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
-        return switch (channel) {
-            case ALIPAY -> refundAlipay(command);
-            case WECHAT_PAY -> refundWechat(command);
-            case MOCK_PAY -> refundMock(command);
-        };
+        // 退款不自动重试，避免重复退款；仅由熔断器在外部网关持续故障时快速失败
+        return guard(() -> {
+            PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
+            return switch (channel) {
+                case ALIPAY -> refundAlipay(command);
+                case WECHAT_PAY -> refundWechat(command);
+                case MOCK_PAY -> refundMock(command);
+            };
+        }, false);
     }
 
     @Override
@@ -174,12 +192,15 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     @Override
     public PaymentWebhookResult queryPayment(PaymentReconcileCommand command) {
-        PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
-        return switch (channel) {
-            case ALIPAY -> queryAlipayPayment(command);
-            case WECHAT_PAY -> queryWechatPayment(command);
-            case MOCK_PAY -> queryMockPayment(command);
-        };
+        // 查询只读，瞬时失败可重试；外部网关持续故障时由熔断器快速失败
+        return guard(() -> {
+            PaymentChannel channel = PaymentChannel.parse(command.getPayChannel());
+            return switch (channel) {
+                case ALIPAY -> queryAlipayPayment(command);
+                case WECHAT_PAY -> queryWechatPayment(command);
+                case MOCK_PAY -> queryMockPayment(command);
+            };
+        }, true);
     }
 
     @Override
@@ -194,12 +215,15 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
 
     @Override
     public PaymentRefundQueryResult queryRefund(PaymentRefundQueryCommand command) {
-        PaymentChannel channel = PaymentChannel.parse(command.payChannel());
-        return switch (channel) {
-            case ALIPAY -> queryAlipayRefund(command);
-            case WECHAT_PAY -> queryWechatRefund(command);
-            case MOCK_PAY -> mockRefundQuery(command, true, "mock refund query completed");
-        };
+        // 退款查询只读，瞬时失败可重试；外部网关持续故障时由熔断器快速失败
+        return guard(() -> {
+            PaymentChannel channel = PaymentChannel.parse(command.payChannel());
+            return switch (channel) {
+                case ALIPAY -> queryAlipayRefund(command);
+                case WECHAT_PAY -> queryWechatRefund(command);
+                case MOCK_PAY -> mockRefundQuery(command, true, "mock refund query completed");
+            };
+        }, true);
     }
 
     @Override
@@ -556,6 +580,22 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 command.getPayOrderId(),
                 firstText(refund.getRefundId(), refundId),
                 "微信支付退款已受理");
+    }
+
+    /**
+     * 对外部支付网关调用做熔断（+可选重试）保护。
+     * 创建支付/查询为可重试操作（靠商户单号或只读保证幂等）；退款不自动重试，避免重复退款风险。
+     * 熔断器/重试器未注入（单元测试场景）时退回原始调用。
+     */
+    private <T> T guard(Supplier<T> action, boolean retryable) {
+        Supplier<T> decorated = action;
+        if (retryable && retry != null) {
+            decorated = Retry.decorateSupplier(retry, decorated);
+        }
+        if (circuitBreaker != null) {
+            decorated = CircuitBreaker.decorateSupplier(circuitBreaker, decorated);
+        }
+        return decorated.get();
     }
 
     private String refundId(PaymentRefundCommand command) {

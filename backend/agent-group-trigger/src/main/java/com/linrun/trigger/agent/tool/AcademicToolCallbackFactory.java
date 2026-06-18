@@ -20,6 +20,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
+import com.linrun.domain.trade.service.TradeConsistencyCheckService;
 import com.linrun.trigger.http.agent.McpAdminHandler;
 import com.linrun.types.exception.AppException;
 import org.springframework.ai.tool.ToolCallback;
@@ -50,6 +51,7 @@ public class AcademicToolCallbackFactory {
     private final ObjectProvider<AcademicScriptRunnerPort> scriptRunnerPort;
     private final ObjectProvider<AcademicTableRagPort> tableRagPort;
     private final ObjectProvider<AcademicNl2SqlPort> nl2SqlPort;
+    private final ObjectProvider<TradeConsistencyCheckService> tradeConsistencyCheckService;
     private final ObjectProvider<McpAdminHandler> mcpAdminHandler;
 
     public AcademicToolCallbackFactory(ObjectMapper objectMapper,
@@ -64,6 +66,7 @@ public class AcademicToolCallbackFactory {
                                        ObjectProvider<AcademicScriptRunnerPort> scriptRunnerPort,
                                        ObjectProvider<AcademicTableRagPort> tableRagPort,
                                        ObjectProvider<AcademicNl2SqlPort> nl2SqlPort,
+                                       ObjectProvider<TradeConsistencyCheckService> tradeConsistencyCheckService,
                                        ObjectProvider<McpAdminHandler> mcpAdminHandler) {
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.codeInterpreterPort = codeInterpreterPort;
@@ -77,6 +80,7 @@ public class AcademicToolCallbackFactory {
         this.scriptRunnerPort = scriptRunnerPort;
         this.tableRagPort = tableRagPort;
         this.nl2SqlPort = nl2SqlPort;
+        this.tradeConsistencyCheckService = tradeConsistencyCheckService;
         this.mcpAdminHandler = mcpAdminHandler;
     }
 
@@ -107,11 +111,12 @@ public class AcademicToolCallbackFactory {
                 .scriptRunnerPort(available(scriptRunnerPort))
                 .tableRagPort(available(tableRagPort))
                 .nl2SqlPort(available(nl2SqlPort))
+                .tradeConsistencyCheckService(available(tradeConsistencyCheckService))
                 .build()
                 .buildRegistry();
         registerMcpTools(registry);
         return new AcademicToolCollectionFactory(registry)
-                .buildByCategories(scene, categories(webAccessEnabled));
+                .buildByCategories(scene, categories(scene, webAccessEnabled));
     }
 
     private void registerMcpTools(AcademicToolRuntimeRegistry registry) {
@@ -234,13 +239,50 @@ public class AcademicToolCallbackFactory {
                 .toList();
     }
 
-    private static List<String> categories(boolean webAccessEnabled) {
-        if (webAccessEnabled) {
-            return List.of("analysis", "report", "planning", "code", "image",
-                    "multimodal", "file", "skill", "data", "trade", "mcp", "web", "search");
+    private static List<String> categories(String scene, boolean webAccessEnabled) {
+        if (isTradeOnlyScene(scene)) {
+            return List.of("planning", "report", "trade");
         }
-        return List.of("analysis", "report", "planning", "code", "image",
-                "multimodal", "file", "skill", "data", "trade", "mcp");
+        List<String> categories = new java.util.ArrayList<>(List.of(
+                "analysis", "report", "planning", "code", "image",
+                "multimodal", "file", "skill", "data", "mcp"));
+        if (isTradeScene(scene)) {
+            categories.add("trade");
+        }
+        if (webAccessEnabled) {
+            categories.add("web");
+            categories.add("search");
+        }
+        return categories;
+    }
+
+    private static boolean isTradeOnlyScene(String scene) {
+        if (!StringUtils.hasText(scene)) {
+            return false;
+        }
+        String normalized = scene.trim().toLowerCase();
+        return normalized.equals("trade-diagnosis")
+                || normalized.equals("trade-diagnosis-workspace")
+                || normalized.equals("workspace-trade-diagnosis")
+                || normalized.equals("workspace-trade")
+                || normalized.equals("trade")
+                || normalized.equals("trade-flow")
+                || normalized.equals("group-trade");
+    }
+
+    private static boolean isTradeScene(String scene) {
+        if (!StringUtils.hasText(scene)) {
+            return false;
+        }
+        String normalized = scene.trim().toLowerCase();
+        return normalized.equals("trade-diagnosis")
+                || normalized.equals("trade-diagnosis-workspace")
+                || normalized.equals("workspace-trade-diagnosis")
+                || normalized.equals("workspace-trade")
+                || normalized.equals("trade")
+                || normalized.equals("trade-flow")
+                || normalized.equals("group-trade")
+                || normalized.equals("capabilities");
     }
 
     private static <T> T available(ObjectProvider<T> provider) {
@@ -265,9 +307,6 @@ public class AcademicToolCallbackFactory {
         return "";
     }
 }
-
-
-
 
 
 

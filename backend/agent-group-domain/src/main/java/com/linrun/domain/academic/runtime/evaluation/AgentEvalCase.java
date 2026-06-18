@@ -7,7 +7,7 @@ package com.linrun.domain.academic.runtime.evaluation;
  * @param question             用户问题
  * @param attachmentType       附件类型（file / image），无附件传空
  * @param expectedAgentType    期望选中的 Agent 类型（chat / deep / ppt / search / skill / file / image）
- * @param expectedExecutionMode 期望选中的执行模式（ReAct / Plan-Execute / Flow / Skill-SOP）
+ * @param expectedExecutionMode 期望选中的执行策略（ReAct / Plan-Execute / PPT Workflow / Skill Orchestration）
  * @param simulateStepFailure  是否在计划执行中注入一次步骤失败，用来评测重规划恢复能力
  * @param failureNote          注入失败时的失败说明，决定重规划策略走哪条分支
  */

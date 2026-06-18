@@ -38,7 +38,7 @@ export interface AgentPlatformReadiness {
   mcpHealth: AgentPlatformReadinessMcpHealth | null;
 }
 
-const REQUIRED_FAMILIES = ["react", "plan-execute", "flow", "skill-sop"];
+const REQUIRED_FAMILIES = ["react", "plan-execute", "ppt-workflow", "skill-orchestration"];
 const REQUIRED_WORKSPACES = USER_WORKSPACES.map((workspace) => workspace.id);
 const REQUIRED_RUNTIME_TOOLS = [
   "web_fetch",
@@ -256,7 +256,7 @@ function deriveReadiness(capabilities: UnknownMap): AgentPlatformReadiness {
   const actions = unique([
     missingTools.length ? `启动或配置工具运行时：${compact(missingTools)}` : "",
     mcpGaps.length ? "注册、发现并缓存 MCP 工具" : "",
-    missingFamilies.length || replanCount === 0 ? "补齐多智能体执行模式与重规划证据" : "",
+    missingFamilies.length || replanCount === 0 ? "补齐执行策略与重规划证据" : "",
     settlementRuleCount === 0 ? "补齐拼团额度发放规则" : "",
     ready ? "Agent 与拼团交易闭环已具备完整演示面" : ""
   ]);

@@ -23,12 +23,12 @@ function executionModes() {
     {
       agentId: "deep",
       family: "plan-execute",
-      executionMode: "Plan Execute",
+      executionMode: "Plan-Execute",
       replanEnabled: true,
       replanEvidence: ["flow_delta:REPLANNED"]
     },
-    { agentId: "ppt", family: "flow", executionMode: "Flow" },
-    { agentId: "skills", family: "skill-sop", executionMode: "Skill + SOP" }
+    { agentId: "ppt", family: "ppt-workflow", executionMode: "PPT Workflow" },
+    { agentId: "skills", family: "skill-orchestration", executionMode: "Skill Orchestration" }
   ];
 }
 

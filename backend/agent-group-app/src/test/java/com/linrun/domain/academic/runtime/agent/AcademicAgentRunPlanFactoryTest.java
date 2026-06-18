@@ -44,9 +44,9 @@ class AcademicAgentRunPlanFactoryTest {
     }
 
     @Test
-    void shouldNormalizeTradeAliasesToDataPlan() {
-        assertEquals("数据问答", planFactory.build("group-trade", false).getTitle());
-        assertEquals("数据问答", planFactory.build("workspace-trade", false).getTitle());
+    void shouldNormalizeTradeAliasesToTradeDiagnosisPlan() {
+        assertEquals("交易诊断", planFactory.build("group-trade", false).getTitle());
+        assertEquals("交易诊断", planFactory.build("workspace-trade", false).getTitle());
     }
 }
 

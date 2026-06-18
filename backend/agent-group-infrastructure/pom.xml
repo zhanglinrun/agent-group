@@ -99,6 +99,14 @@
             <artifactId>wechatpay-java</artifactId>
             <version>0.2.17</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

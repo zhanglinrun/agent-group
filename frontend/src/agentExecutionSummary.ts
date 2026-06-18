@@ -31,9 +31,9 @@ export interface AgentExecutionSummary {
 
 const REQUIRED_FAMILIES = [
   { key: "react", label: "ReAct" },
-  { key: "plan-execute", label: "Plan Execute" },
-  { key: "flow", label: "Flow" },
-  { key: "skill-sop", label: "Skill SOP" }
+  { key: "plan-execute", label: "Plan-Execute" },
+  { key: "ppt-workflow", label: "PPT Workflow" },
+  { key: "skill-orchestration", label: "Skill Orchestration" }
 ];
 
 function asObject(value: unknown): UnknownMap {
@@ -107,10 +107,10 @@ export function buildAgentExecutionSummary(modes: unknown[] = []): AgentExecutio
 
   const actions = unique([
     missingFamilies.length > 0
-      ? `补齐 ${missingFamilies.map((family) => family.label).join("、")} 执行模式`
+      ? `补齐 ${missingFamilies.map((family) => family.label).join("、")} 执行策略`
       : "",
     normalizedModes.length > 0 && replanIds.length === 0 ? "接入动态重规划证据" : "",
-    status === "ready" ? "多智能体执行模式覆盖完整" : ""
+    status === "ready" ? "执行策略覆盖完整" : ""
   ]);
 
   return {

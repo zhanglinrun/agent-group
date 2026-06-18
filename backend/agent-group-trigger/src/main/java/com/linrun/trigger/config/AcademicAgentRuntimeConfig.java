@@ -22,7 +22,7 @@ import javax.sql.DataSource;
         "com.linrun.trigger.agent.utils"
 })
 @MapperScan({"com.linrun.trigger.agent.mapper", "com.linrun.infrastructure.dao"})
-public class BearDoctorAgentRuntimeConfig {
+public class AcademicAgentRuntimeConfig {
 
     @Bean
     @Primary
@@ -58,7 +58,7 @@ public class BearDoctorAgentRuntimeConfig {
         dataSource.setDriverClassName("org.postgresql.Driver");
         dataSource.setMaximumPoolSize(10);
         dataSource.setMinimumIdle(1);
-        dataSource.setPoolName("BearDoctorPgVectorPool");
+        dataSource.setPoolName("AcademicAgentPgVectorPool");
         return dataSource;
     }
 

@@ -218,7 +218,7 @@ public class AcademicExecutionLedgerService {
                 || !StringUtils.hasText(context.sessionId())) {
             return;
         }
-        List<AcademicToolFileRef> fileRefs = fileRefs(result);
+        List<AcademicToolFileRef> fileRefs = toolOutputReader.fileRefs(result);
         if (fileRefs.isEmpty()) {
             return;
         }
@@ -390,22 +390,28 @@ public class AcademicExecutionLedgerService {
                 dto.setReason("深度研究任务需要多步骤规划和依赖编排");
             }
             case "ppt" -> {
-                dto.setExecutionMode("Flow");
-                dto.setModeFamily("flow");
+                dto.setExecutionMode("PPT Workflow");
+                dto.setModeFamily("ppt-workflow");
                 dto.setAgentType("ppt");
-                dto.setReason("PPT 生成使用固定流程编排");
+                dto.setReason("PPT 生成按需求澄清、大纲、素材和渲染路线推进");
             }
             case "skill", "skills", "manual-skills", "skill-sop" -> {
-                dto.setExecutionMode("Skill-SOP");
-                dto.setModeFamily("skill-sop");
+                dto.setExecutionMode("Skill Orchestration");
+                dto.setModeFamily("skill-orchestration");
                 dto.setAgentType("skill");
-                dto.setReason("技能任务按标准技能流程执行");
+                dto.setReason("技能任务读取预定义技能并组合工具完成");
             }
             case "image" -> {
-                dto.setExecutionMode("Flow");
-                dto.setModeFamily("flow");
+                dto.setExecutionMode("ReAct");
+                dto.setModeFamily("react");
                 dto.setAgentType("image");
-                dto.setReason("图像生成使用固定流程编排");
+                dto.setReason("图像任务通过提示词整理和图像工具调用完成");
+            }
+            case "trade-diagnosis" -> {
+                dto.setExecutionMode("ReAct");
+                dto.setModeFamily("react");
+                dto.setAgentType("trade-diagnosis");
+                dto.setReason("交易诊断任务只读聚合订单、支付、退款和额度流水后给出一致性结论");
             }
             default -> {
                 dto.setExecutionMode("ReAct");
@@ -765,84 +771,6 @@ public class AcademicExecutionLedgerService {
         return StringUtils.hasText(content) ? content : safe(artifact.getTitle());
     }
 
-    @SuppressWarnings("unchecked")
-    private List<AcademicToolFileRef> fileRefs(Map<String, Object> result) {
-        if (result == null || result.isEmpty()) {
-            return List.of();
-        }
-        List<AcademicToolFileRef> refs = new ArrayList<>();
-        collectFileRefs(result.get("fileRefs"), refs);
-        collectFileRefs(result.get("artifactRefs"), refs);
-        collectFileRefs(result.get("fileInfo"), refs);
-        collectFileRefs(result.get("fileList"), refs);
-        collectPrimaryFileRef(result, refs);
-        collectNestedFileRefs(result.get("result"), refs);
-        collectNestedFileRefs(result.get("resultMap"), refs);
-        collectNestedFileRefs(result.get("structuredOutput"), refs);
-        Map<String, AcademicToolFileRef> deduped = new LinkedHashMap<>();
-        for (AcademicToolFileRef ref : refs) {
-            String key = firstText(ref.getArtifactId(), ref.getDownloadUrl(), ref.getPreviewUrl(), ref.getFileName());
-            if (StringUtils.hasText(key)) {
-                deduped.putIfAbsent(key, ref);
-            }
-        }
-        return new ArrayList<>(deduped.values());
-    }
-
-    @SuppressWarnings("unchecked")
-    private void collectFileRefs(Object value, List<AcademicToolFileRef> refs) {
-        if (!(value instanceof List<?> list)) {
-            return;
-        }
-        for (Object item : list) {
-            if (item instanceof Map<?, ?> map) {
-                refs.add(AcademicToolFileRef.fromMap((Map<String, Object>) map));
-            }
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void collectNestedFileRefs(Object value, List<AcademicToolFileRef> refs) {
-        if (value instanceof Map<?, ?> map) {
-            Map<String, Object> nested = (Map<String, Object>) map;
-            collectFileRefs(nested.get("fileRefs"), refs);
-            collectFileRefs(nested.get("artifactRefs"), refs);
-            collectFileRefs(nested.get("fileInfo"), refs);
-            collectFileRefs(nested.get("fileList"), refs);
-            collectPrimaryFileRef(nested, refs);
-        }
-    }
-
-    private void collectPrimaryFileRef(Map<String, Object> values, List<AcademicToolFileRef> refs) {
-        if (values == null || values.isEmpty()) {
-            return;
-        }
-        if (!hasPrimaryFilePayload(values)) {
-            return;
-        }
-        AcademicToolFileRef fileRef = AcademicToolFileRef.fromMap(values);
-        if (StringUtils.hasText(fileRef.getFileName())
-                || StringUtils.hasText(fileRef.getDownloadUrl())
-                || StringUtils.hasText(fileRef.getPreviewUrl())) {
-            refs.add(fileRef);
-        }
-    }
-
-    private boolean hasPrimaryFilePayload(Map<String, Object> values) {
-        return StringUtils.hasText(firstObjectText(
-                values.get("primaryFileName"),
-                values.get("fileName"),
-                values.get("filename"),
-                values.get("displayName"),
-                values.get("name")))
-                || StringUtils.hasText(firstObjectText(
-                values.get("downloadUrl"),
-                values.get("ossUrl"),
-                values.get("domainUrl"),
-                values.get("url"),
-                values.get("previewUrl")));
-    }
-
     private AcademicArtifact artifactFromFileRef(AcademicLedgerContext.Context context,
                                                  String toolInvocationId,
                                                  String toolName,
@@ -1054,8 +982,10 @@ public class AcademicExecutionLedgerService {
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
             case "image", "image-generation", "workspace-image" -> "image";
-            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag",
-                 "trade", "trade-flow", "group-trade", "workspace-trade" -> "data";
+            case "trade-diagnosis", "diagnose-trade", "order-diagnosis",
+                 "workspace-trade-diagnosis", "workspace-trade", "trade", "trade-flow", "group-trade" ->
+                    "trade-diagnosis";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";
@@ -1079,8 +1009,6 @@ public class AcademicExecutionLedgerService {
         return value == null ? "" : value;
     }
 }
-
-
 
 
 

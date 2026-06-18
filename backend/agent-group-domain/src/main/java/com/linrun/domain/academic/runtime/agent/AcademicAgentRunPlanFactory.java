@@ -13,6 +13,7 @@ public class AcademicAgentRunPlanFactory {
             case "deep" -> deepResearchPlan(webSearchEnabled);
             case "image" -> imagePlan();
             case "data" -> dataPlan();
+            case "trade-diagnosis" -> tradeDiagnosisPlan();
             case "skills" -> skillsPlan();
             case "manual-skills" -> manualSkillsPlan();
             default -> chatPlan(webSearchEnabled);
@@ -67,6 +68,14 @@ public class AcademicAgentRunPlanFactory {
         ));
     }
 
+    private AcademicAgentPlan tradeDiagnosisPlan() {
+        return new AcademicAgentPlan("交易诊断", List.of(
+                step("S1", "读取当前用户可见的订单、支付、退款和额度流水", 1, "交易诊断智能体"),
+                step("S2", "对照支付成功、成团、退款和额度发放规则", 2, "交易校验智能体", "S1"),
+                step("S3", "输出一致性结论、异常原因和处理建议", 3, "报告智能体", "S2")
+        ));
+    }
+
     private AcademicAgentPlan skillsPlan() {
         return new AcademicAgentPlan("技能执行", List.of(
                 step("S1", "选择匹配任务的技能", 1, "技能智能体"),
@@ -113,8 +122,10 @@ public class AcademicAgentRunPlanFactory {
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
             case "image", "image-generation", "workspace-image" -> "image";
-            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag",
-                 "trade", "trade-flow", "group-trade", "workspace-trade" -> "data";
+            case "trade-diagnosis", "diagnose-trade", "order-diagnosis",
+                 "workspace-trade-diagnosis", "workspace-trade", "trade", "trade-flow", "group-trade" ->
+                    "trade-diagnosis";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";

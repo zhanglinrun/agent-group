@@ -42,7 +42,7 @@ describe("workspace routing model", () => {
     expect(workspaceAgentMode("image")).toBe("image");
     expect(workspaceAgentMode("data")).toBe("data");
     expect(workspaceAgentMode("mrag")).toBe("mrag");
-    expect(workspaceAgentMode("trade")).toBe("data");
+    expect(workspaceAgentMode("trade")).toBe("trade-diagnosis");
     expect(workspaceAgentMode("unknown")).toBe("chat");
   });
 

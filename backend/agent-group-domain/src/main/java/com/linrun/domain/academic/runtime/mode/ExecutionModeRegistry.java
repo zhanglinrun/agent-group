@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 执行模式注册表
- * 管理所有可用的执行模式，支持模式注册、查询和自动选择
+ * 执行策略注册表。
+ * 只把 ReAct、Plan-Execute 等 Agent 架构作为模式族；PPT 与 Skill 归为业务编排策略。
  */
 public class ExecutionModeRegistry {
 
@@ -60,8 +60,8 @@ public class ExecutionModeRegistry {
         String normalized = modeName == null ? "" : modeName.trim().toLowerCase(Locale.ROOT);
         return switch (normalized) {
             case "deep", "research" -> "plan-execute";
-            case "ppt" -> "flow";
-            case "skill", "skills", "manual-skills", "skill-sop" -> "skill-sop";
+            case "ppt", "flow", "ppt-workflow" -> "ppt-workflow";
+            case "skill", "skills", "manual-skills", "skill-sop", "skill-orchestration" -> "skill-orchestration";
             default -> normalized;
         };
     }
@@ -73,7 +73,6 @@ public class ExecutionModeRegistry {
         modes.clear();
     }
 }
-
 
 
 

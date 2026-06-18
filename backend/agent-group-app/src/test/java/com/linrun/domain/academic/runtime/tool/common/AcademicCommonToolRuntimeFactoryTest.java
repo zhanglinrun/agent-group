@@ -12,6 +12,7 @@ import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
 import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
+import com.linrun.domain.trade.service.TradeConsistencyCheckService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -45,6 +46,7 @@ class AcademicCommonToolRuntimeFactoryTest {
                 .scriptRunnerPort(scriptPort())
                 .tableRagPort(tableRagPort())
                 .nl2SqlPort(nl2SqlPort())
+                .tradeConsistencyCheckService(new TradeConsistencyCheckService(null, null))
                 .build()
                 .buildRegistry();
 

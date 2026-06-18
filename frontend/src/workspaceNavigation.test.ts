@@ -93,7 +93,7 @@ describe("workspace navigation view model", () => {
     expect(resolveWorkspaceNavigationTarget("trade")).toEqual({
       workspaceId: "trade",
       path: "/workspace/trade",
-      agentId: "data"
+      agentId: "trade-diagnosis"
     });
     expect(resolveWorkspaceNavigationTarget("unknown")).toEqual({
       workspaceId: "agent",

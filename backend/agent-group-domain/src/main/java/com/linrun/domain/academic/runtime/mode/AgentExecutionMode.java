@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Agent 执行模式接口
- * 定义系统一的执行模式抽象，支持 ReAct、Plan-Execute、Flow、Skill-SOP 四种模式
+ * Agent 执行策略接口。
+ * 当前主 Agent 架构是 ReAct 和 Plan-Execute；PPT 与 Skill 归为业务编排策略，避免包装成标准 Agent 架构模式。
  */
 public interface AgentExecutionMode {
 
@@ -135,7 +135,6 @@ public interface AgentExecutionMode {
         }
     }
 }
-
 
 
 

@@ -89,7 +89,10 @@ public class AcademicToolOutputReader {
     }
 
     @SuppressWarnings("unchecked")
-    private List<AcademicToolFileRef> fileRefs(Map<String, Object> structuredOutput) {
+    public List<AcademicToolFileRef> fileRefs(Map<String, Object> structuredOutput) {
+        if (structuredOutput == null || structuredOutput.isEmpty()) {
+            return List.of();
+        }
         List<AcademicToolFileRef> fileRefs = new ArrayList<>();
         collectFileRefs(structuredOutput.get("fileRefs"), fileRefs);
         collectFileRefs(structuredOutput.get("artifactRefs"), fileRefs);

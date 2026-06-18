@@ -5,6 +5,7 @@ import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiPptInstService;
+import com.linrun.trigger.http.agent.support.AcademicAgentJsonCodec;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.AcademicAgentStreamRequest;
@@ -51,9 +52,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-public class AcademicBearDoctorAgentHandler {
+public class AcademicAgentHandler {
 
-    private final BearDoctorNativeAgentService bearDoctorNativeAgentService;
+    private final AcademicAgentNativeService academicAgentNativeService;
     private final UserAccountService userAccountService;
     private final UserQuotaService userQuotaService;
     private final AgentTaskManager taskManager;
@@ -63,12 +64,13 @@ public class AcademicBearDoctorAgentHandler {
     private final AcademicExecutionLedgerService academicExecutionLedgerService;
     private final AcademicProjectService academicProjectService;
     private final ObjectMapper objectMapper;
+    private final AcademicAgentJsonCodec jsonCodec;
     private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
     private final AcademicAgentFlowProjector flowProjector = new AcademicAgentFlowProjector();
     private final AcademicAgentFlowProgressProjector flowProgressProjector = new AcademicAgentFlowProgressProjector();
     private final UnifiedAgentOrchestrator unifiedAgentOrchestrator = new UnifiedAgentOrchestrator();
 
-    public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
+    public AcademicAgentHandler(AcademicAgentNativeService academicAgentNativeService,
                                           UserAccountService userAccountService,
                                           UserQuotaService userQuotaService,
                                           AgentTaskManager taskManager,
@@ -76,13 +78,14 @@ public class AcademicBearDoctorAgentHandler {
                                           AcademicBackgroundStreamService backgroundStreamService,
                                           AcademicArtifactService academicArtifactService,
                                           AcademicExecutionLedgerService academicExecutionLedgerService,
-                                          ObjectMapper objectMapper) {
-        this(bearDoctorNativeAgentService, userAccountService, userQuotaService, taskManager, aiPptInstService,
-                backgroundStreamService, academicArtifactService, academicExecutionLedgerService, null, objectMapper);
+                                          ObjectMapper objectMapper,
+                                          AcademicAgentJsonCodec jsonCodec) {
+        this(academicAgentNativeService, userAccountService, userQuotaService, taskManager, aiPptInstService,
+                backgroundStreamService, academicArtifactService, academicExecutionLedgerService, null, objectMapper, jsonCodec);
     }
 
     @Autowired
-    public AcademicBearDoctorAgentHandler(BearDoctorNativeAgentService bearDoctorNativeAgentService,
+    public AcademicAgentHandler(AcademicAgentNativeService academicAgentNativeService,
                                     UserAccountService userAccountService,
                                     UserQuotaService userQuotaService,
                                     AgentTaskManager taskManager,
@@ -91,8 +94,9 @@ public class AcademicBearDoctorAgentHandler {
                                     AcademicArtifactService academicArtifactService,
                                     AcademicExecutionLedgerService academicExecutionLedgerService,
                                     AcademicProjectService academicProjectService,
-                                    ObjectMapper objectMapper) {
-        this.bearDoctorNativeAgentService = bearDoctorNativeAgentService;
+                                    ObjectMapper objectMapper,
+                                    AcademicAgentJsonCodec jsonCodec) {
+        this.academicAgentNativeService = academicAgentNativeService;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
         this.taskManager = taskManager;
@@ -102,6 +106,7 @@ public class AcademicBearDoctorAgentHandler {
         this.academicExecutionLedgerService = academicExecutionLedgerService;
         this.academicProjectService = academicProjectService;
         this.objectMapper = objectMapper;
+        this.jsonCodec = jsonCodec;
     }
 
     public Flux<QuotaStreamEvent<?>> backgroundStreamEventFlux(String token,
@@ -124,7 +129,7 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     public Map<String, Object> capabilities() {
-        return bearDoctorNativeAgentService.capabilities();
+        return academicAgentNativeService.capabilities();
     }
 
     public Flux<QuotaStreamEvent<?>> streamEventFlux(String token,
@@ -164,9 +169,9 @@ public class AcademicBearDoctorAgentHandler {
             Flux<QuotaStreamEvent<?>> executionEvents = identityQuestion
                     ? Flux.defer(() -> Flux.fromIterable(identityAnswerEvents(
                             token, taskType, query, sessionId, fileId, requestId, sequence, runState)))
-                    : Flux.defer(() -> bearDoctorNativeAgentService.stream(token, taskType, query, sessionId, fileId,
+                    : Flux.defer(() -> academicAgentNativeService.stream(token, taskType, query, sessionId, fileId,
                             webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(),
-                            safeRequest.getLlmModel(), executionMemoryPrompt))
+                            safeRequest.getLlmModel(), executionMemoryPrompt, safeRequest.getContinueTraceId()))
                             .doOnSubscribe(subscription -> AcademicLedgerContext.set(ledgerContext))
                             .flatMapIterable(raw -> toEvents(raw, sessionId, requestId, sequence, runState));
 
@@ -181,7 +186,7 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     public AcademicAgentStreamRequest resumeRequest(String token, String sessionId) {
-        List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
+        List<AiSession> messages = academicAgentNativeService.querySessionMessages(token, sessionId);
         AiSession latest = messages.stream()
                 .reduce((first, second) -> second)
                 .orElseThrow(() -> new AppException("SESSION_0001", "会话不存在，无法继续生成"));
@@ -196,7 +201,7 @@ public class AcademicBearDoctorAgentHandler {
     public Map<String, Object> queryTaskStatus(String token, String sessionId) {
         UserAccount user = userAccountService.requireUserByToken(token);
         String internalSessionId = internalSessionId(user.getUserId(), sessionId);
-        List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
+        List<AiSession> messages = academicAgentNativeService.querySessionMessages(token, sessionId);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("sessionId", sessionId);
         boolean running = taskManager.hasRunningTask(internalSessionId)
@@ -210,7 +215,7 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     public AcademicFileUploadResponse upload(String token, MultipartFile file, String sessionId) {
-        FileInfo fileInfo = bearDoctorNativeAgentService.upload(token, file, sessionId);
+        FileInfo fileInfo = academicAgentNativeService.upload(token, file, sessionId);
         AcademicFileUploadResponse response = new AcademicFileUploadResponse();
         response.setFileId(fileInfo.getFileId());
         response.setFileName(fileInfo.getFileName());
@@ -222,16 +227,16 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     public boolean stop(String token, String sessionId) {
-        return bearDoctorNativeAgentService.stop(token, sessionId);
+        return academicAgentNativeService.stop(token, sessionId);
     }
 
     public void deleteSession(String token, String sessionId) {
-        bearDoctorNativeAgentService.deleteSession(token, sessionId);
+        academicAgentNativeService.deleteSession(token, sessionId);
     }
 
     public boolean rollbackSession(String token, String sessionId, String messageId) {
         UserAccount user = userAccountService.requireUserByToken(token);
-        LocalDateTime anchorTime = bearDoctorNativeAgentService.rollbackSessionFromMessage(token, sessionId, messageId);
+        LocalDateTime anchorTime = academicAgentNativeService.rollbackSessionFromMessage(token, sessionId, messageId);
         if (anchorTime == null) {
             return false;
         }
@@ -242,7 +247,7 @@ public class AcademicBearDoctorAgentHandler {
 
     public List<AcademicSessionSummaryDTO> querySessions(String token, int limit) {
         UserAccount user = userAccountService.requireUserByToken(token);
-        return bearDoctorNativeAgentService.querySessions(token, 1, Math.max(1, Math.min(limit, 100)))
+        return academicAgentNativeService.querySessions(token, 1, Math.max(1, Math.min(limit, 100)))
                 .stream()
                 .map(session -> toSummary(user, session))
                 .toList();
@@ -253,7 +258,7 @@ public class AcademicBearDoctorAgentHandler {
         response.setSessionId(sessionId);
         List<AcademicSessionDetailResponse.Message> messages = new ArrayList<>();
         String lastAssistantAnswer = "";
-        for (AiSession session : bearDoctorNativeAgentService.querySessionMessages(token, sessionId)) {
+        for (AiSession session : academicAgentNativeService.querySessionMessages(token, sessionId)) {
             if (StringUtils.hasText(session.getQuestion())) {
                 messages.add(toMessage(String.valueOf(session.getId()), "USER", session.getQuestion(), session.getCreateTime()));
             }
@@ -327,7 +332,7 @@ public class AcademicBearDoctorAgentHandler {
                                                                      String sessionId,
                                                                      String artifactId) {
         UserAccount user = userAccountService.requireUserByToken(token);
-        List<AiSession> messages = bearDoctorNativeAgentService.querySessionMessages(token, sessionId);
+        List<AiSession> messages = academicAgentNativeService.querySessionMessages(token, sessionId);
         if (messages.isEmpty()) {
             throw new AppException("ARTIFACT_0004", "会话不存在或无权访问");
         }
@@ -364,6 +369,7 @@ public class AcademicBearDoctorAgentHandler {
                 case "replan", "replanned" -> replanEvents(node, sessionId, requestId, sequence, runState);
                 case "reference" -> referenceEvents(node, sessionId, requestId, sequence);
                 case "recommend" -> List.of(event("recommend_delta", sessionId, requestId, sequence, recommend(node)));
+                case "checkpoint" -> List.of(event("checkpoint", sessionId, requestId, sequence, checkpoint(node)));
                 case "error" -> List.of(event("error", sessionId, requestId, sequence,
                         error(text(node, "code"), firstText(node, "message", "content", "detail"))));
                 case "complete" -> List.of();
@@ -498,7 +504,7 @@ public class AcademicBearDoctorAgentHandler {
                                                            RunState runState) {
         String answer = identityAnswer(runState.modelName);
         runState.answer.append(answer);
-        bearDoctorNativeAgentService.saveDeterministicTurn(token, taskType, query, sessionId, fileId,
+        academicAgentNativeService.saveDeterministicTurn(token, taskType, query, sessionId, fileId,
                 answer, Math.max(0L, System.currentTimeMillis() - runState.startedAt));
         return List.of(
                 event("task_status", sessionId, requestId, sequence,
@@ -1018,6 +1024,13 @@ public class AcademicBearDoctorAgentHandler {
         return data;
     }
 
+    private Map<String, Object> checkpoint(JsonNode node) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("continueTraceId", text(node, "continueTraceId"));
+        data.put("round", integer(node, "round", 0));
+        return data;
+    }
+
     private QuotaStreamEvent<?> errorEvent(String sessionId,
                                            String requestId,
                                            AtomicInteger sequence,
@@ -1114,7 +1127,7 @@ public class AcademicBearDoctorAgentHandler {
 
     private AcademicSessionSummaryDTO toSummary(UserAccount user, AiSession session) {
         AcademicSessionSummaryDTO dto = new AcademicSessionSummaryDTO();
-        dto.setSessionId(bearDoctorNativeAgentService.externalConversationId(user.getUserId(), session.getSessionId()));
+        dto.setSessionId(academicAgentNativeService.externalConversationId(user.getUserId(), session.getSessionId()));
         dto.setTaskType(normalizeTaskType(session.getAgentType()));
         dto.setTitle(title(session.getQuestion(), session.getAgentType()));
         dto.setLastMessage(limit(session.getAnswer(), 120));
@@ -1248,8 +1261,10 @@ public class AcademicBearDoctorAgentHandler {
             case "ppt", "pptx" -> "ppt";
             case "deep", "deep-research" -> "deep";
             case "image", "image-generation", "workspace-image" -> "image";
-            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag",
-                 "trade", "trade-flow", "group-trade", "workspace-trade" -> "data";
+            case "trade-diagnosis", "diagnose-trade", "order-diagnosis",
+                 "workspace-trade-diagnosis", "workspace-trade", "trade", "trade-flow", "group-trade" ->
+                    "trade-diagnosis";
+            case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
             default -> "chat";
@@ -1404,6 +1419,9 @@ public class AcademicBearDoctorAgentHandler {
         if ("data".equals(taskType) && !StringUtils.hasText(question)) {
             return "请分析近五年 RAG 相关项目资料趋势、主要方案和指标差异。";
         }
+        if ("trade-diagnosis".equals(taskType) && !StringUtils.hasText(question)) {
+            return "请只读取当前用户的订单、支付、退款和额度流水状态，诊断是否存在交易一致性异常。";
+        }
         if (StringUtils.hasText(question)) {
             return question;
         }
@@ -1462,66 +1480,27 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     private String content(JsonNode node) {
-        JsonNode content = node.get("content");
-        if (content == null || content.isNull()) {
-            return "";
-        }
-        return content.isTextual() ? content.asText() : content.toString();
+        return jsonCodec.content(node);
     }
 
     private String jsonOrText(JsonNode node, String... fields) {
-        for (String field : fields) {
-            JsonNode value = node == null ? null : node.get(field);
-            if (value == null || value.isNull()) {
-                continue;
-            }
-            return value.isTextual() ? value.asText("") : value.toString();
-        }
-        return "";
+        return jsonCodec.jsonOrText(node, fields);
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> parseObject(String json) {
-        if (!StringUtils.hasText(json)) {
-            return Map.of();
-        }
-        try {
-            Object value = objectMapper.readValue(json, Object.class);
-            if (value instanceof Map<?, ?> map) {
-                return new LinkedHashMap<>((Map<String, Object>) map);
-            }
-        } catch (Exception ignored) {
-        }
-        return Map.of();
+        return jsonCodec.parseObject(json);
     }
 
     private String toJson(Map<String, Object> data) {
-        if (data == null || data.isEmpty()) {
-            return "{}";
-        }
-        try {
-            return objectMapper == null ? "{}" : objectMapper.writeValueAsString(data);
-        } catch (Exception ignored) {
-            return "{}";
-        }
+        return jsonCodec.toJson(data);
     }
 
     private void putIfPresent(Map<String, Object> data, String key, Object value) {
-        if (!StringUtils.hasText(key) || value == null) {
-            return;
-        }
-        if (value instanceof List<?> list && list.isEmpty()) {
-            return;
-        }
-        if (value instanceof Map<?, ?> map && map.isEmpty()) {
-            return;
-        }
-        data.put(key, value);
+        jsonCodec.putIfPresent(data, key, value);
     }
 
     private String text(JsonNode node, String field) {
-        JsonNode value = node == null ? null : node.get(field);
-        return value == null || value.isNull() ? "" : value.asText("");
+        return jsonCodec.text(node, field);
     }
 
     private boolean isFailureStatus(String status) {
@@ -1530,69 +1509,23 @@ public class AcademicBearDoctorAgentHandler {
     }
 
     private int integer(JsonNode node, String field, int fallback) {
-        JsonNode value = node == null ? null : node.get(field);
-        if (value == null || value.isNull()) {
-            return fallback;
-        }
-        if (value.isNumber()) {
-            return value.asInt(fallback);
-        }
-        try {
-            return Integer.parseInt(value.asText());
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
+        return jsonCodec.integer(node, field, fallback);
     }
 
     private long longValue(JsonNode node, String field, long fallback) {
-        JsonNode value = node == null ? null : node.get(field);
-        if (value == null || value.isNull()) {
-            return fallback;
-        }
-        if (value.isNumber()) {
-            return value.asLong(fallback);
-        }
-        try {
-            return Long.parseLong(value.asText());
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
+        return jsonCodec.longValue(node, field, fallback);
     }
 
     private boolean booleanValue(JsonNode node, String field, boolean fallback) {
-        JsonNode value = node == null ? null : node.get(field);
-        if (value == null || value.isNull()) {
-            return fallback;
-        }
-        if (value.isBoolean()) {
-            return value.asBoolean(fallback);
-        }
-        String text = value.asText();
-        if (!StringUtils.hasText(text)) {
-            return fallback;
-        }
-        return "true".equalsIgnoreCase(text)
-                || "1".equals(text)
-                || "yes".equalsIgnoreCase(text);
+        return jsonCodec.booleanValue(node, field, fallback);
     }
 
     private String firstText(JsonNode node, String... fields) {
-        for (String field : fields) {
-            String value = text(node, field);
-            if (StringUtils.hasText(value)) {
-                return value;
-            }
-        }
-        return "";
+        return jsonCodec.firstText(node, fields);
     }
 
     private String firstText(String... values) {
-        for (String value : values) {
-            if (StringUtils.hasText(value)) {
-                return value;
-            }
-        }
-        return "";
+        return jsonCodec.firstText(values);
     }
 
     private String toolKey(String toolCallId, String toolName) {
@@ -1670,9 +1603,6 @@ public class AcademicBearDoctorAgentHandler {
         return nullToBlank(request.getFileId()).trim();
     }
 }
-
-
-
 
 
 

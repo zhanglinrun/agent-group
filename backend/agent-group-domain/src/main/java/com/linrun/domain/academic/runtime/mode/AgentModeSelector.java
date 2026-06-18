@@ -5,8 +5,8 @@ import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningServic
 import java.util.Locale;
 
 /**
- * Agent 模式选择器
- * 根据用户问题和上下文自动选择最优执行模式
+ * Agent 执行策略选择器。
+ * ReAct 和 Plan-Execute 是当前主 Agent 架构；PPT 与 Skill 是业务编排路线，不作为标准 Agent 架构模式包装。
  */
 public class AgentModeSelector {
 
@@ -21,7 +21,7 @@ public class AgentModeSelector {
     }
 
     /**
-     * 选择 Agent 执行模式
+     * 选择 Agent 执行策略。
      */
     public ModeSelectionResult selectMode(String question, ModeSelectionContext context) {
         if (question == null || question.trim().isEmpty()) {
@@ -81,6 +81,8 @@ public class AgentModeSelector {
             case "research":
                 return ModeSelectionResult.planExecute(analysis);
             case "ppt":
+            case "flow":
+            case "ppt-workflow":
                 return ModeSelectionResult.pptFlow(analysis);
             case "search":
                 return ModeSelectionResult.webSearchReact(analysis);
@@ -88,6 +90,7 @@ public class AgentModeSelector {
             case "skills":
             case "manual-skills":
             case "skill-sop":
+            case "skill-orchestration":
                 return ModeSelectionResult.skillsReact(analysis);
             case "image":
                 return ModeSelectionResult.image(analysis);
@@ -198,9 +201,9 @@ public class AgentModeSelector {
         public static ModeSelectionResult pptFlow(AcademicAgentReasoningService.TaskAnalysisResult analysis) {
             return new ModeSelectionResult(
                     "ppt",
-                    "Flow",
-                    "flow",
-                    "PPT 生成固定流程",
+                    "PPT Workflow",
+                    "ppt-workflow",
+                    "PPT 生成按需求澄清、大纲、素材和渲染路线推进",
                     analysis
             );
         }
@@ -218,9 +221,9 @@ public class AgentModeSelector {
         public static ModeSelectionResult skillsReact(AcademicAgentReasoningService.TaskAnalysisResult analysis) {
             return new ModeSelectionResult(
                     "skill",
-                    "Skill-SOP",
-                    "skill-sop",
-                    "调用预定义技能",
+                    "Skill Orchestration",
+                    "skill-orchestration",
+                    "调用预定义技能并组合工具完成任务",
                     analysis
             );
         }
@@ -228,9 +231,9 @@ public class AgentModeSelector {
         public static ModeSelectionResult image(AcademicAgentReasoningService.TaskAnalysisResult analysis) {
             return new ModeSelectionResult(
                     "image",
-                    "Flow",
-                    "flow",
-                    "图像生成流程",
+                    "ReAct",
+                    "react",
+                    "图像任务通过提示词整理和图像工具调用完成",
                     analysis
             );
         }

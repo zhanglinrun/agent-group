@@ -1,4 +1,4 @@
-export type AgentExecutionFamily = "react" | "plan-execute" | "flow" | "skill-sop";
+export type AgentExecutionFamily = "react" | "plan-execute" | "ppt-workflow" | "skill-orchestration";
 
 export interface AgentModeOption {
   id: string;
@@ -34,15 +34,15 @@ export const AGENT_MODES: AgentModeOption[] = [
     id: "ppt",
     name: "PPT生成",
     icon: "📊",
-    executionMode: "Flow",
-    executionFamily: "flow",
-    summary: "需求澄清、大纲、搜索、模板、渲染的状态流转"
+    executionMode: "PPT Workflow",
+    executionFamily: "ppt-workflow",
+    summary: "需求澄清、大纲、搜索、模板、渲染的业务执行路线"
   },
   {
     id: "deep",
     name: "深度任务",
     icon: "🔬",
-    executionMode: "Plan Execute",
+    executionMode: "Plan-Execute",
     executionFamily: "plan-execute",
     summary: "计划拆解、分步执行、反思和动态重规划",
     replanEnabled: true,
@@ -78,18 +78,18 @@ export const AGENT_MODES: AgentModeOption[] = [
     id: "skills",
     name: "技能助手",
     icon: "🛠",
-    executionMode: "Skill",
-    executionFamily: "skill-sop",
-    summary: "自动选择技能并执行标准流程",
+    executionMode: "Skill Orchestration",
+    executionFamily: "skill-orchestration",
+    summary: "自动选择技能并组合工具完成任务",
     userVisible: false
   },
   {
     id: "manual-skills",
     name: "Skill",
     icon: "🛠",
-    executionMode: "Skill",
-    executionFamily: "skill-sop",
-    summary: "选择一个技能并执行对应流程"
+    executionMode: "Skill Orchestration",
+    executionFamily: "skill-orchestration",
+    summary: "选择一个技能并执行对应编排"
   }
 ];
 

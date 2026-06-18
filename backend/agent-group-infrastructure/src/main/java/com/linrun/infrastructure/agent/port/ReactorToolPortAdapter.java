@@ -59,6 +59,9 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     private final String apiKey;
 
     @Autowired
+    private org.springframework.beans.factory.ObjectProvider<DashScopeRerankClient> rerankClientProvider;
+
+    @Autowired
     public ReactorToolPortAdapter(ObjectMapper objectMapper,
                                   @Value("${agent.group.reactor-tool.base-url:}") String baseUrl,
                                   @Value("${agent.group.reactor-tool.api-key:}") String apiKey) {
@@ -335,7 +338,45 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
             return new AcademicTableRagResult(false, requestId, List.of(), response.body(),
                     firstText(response.errorMessage(), errorMessage(response.body())));
         }
-        return new AcademicTableRagResult(true, requestId, tableMatches(response.body().get("data")), response.body(), "");
+        return new AcademicTableRagResult(true, requestId,
+                rerankIfNeeded(request == null ? "" : text(request.query()), tableMatches(response.body().get("data"))),
+                response.body(), "");
+    }
+
+    /**
+     * table_rag 精排：对外部召回的多张表用 DashScope rerank 二次精排，选出与查询最相关的表。
+     * 客户端不可用、召回不足或精排失败时原样返回，保证向后兼容。
+     */
+    private List<AcademicTableRagPort.AcademicTableSchemaMatch> rerankIfNeeded(
+            String query, List<AcademicTableRagPort.AcademicTableSchemaMatch> matches) {
+        if (rerankClientProvider == null) {
+            return matches;
+        }
+        DashScopeRerankClient client = rerankClientProvider.getIfAvailable();
+        if (client == null || !client.isEnabled() || matches == null || matches.size() <= 1) {
+            return matches;
+        }
+        if (query == null || query.isBlank()) {
+            return matches;
+        }
+        try {
+            List<String> docs = matches.stream().map(this::matchText).toList();
+            List<Double> scores = client.rerank(query, docs);
+            return TableSchemaReranker.rerank(matches, scores, client.topN());
+        } catch (Exception e) {
+            return matches;
+        }
+    }
+
+    private String matchText(AcademicTableRagPort.AcademicTableSchemaMatch match) {
+        StringBuilder sb = new StringBuilder(text(match.modelCode()));
+        List<Map<String, Object>> schemaList = match.schemaList();
+        if (schemaList != null) {
+            for (Map<String, Object> column : schemaList) {
+                sb.append(" ").append(column);
+            }
+        }
+        return sb.toString();
     }
 
     @Override

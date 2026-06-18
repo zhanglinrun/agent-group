@@ -32,9 +32,9 @@ describe("workspace service profiles", () => {
     expect(workspaceServiceProfile("data").runEndpoint).toBe("/api/v1/academic/workspace/data/run");
     expect(workspaceServiceProfile("mrag").primaryTools).toContain("multimodal_agent");
     expect(workspaceServiceProfile("mrag").runEndpoint).toBe("/api/v1/academic/workspace/mrag/run");
-    expect(workspaceServiceProfile("trade").taskType).toBe("data");
-    expect(workspaceServiceProfile("trade").primaryTools).toEqual([]);
-    expect(workspaceServiceProfile("trade").runEndpoint).toBe("");
+    expect(workspaceServiceProfile("trade").taskType).toBe("trade-diagnosis");
+    expect(workspaceServiceProfile("trade").primaryTools).toEqual(["trade_order_list", "trade_diagnosis"]);
+    expect(workspaceServiceProfile("trade").runEndpoint).toBe("/api/v1/academic/stream");
     expect(workspaceServiceProfile("missing").id).toBe("agent");
   });
 
@@ -153,7 +153,7 @@ describe("workspace service profiles", () => {
       imageUrl: "",
       imageName: ""
     });
-    expect(buildWorkspaceStreamDraft({ workspaceId: "trade" }).taskType).toBe("data");
+    expect(buildWorkspaceStreamDraft({ workspaceId: "trade" }).taskType).toBe("trade-diagnosis");
     expect(buildWorkspaceStreamDraft({
       workspaceId: "image",
       agentId: "chat",
@@ -487,11 +487,11 @@ describe("workspace service profiles", () => {
     expect(visibleCapabilityMatrix({
       capabilityMatrix: [
         {
-          key: "multi-agent",
-          label: "多智能体协同",
+          key: "execution-strategy",
+          label: "执行策略",
           status: "ready",
-          summary: "ReAct、Plan Execute、Flow 已接入",
-          evidence: ["chat uses ReAct", "deep uses Plan Execute", "flow_delta events"],
+          summary: "ReAct、Plan-Execute、PPT Workflow 已接入",
+          evidence: ["chat uses ReAct", "deep uses Plan-Execute", "flow_delta events"],
           gaps: [],
           dynamicReplan: {
             enabled: true,
@@ -511,11 +511,11 @@ describe("workspace service profiles", () => {
       ]
     }, 1)).toEqual([
       {
-        key: "multi-agent",
-        label: "多智能体协同",
+        key: "execution-strategy",
+        label: "执行策略",
         status: "ready",
-        summary: "ReAct、Plan Execute、Flow 已接入",
-        evidence: ["chat uses ReAct", "deep uses Plan Execute", "flow_delta events"],
+        summary: "ReAct、Plan-Execute、PPT Workflow 已接入",
+        evidence: ["chat uses ReAct", "deep uses Plan-Execute", "flow_delta events"],
         gaps: [],
         dynamicReplan: {
           enabled: true,
@@ -533,7 +533,7 @@ describe("workspace service profiles", () => {
           agentId: "deep",
           name: "深度研究",
           family: "plan-execute",
-          executionMode: "Plan Execute",
+          executionMode: "Plan-Execute",
           summary: "动态重规划",
           replanEnabled: true,
           replanEvidence: ["plan_update/replan stream event", "flow_delta:REPLANNED"]
@@ -545,7 +545,7 @@ describe("workspace service profiles", () => {
         agentId: "deep",
         name: "深度研究",
         family: "plan-execute",
-        executionMode: "Plan Execute",
+        executionMode: "Plan-Execute",
         summary: "动态重规划",
         replanEnabled: true,
         replanEvidence: ["plan_update/replan stream event", "flow_delta:REPLANNED"]

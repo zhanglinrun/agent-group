@@ -264,13 +264,13 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
   },
   trade: {
     id: "trade",
-    taskType: "data",
+    taskType: "trade-diagnosis",
     title: "拼团交易工作区",
     summary: "展示额度购买、拼团订单、支付退款和额度流水状态。",
-    primaryTools: [],
+    primaryTools: ["trade_order_list", "trade_diagnosis"],
     attachmentMode: "none",
-    outputKinds: ["order", "quota", "status"],
-    runEndpoint: "",
+    outputKinds: ["order", "quota", "status", "report"],
+    runEndpoint: "/api/v1/academic/stream",
     historyEndpoint: "/api/v1/trade/order/my"
   }
 };

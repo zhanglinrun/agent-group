@@ -7,11 +7,11 @@ import org.springframework.util.StringUtils;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-public final class BearDoctorTokenUsageRecorder {
+public final class AcademicAgentTokenUsageRecorder {
 
     private static final ConcurrentMap<String, Accumulator> ACCUMULATORS = new ConcurrentHashMap<>();
 
-    private BearDoctorTokenUsageRecorder() {
+    private AcademicAgentTokenUsageRecorder() {
     }
 
     public static void start(String conversationId) {
