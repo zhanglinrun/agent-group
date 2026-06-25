@@ -2,23 +2,19 @@ package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.CreateDirectOrderRequest;
 import com.linrun.api.dto.CreateDirectOrderResponse;
-import com.linrun.api.dto.CreatePaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
-import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
 import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
 import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.CreateTradeOrderCommandEntity;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
-import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.types.exception.AppException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,7 +22,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 
 @Service
-public class DirectBuyOrderService {
+public class DirectBuyOrderService extends AbstractTradeOrderService {
 
     private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
 
@@ -35,47 +31,19 @@ public class DirectBuyOrderService {
     private final TradeOrderService tradeOrderService;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final QuotaOrderSnapshotValidator quotaOrderSnapshotValidator;
-    private final PaymentService paymentService;
 
-    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
-                                 TradeOrderRepository tradeOrderRepository,
-                                 TradeOrderService tradeOrderService,
-                                 TradeStatusFlowService tradeStatusFlowService) {
-        this(quotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new QuotaOrderSnapshotValidator(QuotaOrderSnapshotRepository.noop()), null);
-    }
-
-    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
-                                 TradeOrderRepository tradeOrderRepository,
-                                 TradeOrderService tradeOrderService,
-                                 TradeStatusFlowService tradeStatusFlowService,
-                                 QuotaOrderSnapshotRepository quotaOrderSnapshotRepository) {
-        this(quotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new QuotaOrderSnapshotValidator(quotaOrderSnapshotRepository), null);
-    }
-
-    public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
-                                 TradeOrderRepository tradeOrderRepository,
-                                 TradeOrderService tradeOrderService,
-                                 TradeStatusFlowService tradeStatusFlowService,
-                                 QuotaOrderSnapshotValidator quotaOrderSnapshotValidator) {
-        this(quotaProductRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                quotaOrderSnapshotValidator, null);
-    }
-
-    @Autowired
     public DirectBuyOrderService(QuotaProductRepository quotaProductRepository,
                                  TradeOrderRepository tradeOrderRepository,
                                  TradeOrderService tradeOrderService,
                                  TradeStatusFlowService tradeStatusFlowService,
                                  QuotaOrderSnapshotValidator quotaOrderSnapshotValidator,
                                  PaymentService paymentService) {
+        super(paymentService);
         this.quotaProductRepository = quotaProductRepository;
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.quotaOrderSnapshotValidator = quotaOrderSnapshotValidator;
-        this.paymentService = paymentService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -98,7 +66,7 @@ public class DirectBuyOrderService {
             validateExistingOrder(existed, request);
             PayOrderEntity existingPayOrder = tradeOrderRepository.queryPayOrderByOrderId(existed.getOrderId())
                     .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
-            CreatePaymentResponse payment = createGatewayPayment(existed, existingPayOrder, request);
+            CreatePaymentResponse payment = createGatewayPayment(existed, existingPayOrder, resolvePayChannel(request));
             return toResponse(existed, existingPayOrder, request.getDecisionId(), payment);
         }
 
@@ -130,7 +98,7 @@ public class DirectBuyOrderService {
         CreatePaymentResponse payment = createGatewayPayment(
                 tradePayOrder.getTradeOrder(),
                 tradePayOrder.getPayOrder(),
-                request);
+                resolvePayChannel(request));
         return toResponse(tradePayOrder, request.getDecisionId(), payment);
     }
 
@@ -167,21 +135,6 @@ public class DirectBuyOrderService {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
     }
 
-    private CreatePaymentResponse createGatewayPayment(TradeOrderEntity tradeOrder,
-                                                       PayOrderEntity payOrder,
-                                                       CreateDirectOrderRequest request) {
-        if (paymentService == null || payOrder == null || !PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
-            return null;
-        }
-        if (StringUtils.hasText(payOrder.getPayUrl())) {
-            return null;
-        }
-        CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
-        paymentRequest.setOrderId(tradeOrder.getOrderId());
-        paymentRequest.setPayChannel(resolvePayChannel(request));
-        return paymentService.createPayment(paymentRequest, tradeOrder.getUserId());
-    }
-
     private CreateDirectOrderResponse toResponse(TradePayOrderAggregate tradePayOrder,
                                                  String decisionId,
                                                  CreatePaymentResponse payment) {
@@ -212,18 +165,6 @@ public class DirectBuyOrderService {
         response.setGatewayTradeNo(payment == null ? payOrder.getOutTradeNo() : payment.getGatewayTradeNo());
         response.setCreateTime(tradeOrder.getCreateTime());
         return response;
-    }
-
-    private String resolvePayFormHtml(String payUrl) {
-        return looksLikePaymentForm(payUrl) ? payUrl : null;
-    }
-
-    private String resolvePaymentType(String payUrl) {
-        return looksLikePaymentForm(payUrl) ? "PAGE_FORM" : "URL";
-    }
-
-    private boolean looksLikePaymentForm(String value) {
-        return StringUtils.hasText(value) && value.toLowerCase().contains("<form");
     }
 }
 

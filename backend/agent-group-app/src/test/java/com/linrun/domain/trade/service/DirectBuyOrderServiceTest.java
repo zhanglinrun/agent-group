@@ -18,6 +18,7 @@ import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository
 import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
 import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
 import com.linrun.domain.agent.conversation.model.QuotaProduct;
+import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
@@ -53,7 +54,8 @@ class DirectBuyOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository),
-                new FakeQuotaOrderSnapshotRepository());
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository()),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -91,7 +93,8 @@ class DirectBuyOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository());
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository()),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -111,7 +114,8 @@ class DirectBuyOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository());
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository()),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10099");
@@ -131,7 +135,8 @@ class DirectBuyOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository());
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository()),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setGoodsId("G10001");
         request.setDecisionId("D10001");
@@ -150,7 +155,8 @@ class DirectBuyOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository());
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository()),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -169,9 +175,10 @@ class DirectBuyOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
                         "U10001", "G10001", new BigDecimal("2399.00"), new BigDecimal("2099.00"),
-                        LocalDateTime.now().minusMinutes(1))));
+                        LocalDateTime.now().minusMinutes(1)))),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -190,9 +197,10 @@ class DirectBuyOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository(decisionSnapshot(
                         "U10001", "G10001", new BigDecimal("2299.00"), new BigDecimal("2099.00"),
-                        LocalDateTime.now().plusMinutes(10))));
+                        LocalDateTime.now().plusMinutes(10)))),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");
@@ -212,7 +220,8 @@ class DirectBuyOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository());
+                new QuotaOrderSnapshotValidator(new FakeQuotaOrderSnapshotRepository()),
+                null);
         CreateDirectOrderRequest request = new CreateDirectOrderRequest();
         request.setUserId("U10001");
         request.setGoodsId("G10001");

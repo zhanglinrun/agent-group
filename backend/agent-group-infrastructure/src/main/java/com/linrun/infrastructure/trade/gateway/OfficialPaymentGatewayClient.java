@@ -15,6 +15,9 @@ import com.alipay.api.response.AlipayTradeFastpayRefundQueryResponse;
 import com.alipay.api.response.AlipayTradePagePayResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.alipay.api.response.AlipayTradeRefundResponse;
+import com.alipay.api.domain.AlipayDataDataserviceBillDownloadurlQueryModel;
+import com.alipay.api.domain.AlipayTradeFastpayRefundQueryModel;
+import com.alipay.api.domain.AlipayTradePagePayModel;
 import com.alipay.api.domain.AlipayTradeQueryModel;
 import com.alipay.api.domain.AlipayTradeRefundModel;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -51,6 +54,7 @@ import com.wechat.pay.java.service.payments.nativepay.model.QueryOrderByOutTrade
 import com.wechat.pay.java.service.refund.RefundService;
 import com.wechat.pay.java.service.refund.model.AmountReq;
 import com.wechat.pay.java.service.refund.model.CreateRequest;
+import com.wechat.pay.java.service.refund.model.QueryByOutRefundNoRequest;
 import com.wechat.pay.java.service.refund.model.Refund;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.retry.Retry;
@@ -327,13 +331,13 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             if (StringUtils.hasText(returnUrl)) {
                 request.setReturnUrl(returnUrl);
             }
-            request.setBizContent("{"
-                    + "\"out_trade_no\":\"" + jsonEscape(command.getPayOrderId()) + "\","
-                    + "\"total_amount\":\"" + amountText(command.getPayAmount()) + "\","
-                    + "\"subject\":\"" + jsonEscape(command.getSubject()) + "\","
-                    + "\"product_code\":\"FAST_INSTANT_TRADE_PAY\","
-                    + "\"passback_params\":\"" + jsonEscape(command.getOrderId()) + "\""
-                    + "}");
+            AlipayTradePagePayModel model = new AlipayTradePagePayModel();
+            model.setOutTradeNo(command.getPayOrderId());
+            model.setTotalAmount(amountText(command.getPayAmount()));
+            model.setSubject(command.getSubject());
+            model.setProductCode("FAST_INSTANT_TRADE_PAY");
+            model.setPassbackParams(command.getOrderId());
+            request.setBizModel(model);
             AlipayTradePagePayResponse response = alipayClient().pageExecute(request);
             if (!response.isSuccess()) {
                 throw new AppException("PAY_0003", "支付宝创建支付失败：" + response.getSubMsg());
@@ -548,8 +552,10 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         String billType = StringUtils.hasText(command.billType()) ? command.billType() : "trade";
         try {
             AlipayDataDataserviceBillDownloadurlQueryRequest request = new AlipayDataDataserviceBillDownloadurlQueryRequest();
-            request.setBizContent("{\"bill_type\":\"" + jsonEscape(billType)
-                    + "\",\"bill_date\":\"" + billDate.format(BILL_DATE_FORMATTER) + "\"}");
+            AlipayDataDataserviceBillDownloadurlQueryModel model = new AlipayDataDataserviceBillDownloadurlQueryModel();
+            model.setBillType(billType);
+            model.setBillDate(billDate.format(BILL_DATE_FORMATTER));
+            request.setBizModel(model);
             AlipayDataDataserviceBillDownloadurlQueryResponse response = alipayClient().execute(request);
             if (!response.isSuccess()) {
                 throw new AppException("PAY_0017", "alipay bill download url query failed: " + response.getSubMsg());
@@ -583,9 +589,11 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         ensureAlipayReady();
         try {
             AlipayTradeFastpayRefundQueryRequest request = new AlipayTradeFastpayRefundQueryRequest();
-            request.setBizContent("{\"out_trade_no\":\"" + jsonEscape(command.payOrderId())
-                    + "\",\"trade_no\":\"" + jsonEscape(command.gatewayTradeNo())
-                    + "\",\"out_request_no\":\"" + jsonEscape(firstText(command.refundId(), command.payOrderId())) + "\"}");
+            AlipayTradeFastpayRefundQueryModel model = new AlipayTradeFastpayRefundQueryModel();
+            model.setOutTradeNo(command.payOrderId());
+            model.setTradeNo(command.gatewayTradeNo());
+            model.setOutRequestNo(firstText(command.refundId(), command.payOrderId()));
+            request.setBizModel(model);
             AlipayTradeFastpayRefundQueryResponse response = alipayClient().execute(request);
             String rawBody = response.getBody();
             if (!response.isSuccess()) {
@@ -609,14 +617,9 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
     private PaymentRefundQueryResult queryWechatRefund(PaymentRefundQueryCommand command) {
         ensureWechatReady();
         try {
-            Class<?> requestType = Class.forName("com.wechat.pay.java.service.refund.model.QueryByOutRefundNoRequest");
-            Object request = requestType.getDeclaredConstructor().newInstance();
-            invokeSetter(request, "setMchid", wechatMerchantId);
-            invokeSetter(request, "setOutRefundNo", firstText(command.refundId(), command.payOrderId()));
-            RefundService refundService = new RefundService.Builder().config(wechatConfig()).build();
-            Object refund = refundService.getClass()
-                    .getMethod("queryByOutRefundNo", requestType)
-                    .invoke(refundService, request);
+            QueryByOutRefundNoRequest request = new QueryByOutRefundNoRequest();
+            request.setOutRefundNo(firstText(command.refundId(), command.payOrderId()));
+            Refund refund = new RefundService.Builder().config(wechatConfig()).build().queryByOutRefundNo(request);
             return toWechatRefundQueryResult(command, refund, true, "wechat refund query success");
         } catch (Exception e) {
             throw new AppException("PAY_0018", "wechat refund query exception: " + e.getMessage());
@@ -663,7 +666,7 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             Object notification = new NotificationParser(wechatConfig()).parse(requestParam, notificationType);
             return toWechatRefundQueryResult(command, notification, true, "微信支付退款回调验签通过");
         } catch (ClassNotFoundException e) {
-            return parseWechatRefundWebhookBody(command, true, "微信支付退款回调验签通过，当??SDK 未提供退款通知模型，按报文解析");
+            return parseWechatRefundWebhookBody(command, true, "微信支付退款回调验签通过，当前 SDK 未提供退款通知模型，按报文解析");
         }
     }
 
@@ -822,10 +825,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         return null;
     }
 
-    private void invokeSetter(Object target, String methodName, String value) throws ReflectiveOperationException {
-        target.getClass().getMethod(methodName, String.class).invoke(target, value);
-    }
-
     private Object readObject(Object target, String methodName) {
         if (target == null) {
             return null;
@@ -868,13 +867,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         } catch (Exception ignored) {
             return "";
         }
-    }
-
-    private String jsonEscape(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private boolean isAlipayPaid(String tradeStatus) {
