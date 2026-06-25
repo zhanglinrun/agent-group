@@ -6,6 +6,8 @@ import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
+import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
+import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -33,7 +35,7 @@ class AcademicSessionMemorySnapshotTest {
         repository.artifacts.add(artifact("A2", "RUN1", "TOOL1", "INTERNAL", "debug.json"));
 
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                repository, new AcademicReplayProjector());
+                repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AcademicSessionDetailResponse.MemorySnapshot memory =
                 service.querySessionMemory("U1", "S1", "REQ3_CURRENT", 8);
@@ -55,7 +57,7 @@ class AcademicSessionMemorySnapshotTest {
     @Test
     void shouldReturnEmptyMemoryWhenSessionIdIsBlank() {
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                new FakeLedgerRepository(), new AcademicReplayProjector());
+                new FakeLedgerRepository(), new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AcademicSessionDetailResponse.MemorySnapshot memory =
                 service.querySessionMemory("U1", "", "", 8);
@@ -69,7 +71,7 @@ class AcademicSessionMemorySnapshotTest {
     void shouldPersistToolFileRefsAsLedgerArtifacts() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                repository, new AcademicReplayProjector());
+                repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         service.recordToolArtifacts(
                 new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "data"),
@@ -94,7 +96,7 @@ class AcademicSessionMemorySnapshotTest {
     void shouldPersistProjectIdWhenStartingRun() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                repository, new AcademicReplayProjector());
+                repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AcademicAgentRun run = service.startRun(
                 "U1", "S1", "AP1001", "REQ1", "chat", "revise introduction", "test-model");
@@ -108,7 +110,7 @@ class AcademicSessionMemorySnapshotTest {
     void shouldPersistToolFileInfoAndPrimaryFileFieldsAsLedgerArtifacts() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                repository, new AcademicReplayProjector());
+                repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         service.recordToolArtifacts(
                 new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "code"),
@@ -142,7 +144,7 @@ class AcademicSessionMemorySnapshotTest {
     void shouldPersistResultMapPrimaryFileAsLedgerArtifact() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                repository, new AcademicReplayProjector());
+                repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         service.recordToolArtifacts(
                 new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "report"),
@@ -164,7 +166,7 @@ class AcademicSessionMemorySnapshotTest {
     void shouldNotPersistPlainToolTitleAsLedgerArtifact() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(
-                repository, new AcademicReplayProjector());
+                repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         service.recordToolArtifacts(
                 new AcademicLedgerContext.Context("RUN1", "REQ1", "S1", "U1", "plan"),

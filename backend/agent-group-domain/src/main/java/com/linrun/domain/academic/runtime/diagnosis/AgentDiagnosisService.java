@@ -3,9 +3,12 @@ package com.linrun.domain.academic.runtime.diagnosis;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Agent 异常诊断服务。
  */
+@Component
 public class AgentDiagnosisService {
 
     private static final long SLOW_EXECUTION_THRESHOLD_MS = 30000;

@@ -8,6 +8,8 @@ import com.linrun.domain.academic.ledger.model.AcademicLlmInvocation;
 import com.linrun.domain.academic.ledger.model.AcademicToolInvocation;
 import com.linrun.domain.academic.model.AcademicArtifact;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
+import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
+import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -37,7 +39,7 @@ class AcademicExecutionLedgerServiceTest {
                 "", "{\"metadata\":{\"estimatedConsumedQuota\":7.5}}"));
         repository.artifacts.add(artifact("ART1001", "RUN1001", "TOOL1002"));
 
-        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector());
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AcademicRunDetailResponse detail = service.queryRunDetail("U1", "RUN1001");
 
@@ -67,7 +69,7 @@ class AcademicExecutionLedgerServiceTest {
         repository.tools.add(tool("TOOL2001", "RUN2001", "file_tool", AcademicAgentRun.STATUS_SUCCESS,
                 "", "{\"summary\":\"file answered\"}"));
 
-        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector());
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AcademicRunDetailResponse detail = service.queryRunDetail("U1", "RUN2001");
 
@@ -92,7 +94,7 @@ class AcademicExecutionLedgerServiceTest {
         repository.tools.add(tool("TOOL3002", "RUN3001", "report_tool", AcademicAgentRun.STATUS_SUCCESS,
                 "", "{\"summary\":\"fallback report\"}"));
 
-        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector());
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AgentDiagnosisReportDTO diagnosis = service.queryRunDiagnosis("U1", "RUN3001");
 
@@ -107,7 +109,7 @@ class AcademicExecutionLedgerServiceTest {
     void shouldKeepMainFlowWhenLedgerWriteFails() {
         FakeLedgerRepository repository = new FakeLedgerRepository();
         repository.failWrites = true;
-        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector());
+        AcademicExecutionLedgerService service = new AcademicExecutionLedgerService(repository, new AcademicReplayProjector(), AgentObservabilityMetrics.noop(), new AgentDiagnosisService());
 
         AcademicAgentRun run = assertDoesNotThrow(() -> service.startRun(
                 "U1", "S1", "AP1", "REQ1", "chat", "hello", "test-model"));

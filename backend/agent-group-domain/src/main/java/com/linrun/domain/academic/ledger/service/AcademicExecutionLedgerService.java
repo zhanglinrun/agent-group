@@ -43,22 +43,20 @@ public class AcademicExecutionLedgerService {
     private final AcademicExecutionLedgerRepository ledgerRepository;
     private final AcademicReplayProjector replayProjector;
     private final AgentObservabilityMetrics metrics;
+    private final AgentDiagnosisService diagnosisService;
     private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
     private final AcademicToolOutputReader toolOutputReader = new AcademicToolOutputReader();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AcademicExecutionLedgerService(AcademicExecutionLedgerRepository ledgerRepository,
-                                          AcademicReplayProjector replayProjector) {
-        this(ledgerRepository, replayProjector, AgentObservabilityMetrics.noop());
-    }
-
     @Autowired
     public AcademicExecutionLedgerService(AcademicExecutionLedgerRepository ledgerRepository,
                                           AcademicReplayProjector replayProjector,
-                                          AgentObservabilityMetrics metrics) {
+                                          AgentObservabilityMetrics metrics,
+                                          AgentDiagnosisService diagnosisService) {
         this.ledgerRepository = ledgerRepository;
         this.replayProjector = replayProjector;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
+        this.diagnosisService = diagnosisService;
     }
 
     public AcademicAgentRun startRun(String userId,
@@ -485,7 +483,7 @@ public class AcademicExecutionLedgerService {
         long elapsedMs = run.getDurationMillis() == null ? 0L : Math.max(0L, run.getDurationMillis());
         double quotaConsumed = quotaConsumed(toolInvocations);
         boolean failed = AcademicAgentRun.STATUS_FAILED.equals(safe(run.getStatus()));
-        AgentDiagnosisService.DiagnosisReport report = new AgentDiagnosisService().diagnose(
+        AgentDiagnosisService.DiagnosisReport report = diagnosisService.diagnose(
                 new AgentDiagnosisService.AgentRunContext(
                         run.getRunId(),
                         elapsedMs,

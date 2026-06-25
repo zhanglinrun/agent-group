@@ -1,9 +1,10 @@
 package com.linrun.domain.academic.runtime.agent.skill;
 
 import com.linrun.domain.academic.runtime.agent.AgentResponse;
-import com.linrun.domain.academic.runtime.agent.AgentTaskManager;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentTaskManager;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,11 +21,12 @@ import java.util.List;
 @Service
 public class SkillOrchestratorAgent {
 
-    private final AgentTaskManager taskManager;
+    private final AcademicAgentTaskManager taskManager;
     private final SkillRegistry skillRegistry;
 
-    public SkillOrchestratorAgent() {
-        this.taskManager = new AgentTaskManager();
+    @Autowired
+    public SkillOrchestratorAgent(AcademicAgentTaskManager taskManager) {
+        this.taskManager = taskManager;
         this.skillRegistry = new SkillRegistry();
     }
 
@@ -45,7 +47,7 @@ public class SkillOrchestratorAgent {
         }
 
         // 注册任务
-        AgentTaskManager.TaskInfo taskInfo = taskManager.registerTask(sessionId, sink, "SKILL_ORCHESTRATOR");
+        AcademicAgentTaskManager.TaskInfo taskInfo = taskManager.registerTask(sessionId, sink, "SKILL_ORCHESTRATOR");
         if (taskInfo == null) {
             sink.tryEmitError(new IllegalStateException("任务注册失败"));
             return sink.asFlux();

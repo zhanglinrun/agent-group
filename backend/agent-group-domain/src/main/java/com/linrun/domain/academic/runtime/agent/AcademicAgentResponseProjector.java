@@ -3,6 +3,7 @@ package com.linrun.domain.academic.runtime.agent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.Map;
  * 负责将领域对象投影为流式响应格式
  * 职责：数据转换、格式化、JSON 组装
  */
+@Component
 public class AcademicAgentResponseProjector {
 
     /**

@@ -1,7 +1,6 @@
 package com.linrun.trigger.agent.service;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
+import com.linrun.trigger.agent.common.AgentResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
 import org.redisson.api.RTopic;
@@ -347,10 +346,7 @@ public class AgentTaskManager implements InitializingBean, DisposableBean {
      * 创建停止消息
      */
     private String createStopMessage() {
-        JSONObject obj = new JSONObject();
-        obj.put("type", "text");
-        obj.put("content", "用户已停止生成\n");
-        return JSON.toJSONString(obj);
+        return AgentResponse.text("用户已停止生成\n");
     }
 }
 

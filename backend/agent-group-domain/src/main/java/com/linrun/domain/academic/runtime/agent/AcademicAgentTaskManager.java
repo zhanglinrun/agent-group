@@ -1,5 +1,6 @@
 package com.linrun.domain.academic.runtime.agent;
 
+import org.springframework.stereotype.Component;
 import reactor.core.publisher.Sinks;
 
 import java.util.Map;
@@ -7,8 +8,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 领域运行时的轻量任务管理器。
+ *
+ * 仅维护 domain 侧 Agent 运行时的会话级 sink 生命周期，区别于 trigger 侧基于 Redis 的 AgentTaskManager。
  */
-public class AgentTaskManager {
+@Component
+public class AcademicAgentTaskManager {
 
     private final Map<String, TaskInfo> taskMap = new ConcurrentHashMap<>();
 

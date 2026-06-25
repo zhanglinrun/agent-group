@@ -1,9 +1,10 @@
 package com.linrun.domain.academic.runtime.agent.ppt;
 
 import com.linrun.domain.academic.runtime.agent.AgentResponse;
-import com.linrun.domain.academic.runtime.agent.AgentTaskManager;
+import com.linrun.domain.academic.runtime.agent.AcademicAgentTaskManager;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,11 +19,12 @@ import org.springframework.stereotype.Service;
 public class PptBuilderAgent {
 
     private final PptIntentRecognizer intentRecognizer;
-    private final AgentTaskManager taskManager;
+    private final AcademicAgentTaskManager taskManager;
 
-    public PptBuilderAgent(PptIntentRecognizer intentRecognizer) {
+    @Autowired
+    public PptBuilderAgent(PptIntentRecognizer intentRecognizer, AcademicAgentTaskManager taskManager) {
         this.intentRecognizer = intentRecognizer;
-        this.taskManager = new AgentTaskManager();
+        this.taskManager = taskManager;
     }
 
     /**
@@ -42,7 +44,7 @@ public class PptBuilderAgent {
         }
 
         // 注册任务
-        AgentTaskManager.TaskInfo taskInfo = taskManager.registerTask(sessionId, sink, "PPT_BUILDER");
+        AcademicAgentTaskManager.TaskInfo taskInfo = taskManager.registerTask(sessionId, sink, "PPT_BUILDER");
         if (taskInfo == null) {
             sink.tryEmitError(new IllegalStateException("任务注册失败"));
             return sink.asFlux();
