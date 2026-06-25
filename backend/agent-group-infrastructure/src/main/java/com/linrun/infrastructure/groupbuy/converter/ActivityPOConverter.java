@@ -48,6 +48,15 @@ public final class ActivityPOConverter {
         return poList.stream().map(ActivityPOConverter::toEntity).toList();
     }
 
+    public static GroupBuyActivityPO toPO(GroupBuyActivity entity) {
+        if (entity == null) {
+            return null;
+        }
+        GroupBuyActivityPO po = new GroupBuyActivityPO();
+        BeanUtils.copyProperties(entity, po);
+        return po;
+    }
+
     public static GroupBuyDiscount toEntity(GroupBuyDiscountPO po) {
         if (po == null) {
             return null;
@@ -55,6 +64,22 @@ public final class ActivityPOConverter {
         GroupBuyDiscount entity = new GroupBuyDiscount();
         BeanUtils.copyProperties(po, entity);
         return entity;
+    }
+
+    public static GroupBuyDiscountPO toPO(GroupBuyDiscount entity) {
+        if (entity == null) {
+            return null;
+        }
+        GroupBuyDiscountPO po = new GroupBuyDiscountPO();
+        BeanUtils.copyProperties(entity, po);
+        return po;
+    }
+
+    public static List<GroupBuyDiscount> toDiscounts(List<GroupBuyDiscountPO> poList) {
+        if (poList == null || poList.isEmpty()) {
+            return List.of();
+        }
+        return poList.stream().map(ActivityPOConverter::toEntity).toList();
     }
 
     public static GroupBuyMarketSku toEntity(GroupBuyMarketSkuPO po) {
@@ -103,6 +128,15 @@ public final class ActivityPOConverter {
             return List.of();
         }
         return poList.stream().map(ActivityPOConverter::toEntity).toList();
+    }
+
+    public static GroupBuyStockPO toPO(GroupBuyStock entity) {
+        if (entity == null) {
+            return null;
+        }
+        GroupBuyStockPO po = new GroupBuyStockPO();
+        BeanUtils.copyProperties(entity, po);
+        return po;
     }
 
     public static GroupBuyStockFlowPO toPO(GroupBuyStockFlow entity) {

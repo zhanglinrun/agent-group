@@ -1,11 +1,12 @@
 package com.linrun.trigger.agent.utils;
 
 import com.linrun.trigger.agent.common.ImageProvider;
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
+import com.linrun.trigger.agent.common.JsonUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -21,10 +22,19 @@ import java.util.Map;
 @Service
 public class ImageGenerationService {
 
-    // Qwen API配置
-    private static final String QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+    // Qwen API配置（默认值，可被 agent-group.image.* 覆盖）
+    private static final String DEFAULT_QWEN_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+    private static final String DEFAULT_QWEN_MODEL = "qwen-image-plus";
     @Value("${spring.ai.openai.api-key}")
     private String apiKey;
+
+    // 后台覆盖的图像模型配置（agent-group.image.*），未配则回退到默认 Qwen 链路。
+    @Value("${agent-group.image.api-key:}")
+    private String imageApiKey;
+    @Value("${agent-group.image.base-url:}")
+    private String imageBaseUrl;
+    @Value("${agent-group.image.model:}")
+    private String imageModel;
 
     // GrsAI nano-banana API配置
     @Value("${grsai.nanobanana.api-key:}")
@@ -32,9 +42,9 @@ public class ImageGenerationService {
     private static final String GRS_AI_GENERATION_URL = "https://grsai.dakka.com.cn/v1/draw/nano-banana";
 
     /**
-     * 生成图像（默认使用qwen??
+     * 生成图像（默认使用qwen）
      *
-     * @param prompt 提示??
+     * @param prompt 提示词
      * @return 图像URL
      */
     public String generateImage(String prompt) {
@@ -44,8 +54,8 @@ public class ImageGenerationService {
     /**
      * 生成图像
      *
-     * @param prompt   提示??
-     * @param provider 图像生成服务提供??
+     * @param prompt   提示词
+     * @param provider 图像生成服务提供者
      * @return 图像URL
      */
     public String generateImage(String prompt, ImageProvider provider) {
@@ -57,13 +67,16 @@ public class ImageGenerationService {
     }
 
     /**
-     * 使用通义千问生成图像（multimodal-generation 同步接口??
+     * 使用通义千问生成图像（multimodal-generation 同步接口）
      */
     private String generateWithQwen(String prompt) {
         try {
             // 构建请求参数
+            String effectiveApiKey = StringUtils.hasText(imageApiKey) ? imageApiKey : apiKey;
+            String effectiveUrl = StringUtils.hasText(imageBaseUrl) ? imageBaseUrl : DEFAULT_QWEN_API_URL;
+            String effectiveModel = StringUtils.hasText(imageModel) ? imageModel : DEFAULT_QWEN_MODEL;
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "qwen-image-plus");
+            requestBody.put("model", effectiveModel);
 
             // input 使用 messages 格式
             Map<String, Object> textContent = new HashMap<>();
@@ -86,40 +99,40 @@ public class ImageGenerationService {
 
             // 创建HTTP请求
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(QWEN_API_URL))
+                    .uri(URI.create(effectiveUrl))
                     .timeout(Duration.ofMinutes(5));
 
-            // 添加请求??
+            // 添加请求头
             requestBuilder.header("Content-Type", "application/json");
-            requestBuilder.header("Authorization", "Bearer " + apiKey);
+            requestBuilder.header("Authorization", "Bearer " + effectiveApiKey);
 
-            // 添加请求??
-            String bodyStr = JSON.toJSONString(requestBody);
+            // 添加请求体
+            String bodyStr = JsonUtils.toJson(requestBody);
             requestBuilder.POST(HttpRequest.BodyPublishers.ofString(bodyStr));
 
             HttpRequest request = requestBuilder.build();
 
-            // 发送请??
+            // 发送请求
             HttpResponse<String> response = HTTP_CLIENT.send(request,
                     HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200) {
-                JSONObject jsonResponse = JSON.parseObject(response.body());
+                JsonNode jsonResponse = JsonUtils.parse(response.body());
                 log.info("Qwen图像生成响应: {}", jsonResponse);
 
                 // 从响应中直接获取图片URL
-                JSONObject output = jsonResponse.getJSONObject("output");
-                if (output != null && output.containsKey("choices")) {
-                    com.alibaba.fastjson2.JSONArray choices = output.getJSONArray("choices");
-                    if (choices != null && choices.size() > 0) {
-                        JSONObject choice = choices.getJSONObject(0);
-                        JSONObject message = choice.getJSONObject("message");
-                        if (message != null && message.containsKey("content")) {
-                            com.alibaba.fastjson2.JSONArray contents = message.getJSONArray("content");
-                            if (contents != null && contents.size() > 0) {
-                                JSONObject content = contents.getJSONObject(0);
-                                if (content.containsKey("image")) {
-                                    String imageUrl = content.getString("image");
+                JsonNode output = jsonResponse != null ? jsonResponse.get("output") : null;
+                if (output != null && output.has("choices")) {
+                    JsonNode choices = output.get("choices");
+                    if (choices != null && choices.isArray() && choices.size() > 0) {
+                        JsonNode choice = choices.get(0);
+                        JsonNode message = choice.get("message");
+                        if (message != null && message.has("content")) {
+                            JsonNode contents = message.get("content");
+                            if (contents != null && contents.isArray() && contents.size() > 0) {
+                                JsonNode content = contents.get(0);
+                                if (content != null && content.has("image")) {
+                                    String imageUrl = content.get("image").asText();
                                     log.info("Qwen图像生成成功，URL: {}", imageUrl);
                                     return imageUrl;
                                 }
@@ -148,7 +161,7 @@ public class ImageGenerationService {
             requestBody.put("aspectRatio", "16:9");
             requestBody.put("imageSize", "1K");
 
-            // 设置请求??
+            // 设置请求头
             Map<String, String> headers = new HashMap<>();
             headers.put("Content-Type", "application/json");
             headers.put("Authorization", "Bearer " + grsAiApiKey);
@@ -158,13 +171,13 @@ public class ImageGenerationService {
                     .uri(URI.create(GRS_AI_GENERATION_URL))
                     .timeout(Duration.ofMinutes(5));
 
-            // 添加请求??
+            // 添加请求头
             for (Map.Entry<String, String> header : headers.entrySet()) {
                 requestBuilder.header(header.getKey(), header.getValue());
             }
 
-            // 添加请求??
-            String bodyStr = JSON.toJSONString(requestBody);
+            // 添加请求体
+            String bodyStr = JsonUtils.toJson(requestBody);
             requestBuilder.POST(HttpRequest.BodyPublishers.ofString(bodyStr));
 
             HttpRequest request = requestBuilder.build();
@@ -180,34 +193,35 @@ public class ImageGenerationService {
                     while ((line = reader.readLine()) != null) {
                         line = line.trim();
 
-                        // 检查是否是数据??(data: ...)
+                        // 检查是否是数据行(data: ...)
                         if (line.startsWith("data: ")) {
                             String jsonData = line.substring(6).trim();
 
                             if (!jsonData.isEmpty() && !"[DONE]".equals(jsonData)) {
                                 try {
-                                    JSONObject jsonObject = JSON.parseObject(jsonData);
+                                    JsonNode jsonObject = JsonUtils.parse(jsonData);
 
-                                    // 检查是否完??
-                                    if ("succeeded".equals(jsonObject.getString("status"))) {
-                                        if (jsonObject.containsKey("results") &&
-                                            !jsonObject.getJSONArray("results").isEmpty()) {
-                                            JSONObject result = jsonObject.getJSONArray("results").getJSONObject(0);
-                                            if (result.containsKey("url")) {
-                                                String imageUrl = result.getString("url");
+                                    // 检查是否完成
+                                    String status = jsonObject != null && jsonObject.has("status") ? jsonObject.get("status").asText() : null;
+                                    if ("succeeded".equals(status)) {
+                                        if (jsonObject.has("results") && jsonObject.get("results").isArray()
+                                            && !jsonObject.get("results").isEmpty()) {
+                                            JsonNode result = jsonObject.get("results").get(0);
+                                            if (result != null && result.has("url")) {
+                                                String imageUrl = result.get("url").asText();
                                                 log.info("nano-banana图像生成成功，URL: {}", imageUrl);
                                                 return imageUrl;
                                             }
                                         }
-                                    } else if ("failed".equals(jsonObject.getString("status")) ||
-                                            "error".equals(jsonObject.getString("status"))) {
-                                        log.error("nano-banana图像生成失败: {}", jsonObject.getString("error"));
+                                    } else if ("failed".equals(status) || "error".equals(status)) {
+                                        log.error("nano-banana图像生成失败: {}",
+                                                jsonObject != null && jsonObject.has("error") ? jsonObject.get("error").asText() : null);
                                         return null;
                                     }
 
                                     // 输出进度信息
-                                    if (jsonObject.containsKey("progress")) {
-                                        int progress = jsonObject.getIntValue("progress");
+                                    if (jsonObject != null && jsonObject.has("progress")) {
+                                        int progress = jsonObject.get("progress").asInt();
                                         log.info("nano-banana图像生成进度: {}%", progress);
                                     }
                                 } catch (Exception e) {

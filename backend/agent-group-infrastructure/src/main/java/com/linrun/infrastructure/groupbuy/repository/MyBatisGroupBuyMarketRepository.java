@@ -9,6 +9,7 @@ import com.linrun.infrastructure.dao.ICrowdTagDao;
 import com.linrun.infrastructure.dao.IGroupBuyDiscountDao;
 import com.linrun.infrastructure.dao.IGroupBuyMarketSkuDao;
 import com.linrun.infrastructure.dao.ISourceChannelSkuActivityDao;
+import com.linrun.infrastructure.po.GroupBuyDiscountPO;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
@@ -72,6 +73,45 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
     @Override
     public List<SourceChannelSkuActivity> querySourceChannelList(int limit) {
         return ActivityPOConverter.toSourceChannels(sourceChannelSkuActivityDao.querySourceChannelList(Math.max(1, limit)));
+    }
+
+    @Override
+    public List<GroupBuyDiscount> queryDiscountList(int limit) {
+        return ActivityPOConverter.toDiscounts(discountDao.queryDiscountList(Math.max(1, limit)));
+    }
+
+    @Override
+    public GroupBuyDiscount saveDiscount(GroupBuyDiscount discount) {
+        if (discount == null || !StringUtils.hasText(discount.getDiscountId())) {
+            return null;
+        }
+        GroupBuyDiscountPO existing = discountDao.queryByDiscountId(discount.getDiscountId());
+        GroupBuyDiscountPO po = ActivityPOConverter.toPO(discount);
+        if (po.getEnabled() == null) {
+            po.setEnabled(Boolean.TRUE);
+        }
+        if (existing == null) {
+            discountDao.insertDiscount(po);
+        } else {
+            discountDao.updateDiscount(po);
+        }
+        return ActivityPOConverter.toEntity(discountDao.queryByDiscountId(discount.getDiscountId()));
+    }
+
+    @Override
+    public boolean updateDiscountEnabled(String discountId, boolean enabled) {
+        if (!StringUtils.hasText(discountId)) {
+            return false;
+        }
+        return discountDao.updateDiscountEnabled(discountId, enabled) > 0;
+    }
+
+    @Override
+    public boolean deleteDiscount(String discountId) {
+        if (!StringUtils.hasText(discountId)) {
+            return false;
+        }
+        return discountDao.deleteByDiscountId(discountId) > 0;
     }
 }
 

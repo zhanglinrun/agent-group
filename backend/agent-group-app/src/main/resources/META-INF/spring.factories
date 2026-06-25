@@ -1,3 +1,4 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
 com.linrun.config.DotenvEnvironmentPostProcessor,\
+com.linrun.config.LlmAdminOverrideEnvironmentPostProcessor,\
 com.linrun.config.LlmBaseUrlEnvironmentPostProcessor

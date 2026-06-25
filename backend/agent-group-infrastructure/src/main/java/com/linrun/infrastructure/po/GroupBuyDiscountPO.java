@@ -10,6 +10,7 @@ public class GroupBuyDiscountPO {
     private String marketPlan;
     private String marketExpr;
     private String tagId;
+    private Boolean enabled;
 
     public Long getId() {
         return id;
@@ -73,6 +74,14 @@ public class GroupBuyDiscountPO {
 
     public void setTagId(String tagId) {
         this.tagId = tagId;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
     }
 }
 

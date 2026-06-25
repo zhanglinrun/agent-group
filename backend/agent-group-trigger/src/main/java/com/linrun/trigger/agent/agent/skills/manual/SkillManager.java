@@ -18,12 +18,12 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * 技能管理器??
+ * 技能管理器。
  *
  * 统一管理技能相关的所有逻辑，包括：
- * - 获取技能列??
- * - 格式化技能提??
- * - 读取技能内??
+ * - 获取技能列表
+ * - 格式化技能提示
+ * - 读取技能内容
  *
  * @author bigchui
  * 
@@ -60,7 +60,9 @@ public class SkillManager {
         for (var dirPath : config.getDirectories()) {
             builder.addDirectory(dirPath);
         }
-        return builder.autoReload(config.isAutoReload()).build();
+        return builder.excludedSkills(config.getExcludedSkills())
+                .autoReload(config.isAutoReload())
+                .build();
     }
 
     public List<SkillMetadata> getSkills() {

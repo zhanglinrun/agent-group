@@ -4,15 +4,17 @@ import com.linrun.trigger.agent.agent.skills.manual.model.SkillMetadata;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
- * 技能配置类??
+ * 技能配置类。
  *
- * 通过 Builder API 配置文件系统技能目录，支持多个目录组合??
- * 后添加的目录会覆盖先添加的目录中的同名技能??
+ * 通过 Builder API 配置文件系统技能目录，支持多个目录组合。
+ * 后添加的目录会覆盖先添加的目录中的同名技能。
  *
  * @author bigchui
  * 
@@ -22,11 +24,13 @@ public class SkillConfig {
     private final List<Path> directories;
     private final Function<List<SkillMetadata>, String> promptFormatter;
     private final boolean autoReload;
+    private final Set<String> excludedSkills;
 
     private SkillConfig(Builder builder) {
         this.directories = List.copyOf(builder.directories);
         this.promptFormatter = builder.promptFormatter;
         this.autoReload = builder.autoReload;
+        this.excludedSkills = Set.copyOf(builder.excludedSkills);
     }
 
     public static Builder builder() {
@@ -45,8 +49,13 @@ public class SkillConfig {
         return autoReload;
     }
 
+    public Set<String> getExcludedSkills() {
+        return excludedSkills;
+    }
+
     public static class Builder {
         private final List<Path> directories = new ArrayList<>();
+        private final Set<String> excludedSkills = new HashSet<>();
         private Function<List<SkillMetadata>, String> promptFormatter = null;
         private boolean autoReload = false;
 
@@ -57,6 +66,17 @@ public class SkillConfig {
         public Builder addDirectory(Path path) {
             Objects.requireNonNull(path, "path must not be null");
             this.directories.add(path);
+            return this;
+        }
+
+        public Builder excludedSkills(Set<String> skillNames) {
+            if (skillNames != null) {
+                skillNames.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(name -> !name.isEmpty())
+                        .forEach(this.excludedSkills::add);
+            }
             return this;
         }
 

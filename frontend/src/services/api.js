@@ -715,6 +715,38 @@ export async function queryAgentCapabilities() {
   });
 }
 
+export async function queryAdminSkills() {
+  return request("/api/v1/agent/admin/skills", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function setAdminSkillEnabled(skillName, enabled) {
+  return request(`/api/v1/agent/admin/skills/${encodeURIComponent(skillName)}/enabled`, {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: Boolean(enabled) })
+  });
+}
+
+export async function queryLlmAdminConfig() {
+  return request("/api/v1/agent/admin/llm/config", {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function saveLlmAdminConfig(payload) {
+  return request("/api/v1/agent/admin/llm/config", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {})
+  });
+}
+
 export async function queryMcpServers() {
   return request("/api/v1/mcp/admin/servers", {
     auth: true,
@@ -1286,4 +1318,84 @@ export async function updateOperationalRule(ruleKey, ruleValue) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ruleKey, ruleValue })
   });
+}
+
+export async function listGroupBuyActivities() {
+  return request("/api/v1/gbm/admin/activities", { auth: true, method: "GET" });
+}
+
+export async function queryGroupBuyActivityDetail(activityId) {
+  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function createGroupBuyActivity(payload) {
+  return request("/api/v1/gbm/admin/activities", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateGroupBuyActivity(activityId, payload) {
+  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}`, {
+    auth: true,
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateGroupBuyActivityEnabled(activityId, enabled) {
+  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}/enabled?enabled=${Boolean(enabled)}`, {
+    auth: true,
+    method: "PUT"
+  });
+}
+
+export async function updateGroupBuyActivityStock(activityId, totalStock) {
+  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}/stock`, {
+    auth: true,
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ totalStock })
+  });
+}
+
+export async function removeGroupBuyActivity(activityId) {
+  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}`, {
+    auth: true,
+    method: "DELETE"
+  });
+}
+
+export async function queryGroupBuyGoodsOptions() {
+  return request("/api/v1/gbm/admin/goods-options", { auth: true, method: "GET" });
+}
+
+export async function queryGroupBuyDiscountOptions() {
+  return request("/api/v1/gbm/admin/discount-options", { auth: true, method: "GET" });
+}
+
+export async function listGroupBuyDiscounts() {
+  return request("/api/v1/gbm/admin/discounts", { auth: true, method: "GET" });
+}
+
+export async function saveGroupBuyDiscount(payload) {
+  return request("/api/v1/gbm/admin/discounts", {
+    auth: true, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {})
+  });
+}
+
+export async function setGroupBuyDiscountEnabled(discountId, enabled) {
+  return request(`/api/v1/gbm/admin/discounts/${discountId}/enabled`, {
+    auth: true, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled })
+  });
+}
+
+export async function removeGroupBuyDiscount(discountId) {
+  return request(`/api/v1/gbm/admin/discounts/${discountId}`, { auth: true, method: "DELETE" });
 }

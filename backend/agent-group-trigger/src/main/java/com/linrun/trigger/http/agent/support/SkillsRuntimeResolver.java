@@ -9,6 +9,7 @@ import com.linrun.trigger.agent.agent.skills.manual.tool.ReadSkillFileTool;
 import com.linrun.trigger.agent.agent.skills.manual.tool.ReadSkillTool;
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeTools;
 import com.linrun.trigger.agent.tool.SkillsTool;
+import com.linrun.trigger.http.agent.SkillsAdminStateStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
@@ -38,6 +39,9 @@ public class SkillsRuntimeResolver {
 
     @Value("${skills.output-directory:outputs}")
     private String skillsOutputDirectory;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private SkillsAdminStateStore skillsAdminStateStore;
 
     public String resolvedSkillsDirectory() {
         String configured = StringUtils.hasText(skillsDirectory) ? skillsDirectory.trim() : "skills";
@@ -124,7 +128,10 @@ public class SkillsRuntimeResolver {
             return new ToolCallback[0];
         }
         try {
-            return new ToolCallback[]{SkillsTool.builder().addSkillsDirectory(directory).build()};
+            return new ToolCallback[]{SkillsTool.builder()
+                    .addSkillsDirectory(directory)
+                    .excludeSkills(disabledSkillNames())
+                    .build()};
         } catch (IllegalArgumentException e) {
             LOGGER.warn("academic-agent skills tool init skipped, reason={}", e.getMessage());
             return new ToolCallback[0];
@@ -139,12 +146,17 @@ public class SkillsRuntimeResolver {
         try {
             SkillConfig skillConfig = SkillConfig.builder()
                     .addDirectory(directory)
+                    .excludedSkills(disabledSkillNames())
                     .build();
             return SkillManager.create(skillConfig);
         } catch (Exception e) {
             LOGGER.warn("academic-agent manual skills init skipped, reason={}", e.getClass().getSimpleName());
             return null;
         }
+    }
+
+    private java.util.Set<String> disabledSkillNames() {
+        return skillsAdminStateStore == null ? java.util.Set.of() : skillsAdminStateStore.disabledSkillNames();
     }
 
     public ToolCallback[] manualSkillToolCallbacks(SkillManager skillManager) {

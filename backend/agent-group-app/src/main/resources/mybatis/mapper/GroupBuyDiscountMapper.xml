@@ -13,6 +13,7 @@
         <result column="market_plan" property="marketPlan"/>
         <result column="market_expr" property="marketExpr"/>
         <result column="tag_id" property="tagId"/>
+        <result column="enabled" property="enabled"/>
     </resultMap>
 
     <select id="queryByDiscountId" resultMap="GroupBuyDiscountMap">
@@ -23,11 +24,58 @@
                discount_type,
                market_plan,
                market_expr,
-               tag_id
+               tag_id,
+               enabled
         from group_buy_discount
         where discount_id = #{discountId}
         limit 1
     </select>
+
+    <select id="queryDiscountList" resultMap="GroupBuyDiscountMap">
+        select id,
+               discount_id,
+               discount_name,
+               discount_desc,
+               discount_type,
+               market_plan,
+               market_expr,
+               tag_id,
+               enabled
+        from group_buy_discount
+        order by id desc
+        limit #{limit}
+    </select>
+
+    <insert id="insertDiscount" parameterType="com.linrun.infrastructure.po.GroupBuyDiscountPO">
+        insert into group_buy_discount
+            (discount_id, discount_name, discount_desc, discount_type, market_plan, market_expr, tag_id, enabled)
+        values
+            (#{discountId}, #{discountName}, #{discountDesc}, #{discountType}, #{marketPlan}, #{marketExpr}, #{tagId},
+             <choose>
+                 <when test="enabled != null">#{enabled}</when>
+                 <otherwise>true</otherwise>
+             </choose>)
+    </insert>
+
+    <update id="updateDiscount" parameterType="com.linrun.infrastructure.po.GroupBuyDiscountPO">
+        update group_buy_discount
+        set discount_name = #{discountName},
+            discount_desc = #{discountDesc},
+            discount_type = #{discountType},
+            market_plan = #{marketPlan},
+            market_expr = #{marketExpr},
+            tag_id = #{tagId},
+            enabled = <choose><when test="enabled != null">#{enabled}</when><otherwise>true</otherwise></choose>
+        where discount_id = #{discountId}
+    </update>
+
+    <update id="updateDiscountEnabled">
+        update group_buy_discount set enabled = #{enabled} where discount_id = #{discountId}
+    </update>
+
+    <delete id="deleteByDiscountId">
+        delete from group_buy_discount where discount_id = #{discountId}
+    </delete>
 </mapper>
 
 

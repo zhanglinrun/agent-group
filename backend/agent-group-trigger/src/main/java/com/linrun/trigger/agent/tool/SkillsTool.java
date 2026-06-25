@@ -109,6 +109,8 @@ public class SkillsTool {
 
 		private final List<Skill> skills = new ArrayList<>();
 
+		private final java.util.Set<String> excludedSkills = new java.util.HashSet<>();
+
 		private String toolDescriptionTemplate = TOOL_DESCRIPTION_TEMPLATE;
 
 		protected Builder() {
@@ -116,6 +118,20 @@ public class SkillsTool {
 
 		public Builder toolDescriptionTemplate(String template) {
 			this.toolDescriptionTemplate = template;
+			return this;
+		}
+
+		/**
+		 * 排除指定名称的技能（运营端在后台禁用的技能不暴露给 Agent）。
+		 */
+		public Builder excludeSkills(java.util.Set<String> skillNames) {
+			if (skillNames != null) {
+				this.excludedSkills.addAll(skillNames.stream()
+						.filter(java.util.Objects::nonNull)
+						.map(String::trim)
+						.filter(name -> !name.isEmpty())
+						.toList());
+			}
 			return this;
 		}
 
@@ -159,11 +175,14 @@ public class SkillsTool {
 		}
 
 		public ToolCallback build() {
-			Assert.notEmpty(this.skills, "至少需要配置一个技能目录或资源");
+			List<Skill> activeSkills = this.skills.stream()
+					.filter(skill -> !excludedSkills.contains(skill.name()))
+					.toList();
+			Assert.notEmpty(activeSkills, "至少需要配置一个技能目录或资源");
 
-			String skillsXml = this.skills.stream().map(Skill::toXml).collect(Collectors.joining("\n"));
+			String skillsXml = activeSkills.stream().map(Skill::toXml).collect(Collectors.joining("\n"));
 
-			return FunctionToolCallback.builder("Skill", new SkillsFunction(toSkillsMap(this.skills)))
+			return FunctionToolCallback.builder("Skill", new SkillsFunction(toSkillsMap(activeSkills)))
 				.description(this.toolDescriptionTemplate.formatted(skillsXml))
 				.inputType(SkillsInput.class)
 				.build();

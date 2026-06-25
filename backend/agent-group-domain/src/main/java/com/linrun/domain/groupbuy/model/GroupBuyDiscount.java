@@ -10,6 +10,7 @@ public class GroupBuyDiscount {
     private String marketPlan;
     private String marketExpr;
     private String tagId;
+    private Boolean enabled;
 
     public GroupBuyDiscountType resolveDiscountType() {
         return GroupBuyDiscountType.parse(discountType);
@@ -81,6 +82,14 @@ public class GroupBuyDiscount {
 
     public void setTagId(String tagId) {
         this.tagId = tagId;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
     }
 }
 

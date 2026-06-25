@@ -78,6 +78,7 @@ create table if not exists group_buy_discount (
   market_plan varchar(8) not null comment 'ZJ/MJ/ZK/N',
   market_expr varchar(64) not null comment 'discount expression',
   tag_id varchar(32) default null comment 'tag id for tag discount',
+  enabled tinyint not null default 1 comment 'discount enabled',
   create_time datetime not null default current_timestamp comment 'create time',
   update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
   primary key (id),

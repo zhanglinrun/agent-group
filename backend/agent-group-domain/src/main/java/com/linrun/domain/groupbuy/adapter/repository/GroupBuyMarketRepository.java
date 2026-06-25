@@ -24,6 +24,22 @@ public interface GroupBuyMarketRepository {
     default List<SourceChannelSkuActivity> querySourceChannelList(int limit) {
         return List.of();
     }
+
+    default List<GroupBuyDiscount> queryDiscountList(int limit) {
+        return List.of();
+    }
+
+    default GroupBuyDiscount saveDiscount(GroupBuyDiscount discount) {
+        return null;
+    }
+
+    default boolean updateDiscountEnabled(String discountId, boolean enabled) {
+        return false;
+    }
+
+    default boolean deleteDiscount(String discountId) {
+        return false;
+    }
 }
 
 

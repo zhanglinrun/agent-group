@@ -1122,7 +1122,7 @@ create table if not exists sc_sku_activity (
 ) engine=InnoDB default charset=utf8mb4 comment='source channel sku activity';
 
 -- 给老库补齐额度流水幂等唯一约束：同一用户、同一业务类型、同一业务单只允许一条流水，
--- 作为额度发放/回滚在数据库层的最后一道防线，防止并发重复回调写入重复流水。
+-- 作为额度发放/回滚在数据库层的最后一道防线，防止并发回调写入重复流水。
 set @sql = (
   select if(count(*) = 0,
     'alter table user_quota_flow add unique key uk_user_biz_flow (user_id, flow_type, biz_id)',
@@ -1131,6 +1131,20 @@ set @sql = (
   where table_schema = database()
     and table_name = 'user_quota_flow'
     and index_name = 'uk_user_biz_flow'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+-- 折扣表补齐 enabled 列，支持运营端启停折扣。
+set @sql = (
+  select if(count(*) = 0,
+    'alter table group_buy_discount add column enabled tinyint not null default 1 comment ''discount enabled'' after tag_id',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'group_buy_discount'
+    and column_name = 'enabled'
 );
 prepare stmt from @sql;
 execute stmt;

@@ -13,10 +13,10 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * 文件系统技能注册表??
+ * 文件系统技能注册表。
  *
  * 从本地文件系统加载技能。支持目录扫描，自动发现
- * 技能目录中??SKILL.md 文件??
+ * 技能目录中的 SKILL.md 文件。
  *
  * @author bigchui
  * 
@@ -41,11 +41,13 @@ public class FileSystemSkillRegistry extends AbstractSkillRegistry {
 
     private final List<Path> directories;
     private final boolean autoReload;
+    private final Set<String> excludedSkills;
 
-    private FileSystemSkillRegistry(List<Path> directories, boolean autoReload) {
+    private FileSystemSkillRegistry(List<Path> directories, boolean autoReload, Set<String> excludedSkills) {
         super();
         this.directories = List.copyOf(directories);
         this.autoReload = autoReload;
+        this.excludedSkills = excludedSkills == null ? Set.of() : Set.copyOf(excludedSkills);
     }
 
     public static Builder builder() {
@@ -82,12 +84,17 @@ public class FileSystemSkillRegistry extends AbstractSkillRegistry {
                         return;
                     }
 
+                    String skillName = subDir.getFileName().toString();
+                    if (excludedSkills.contains(skillName)) {
+                        log.debug("Skipped disabled skill: {} from {}", skillName, dirPath);
+                        return;
+                    }
+
                     Path skillFile = subDir.resolve(SKILL_MD_FILE);
                     if (!Files.exists(skillFile)) {
                         return;
                     }
 
-                    String skillName = subDir.getFileName().toString();
                     try {
                         String content = Files.readString(skillFile);
                         SkillMetadata metadata = parseSkillMetadata(skillName, content, subDir, skillFile);
@@ -405,6 +412,7 @@ public class FileSystemSkillRegistry extends AbstractSkillRegistry {
 
     public static class Builder {
         private final List<Path> directories = new ArrayList<>();
+        private final Set<String> excludedSkills = new HashSet<>();
         private boolean autoReload = false;
 
         public Builder addDirectory(String path) {
@@ -416,13 +424,24 @@ public class FileSystemSkillRegistry extends AbstractSkillRegistry {
             return this;
         }
 
+        public Builder excludedSkills(Set<String> skillNames) {
+            if (skillNames != null) {
+                skillNames.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(name -> !name.isEmpty())
+                        .forEach(excludedSkills::add);
+            }
+            return this;
+        }
+
         public Builder autoReload(boolean autoReload) {
             this.autoReload = autoReload;
             return this;
         }
 
         public FileSystemSkillRegistry build() {
-            return new FileSystemSkillRegistry(directories, autoReload);
+            return new FileSystemSkillRegistry(directories, autoReload, excludedSkills);
         }
     }
 }
