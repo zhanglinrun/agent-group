@@ -17,7 +17,7 @@ public enum PptIntent {
      */
     MODIFY_PPT("MODIFY_PPT", "修改PPT"),
     /**
-     * 断点重连（继续之前失败的任务??
+     * 断点重连（继续之前失败的任务）
      */
     RESUME_PPT("RESUME_PPT", "断点重连（继续之前失败的任务）");
 

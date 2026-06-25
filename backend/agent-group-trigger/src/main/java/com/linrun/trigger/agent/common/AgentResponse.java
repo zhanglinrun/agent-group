@@ -1,16 +1,16 @@
 package com.linrun.trigger.agent.common;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Agent通用响应类型
- * 用于统一各Agent的流式输出格??
+ * 用于统一各Agent的流式输出格式
  */
 public class AgentResponse {
 
     /**
-     * 支持的类??
+     * 支持的类型
      */
     public static final String TYPE_TEXT = "text";
     public static final String TYPE_THINKING = "thinking";
@@ -68,12 +68,12 @@ public class AgentResponse {
     }
 
     /**
-     * 创建reference类型响应（无count，自动解析JSON数组计算count??
+     * 创建reference类型响应（无count，自动解析JSON数组计算count）
      */
     public static String reference(String content) {
         try {
-            var jsonArray = JSON.parseArray(content);
-            if (jsonArray != null) {
+            JsonNode jsonArray = JsonUtils.parse(content);
+            if (jsonArray != null && jsonArray.isArray()) {
                 return reference(content, jsonArray.size());
             }
         } catch (Exception e) {
@@ -97,21 +97,21 @@ public class AgentResponse {
     }
 
     /**
-     * 创建recommend类型响应（带count??
+     * 创建recommend类型响应（带count）
      */
     public static String recommend(String content, Integer count) {
         return new AgentResponse(TYPE_RECOMMEND, content, count).toJson();
     }
 
     /**
-     * 创建JSON类型响应（自定义类型??
+     * 创建JSON类型响应（自定义类型）
      */
     public static String json(String type, Object content) {
         if (TYPE_REFERENCE.equals(type) && content instanceof String jsonStr) {
             try {
-                // 尝试解析为JSONArray来计算数??
-                var jsonArray = JSON.parseArray(jsonStr);
-                if (jsonArray != null && !jsonArray.isEmpty()) {
+                // 尝试解析为JSONArray来计算数量
+                JsonNode jsonArray = JsonUtils.parse(jsonStr);
+                if (jsonArray != null && jsonArray.isArray() && !jsonArray.isEmpty()) {
                     return reference(jsonStr, jsonArray.size());
                 }
             } catch (Exception e) {
@@ -124,8 +124,8 @@ public class AgentResponse {
     // ===== JSON转换 =====
 
     public String toJson() {
-        JSONObject obj = new JSONObject();
-        obj.put("type", type);
+        ObjectNode obj = JsonUtils.objectNode();
+        obj.put("type", type == null ? "" : type);
         if (content != null) {
             obj.put("content", content);
         }
@@ -135,15 +135,15 @@ public class AgentResponse {
         if (data != null) {
             if ((TYPE_REFERENCE.equals(type) || TYPE_RECOMMEND.equals(type)) && content != null) {
                 try {
-                    obj.put("content", JSON.parse(content));
+                    obj.set("content", JsonUtils.parse(content));
                 } catch (Exception e) {
                     obj.put("content", content);
                 }
             } else {
-                obj.put("data", data);
+                obj.set("data", JsonUtils.mapper().valueToTree(data));
             }
         }
-        return obj.toJSONString();
+        return obj.toString();
     }
 
     // ===== Getters and Setters =====

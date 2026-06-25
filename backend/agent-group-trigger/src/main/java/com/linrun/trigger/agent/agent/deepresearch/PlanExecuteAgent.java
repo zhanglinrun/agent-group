@@ -10,8 +10,8 @@ import com.linrun.trigger.agent.prompts.PlanExecutePrompts;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
+import com.linrun.trigger.agent.common.JsonUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -48,10 +48,10 @@ public class PlanExecuteAgent extends BaseAgent {
     private ChatClient chatClient;
     private final List<ToolCallback> tools;
 
-    // plan-execute 总轮??
+    // plan-execute 总轮次
     private final int maxRounds;
 
-    // context 压缩阈??
+    // context 压缩阈值
     private final int contextCharLimit;
 
     // 控制工具并发调用上限
@@ -102,7 +102,7 @@ public class PlanExecuteAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
 
-        // 初始化工具记录集??
+        // 初始化工具记录集合
         this.usedTools = new HashSet<>();
     }
 
@@ -114,13 +114,13 @@ public class PlanExecuteAgent extends BaseAgent {
         private ChatModel chatModel;
         private List<ToolCallback> tools = new ArrayList<>();
 
-        // 默认迭代3??
+        // 默认迭代 3 轮
         private int maxRounds = 3;
 
-        // 默认context压缩阈??0000字符
+        // 默认 context 压缩阈值 50000 字符
         private int contextCharLimit = 50000;
 
-        // 默认工具重试次数2??
+        // 默认工具重试次数 2 次
         private int maxToolRetries = 2;
 
         private ChatMemory chatMemory;
@@ -217,7 +217,7 @@ public class PlanExecuteAgent extends BaseAgent {
             return checkResult;
         }
 
-        // 初始化状态和缓冲??
+        // 初始化状态和缓冲区
         Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
         AtomicBoolean finished = new AtomicBoolean(false);
 
@@ -226,14 +226,14 @@ public class PlanExecuteAgent extends BaseAgent {
             return Flux.error(new IllegalStateException("该会话正在执行中，请稍后再试"));
         }
 
-        // 初始化会话信??
+        // 初始化会话信息
         initTimers();
         clearUsedTools();
         currentConversationId = conversationId;
         currentQuestion = question;
         compositeDisposable = Disposables.composite();
 
-        // 创建缓冲??
+        // 创建缓冲区
         StringBuilder finalAnswerBuffer = new StringBuilder();
         StringBuilder thinkingBuffer = new StringBuilder();
         allReferences = new ArrayList<>();
@@ -241,7 +241,7 @@ public class PlanExecuteAgent extends BaseAgent {
         // 初始化状态并保存问题
         OverAllState state = initStateAndSaveQuestion(conversationId, question);
 
-        // 启动流程：需求澄??-> 研究主题生成 -> 执行循环
+        // 启动流程：需求澄清 -> 研究主题生成 -> 执行循环
         clarifyRequirementPhase(state, sink, finished, thinkingBuffer,
                 () -> generateResearchTopicPhase(state, sink, finished, thinkingBuffer,
                         () -> executeLoopPhase(state, sink, finished, finalAnswerBuffer,
@@ -325,12 +325,12 @@ public class PlanExecuteAgent extends BaseAgent {
      */
     private void parseAndAppendToBuffers(String chunk, StringBuilder finalAnswerBuffer, StringBuilder thinkingBuffer) {
         try {
-            JSONObject json = JSON.parseObject(chunk);
-            String type = json.getString("type");
+            JsonNode json = JsonUtils.parse(chunk);
+            String type = json != null && json.has("type") ? json.get("type").asText() : null;
             if ("text".equals(type)) {
-                finalAnswerBuffer.append(json.getString("content"));
+                finalAnswerBuffer.append(json.has("content") ? json.get("content").asText() : "");
             } else if ("thinking".equals(type)) {
-                thinkingBuffer.append(json.getString("content"));
+                thinkingBuffer.append(json.has("content") ? json.get("content").asText() : "");
             }
         } catch (Exception e) {
             // 解析失败，默认为 text 类型
@@ -347,7 +347,7 @@ public class PlanExecuteAgent extends BaseAgent {
     }
 
     /**
-     * 处理流结??
+     * 处理流结束
      */
     private void handleFinally(reactor.core.publisher.SignalType signalType, String conversationId,
                                StringBuilder finalAnswerBuffer, StringBuilder thinkingBuffer,
@@ -355,10 +355,10 @@ public class PlanExecuteAgent extends BaseAgent {
         log.info("流结束，类型: {}, 最终答案长度 {}, 思考过程长度 {}",
                 signalType, finalAnswerBuffer.length(), thinkingBuffer.length());
 
-        // 保存结果到会??
+        // 保存结果到会话
         saveSessionResult(conversationId, finalAnswerBuffer, thinkingBuffer);
 
-        // 正常结束只移除任务状态，用户点击停止才发送停止消??
+        // 正常结束只移除任务状态，用户点击停止才发送停止消息
         taskManager.completeTask(conversationId);
 
         // 清理资源
@@ -607,7 +607,7 @@ public class PlanExecuteAgent extends BaseAgent {
             String toolsStr = getUsedToolsString();
             String referenceJson = "";
             if (allReferences != null && !allReferences.isEmpty()) {
-                referenceJson = createReferenceResponse(JSON.toJSONString(allReferences));
+                referenceJson = createReferenceResponse(JsonUtils.toJson(allReferences));
             }
             UpdateAnswerRequest request = UpdateAnswerRequest.builder()
                     .id(currentSessionId)
@@ -830,7 +830,7 @@ public class PlanExecuteAgent extends BaseAgent {
                 .filter(task -> StringUtils.hasText(task.instruction()))
                 .map(PlanExecuteAgent::planTaskPayload)
                 .toList());
-        return JSON.toJSONString(payload);
+        return JsonUtils.toJson(payload);
     }
 
     static String createReflectionEvent(int round, CritiqueResult critique) {
@@ -840,7 +840,7 @@ public class PlanExecuteAgent extends BaseAgent {
         payload.put("passed", critique != null && critique.passed());
         payload.put("feedback", critique == null ? "" : Objects.toString(critique.feedback(), ""));
         payload.put("action", critique != null && critique.passed() ? "summarize" : "replan");
-        return JSON.toJSONString(payload);
+        return JsonUtils.toJson(payload);
     }
 
     private static Map<String, Object> planTaskPayload(PlanTask task) {
@@ -858,31 +858,31 @@ public class PlanExecuteAgent extends BaseAgent {
 
         Map<String, TaskResult> results = new ConcurrentHashMap<>();
 
-        // ??order 分组：order 相同??task 可并??
+        // 按 order 分组：order 相同的 task 可并行
         Map<Integer, List<PlanTask>> grouped = plan.stream().collect(Collectors.groupingBy(PlanTask::order));
 
         Map<String, String> accumulatedResults = new ConcurrentHashMap<>();
 
-        // ??order 顺序执行（不??order 串行??
+        // 按 order 顺序执行（不同 order 串行）
         for (Integer order : new TreeSet<>(grouped.keySet())) {
             if (hasSentFinal.get() || compositeDisposable.isDisposed()) {
                 break;
             }
 
-            // 构建任务执行的依赖上下文（只传递上一??order 的结果）
+            // 构建任务执行的依赖上下文（只传递上一组 order 的结果）
             String dependencyContext = buildDependencyContext(accumulatedResults, plan, order);
 
             List<PlanTask> tasks = grouped.get(order);
 
-            // 使用CountDownLatch等待当前order组全部完??
+            // 使用 CountDownLatch 等待当前 order 组全部完成
             CountDownLatch latch = new CountDownLatch(tasks.size());
 
             for (PlanTask task : tasks) {
-                // 使用Mono包装任务执行
+                // 使用 Mono 包装任务执行
                 Disposable taskDisposable = Mono.fromRunnable(() -> {
                             boolean acquired = false;
                             try {
-                                // 检查是否已被停??
+                                // 检查是否已被停止
                                 if (compositeDisposable.isDisposed()) {
                                     return;
                                 }
@@ -895,7 +895,7 @@ public class PlanExecuteAgent extends BaseAgent {
                                     return;
                                 }
 
-                                // 再次检查，避免在acquire后被停止
+                                // 再次检查，避免在 acquire 后被停止
                                 if (compositeDisposable.isDisposed()) {
                                     return;
                                 }
@@ -934,7 +934,7 @@ public class PlanExecuteAgent extends BaseAgent {
                                                 "Task execution interrupted"
                                         ));
                             } catch (Exception e) {
-                                // 检查是否是中断导致的异??
+                                // 检查是否是中断导致的异常
                                 if (compositeDisposable.isDisposed() || Thread.currentThread().isInterrupted()
                                         || (e.getMessage() != null && e.getMessage().contains("interrupted"))) {
                                     log.info("Task {} 执行被用户停止 {}", task.id(), e.getMessage());
@@ -966,11 +966,11 @@ public class PlanExecuteAgent extends BaseAgent {
                         .subscribeOn(Schedulers.boundedElastic())
                         .subscribe();
 
-                // 将任务的disposable添加到composite
+                // 将任务的 disposable 添加到 composite
                 compositeDisposable.add(taskDisposable);
             }
 
-            // 等待当前order组全部完??
+            // 等待当前 order 组全部完成
             try {
                 latch.await();
             } catch (InterruptedException e) {
@@ -990,9 +990,9 @@ public class PlanExecuteAgent extends BaseAgent {
      *
      * @param task              要执行的任务
      * @param dependencyContext 依赖上下文（只包含依赖结果）
-     * @param sink              响应??
-     * @param hasSentFinal      是否已发送最终结??
-     * @param thinkingBuffer    思考过程缓??
+     * @param sink              响应接收器
+     * @param hasSentFinal      是否已发送最终结果
+     * @param thinkingBuffer    思考过程缓冲区
      * @return 任务执行结果
      */
     private TaskResult executeWithRetry(PlanTask task, String dependencyContext,
@@ -1004,14 +1004,14 @@ public class PlanExecuteAgent extends BaseAgent {
         emit(sink, hasSentFinal, "⚙️ 正在执行任务 " + task.id() + " : " + task.instruction() + "\n", "thinking", thinkingBuffer);
         emitJson(sink, hasSentFinal, createDeepResearchToolStartEvent(toolCallId, task, dependencyContext));
 
-        // 检查是否已被停??
+        // 检查是否已被停止
         if (hasSentFinal.get() || compositeDisposable.isDisposed()) {
             emitJson(sink, hasSentFinal, createDeepResearchToolEndEvent(
                     toolCallId, task, false, null, "任务被用户停止", List.of(), startedAt));
             return new TaskResult(task.id(), false, null, "任务被用户停止");
         }
         try {
-            // 构建完整任务上下文（依赖 + 当前任务指令??
+            // 构建完整任务上下文（依赖 + 当前任务指令）
             String fullContext = """
                                 【Available Results】
                                 %s
@@ -1038,7 +1038,7 @@ public class PlanExecuteAgent extends BaseAgent {
                 return new TaskResult(task.id(), false, null, "任务被用户停止");
             }
 
-            // 收集搜索结果??allReferences
+            // 收集搜索结果到 allReferences
             if (result.getSearchResults() != null && !result.getSearchResults().isEmpty()) {
                 synchronized (allReferences) {
                     allReferences.addAll(result.getSearchResults());
@@ -1051,7 +1051,7 @@ public class PlanExecuteAgent extends BaseAgent {
                     toolCallId, task, true, answer, null, result.getSearchResults(), startedAt));
             return new TaskResult(task.id(), true, answer, null);
         } catch (Exception e) {
-            // 检查是否是中断导致的异??
+            // 检查是否是中断导致的异常
             if (compositeDisposable.isDisposed() || Thread.currentThread().isInterrupted()
                     || (e.getMessage() != null && e.getMessage().contains("interrupted"))) {
                 log.info("Task {} 执行被用户停止 {}", task.id(), e.getMessage());
@@ -1102,7 +1102,7 @@ public class PlanExecuteAgent extends BaseAgent {
         payload.put("toolCallId", toolCallId);
         payload.put("action", "execute_step");
         payload.put("arguments", arguments);
-        return JSON.toJSONString(payload);
+        return JsonUtils.toJson(payload);
     }
 
     static String createDeepResearchToolEndEvent(String toolCallId,
@@ -1130,7 +1130,7 @@ public class PlanExecuteAgent extends BaseAgent {
         if (!success) {
             payload.put("error", Objects.toString(error, ""));
         }
-        return JSON.toJSONString(payload);
+        return JsonUtils.toJson(payload);
     }
 
     private static List<Map<String, Object>> referencePayload(List<SearchResult> references) {
@@ -1159,34 +1159,34 @@ public class PlanExecuteAgent extends BaseAgent {
 
     /**
      * 构建任务执行的依赖上下文
-     * 规则：同 order 的任务不传依赖（并行），不同 order 的任务只传递上一??order 的结??
+     * 规则：同 order 的任务不传依赖（并行），不同 order 的任务只传递上一组 order 的结果
      * 注意：此方法只返回【Available Results】部分，【Current Task】由 executeWithRetry 拼接
      *
-     * @param results      所有已完成任务的结??
-     * @param plan         当前轮次的执行计划（用于获取任务 order??
-     * @param currentOrder 当前任务??order
+     * @param results      所有已完成任务的结果
+     * @param plan         当前轮次的执行计划（用于获取任务 order）
+     * @param currentOrder 当前任务的 order
      * @return 依赖上下文字符串
      */
     private String buildDependencyContext(Map<String, String> results, List<PlanTask> plan, int currentOrder) {
         StringBuilder context = new StringBuilder();
 
-        // 1. 第一??order 的任务没有依??
+        // 1. 第一组 order 的任务没有依赖
         if (currentOrder == 1) {
             return context.append("无\n").toString();
         }
 
-        // 2. 收集上一??order 的任务结??
+        // 2. 收集上一组 order 的任务结果
         boolean hasDependencies = false;
 
         for (Map.Entry<String, String> entry : results.entrySet()) {
-            // 查找任务对应??order
+            // 查找任务对应的 order
             PlanTask task = plan.stream()
                     .filter(t -> t.id() != null && t.id().equals(entry.getKey()))
                     .findFirst()
                     .orElse(null);
 
             if (task != null && task.order() == currentOrder - 1) {
-                // 只有上一??order 的结果才是依??
+                // 只有上一组 order 的结果才是依赖
                 if (!hasDependencies) {
                     context.append("任务 ");
                     hasDependencies = true;
@@ -1206,15 +1206,15 @@ public class PlanExecuteAgent extends BaseAgent {
 
 
     /**
-     * 批判当前轮次的研究结??
-     * 上下文：用户问题 + 研究主题 + 当前轮次的执行计??+ 当前轮次的工具结??
+     * 批判当前轮次的研究结果
+     * 上下文：用户问题 + 研究主题 + 当前轮次的执行计划 + 当前轮次的工具结果
      *
-     * @param state          整体状??
-     * @param currentPlan    当前轮次的执行计??
-     * @param currentResults 当前轮次的任务执行结??
-     * @param sink           响应??
-     * @param hasSentFinal   是否已发送最终结??
-     * @param thinkingBuffer 思考过程缓??
+     * @param state          整体状态
+     * @param currentPlan    当前轮次的执行计划
+     * @param currentResults 当前轮次的任务执行结果
+     * @param sink           响应接收器
+     * @param hasSentFinal   是否已发送最终结果
+     * @param thinkingBuffer 思考过程缓冲区
      * @return 批判结果
      */
     private CritiqueResult critique(OverAllState state, List<PlanTask> currentPlan,
@@ -1392,9 +1392,9 @@ public class PlanExecuteAgent extends BaseAgent {
                     }
                 })
                 .doOnComplete(() -> {
-                    // ??text 输出后，输出参考来??
+                    // 在 text 输出后，输出参考来源
                     if (!allReferences.isEmpty()) {
-                        sink.tryEmitNext(createReferenceResponse(JSON.toJSONString(allReferences)));
+                        sink.tryEmitNext(createReferenceResponse(JsonUtils.toJson(allReferences)));
                     }
 
                     complete(sink, finished);

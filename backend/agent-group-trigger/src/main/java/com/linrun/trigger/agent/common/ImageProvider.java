@@ -5,7 +5,7 @@ package com.linrun.trigger.agent.common;
  */
 public enum ImageProvider {
     /**
-     * 通义千问文生??
+     * 通义千问文生图
      */
     QWEN,
     /**

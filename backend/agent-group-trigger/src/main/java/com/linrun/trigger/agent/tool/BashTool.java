@@ -40,12 +40,12 @@ public class BashTool {
     }
 
     /**
-     * 创建 Bash 工具??ToolCallback 数组（默认配置）
+     * 创建 Bash 工具的 ToolCallback 数组（默认配置）
      *
-     * 这是一个便捷方法，使用默认配置创建工具实例??
-     * 工具描述会根据当前操作系统动态生成，确保 LLM 生成正确的命令??
+     * 这是一个便捷方法，使用默认配置创建工具实例。
+     * 工具描述会根据当前操作系统动态生成，确保 LLM 生成正确的命令。
      *
-     * @return ToolCallback 数组，包??bash 工具
+     * @return ToolCallback 数组，包含 bash 工具
      */
     public static ToolCallback[] create() {
         return create(null);
@@ -72,9 +72,9 @@ public class BashTool {
     }
 
     /**
-     * 构建动态工具描述（根据当前操作系统??
+     * 构建动态工具描述（根据当前操作系统）
      *
-     * @return 工具描述字符??
+     * @return 工具描述字符串
      */
     private static String buildDynamicDescription() {
         boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
@@ -115,11 +115,11 @@ public class BashTool {
     /**
      * 执行 Shell 命令
      *
-     * 此方法被标记??@Tool，可??LLM 调用??
-     * 支持通过 restart 参数重启会话??
+     * 此方法被标记为 @Tool，可被 LLM 调用
+     * 支持通过 restart 参数重启会话
      *
      * @param command        要执行的命令
-     * @param restart        是否重启会话（可选，默认 false??
+     * @param restart        是否重启会话（可选，默认 false）
      * @param timeoutMs      超时时间（可选，默认使用配置值）
      * @return 命令执行结果
      */
@@ -160,7 +160,7 @@ public class BashTool {
                 null  // 工作目录由会话管理器自动处理
             );
 
-            // 格式化输??
+            // 格式化输出
             return formatResult(result);
         } catch (Exception e) {
             log.error("Error executing command: {}", e.getMessage(), e);
@@ -179,7 +179,7 @@ public class BashTool {
     }
 
     /**
-     * 格式化命令执行结??
+     * 格式化命令执行结果
      */
     private String formatResult(ShellSessionManager.CommandResult result) {
         List<String> parts = new ArrayList<>();
@@ -198,7 +198,7 @@ public class BashTool {
     }
 
     /**
-     * 获取会话管理??
+     * 获取会话管理器
      *
      * @return ShellSessionManager
      */
@@ -212,13 +212,13 @@ public class BashTool {
     public static class Builder {
         private ShellSessionManager sessionManager;
         private long timeoutMs = 120000;  // 默认 2 分钟
-        private int maxLines = 10000;     // 默认最??10000 ??
-        private int maxBytes = 100000;    // 默认最??100KB
+        private int maxLines = 10000;     // 默认最大 10000 行
+        private int maxBytes = 100000;    // 默认最大 100KB
 
         /**
          * 设置 ShellSessionManager
          *
-         * @param sessionManager 会话管理??
+         * @param sessionManager 会话管理器
          * @return this
          */
         public Builder sessionManager(ShellSessionManager sessionManager) {
@@ -238,9 +238,9 @@ public class BashTool {
         }
 
         /**
-         * 设置最大行数限??
+         * 设置最大行数限制
          *
-         * @param maxLines 最大行??
+         * @param maxLines 最大行数
          * @return this
          */
         public Builder maxLines(int maxLines) {
@@ -270,9 +270,9 @@ public class BashTool {
     }
 
     /**
-     * Bash 工具??Function 包装类??
+     * Bash 工具的 Function 包装类
      *
-     * 用于 FunctionToolCallback，支持动态描述??
+     * 用于 FunctionToolCallback，支持动态描述
      */
     private static class BashToolFunction implements java.util.function.Function<BashToolFunction.Request, String> {
 

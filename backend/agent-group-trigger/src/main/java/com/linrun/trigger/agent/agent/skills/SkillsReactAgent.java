@@ -17,7 +17,8 @@ import com.linrun.trigger.agent.prompts.ReactAgentPrompts;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
-import com.alibaba.fastjson2.JSON;
+import com.linrun.trigger.agent.common.JsonUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
@@ -253,12 +254,12 @@ public class SkillsReactAgent extends BaseAgent {
                     recordFirstResponse();
                     // 解析 JSON，分离收集 text 与 thinking
                     try {
-                        var json = JSON.parseObject(chunk);
-                        String type = json.getString("type");
+                        JsonNode json = JsonUtils.parse(chunk);
+                        String type = json != null && json.has("type") ? json.get("type").asText() : null;
                         if ("text".equals(type)) {
-                            finalAnswerBuffer.append(json.getString("content"));
+                            finalAnswerBuffer.append(json.has("content") ? json.get("content").asText() : "");
                         } else if ("thinking".equals(type)) {
-                            thinkingBuffer.append(json.getString("content"));
+                            thinkingBuffer.append(json.has("content") ? json.get("content").asText() : "");
                         }
                     } catch (Exception e) {
                         finalAnswerBuffer.append(chunk);

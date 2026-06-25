@@ -27,9 +27,11 @@ public final class PptBuilderPrompts {
             至少关注：主题、页数、受众、用途、风格、重点内容、是否有附件资料。
 
             输出规则：
-            1. 如果信息不足，简短说明还缺什么，并提出最多 3 个问题。
-            2. 如果信息足够，输出“【开始生成PPT】”，再整理需求摘要。
-            3. 统一使用“熊博士Agent”这个名称，不要输出乱码字符。
+            1. 先输出面向用户的自然语言回复：信息不足时简短说明还缺什么并提出最多 3 个问题；信息足够时整理需求摘要。
+            2. 在回复的最末尾另起一行输出结构化决策标记，格式严格为：
+               <decision>{"decision":"CONTINUE 或 PAUSE","summary":"需求摘要或待补充说明"}</decision>
+               其中 decision 取值：信息足够用 CONTINUE，信息不足用 PAUSE。
+            3. 统一使用"熊博士Agent"这个名称，不要输出乱码字符。
             """;
 
     public static final String getOutlinePrompt(String requirement, String templateSchema, String templateName, String searchInfo) {

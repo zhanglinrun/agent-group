@@ -1,12 +1,12 @@
 package com.linrun.trigger.agent.agent;
 
 import com.linrun.trigger.agent.common.AgentResponse;
+import com.linrun.trigger.agent.common.JsonUtils;
 import com.linrun.trigger.agent.entity.AiSession;
 import com.linrun.trigger.agent.entity.vo.UpdateAnswerRequest;
 import com.linrun.trigger.agent.prompts.ReactAgentPrompts;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
-import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -41,7 +41,7 @@ public abstract class BaseAgent {
     // 是否启用推荐问题功能
     protected boolean enableRecommendations = true;
 
-    // 计时??
+    // 计时器
     protected long startTime;
     protected long firstResponseTime;
     protected Set<String> usedTools;
@@ -51,7 +51,7 @@ public abstract class BaseAgent {
     protected String currentRecommendations;
 
     /**
-     * 构造函??
+     * 构造函数
      */
     public BaseAgent(String name, ChatModel chatModel, String agentType) {
         this.name = name;
@@ -60,7 +60,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 子类必须实现的执行方??
+     * 子类必须实现的执行方法
      *
      * @param conversationId 会话ID
      * @param question       用户问题
@@ -121,13 +121,13 @@ public abstract class BaseAgent {
             return MessageWindowChatMemory.builder().maxMessages(maxMessages).build();
         }
 
-        // 查询数据库中的对话历??
+        // 查询数据库中的对话历史
         List<AiSession> history = sessionService.findRecentBySessionId(sessionId, maxMessages);
 
         // 创建 ChatMemory
         ChatMemory chatMemory = MessageWindowChatMemory.builder().maxMessages(maxMessages).build();
 
-        // 将历史记录添加到 ChatMemory（按时间顺序??
+        // 将历史记录添加到 ChatMemory（按时间顺序）
         if (history != null && !history.isEmpty()) {
             // 反转历史记录顺序，确保按时间顺序添加
             for (int i = history.size() - 1; i >= 0; i--) {
@@ -220,7 +220,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 检查并发任??
+     * 检查并发任务
      *
      * @param conversationId 会话ID
      * @return 错误流，如果没有冲突则返回null
@@ -259,9 +259,9 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 获取总响应时??
+     * 获取总响应时间
      *
-     * @return 总响应时间（毫秒??
+     * @return 总响应时间（毫秒）
      */
     protected long getTotalResponseTime() {
         if (startTime == 0) {
@@ -292,7 +292,7 @@ public abstract class BaseAgent {
     }
 
     /**
-     * 记录使用的工??
+     * 记录使用的工具
      *
      * @param toolName 工具名称
      */
@@ -318,7 +318,7 @@ public abstract class BaseAgent {
         try {
             List<Message> messages = new ArrayList<>();
 
-            // 1. 添加系统提示??
+            // 1. 添加系统提示词
             messages.add(new SystemMessage(ReactAgentPrompts.getRecommendPrompt()));
 
             // 2. 添加历史消息
@@ -332,7 +332,7 @@ public abstract class BaseAgent {
             }
 
             // 4. 添加格式说明消息
-            // 使用 BeanOutputConverter 进行结构化输??
+            // 使用 BeanOutputConverter 进行结构化输出
             BeanOutputConverter<List<String>> converter = new BeanOutputConverter<>(new ParameterizedTypeReference<>() {
             });
 
@@ -350,7 +350,7 @@ public abstract class BaseAgent {
             if (response != null && !response.isEmpty()) {
                 List<String> recommendations = converter.convert(response);
                 if (recommendations != null && !recommendations.isEmpty()) {
-                    String jsonStr = JSON.toJSONString(recommendations);
+                    String jsonStr = JsonUtils.toJson(recommendations);
                     log.info("生成推荐问题成功: {}", jsonStr);
                     return jsonStr;
                 }
@@ -367,7 +367,7 @@ public abstract class BaseAgent {
     /**
      * 从响应中提取JSON数组
      *
-     * @param response 响应字符??
+     * @param response 响应字符串
      * @return JSON数组字符串，提取失败返回null
      */
     private String extractJsonArray(String response) {
@@ -375,7 +375,7 @@ public abstract class BaseAgent {
             return null;
         }
 
-        // 查找第一??[ 和最后一??]
+        // 查找第一个 [ 和最后一个 ]
         int start = response.indexOf('[');
         int end = response.lastIndexOf(']');
 

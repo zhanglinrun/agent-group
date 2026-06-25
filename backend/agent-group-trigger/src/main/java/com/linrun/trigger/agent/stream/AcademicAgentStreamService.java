@@ -4,6 +4,7 @@ import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.runtime.diagnosis.AgentDiagnosisService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,11 +25,15 @@ public class AcademicAgentStreamService {
     private final AgentTaskManager taskManager;
     private final AgentDiagnosisService diagnosisService;
 
-    public AcademicAgentStreamService(AcademicAgentFlowExecutionService executionService) {
+    @Autowired
+    public AcademicAgentStreamService(AcademicAgentFlowExecutionService executionService,
+                                      AcademicAgentResponseProjector projector,
+                                      AgentTaskManager taskManager,
+                                      AgentDiagnosisService diagnosisService) {
         this.executionService = executionService;
-        this.projector = new AcademicAgentResponseProjector();
-        this.taskManager = new AgentTaskManager();
-        this.diagnosisService = new AgentDiagnosisService();
+        this.projector = projector;
+        this.taskManager = taskManager;
+        this.diagnosisService = diagnosisService;
     }
 
     /**

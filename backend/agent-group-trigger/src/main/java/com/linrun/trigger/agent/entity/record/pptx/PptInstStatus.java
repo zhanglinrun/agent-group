@@ -3,17 +3,17 @@ package com.linrun.trigger.agent.entity.record.pptx;
 import lombok.Getter;
 
 /**
- * PPT实例状态枚??
+ * PPT实例状态枚举
  */
 @Getter
 public enum PptInstStatus {
 
     /**
-     * 初始??
+     * 初始化
      */
     INIT("INIT", "初始状态"),
     /**
-     * 需求澄??
+     * 需求澄清
      */
     REQUIREMENT("REQUIREMENT", "需求澄清"),
     /**

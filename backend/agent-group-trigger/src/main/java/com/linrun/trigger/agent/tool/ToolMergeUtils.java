@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 工具合并工具类??
+ * 工具合并工具类
  *
  * @author bigchui
  */
@@ -16,7 +16,7 @@ public final class ToolMergeUtils {
     }
 
     /**
-     * 合并多个工具数组的辅助方法??
+     * 合并多个工具数组的辅助方法
      *
      * @param toolArrays 工具数组
      * @return 合并后的工具数组

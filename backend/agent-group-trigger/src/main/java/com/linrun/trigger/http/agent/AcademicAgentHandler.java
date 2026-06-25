@@ -66,24 +66,11 @@ public class AcademicAgentHandler {
     private final AcademicProjectService academicProjectService;
     private final ObjectMapper objectMapper;
     private final AcademicAgentJsonCodec jsonCodec;
+    private final AgentDiagnosisService diagnosisService;
     private final AcademicAgentRunPlanFactory runPlanFactory = new AcademicAgentRunPlanFactory();
     private final AcademicAgentFlowProjector flowProjector = new AcademicAgentFlowProjector();
     private final AcademicAgentFlowProgressProjector flowProgressProjector = new AcademicAgentFlowProgressProjector();
     private final UnifiedAgentOrchestrator unifiedAgentOrchestrator = new UnifiedAgentOrchestrator();
-
-    public AcademicAgentHandler(AcademicAgentNativeService academicAgentNativeService,
-                                          UserAccountService userAccountService,
-                                          UserQuotaService userQuotaService,
-                                          AgentTaskManager taskManager,
-                                          AiPptInstService aiPptInstService,
-                                          AcademicBackgroundStreamService backgroundStreamService,
-                                          AcademicArtifactService academicArtifactService,
-                                          AcademicExecutionLedgerService academicExecutionLedgerService,
-                                          ObjectMapper objectMapper,
-                                          AcademicAgentJsonCodec jsonCodec) {
-        this(academicAgentNativeService, userAccountService, userQuotaService, taskManager, aiPptInstService,
-                backgroundStreamService, academicArtifactService, academicExecutionLedgerService, null, objectMapper, jsonCodec);
-    }
 
     @Autowired
     public AcademicAgentHandler(AcademicAgentNativeService academicAgentNativeService,
@@ -96,7 +83,8 @@ public class AcademicAgentHandler {
                                     AcademicExecutionLedgerService academicExecutionLedgerService,
                                     AcademicProjectService academicProjectService,
                                     ObjectMapper objectMapper,
-                                    AcademicAgentJsonCodec jsonCodec) {
+                                    AcademicAgentJsonCodec jsonCodec,
+                                    AgentDiagnosisService diagnosisService) {
         this.academicAgentNativeService = academicAgentNativeService;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
@@ -108,6 +96,7 @@ public class AcademicAgentHandler {
         this.academicProjectService = academicProjectService;
         this.objectMapper = objectMapper;
         this.jsonCodec = jsonCodec;
+        this.diagnosisService = diagnosisService;
     }
 
     public Flux<QuotaStreamEvent<?>> backgroundStreamEventFlux(String token,
@@ -959,7 +948,7 @@ public class AcademicAgentHandler {
 
     private Map<String, Object> diagnosis(RunState runState, long durationMillis) {
         double quotaConsumed = runState.consumedQuota == null ? 0.0d : runState.consumedQuota.doubleValue();
-        AgentDiagnosisService.DiagnosisReport report = new AgentDiagnosisService().diagnose(
+        AgentDiagnosisService.DiagnosisReport report = diagnosisService.diagnose(
                 new AgentDiagnosisService.AgentRunContext(
                         runState.run.getRunId(),
                         Math.max(0L, durationMillis),

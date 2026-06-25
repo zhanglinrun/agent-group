@@ -1,5 +1,6 @@
 package com.linrun.domain.academic.runtime.agent;
 
+import org.springframework.stereotype.Component;
 import reactor.core.publisher.Sinks;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 2. 支持任务停止和取消
  * 3. 监控正在运行的任务
  */
+@Component("academicStreamTaskManager")
 public class AgentTaskManager {
 
     private final Map<String, TaskInfo> runningTasks = new ConcurrentHashMap<>();

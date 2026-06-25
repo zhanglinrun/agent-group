@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 /**
  * 文件管理服务
- * 提供文件上传、查询、删除等纯业务功??
+ * 提供文件上传、查询、删除等纯业务功能
  */
 @Service
 @Slf4j
@@ -77,7 +77,7 @@ public class FileManageService {
     private long maxFileSizeBytes = 10 * 1024 * 1024L;
 
     /**
-     * 初始化多模态模型（用于图片识别??
+     * 初始化多模态模型（用于图片识别）
      */
     @PostConstruct
     public void init() {
@@ -102,7 +102,7 @@ public class FileManageService {
     /**
      * 上传文件
      *
-     * @param file 上传的文??
+     * @param file 上传的文件
      * @return 文件信息
      */
     @Transactional(rollbackFor = Exception.class)
@@ -360,7 +360,7 @@ public class FileManageService {
     }
 
     /**
-     * 获取所有文件列??     *
+     * 获取所有文件列表     *
      * @return 文件列表
      */
     public Map<String, FileInfo> getAllFiles() {
@@ -379,7 +379,7 @@ public class FileManageService {
     }
 
     /**
-     * 清理所有文件（用于测试??
+     * 清理所有文件（用于测试）
      */
     @Transactional(rollbackFor = Exception.class)
     public void clearAll() {
@@ -396,7 +396,7 @@ public class FileManageService {
     }
 
     /**
-     * 从文件名中提取文件类??
+     * 从文件名中提取文件类型
      */
     private String getFileType(String fileName) {
         if (fileName == null || fileName.isEmpty()) {
@@ -451,7 +451,7 @@ public class FileManageService {
     }
 
     /**
-     * 判断是否为文本文??
+     * 判断是否为文本文件
      */
     private boolean isTextFile(String fileType) {
         return ("pdf".equalsIgnoreCase(fileType) ||
@@ -495,7 +495,7 @@ public class FileManageService {
     }
 
     /**
-     * 判断是否为图片文??
+     * 判断是否为图片文件
      */
     private boolean isImageFile(String fileType) {
         return ("jpg".equalsIgnoreCase(fileType) ||
@@ -563,7 +563,7 @@ public class FileManageService {
         Document document = new Document(text);
         List<Document> documents = List.of(document);
 
-        // 2. 切分文档（使??00字符??0重叠??
+        // 2. 切分文档（使用500字符、50重叠）
         OverlapParagraphTextSplitter splitter = new OverlapParagraphTextSplitter(500, 50);
         List<Document> chunks = splitter.apply(documents);
         log.info("文档切分完成: fileId={}, 切分数量: {}", fileId, chunks.size());

@@ -83,9 +83,9 @@ public class SimpleReactAgent {
     /**
      * 新增 reflection 相关参数
      */
-    // 功能增强拦截??
+    // 功能增强拦截器
     private List<Advisor> advisors;
-    //最大反思轮??
+    // 最大反思轮次
     private int maxReflectionRounds;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -126,7 +126,7 @@ public class SimpleReactAgent {
     }
 
     /**
-     * 非流式输??
+     * 非流式输出
      *
      * @param question
      * @return
@@ -135,7 +135,7 @@ public class SimpleReactAgent {
         return callInternal(null, question);
     }
 
-    // 带会话记??
+    // 带会话记忆
     public String call(String conversationId, String question) {
         return callInternal(conversationId, question);
     }
@@ -191,7 +191,7 @@ public class SimpleReactAgent {
 
             String assistantText = aiText;
 
-            // ===== 没有工具调用，视为最终答??=====
+            // ===== 没有工具调用，视为最终答案 =====
             if (!chatResponse.chatResponse().hasToolCalls()) {
                 if (useMemory) {
                     chatMemory.add(conversationId, new AssistantMessage(aiText));
@@ -238,7 +238,7 @@ public class SimpleReactAgent {
         StringBuilder textBuffer = new StringBuilder();
         StreamingTextDelta textDelta = new StreamingTextDelta();
         List<AssistantMessage.ToolCall> toolCalls = Collections.synchronizedList(new ArrayList<>());
-        /** ThinkTagParser ??inThink 状??*/
+        /** ThinkTagParser 的 inThink 状态 */
         boolean inThink = false;
     }
 
@@ -301,7 +301,7 @@ public class SimpleReactAgent {
         scheduleRound(messages, sink, roundCounter, hasSentFinalResult, finalAnswerBuffer, useMemory, conversationId);
 
         return sink.asFlux()
-                // 收集最终答??
+                // 收集最终答案
                 .doOnNext(finalAnswerBuffer::append)
                 .doOnCancel(() -> hasSentFinalResult.set(true))
                 .doFinally(signalType -> {
@@ -342,7 +342,7 @@ public class SimpleReactAgent {
         String text = gen.getOutput().getText();
         List<AssistantMessage.ToolCall> tc = gen.getOutput().getToolCalls();
 
-        // 一旦发??tool_call，立即进??TOOL_CALL 模式
+        // 一旦发现 tool_call，立即进入 TOOL_CALL 模式
         if (tc != null && !tc.isEmpty()) {
             state.mode = RoundMode.TOOL_CALL;
 
@@ -352,7 +352,7 @@ public class SimpleReactAgent {
             return;
         }
 
-        // 还没出现 tool_call，使??ThinkTagParser 解析 <think/> 标签
+        // 还没出现 tool_call，使用 ThinkTagParser 解析 <think/> 标签
         if (text != null) {
             String delta = state.textDelta.apply(text);
             if (delta.isEmpty()) {
@@ -385,7 +385,7 @@ public class SimpleReactAgent {
             }
         }
 
-        // ??tool call
+        // 新的 tool call
         state.toolCalls.add(incoming);
     }
 
@@ -396,7 +396,7 @@ public class SimpleReactAgent {
     private void finishRound(List<Message> messages, Sinks.Many<String> sink, RoundState state, AtomicLong roundCounter,
                              AtomicBoolean hasSentFinalResult, StringBuilder finalAnswerBuffer, boolean useMemory, String conversationId) {
 
-        // 如果整轮都没??tool_call，才是最终答??
+        // 如果整轮都没有 tool_call，才是最终答案
         if (state.mode != RoundMode.TOOL_CALL) {
             String finalText = state.textBuffer.toString();
             sink.tryEmitComplete();
@@ -480,7 +480,7 @@ public class SimpleReactAgent {
         AtomicInteger completedCount = new AtomicInteger(0);
         int totalToolCalls = toolCalls.size();
 
-        // 保证顺序一致??
+        // 保证顺序一致性
         Map<String, ToolResponseMessage.ToolResponse> responseMap = new ConcurrentHashMap<>();
 
         for (AssistantMessage.ToolCall tc : toolCalls) {
@@ -506,16 +506,16 @@ public class SimpleReactAgent {
                     Object result = callback.call(argsJson);
                     String resultStr = Objects.toString(result, "");
 
-                    // 解析搜索结果（如果是 tavily search??
+                    // 解析搜索结果（如果是 tavily search）
                     if (agentState != null) {
                         parseSearchResult(resultStr, agentState);
                     }
 
-                    // 将结果放??responseMap，key ??toolCall.id()
+                    // 将结果放入 responseMap，key 为 toolCall.id()
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
                             tc.id(), toolName, resultStr));
                 } catch (Exception ex) {
-                    // 工具执行失败时，也放??responseMap
+                    // 工具执行失败时，也放入 responseMap
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
                             tc.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }"));
                 } finally {
@@ -532,14 +532,14 @@ public class SimpleReactAgent {
                                   Runnable onComplete) {
         int current = completedCount.incrementAndGet();
         if (current >= total) {
-            // 按原??toolCalls 的顺序重组结??
+            // 按原始 toolCalls 的顺序重组结果
             List<ToolResponseMessage.ToolResponse> sortedResponses = new ArrayList<>();
             for (AssistantMessage.ToolCall tc : originalToolCalls) {
                 ToolResponseMessage.ToolResponse response = responseMap.get(tc.id());
                 if (response != null) {
                     sortedResponses.add(response);
                 } else {
-                    // 如果某个工具调用没有响应，添加一个错误响??
+                    // 如果某个工具调用没有响应，添加一个错误响应
                     sortedResponses.add(new ToolResponseMessage.ToolResponse(
                             tc.id(), tc.name(), "{ \"error\": \"工具响应丢失\" }"));
                 }
@@ -571,7 +571,7 @@ public class SimpleReactAgent {
 
     /**
      * 解析搜索结果
-     * 从工具返回的 JSON 中提取搜索结果并添加??AgentState
+     * 从工具返回的 JSON 中提取搜索结果并添加到 AgentState
      */
     private void parseSearchResult(String resultJson, AgentState state) {
         try {
@@ -616,7 +616,7 @@ public class SimpleReactAgent {
     }
 
     /**
-     * 获取节点安全??
+     * 获取节点安全值
      */
     private String getSafe(JsonNode node, String field) {
         JsonNode v = node.get(field);
@@ -634,7 +634,7 @@ public class SimpleReactAgent {
     /**
      * 内部执行方法
      *
-     * @param withReference 是否需要返回参考来??
+     * @param withReference 是否需要返回参考来源
      */
     private SimpleReactResult executeInternal(String conversationId, String question, boolean withReference) {
         List<Message> messages = Collections.synchronizedList(new ArrayList<>());
@@ -642,7 +642,7 @@ public class SimpleReactAgent {
 
         AgentState agentState = withReference ? new AgentState() : null;
 
-        // 合并为单??SystemMessage（部分模型不支持多个??
+        // 合并为单个 SystemMessage（部分模型不支持多个）
         messages.add(new SystemMessage(PlanExecutePrompts.getCurrentTime() + "\n\n"
                 + REACT_AGENT_SYSTEM_PROMPT + "\n\n" + systemPrompt));
 
@@ -694,7 +694,7 @@ public class SimpleReactAgent {
 
             String assistantText = chatResponse.chatResponse().getResult().getOutput().getText();
 
-            // ===== 没有工具调用，视为最终答??=====
+            // ===== 没有工具调用，视为最终答案 =====
             if (!chatResponse.chatResponse().hasToolCalls()) {
                 String finalText = chatResponse.chatResponse().getResult().getOutput().getText();
                 if (useMemory) {

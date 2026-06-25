@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 文件信息服务实现??
+ * 文件信息服务实现类
  */
 @Service
 @Slf4j
@@ -87,7 +87,7 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
     }
 
     /**
-     * 将DTO转换为实??
+     * 将DTO转换为实体
      */
     private AiFileInfo convertToEntity(FileInfo fileInfo) {
         AiFileInfo entity = new AiFileInfo();
@@ -102,7 +102,7 @@ public class FileInfoServiceImpl extends ServiceImpl<AiFileInfoMapper, AiFileInf
     private FileInfo convertToDto(AiFileInfo entity) {
         FileInfo fileInfo = new FileInfo();
         BeanUtils.copyProperties(entity, fileInfo);
-        // 转换状态字符串为枚??
+        // 转换状态字符串为枚举
         if (entity.getStatus() != null) {
             try {
                 fileInfo.setStatus(FileInfo.FileStatus.valueOf(entity.getStatus()));

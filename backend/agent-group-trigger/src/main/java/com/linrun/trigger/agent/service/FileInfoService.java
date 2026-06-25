@@ -21,7 +21,7 @@ public interface FileInfoService {
     FileInfo getFileInfoById(String fileId);
 
     /**
-     * 根据文件ID获取数据库实??
+     * 根据文件ID获取数据库实体
      */
     AiFileInfo getEntityById(String fileId);
 
@@ -36,12 +36,12 @@ public interface FileInfoService {
     void deleteFileInfo(String fileId);
 
     /**
-     * 检查文件是否存??
+     * 检查文件是否存在
      */
     boolean exists(String fileId);
 
     /**
-     * 获取所有文件列??
+     * 获取所有文件列表
      */
     List<FileInfo> getAllFiles();
 

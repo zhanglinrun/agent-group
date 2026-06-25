@@ -12,10 +12,10 @@ import org.springframework.ai.tool.function.FunctionToolCallback;
 import java.util.function.Function;
 
 /**
- * 读取技能内容的工具??
+ * 读取技能内容的工具。
  *
- * 当模型需要使用某个技能时，调用此工具获取完整??SKILL.md 内容??
- * 工具返回的技能内容会??Agent 自动注入到下一轮对话中??
+ * 当模型需要使用某个技能时，调用此工具获取完整的 SKILL.md 内容。
+ * 工具返回的技能内容会被 Agent 自动注入到下一轮对话中。
  *
  * @author bigchui
  * 
@@ -49,7 +49,7 @@ public class ReadSkillTool implements Function<ReadSkillTool.Request, ReadSkillT
     }
 
     /**
-     * 创建 ToolCallback??
+     * 创建 ToolCallback。
      *
      * @param skillRegistry 技能注册表
      * @return ToolCallback 实例

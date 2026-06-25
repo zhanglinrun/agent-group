@@ -32,7 +32,7 @@ public class Slide {
     private Integer templatePageIndex;
 
     /**
-     * 页面数据（字段名 -> 字段数据??
+     * 页面数据（字段名 -> 字段数据）
      */
     private Map<String, FieldData> data;
 }

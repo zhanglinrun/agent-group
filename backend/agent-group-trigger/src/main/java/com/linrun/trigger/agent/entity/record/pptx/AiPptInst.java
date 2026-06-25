@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * AI PPT 实例实体??
+ * AI PPT 实例实体类
  * 对应数据库表 ai_ppt_inst
  */
 @Data
@@ -41,19 +41,19 @@ public class AiPptInst {
     private String templateCode;
 
     /**
-     * 状??
+     * 状态
      */
     @TableField("status")
     private String status;
 
     /**
-     * 用户原始需??
+     * 用户原始需求
      */
     @TableField("query")
     private String query;
 
     /**
-     * 需求澄清结??
+     * 需求澄清结果
      */
     @TableField("requirement")
     private String requirement;
@@ -101,14 +101,14 @@ public class AiPptInst {
     private LocalDateTime updateTime;
 
     /**
-     * 获取状态枚??
+     * 获取状态枚举
      */
     public PptInstStatus getStatusEnum() {
         return PptInstStatus.fromCode(status);
     }
 
     /**
-     * 设置状态枚??
+     * 设置状态枚举
      */
     public void setStatusEnum(PptInstStatus statusEnum) {
         this.status = statusEnum != null ? statusEnum.getCode() : null;

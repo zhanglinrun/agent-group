@@ -23,14 +23,14 @@ public interface AiSessionService extends IService<AiSession> {
     /**
      * 保存用户问题
      * @param request 保存请求
-     * @return 保存的会话记??
+     * @return 保存的会话记录
      */
     AiSession saveQuestion(SaveQuestionRequest request);
 
     /**
      * 更新AI回复
-     * @param request 更新请求，只更新非null的字??
-     * @return 更新的会话记录数??
+     * @param request 更新请求，只更新非null的字段
+     * @return 更新的会话记录数量
      */
     boolean updateAnswer(UpdateAnswerRequest request);
 }

@@ -68,18 +68,18 @@ public class FileSystemTools {
     private final long maxFileSizeBytes;
 
     /**
-     * 默认构造函数，使用当前工作目录??
+     * 默认构造函数，使用当前工作目录
      */
     public FileSystemTools() {
         this(null, false, DEFAULT_MAX_FILE_SIZE_MB);
     }
 
     /**
-     * 带自定义根目录的构造函数??
+     * 带自定义根目录的构造函数
      *
      * @param rootDir 文件操作的根目录（可选）
-     * @param virtualMode ??true 时，将传入路径视??cwd 下的虚拟绝对路径
-     * @param maxFileSizeMb 读取操作的最大文件大小（MB??
+     * @param virtualMode 为 true 时，将传入路径视为 cwd 下的虚拟绝对路径
+     * @param maxFileSizeMb 读取操作的最大文件大小（MB）
      */
     public FileSystemTools(String rootDir, boolean virtualMode, int maxFileSizeMb) {
         this.cwd = rootDir != null ? Paths.get(rootDir).toAbsolutePath().normalize() : Paths.get("").toAbsolutePath();
@@ -90,7 +90,7 @@ public class FileSystemTools {
     }
 
     /**
-     * 解析文件路径并进行安全检查??
+     * 解析文件路径并进行安全检查
      *
      * @param path 输入路径
      * @return 解析后的安全路径
@@ -114,7 +114,7 @@ public class FileSystemTools {
             return full;
         }
 
-        // 非虚拟模式：支持绝对路径和相对路??
+        // 非虚拟模式：支持绝对路径和相对路径
         Path resolvedPath = Paths.get(path);
         if (resolvedPath.isAbsolute()) {
             return resolvedPath.normalize();
@@ -155,13 +155,13 @@ public class FileSystemTools {
     }
 
     /**
-     * 读取文件内容的核心逻辑（可被其他类复用）??
+     * 读取文件内容的核心逻辑（可被其他类复用）
      *
      * @param filePath 文件路径
-     * @param offset 起始行偏移量（null 表示 0??
-     * @param limit 最大行数（null 表示 500??
+     * @param offset 起始行偏移量（null 表示 0）
+     * @param limit 最大行数（null 表示 500）
      * @param checkEmpty 是否检查空内容
-     * @return 带行号的格式化文件内容，或错误消??
+     * @return 带行号的格式化文件内容，或错误消息
      */
     private String readFileContent(Path filePath, Integer offset, Integer limit, boolean checkEmpty) {
         try {
@@ -169,7 +169,7 @@ public class FileSystemTools {
                 return "Error: File '" + filePath + "' not found";
             }
 
-            // 检查文件大??
+            // 检查文件大小
             long fileSize = Files.size(filePath);
             if (fileSize > maxFileSizeBytes) {
                 return "Error: File size (" + (fileSize / 1024 / 1024) + "MB) exceeds maximum allowed size (" +
@@ -211,15 +211,15 @@ public class FileSystemTools {
     }
 
     /**
-     * 使用编码回退机制读取文件内容??
+     * 使用编码回退机制读取文件内容
      *
-     * 尝试多种编码读取文件，处理不同编码格式的文件??
+     * 尝试多种编码读取文件，处理不同编码格式的文件
      * 1. 首先尝试 UTF-8（标准编码）
-     * 2. 如果失败，尝??GBK（Windows 中文环境??
-     * 3. 如果还失败，尝试 ISO-8859-1（不会抛异常，但可能显示乱码??
+     * 2. 如果失败，尝试 GBK（Windows 中文环境）
+     * 3. 如果还失败，尝试 ISO-8859-1（不会抛异常，但可能显示乱码）
      *
      * @param filePath 文件路径
-     * @return 文件内容字符??
+     * @return 文件内容字符串
      * @throws IOException 如果所有编码尝试都失败
      */
     private String readStringWithFallback(Path filePath) throws IOException {
@@ -237,18 +237,18 @@ public class FileSystemTools {
             logger.debug("File is not GBK encoded, trying ISO-8859-1: {}", filePath);
         }
 
-        // 最后尝??ISO-8859-1（单字节编码，不会抛出异常）
+        // 最后尝试 ISO-8859-1（单字节编码，不会抛出异常）
         byte[] bytes = Files.readAllBytes(filePath);
         return new String(bytes, StandardCharsets.ISO_8859_1);
     }
 
     /**
-     * 使用行号格式化内容（cat -n 格式）??
-     * 处理长行时将其分割成多个块??
+     * 使用行号格式化内容（cat -n 格式）
+     * 处理长行时将其分割成多个块
      *
-     * @param lines 行数??
+     * @param lines 行数
      * @param startLine 起始行号
-     * @return 格式化后的内??
+     * @return 格式化后的内容
      */
     private String formatContentWithLineNumbers(String[] lines, int startLine) {
         StringBuilder result = new StringBuilder();
@@ -259,7 +259,7 @@ public class FileSystemTools {
             if (line.length() <= MAX_LINE_LENGTH) {
                 result.append(String.format("%" + LINE_NUMBER_WIDTH + "d\t%s\n", lineNum, line));
             } else {
-                // 将长行分割成多个块，带续行标??
+                // 将长行分割成多个块，带续行标记
                 int numChunks = (line.length() + MAX_LINE_LENGTH - 1) / MAX_LINE_LENGTH;
                 for (int chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
                     int start = chunkIdx * MAX_LINE_LENGTH;
@@ -318,22 +318,22 @@ public class FileSystemTools {
     }
 
     /**
-     * 写入文件内容的核心逻辑（可被其他类复用）??
+     * 写入文件内容的核心逻辑（可被其他类复用）
      *
      * @param filePath 文件路径
-     * @param content 要写入的内容（null 将写入空内容??
-     * @return 成功消息或错误消??
+     * @param content 要写入的内容（null 将写入空内容）
+     * @return 成功消息或错误消息
      */
     private String writeFileContent(Path filePath, String content) {
         try {
-            // 如果需要，创建父目??
+            // 如果需要，创建父目录
             Path parent = filePath.getParent();
             if (parent != null && !Files.exists(parent)) {
                 Files.createDirectories(parent);
                 logger.debug("Created parent directories: {}", parent);
             }
 
-            // 写入内容到文件（仅创建新文件，避免误覆盖??
+            // 写入内容到文件（仅创建新文件，避免误覆盖）
             byte[] contentBytes = content != null ? content.getBytes(StandardCharsets.UTF_8) : new byte[0];
             Files.write(filePath, contentBytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
@@ -368,12 +368,12 @@ public class FileSystemTools {
     }
 
     /**
-     * 编辑文件内容的核心逻辑（可被其他类复用）??
+     * 编辑文件内容的核心逻辑（可被其他类复用）
      *
      * @param filePath 文件路径
      * @param oldString 要替换的文本
      * @param newString 替换后的文本
-     * @param replaceAll 是否替换所有出现位??
+     * @param replaceAll 是否替换所有出现位置
      * @return 成功消息（带替换次数）或错误消息
      */
     private String editFileContent(Path filePath, String oldString, String newString, boolean replaceAll) {
@@ -399,7 +399,7 @@ public class FileSystemTools {
                 return "Error: String not found in file: '" + oldString + "'";
             }
 
-            // 如果不是 replace_all，检查唯一??
+            // 如果不是 replace_all，检查唯一性
             if (!replaceAll && occurrences > 1) {
                 return "Error: String '" + oldString + "' appears " + occurrences +
                        " times in file. Use replaceAll=true to replace all instances, " +
@@ -411,18 +411,18 @@ public class FileSystemTools {
             if (replaceAll) {
                 newContent = content.replace(oldString, newString);
             } else {
-                // 仅替换第一个出现位置（使用字面字符串匹配，而非正则??
+                // 仅替换第一个出现位置（使用字面字符串匹配，而非正则）
                 int replaceIndex = content.indexOf(oldString);
                 if (replaceIndex != -1) {
                     newContent = content.substring(0, replaceIndex) + newString +
                                  content.substring(replaceIndex + oldString.length());
                 } else {
-                    // 不应到达此处，因为已经检查过存在??
+                    // 不应到达此处，因为已经检查过存在性
                     newContent = content;
                 }
             }
 
-            // 将修改后的内容写??
+            // 将修改后的内容写入
             Files.writeString(filePath, newContent, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
 
             logger.info("Successfully edited file: {} (replaced {} occurrence(s))", filePath, occurrences);
@@ -434,10 +434,10 @@ public class FileSystemTools {
     }
 
     /**
-     * 统计子串在内容中的出现次数??
+     * 统计子串在内容中的出现次数
      *
      * @param content 内容
-     * @param search 搜索字符??
+     * @param search 搜索字符串
      * @return 出现次数
      */
     private int countOccurrences(String content, String search) {
@@ -475,7 +475,7 @@ public class FileSystemTools {
             logger.debug("Listing directory: {}", dirPath);
             List<FileInfo> results = listFilesContent(dirPath);
 
-            // 格式化输??
+            // 格式化输出
             StringBuilder result = new StringBuilder();
             for (FileInfo info : results) {
                 result.append(info.getPath());
@@ -501,7 +501,7 @@ public class FileSystemTools {
     }
 
     /**
-     * 列出目录中文件和目录的核心逻辑（可被其他类复用）??
+     * 列出目录中文件和目录的核心逻辑（可被其他类复用）
      *
      * @param dirPath 目录路径
      * @return FileInfo 对象列表
@@ -551,13 +551,13 @@ public class FileSystemTools {
                             }
                         }
                     } catch (Exception ignored) {
-                        // 跳过无法访问的文??
+                        // 跳过无法访问的文件
                         logger.debug("Skipping inaccessible file: {}", childPath);
                     }
                 }
             }
 
-            // 按路径排序以保持确定性顺??
+            // 按路径排序以保持确定性顺序
             results.sort(Comparator.comparing(FileInfo::getPath));
             return results;
         } catch (Exception e) {
@@ -567,9 +567,9 @@ public class FileSystemTools {
     }
 
     /**
-     * 将时间戳格式化为 ISO 偏移日期时间字符串??
+     * 将时间戳格式化为 ISO 偏移日期时间字符串
      *
-     * @param instant 时间??
+     * @param instant 时间戳
      * @return 格式化的时间戳字符串
      */
     private String formatTimestamp(Instant instant) {
@@ -611,10 +611,10 @@ public class FileSystemTools {
     }
 
     /**
-     * 使用 Glob 模式匹配文件的核心逻辑??
+     * 使用 Glob 模式匹配文件的核心逻辑
      *
      * @param pattern Glob 模式
-     * @return 匹配的文件路径列??
+     * @return 匹配的文件路径列表
      */
     private List<String> globFilesContent(String pattern) {
         List<String> matchedFiles = new ArrayList<>();
@@ -627,14 +627,14 @@ public class FileSystemTools {
             String searchPattern = pattern;
 
             if (pattern.startsWith("/") || (pattern.length() >= 2 && pattern.charAt(1) == ':')) {
-                // 绝对路径中可能混??glob 通配符，需要拆分出基础目录??glob 模式
+                // 绝对路径中可能混有 glob 通配符，需要拆分出基础目录与 glob 模式
                 int globStart = findGlobStart(pattern);
                 if (globStart > 0) {
                     String basePath = pattern.substring(0, globStart);
                     searchPattern = pattern.substring(globStart);
                     searchRoot = Paths.get(basePath).normalize();
                 } else {
-                    // 整个路径不含通配符，作为普通路径处??
+                    // 整个路径不含通配符，作为普通路径处理
                     searchRoot = Paths.get(pattern).normalize();
                     searchPattern = "*";
                 }
@@ -647,7 +647,7 @@ public class FileSystemTools {
                 return matchedFiles;
             }
 
-            // PathMatcher 要求 glob 模式使用正斜??
+            // PathMatcher 要求 glob 模式使用正斜杠
             String normalizedPattern = searchPattern.replace('\\', '/');
             PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + normalizedPattern);
 
@@ -670,7 +670,7 @@ public class FileSystemTools {
                 }
             }
 
-            // 排序以保持确定性顺??
+            // 排序以保持确定性顺序
             Collections.sort(matchedFiles);
             return matchedFiles;
         } catch (IOException e) {
@@ -709,14 +709,14 @@ public class FileSystemTools {
     }
 
     /**
-     * 找到路径中第一??glob 通配符的位置（在最后一个路径分隔符之前）??
-     * 例如 "C:\Users\test\**\*" 返回 "C:\Users\test" 后面的分隔符位置??
+     * 找到路径中第一个 glob 通配符的位置（在最后一个路径分隔符之前）
+     * 例如 "C:\Users\test\**\*" 返回 "C:\Users\test" 后面的分隔符位置
      */
     private static int findGlobStart(String pattern) {
         for (int i = 0; i < pattern.length(); i++) {
             char c = pattern.charAt(i);
             if (c == '*' || c == '?' || c == '[' || c == '{') {
-                // 回退到最近的路径分隔符，确保基础目录是完整路??
+                // 回退到最近的路径分隔符，确保基础目录是完整路径
                 String sub = pattern.substring(0, i);
                 int lastSep = Math.max(sub.lastIndexOf('/'), sub.lastIndexOf('\\'));
                 return lastSep >= 0 ? lastSep + 1 : 0;
@@ -726,11 +726,11 @@ public class FileSystemTools {
     }
 
     /**
-     * 创建文件系统工具??ToolCallback 数组（默认配置）
+     * 创建文件系统工具的 ToolCallback 数组（默认配置）
      *
-     * 这是一个便捷方法，使用默认配置创建工具实例??
+     * 这是一个便捷方法，使用默认配置创建工具实例。
      *
-     * @return ToolCallback 数组，包??read_file, write_file, edit_file, list_files, glob_files 工具
+     * @return ToolCallback 数组，包含 read_file, write_file, edit_file, list_files, glob_files 工具
      */
     public static ToolCallback[] create() {
         return ToolCallbacks.from(new FileSystemTools());
@@ -745,7 +745,7 @@ public class FileSystemTools {
     }
 
     /**
-     * 创建 Builder 实例??
+     * 创建 Builder 实例
      *
      * @return Builder 对象
      */
@@ -754,7 +754,7 @@ public class FileSystemTools {
     }
 
     /**
-     * Builder 模式用于配置 FileSystemTools??
+     * Builder 模式用于配置 FileSystemTools
      */
     public static class Builder {
         private String rootDir;
@@ -762,9 +762,9 @@ public class FileSystemTools {
         private int maxFileSizeMb = DEFAULT_MAX_FILE_SIZE_MB;
 
         /**
-         * 设置根目录??
+         * 设置根目录
          *
-         * @param rootDir 根目录路??
+         * @param rootDir 根目录路径
          * @return this
          */
         public Builder rootDir(String rootDir) {
@@ -773,7 +773,7 @@ public class FileSystemTools {
         }
 
         /**
-         * 设置虚拟模式??
+         * 设置虚拟模式
          *
          * @param virtualMode 是否启用虚拟模式
          * @return this
@@ -784,9 +784,9 @@ public class FileSystemTools {
         }
 
         /**
-         * 设置最大文件大小??
+         * 设置最大文件大小
          *
-         * @param maxFileSizeMb 最大文件大小（MB??
+         * @param maxFileSizeMb 最大文件大小（MB）
          * @return this
          */
         public Builder maxFileSizeMb(int maxFileSizeMb) {
@@ -795,7 +795,7 @@ public class FileSystemTools {
         }
 
         /**
-         * 构建 FileSystemTools 实例??
+         * 构建 FileSystemTools 实例
          *
          * @return FileSystemTools 实例
          */
@@ -805,7 +805,7 @@ public class FileSystemTools {
     }
 
     /**
-     * 文件信息类，用于结构化返回文件列表信息??
+     * 文件信息类，用于结构化返回文件列表信息
      */
     public static class FileInfo {
         private final String path;

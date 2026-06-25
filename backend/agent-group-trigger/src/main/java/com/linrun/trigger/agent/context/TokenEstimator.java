@@ -10,11 +10,11 @@ import org.springframework.ai.chat.messages.UserMessage;
 import java.util.List;
 
 /**
- * Token 估算工具??
- * 区分中英文进行差异化估算??
+ * Token 估算工具。
+ * 区分中英文进行差异化估算。
  * - 英文/ASCII：约 4 字符 = 1 token
  * - 中文/CJK：约 1.5 字符 = 1 token
- * 不依赖外部库，轻量级估算??
+ * 不依赖外部库，轻量级估算。
  */
 @Slf4j
 public final class TokenEstimator {

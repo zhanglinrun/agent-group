@@ -53,7 +53,7 @@ public class OverlapParagraphTextSplitter extends TextSplitter {
 
                 currentChunk.append(paragraph, start, end);
 
-                // 如果当前块已满，保存并生成新??
+                // 如果当前块已满，保存并生成新块
                 if (currentChunk.length() >= chunkSize) {
                     allChunks.add(currentChunk.toString());
 

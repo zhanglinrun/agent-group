@@ -3,7 +3,7 @@ package com.linrun.trigger.agent.tool;
 import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.service.EmbeddingService;
 import com.linrun.trigger.agent.service.FileManageService;
-import com.alibaba.fastjson2.JSON;
+import com.linrun.trigger.agent.common.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -18,8 +18,8 @@ import java.util.Map;
 
 /**
  * 文件内容服务工具
- * 合并了文件加载和RAG检索功??
- * 根据文件??embed 字段自动选择合适的加载方式
+ * 合并了文件加载和RAG检索功能
+ * 根据文件的 embed 字段自动选择合适的加载方式
  */
 @Service
 @Slf4j
@@ -32,14 +32,14 @@ public class FileContentService {
     private FileManageService fileManageService;
 
     /**
-     * 加载文件内容或进行RAG检??
-     * 根据文件??embed 字段自动选择合适的加载方式??
-     * - embed=1: 使用RAG语义检索（适用于大文件??
-     * - embed=0 ??null: 直接加载完整文件内容（适用于小文件??
+     * 加载文件内容或进行RAG检索
+     * 根据文件的 embed 字段自动选择合适的加载方式：
+     * - embed=1: 使用RAG语义检索（适用于大文件）
+     * - embed=0 或 null: 直接加载完整文件内容（适用于小文件）
      *
      * @param fileId   文件ID
      * @param question 用户问题（用于RAG检索）
-     * @return 文件信息或检索结??
+     * @return 文件信息或检索结果
      */
     @Tool(description = "根据文件ID加载文件内容或进行RAG语义检索。如果文件已向量化则使用语义搜索返回相关片段，否则直接返回完整文件内容。")
     public String loadContent(
@@ -48,21 +48,21 @@ public class FileContentService {
         log.info("EXECUTE Tool: loadContent: fileId={}, question={}", fileId, question);
 
         if (fileId == null || fileId.trim().isEmpty()) {
-            return JSON.toJSONString(errorPayload("", "文件ID不能为空"));
+            return JsonUtils.toJson(errorPayload("", "文件ID不能为空"));
         }
 
         List<String> fileIds = splitFileIds(fileId);
         if (fileIds.size() > 1) {
-            return JSON.toJSONString(loadMultiple(fileIds, question));
+            return JsonUtils.toJson(loadMultiple(fileIds, question));
         }
 
         try {
-            return JSON.toJSONString(loadSingle(fileId, question));
+            return JsonUtils.toJson(loadSingle(fileId, question));
         } catch (IllegalArgumentException e) {
-            return JSON.toJSONString(errorPayload(fileId, e.getMessage()));
+            return JsonUtils.toJson(errorPayload(fileId, e.getMessage()));
         } catch (Exception e) {
             log.error("加载文件内容失败: fileId={}, question={}", fileId, question, e);
-            return JSON.toJSONString(errorPayload(fileId, "加载文件内容失败: " + e.getMessage()));
+            return JsonUtils.toJson(errorPayload(fileId, "加载文件内容失败: " + e.getMessage()));
         }
     }
 

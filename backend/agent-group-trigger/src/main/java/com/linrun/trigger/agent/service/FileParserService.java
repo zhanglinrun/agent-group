@@ -35,7 +35,7 @@ import java.util.List;
 
 /**
  * 文件解析服务
- * 负责解析不同类型文件的内??
+ * 负责解析不同类型文件的内容
  * - PDF: 使用 Apache PDFBox 解析
  * - DOC/DOCX: 使用 Apache POI 解析
  * - TXT/Markdown: 直接读取
@@ -46,15 +46,15 @@ import java.util.List;
 public class FileParserService {
 
     /**
-     * 最大文本内容长度限??
+     * 最大文本内容长度限制
      */
     private static final int MAX_TEXT_LENGTH = 20000;
 
     /**
      * 解析上传的文件并返回文本内容
      *
-     * @param file 上传的文??
-     * @return 解析结果（包含全量文本和截断文本??
+     * @param file 上传的文件
+     * @return 解析结果（包含全量文本和截断文本）
      */
     public ParseResult parseFile(MultipartFile file) {
         String fullText = parseFileInternal(file);
@@ -82,7 +82,7 @@ public class FileParserService {
     /**
      * 内部方法：解析文件并返回完整文本内容
      *
-     * @param file 上传的文??
+     * @param file 上传的文件
      * @return 解析后的完整文本内容
      */
     private String parseFileInternal(MultipartFile file) {
@@ -186,7 +186,7 @@ public class FileParserService {
     }
 
     /**
-     * 从文件名中提取文件类??
+     * 从文件名中提取文件类型
      */
     private String getFileType(String fileName) {
         if (fileName == null || fileName.isEmpty()) {
