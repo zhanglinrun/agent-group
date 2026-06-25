@@ -16,8 +16,6 @@ import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
 import com.linrun.api.dto.RefundPaymentResponse;
-import com.linrun.api.dto.MockPayCallbackRequest;
-import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
@@ -26,6 +24,8 @@ import com.linrun.domain.trade.model.payment.PaymentBillDownloadResult;
 import com.linrun.domain.trade.model.payment.PaymentCertificateRefreshCommand;
 import com.linrun.domain.trade.model.payment.PaymentCertificateRefreshResult;
 import com.linrun.domain.trade.model.payment.PaymentChannel;
+import com.linrun.domain.trade.model.payment.PaymentCompletionCommand;
+import com.linrun.domain.trade.model.payment.PaymentCompletionResult;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
 import com.linrun.domain.trade.model.payment.PaymentGatewayErrorMapping;
@@ -46,7 +46,6 @@ import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -68,22 +67,19 @@ public class PaymentService {
 
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
-    private final MockPayCallbackService mockPayCallbackService;
+    private final PaymentCompletionService paymentCompletionService;
     private final PaymentGatewayClient paymentGatewayClient;
     private final PaymentWebhookReplayGuard paymentWebhookReplayGuard;
     private final TradeStatusFlowService tradeStatusFlowService;
     private final AgentObservabilityMetrics metrics;
 
-    @Value("${agent.group.security.mock-payment-enabled:false}")
-    private boolean mockPaymentEnabled;
-
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
-                          MockPayCallbackService mockPayCallbackService,
+                          PaymentCompletionService paymentCompletionService,
                           PaymentGatewayClient paymentGatewayClient,
                           PaymentWebhookReplayGuard paymentWebhookReplayGuard,
                           TradeStatusFlowService tradeStatusFlowService) {
-        this(tradeOrderRepository, tradeOrderService, mockPayCallbackService,
+        this(tradeOrderRepository, tradeOrderService, paymentCompletionService,
                 paymentGatewayClient, paymentWebhookReplayGuard, tradeStatusFlowService,
                 AgentObservabilityMetrics.noop());
     }
@@ -91,14 +87,14 @@ public class PaymentService {
     @Autowired
     public PaymentService(TradeOrderRepository tradeOrderRepository,
                           TradeOrderService tradeOrderService,
-                          MockPayCallbackService mockPayCallbackService,
+                          PaymentCompletionService paymentCompletionService,
                           PaymentGatewayClient paymentGatewayClient,
                           PaymentWebhookReplayGuard paymentWebhookReplayGuard,
                           TradeStatusFlowService tradeStatusFlowService,
                           AgentObservabilityMetrics metrics) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
-        this.mockPayCallbackService = mockPayCallbackService;
+        this.paymentCompletionService = paymentCompletionService;
         this.paymentGatewayClient = paymentGatewayClient;
         this.paymentWebhookReplayGuard = paymentWebhookReplayGuard;
         this.tradeStatusFlowService = tradeStatusFlowService;
@@ -120,7 +116,6 @@ public class PaymentService {
             return toExistingCreateResponse(payOrder, "payment already " + payOrder.getPayStatus());
         }
         String payChannel = resolvePayChannel(request.getPayChannel(), payOrder);
-        rejectMockPayChannel(payChannel);
         PaymentCreateResult result = paymentGatewayClient.createPayment(toCreateCommand(
                 tradeOrder,
                 payOrder,
@@ -154,7 +149,6 @@ public class PaymentService {
             throw new AppException("0001", "支付回调参数不能为空");
         }
         PaymentChannel payChannel = PaymentChannel.parse(request.getPayChannel());
-        rejectMockPayChannel(payChannel);
         PaymentWebhookResult webhookResult = paymentGatewayClient.verifyWebhook(toWebhookCommand(request));
         if (!webhookResult.isVerified()) {
             throw new AppException("PAY_0002", "支付回调验签失败");
@@ -181,22 +175,18 @@ public class PaymentService {
 
         boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, webhookResult);
         try {
-            MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
-            callbackRequest.setOrderId(webhookResult.getOrderId());
-            callbackRequest.setOutTradeNo(resolveGatewayTradeNo(webhookResult));
-            callbackRequest.setPayTime(webhookResult.getPayTime() == null ? LocalDateTime.now() : webhookResult.getPayTime());
-            MockPayCallbackResponse callbackResponse = mockPayCallbackService.paySuccess(callbackRequest);
+            PaymentCompletionResult completionResult = completePaidOrder(webhookResult);
 
             tradeStatusFlowService.record(
-                    callbackResponse.getOrderId(),
+                    completionResult.getOrderId(),
                     TradeStatusFlowService.BIZ_PAY,
-                    callbackResponse.getPayOrderId(),
+                    completionResult.getPayOrderId(),
                     TradeStatusFlowService.EVENT_PAYMENT_WEBHOOK_VERIFIED,
                     null,
-                    callbackResponse.getPayStatus(),
+                    completionResult.getPayStatus(),
                     webhookResult.getMessage());
             metrics.recordPaymentWebhook(payChannel.name(), "success", elapsedMillis(startNanos));
-            return toWebhookResponse(webhookResult, callbackResponse);
+            return toWebhookResponse(webhookResult, completionResult);
         } finally {
             if (!releaseAfterCompletion) {
                 paymentWebhookReplayGuard.releaseProcessingLock(payChannel, webhookResult);
@@ -220,7 +210,7 @@ public class PaymentService {
         }
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
-        rejectMockPayChannel(resolvePayChannel(payOrder.getPayChannel(), payOrder));
+        resolvePayChannel(payOrder.getPayChannel(), payOrder);
         RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
         if (existed != null) {
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
@@ -250,7 +240,7 @@ public class PaymentService {
         }
         TradeOrderEntity tradeOrder = queryTradeOrder(request.getOrderId());
         PayOrderEntity payOrder = queryPayOrder(request.getOrderId());
-        rejectMockPayChannel(payOrder.getPayChannel());
+        PaymentChannel.parse(payOrder.getPayChannel());
         PaymentReconcileResult result = paymentGatewayClient.reconcile(toReconcileCommand(tradeOrder, payOrder, request));
         tradeStatusFlowService.record(
                 tradeOrder.getOrderId(),
@@ -267,7 +257,6 @@ public class PaymentService {
         if (request == null || !StringUtils.hasText(request.getPayChannel())) {
             throw new AppException("0001", "支付渠道不能为空");
         }
-        rejectMockPayChannel(request.getPayChannel());
         PaymentBillDownloadResult result = paymentGatewayClient.downloadBill(new PaymentBillDownloadCommand(
                 PaymentChannel.parse(request.getPayChannel()).name(),
                 request.getBillDate() == null ? LocalDate.now() : request.getBillDate(),
@@ -280,7 +269,6 @@ public class PaymentService {
     @Transactional(rollbackFor = Exception.class)
     public QueryPaymentRefundResponse queryRefund(QueryPaymentRefundRequest request) {
         PaymentRefundQueryCommand command = toRefundQueryCommand(request);
-        rejectMockPayChannel(command.payChannel());
         PaymentRefundQueryResult result = paymentGatewayClient.queryRefund(command);
         applyRefundResultIfSuccess(result);
         return toRefundQueryResponse(result);
@@ -291,7 +279,6 @@ public class PaymentService {
         if (request == null || !StringUtils.hasText(request.getPayChannel())) {
             throw new AppException("0001", "支付渠道不能为空");
         }
-        rejectMockPayChannel(request.getPayChannel());
         PaymentRefundQueryCommand command = new PaymentRefundQueryCommand(
                 PaymentChannel.parse(request.getPayChannel()).name(),
                 request.getOrderId(),
@@ -309,7 +296,6 @@ public class PaymentService {
         if (request == null || !StringUtils.hasText(request.getPayChannel())) {
             throw new AppException("0001", "支付渠道不能为空");
         }
-        rejectMockPayChannel(request.getPayChannel());
         PaymentCertificateRefreshResult result = paymentGatewayClient.refreshCertificate(
                 new PaymentCertificateRefreshCommand(PaymentChannel.parse(request.getPayChannel()).name()));
         return toCertificateRefreshResponse(result);
@@ -319,7 +305,6 @@ public class PaymentService {
         if (!StringUtils.hasText(payChannel) || !StringUtils.hasText(gatewayCode)) {
             throw new AppException("0001", "支付渠道和渠道错误码不能为空");
         }
-        rejectMockPayChannel(payChannel);
         PaymentGatewayErrorMapping mapping = paymentGatewayClient.mapGatewayError(
                 PaymentChannel.parse(payChannel).name(), gatewayCode);
         PaymentGatewayErrorMapResponse response = new PaymentGatewayErrorMapResponse();
@@ -345,7 +330,6 @@ public class PaymentService {
         TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
         PayOrderEntity payOrder = queryPayOrder(orderId);
         PaymentChannel payChannel = PaymentChannel.parse(payOrder.getPayChannel());
-        rejectMockPayChannel(payChannel);
         if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
             PaymentWebhookResult result = PaymentWebhookResult.verified(
                     tradeOrder.getOrderId(),
@@ -392,21 +376,17 @@ public class PaymentService {
 
         boolean releaseAfterCompletion = registerWebhookProcessingLockRelease(payChannel, queryResult);
         try {
-            MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
-            callbackRequest.setOrderId(queryResult.getOrderId());
-            callbackRequest.setOutTradeNo(resolveGatewayTradeNo(queryResult));
-            callbackRequest.setPayTime(queryResult.getPayTime() == null ? LocalDateTime.now() : queryResult.getPayTime());
-            MockPayCallbackResponse callbackResponse = mockPayCallbackService.paySuccess(callbackRequest);
+            PaymentCompletionResult completionResult = completePaidOrder(queryResult);
             tradeStatusFlowService.record(
-                    callbackResponse.getOrderId(),
+                    completionResult.getOrderId(),
                     TradeStatusFlowService.BIZ_PAY,
-                    callbackResponse.getPayOrderId(),
+                    completionResult.getPayOrderId(),
                     TradeStatusFlowService.EVENT_RECONCILE_PAYMENT,
                     null,
-                    callbackResponse.getPayStatus(),
+                    completionResult.getPayStatus(),
                     queryResult.getMessage());
             metrics.recordPaymentWebhook(payChannel.name(), "query_success", elapsedMillis(startNanos));
-            return toWebhookResponse(queryResult, callbackResponse);
+            return toWebhookResponse(queryResult, completionResult);
         } finally {
             if (!releaseAfterCompletion) {
                 paymentWebhookReplayGuard.releaseProcessingLock(payChannel, queryResult);
@@ -470,20 +450,17 @@ public class PaymentService {
         if (!PaymentChannel.parse(payOrder.getPayChannel()).equals(payChannel)) {
             throw new AppException("PAY_0011", "payment webhook channel mismatch");
         }
-        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
-                && !StringUtils.hasText(webhookResult.getPayOrderId())) {
+        if (!StringUtils.hasText(webhookResult.getPayOrderId())) {
             throw new AppException("PAY_0010", "payment webhook missing pay order id");
         }
         if (StringUtils.hasText(webhookResult.getPayOrderId())
                 && !webhookResult.getPayOrderId().equals(payOrder.getPayOrderId())) {
             throw new AppException("PAY_0010", "payment webhook pay order mismatch");
         }
-        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
-                && !StringUtils.hasText(webhookResult.getGatewayTradeNo())) {
+        if (!StringUtils.hasText(webhookResult.getGatewayTradeNo())) {
             throw new AppException("PAY_0013", "payment webhook missing gateway trade no");
         }
-        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
-                && PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())
+        if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())
                 && StringUtils.hasText(payOrder.getOutTradeNo())
                 && StringUtils.hasText(webhookResult.getGatewayTradeNo())
                 && !payOrder.getOutTradeNo().equals(webhookResult.getGatewayTradeNo())) {
@@ -493,8 +470,7 @@ public class PaymentService {
                 && normalize(webhookResult.getPayAmount()).compareTo(normalize(payOrder.getPayAmount())) != 0) {
             throw new AppException("PAY_0012", "payment webhook amount mismatch");
         }
-        if (!PaymentChannel.MOCK_PAY.equals(payChannel)
-                && StringUtils.hasText(webhookResult.getTradeStatus())
+        if (StringUtils.hasText(webhookResult.getTradeStatus())
                 && !isSuccessTradeStatus(payChannel, webhookResult.getTradeStatus())) {
             throw new AppException("PAY_0014", "payment webhook trade status is not success");
         }
@@ -509,22 +485,14 @@ public class PaymentService {
         if (!PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
             return null;
         }
-        MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
-        callbackRequest.setOrderId(webhookResult.getOrderId());
-        callbackRequest.setOutTradeNo(resolveGatewayTradeNo(webhookResult));
-        callbackRequest.setPayTime(webhookResult.getPayTime() == null ? LocalDateTime.now() : webhookResult.getPayTime());
-        return toWebhookResponse(webhookResult, mockPayCallbackService.paySuccess(callbackRequest));
+        return toWebhookResponse(webhookResult, completePaidOrder(webhookResult));
     }
 
-    private MockPayCallbackResponse existingCallbackResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        MockPayCallbackResponse response = new MockPayCallbackResponse();
-        response.setOrderId(tradeOrder.getOrderId());
-        response.setPayOrderId(payOrder.getPayOrderId());
-        response.setOrderStatus(tradeOrder.getOrderStatus().name());
-        response.setPayStatus(payOrder.getPayStatus().name());
-        response.setOutTradeNo(payOrder.getOutTradeNo());
-        response.setPayTime(payOrder.getPayTime());
-        return response;
+    private PaymentCompletionResult completePaidOrder(PaymentWebhookResult webhookResult) {
+        return paymentCompletionService.complete(PaymentCompletionCommand.paid(
+                webhookResult.getOrderId(),
+                resolveGatewayTradeNo(webhookResult),
+                webhookResult.getPayTime() == null ? LocalDateTime.now() : webhookResult.getPayTime()));
     }
 
     private boolean registerWebhookProcessingLockRelease(PaymentChannel payChannel, PaymentWebhookResult webhookResult) {
@@ -781,14 +749,14 @@ public class PaymentService {
     }
 
     private PaymentWebhookResponse toWebhookResponse(PaymentWebhookResult result,
-                                                     MockPayCallbackResponse callbackResponse) {
+                                                     PaymentCompletionResult completionResult) {
         PaymentWebhookResponse response = new PaymentWebhookResponse();
-        response.setOrderId(callbackResponse.getOrderId());
-        response.setPayOrderId(callbackResponse.getPayOrderId());
-        response.setOrderStatus(callbackResponse.getOrderStatus());
-        response.setPayStatus(callbackResponse.getPayStatus());
-        response.setGatewayTradeNo(callbackResponse.getOutTradeNo());
-        response.setPayTime(callbackResponse.getPayTime());
+        response.setOrderId(completionResult.getOrderId());
+        response.setPayOrderId(completionResult.getPayOrderId());
+        response.setOrderStatus(completionResult.getOrderStatus());
+        response.setPayStatus(completionResult.getPayStatus());
+        response.setGatewayTradeNo(completionResult.getGatewayTradeNo());
+        response.setPayTime(completionResult.getPayTime());
         response.setVerified(result.isVerified());
         response.setMessage(result.getMessage());
         return response;
@@ -902,17 +870,7 @@ public class PaymentService {
     }
 
     private String defaultPayChannel() {
-        return mockPaymentEnabled ? PaymentChannel.MOCK_PAY.name() : PaymentChannel.ALIPAY.name();
-    }
-
-    private void rejectMockPayChannel(String payChannel) {
-        rejectMockPayChannel(PaymentChannel.parse(payChannel));
-    }
-
-    private void rejectMockPayChannel(PaymentChannel payChannel) {
-        if (PaymentChannel.MOCK_PAY.equals(payChannel) && !mockPaymentEnabled) {
-            throw new AppException("PAY_0017", "MOCK_PAY 只允许在开发或演示环境使用");
-        }
+        return PaymentChannel.ALIPAY.name();
     }
 
     private String resolveGatewayTradeNo(PaymentWebhookResult result) {
@@ -939,7 +897,6 @@ public class PaymentService {
         return switch (payChannel) {
             case ALIPAY -> "TRADE_SUCCESS".equals(normalized) || "TRADE_FINISHED".equals(normalized);
             case WECHAT_PAY -> "SUCCESS".equals(normalized);
-            case MOCK_PAY -> true;
         };
     }
 
@@ -947,7 +904,6 @@ public class PaymentService {
         return switch (payChannel) {
             case ALIPAY -> "TRADE_SUCCESS";
             case WECHAT_PAY -> "SUCCESS";
-            case MOCK_PAY -> "SUCCESS";
         };
     }
 

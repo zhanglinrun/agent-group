@@ -147,7 +147,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             return switch (channel) {
                 case ALIPAY -> createAlipayPayment(command);
                 case WECHAT_PAY -> createWechatPayment(command);
-                case MOCK_PAY -> createMockPayment(command);
             };
         }, true);
     }
@@ -158,7 +157,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         return switch (channel) {
             case ALIPAY -> verifyAlipayWebhook(command);
             case WECHAT_PAY -> verifyWechatWebhook(command);
-            case MOCK_PAY -> verifyMockWebhook(command);
         };
     }
 
@@ -170,7 +168,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             return switch (channel) {
                 case ALIPAY -> refundAlipay(command);
                 case WECHAT_PAY -> refundWechat(command);
-                case MOCK_PAY -> refundMock(command);
             };
         }, false);
     }
@@ -181,7 +178,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         String message = switch (channel) {
             case ALIPAY -> alipayReady() ? "alipay config ready, local reconcile only" : "alipay config incomplete, local reconcile only";
             case WECHAT_PAY -> wechatReady() ? "wechat pay config ready, local reconcile only" : "wechat pay config incomplete, local reconcile only";
-            case MOCK_PAY -> "mock pay channel reconciled locally";
         };
         return PaymentReconcileResult.matched(
                 command.getOrderId(),
@@ -198,7 +194,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             return switch (channel) {
                 case ALIPAY -> queryAlipayPayment(command);
                 case WECHAT_PAY -> queryWechatPayment(command);
-                case MOCK_PAY -> queryMockPayment(command);
             };
         }, true);
     }
@@ -209,7 +204,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         return switch (channel) {
             case ALIPAY -> downloadAlipayBill(command);
             case WECHAT_PAY -> downloadWechatBill(command);
-            case MOCK_PAY -> downloadMockBill(command);
         };
     }
 
@@ -221,7 +215,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
             return switch (channel) {
                 case ALIPAY -> queryAlipayRefund(command);
                 case WECHAT_PAY -> queryWechatRefund(command);
-                case MOCK_PAY -> mockRefundQuery(command, true, "mock refund query completed");
             };
         }, true);
     }
@@ -232,7 +225,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         return switch (channel) {
             case ALIPAY -> verifyAlipayRefundWebhook(command);
             case WECHAT_PAY -> verifyWechatRefundWebhook(command);
-            case MOCK_PAY -> mockRefundQuery(command, true, "模拟退款回调验签通过");
         };
     }
 
@@ -247,12 +239,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                     LocalDateTime.now(),
                     alipayReady() ? "alipay public key config ready" : "alipay config incomplete");
             case WECHAT_PAY -> refreshWechatCertificate();
-            case MOCK_PAY -> new PaymentCertificateRefreshResult(
-                    PaymentChannel.MOCK_PAY.name(),
-                    true,
-                    "MOCK_CERT",
-                    LocalDateTime.now(),
-                    "mock pay does not need certificate refresh");
         };
     }
 
@@ -263,29 +249,12 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         return switch (channel) {
             case ALIPAY -> mapAlipayError(normalized);
             case WECHAT_PAY -> mapWechatError(normalized);
-            case MOCK_PAY -> new PaymentGatewayErrorMapping(
-                    PaymentChannel.MOCK_PAY.name(),
-                    normalized,
-                    "MOCK_GATEWAY_ERROR",
-                    "mock pay gateway error",
-                    false,
-                    "check local mock pay parameters");
         };
     }
 
     @Override
     public PaymentGatewayStatusResponse gatewayStatus() {
         PaymentGatewayStatusResponse response = new PaymentGatewayStatusResponse();
-        PaymentGatewayStatusResponse.ChannelStatus mock = channelStatus(
-                PaymentChannel.MOCK_PAY.name(),
-                "TEST_ONLY",
-                false,
-                true,
-                "mock://pay",
-                "",
-                "",
-                Map.of("unitTestStubOnly", true),
-                "mock payment is kept only for unit test stubs");
         Map<String, Boolean> alipayItems = new LinkedHashMap<>();
         alipayItems.put("gatewayUrl", StringUtils.hasText(alipayGatewayUrl));
         alipayItems.put("appId", StringUtils.hasText(alipayAppId));
@@ -339,40 +308,11 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 ? "alipay sandbox config and public callback are ready"
                 : "alipay sandbox still misses: " + String.join(", ", sandboxMissingItems));
         response.setOfficialSandboxMissingItems(sandboxMissingItems);
-        response.setChannels(List.of(mock, alipay, wechat));
+        response.setChannels(List.of(alipay, wechat));
         response.setMessage(response.isOfficialSandboxReady()
                 ? "official payment sandbox is ready"
                 : "official alipay sandbox is not ready; fix missing items before acceptance");
         return response;
-    }
-
-    private PaymentCreateResult createMockPayment(PaymentCreateCommand command) {
-        return PaymentCreateResult.created(
-                command.getOrderId(),
-                command.getPayOrderId(),
-                PaymentChannel.MOCK_PAY.name(),
-                "mock://pay/" + command.getPayOrderId(),
-                "MOCK" + command.getPayOrderId(),
-                "模拟支付单已创建");
-    }
-
-    private PaymentWebhookResult verifyMockWebhook(PaymentWebhookCommand command) {
-        return PaymentWebhookResult.verified(
-                command.getOrderId(),
-                StringUtils.hasText(command.getPayOrderId()) ? command.getPayOrderId() : command.getGatewayTradeNo(),
-                StringUtils.hasText(command.getGatewayTradeNo()) ? command.getGatewayTradeNo() : "MOCK" + command.getPayOrderId(),
-                command.getPayTime() == null ? LocalDateTime.now() : command.getPayTime(),
-                command.getPayAmount(),
-                command.getTradeStatus(),
-                "mock payment webhook verified");
-    }
-
-    private PaymentRefundResult refundMock(PaymentRefundCommand command) {
-        return PaymentRefundResult.success(command.getOrderId(), command.getPayOrderId(), refundId(command), "mock refund success");
-    }
-
-    private PaymentWebhookResult queryMockPayment(PaymentReconcileCommand command) {
-        return notPaid(command, "WAIT_BUYER_PAY", "mock payment query keeps local wait status");
     }
 
     private PaymentCreateResult createAlipayPayment(PaymentCreateCommand command) {
@@ -639,20 +579,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
                 "wechat pay certificate config ready, provide sandbox bill file url to parse");
     }
 
-    private PaymentBillDownloadResult downloadMockBill(PaymentBillDownloadCommand command) {
-        LocalDate billDate = command.billDate() == null ? LocalDate.now() : command.billDate();
-        BillParseSummary summary = parseBillContent("pay_order_id,amount\nMOCK_001,1.00\nMOCK_002,2.50\n");
-        return new PaymentBillDownloadResult(PaymentChannel.MOCK_PAY.name(), billDate,
-                StringUtils.hasText(command.billType()) ? command.billType() : "trade",
-                "mock://payment-bill/" + billDate,
-                true,
-                true,
-                summary.totalCount(),
-                summary.totalAmount(),
-                summary.summary(),
-                "模拟账单下载解析完成");
-    }
-
     private PaymentRefundQueryResult queryAlipayRefund(PaymentRefundQueryCommand command) {
         ensureAlipayReady();
         try {
@@ -739,20 +665,6 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         } catch (ClassNotFoundException e) {
             return parseWechatRefundWebhookBody(command, true, "微信支付退款回调验签通过，当??SDK 未提供退款通知模型，按报文解析");
         }
-    }
-
-    private PaymentRefundQueryResult mockRefundQuery(PaymentRefundQueryCommand command, boolean verified, String message) {
-        return new PaymentRefundQueryResult(PaymentChannel.MOCK_PAY.name(),
-                command.orderId(),
-                command.payOrderId(),
-                command.gatewayTradeNo(),
-                firstText(command.refundId(), "MOCK_REFUND_" + command.payOrderId()),
-                "SUCCESS",
-                BigDecimal.ZERO,
-                LocalDateTime.now(),
-                verified,
-                command.requestBody(),
-                message);
     }
 
     private PaymentCertificateRefreshResult refreshWechatCertificate() {
@@ -1061,21 +973,21 @@ public class OfficialPaymentGatewayClient implements PaymentGatewayClient {
         Map<String, Boolean> items = alipay.getRequiredItems() == null ? Map.of() : alipay.getRequiredItems();
         List<String> missing = new ArrayList<>();
         if (!Boolean.TRUE.equals(items.get("gatewayUrl"))) {
-            missing.add("AGENT_GROUP_ALIPAY_GATEWAY_URL");
+            missing.add("AGENT_GROUP_ALIPAY_GATEWAY_URL / alipay.gatewayUrl");
         }
         if (!Boolean.TRUE.equals(items.get("appId"))) {
-            missing.add("AGENT_GROUP_ALIPAY_APP_ID");
+            missing.add("AGENT_GROUP_ALIPAY_APP_ID / alipay.app_id");
         }
         if (!Boolean.TRUE.equals(items.get("privateKey"))) {
-            missing.add("AGENT_GROUP_ALIPAY_PRIVATE_KEY");
+            missing.add("AGENT_GROUP_ALIPAY_PRIVATE_KEY / alipay.merchant_private_key");
         }
         if (!Boolean.TRUE.equals(items.get("publicKey"))) {
-            missing.add("AGENT_GROUP_ALIPAY_PUBLIC_KEY");
+            missing.add("AGENT_GROUP_ALIPAY_PUBLIC_KEY / alipay.alipay_public_key");
         }
         if (!Boolean.TRUE.equals(items.get("notifyUrl"))) {
-            missing.add("AGENT_GROUP_ALIPAY_NOTIFY_URL");
+            missing.add("AGENT_GROUP_ALIPAY_NOTIFY_URL / alipay.notify_url");
         } else if (!Boolean.TRUE.equals(items.get("publicNotifyUrl"))) {
-            missing.add("PUBLIC_AGENT_GROUP_ALIPAY_NOTIFY_URL");
+            missing.add("PUBLIC_AGENT_GROUP_ALIPAY_NOTIFY_URL / public alipay.notify_url");
         }
         if (!alipay.isSandboxMode()) {
             missing.add("ALIPAY_SANDBOX_GATEWAY");

@@ -38,6 +38,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -71,7 +72,7 @@ class DirectBuyOrderServiceTest {
         assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
         assertEquals(new BigDecimal("2399.00"), response.getOriginAmount());
         assertEquals(new BigDecimal("2399.00"), response.getPayAmount());
-        assertTrue(response.getPayUrl().contains(response.getOrderId()));
+        assertNull(response.getPayUrl());
         assertNotNull(response.getCreateTime());
 
         assertEquals(response.getOrderId(), tradeOrderRepository.savedTradeOrder.getOrderId());

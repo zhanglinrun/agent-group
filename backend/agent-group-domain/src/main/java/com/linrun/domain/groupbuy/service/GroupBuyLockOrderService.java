@@ -305,7 +305,7 @@ public class GroupBuyLockOrderService {
         if (paymentService == null || payOrder == null || !PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
             return null;
         }
-        if (StringUtils.hasText(payOrder.getPayUrl()) && !payOrder.getPayUrl().startsWith("mock://")) {
+        if (StringUtils.hasText(payOrder.getPayUrl())) {
             return null;
         }
         CreatePaymentRequest paymentRequest = new CreatePaymentRequest();

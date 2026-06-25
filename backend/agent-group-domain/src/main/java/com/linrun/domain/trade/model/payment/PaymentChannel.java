@@ -7,7 +7,6 @@ import java.util.Locale;
 
 public enum PaymentChannel {
 
-    MOCK_PAY,
     ALIPAY,
     WECHAT_PAY;
 

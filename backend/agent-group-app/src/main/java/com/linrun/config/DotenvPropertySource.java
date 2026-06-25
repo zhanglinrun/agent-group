@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -22,6 +23,20 @@ import java.util.Set;
 final class DotenvPropertySource {
 
     private static final String PROPERTY_SOURCE_NAME = "agentGroupDotenv";
+    private static final Map<String, String> PROPERTY_ALIASES = Map.ofEntries(
+            Map.entry("alipay.gatewayurl", "AGENT_GROUP_ALIPAY_GATEWAY_URL"),
+            Map.entry("gatewayurl", "AGENT_GROUP_ALIPAY_GATEWAY_URL"),
+            Map.entry("alipay.app_id", "AGENT_GROUP_ALIPAY_APP_ID"),
+            Map.entry("app_id", "AGENT_GROUP_ALIPAY_APP_ID"),
+            Map.entry("alipay.merchant_private_key", "AGENT_GROUP_ALIPAY_PRIVATE_KEY"),
+            Map.entry("merchant_private_key", "AGENT_GROUP_ALIPAY_PRIVATE_KEY"),
+            Map.entry("alipay.alipay_public_key", "AGENT_GROUP_ALIPAY_PUBLIC_KEY"),
+            Map.entry("alipay_public_key", "AGENT_GROUP_ALIPAY_PUBLIC_KEY"),
+            Map.entry("alipay.notify_url", "AGENT_GROUP_ALIPAY_NOTIFY_URL"),
+            Map.entry("notify_url", "AGENT_GROUP_ALIPAY_NOTIFY_URL"),
+            Map.entry("alipay.return_url", "AGENT_GROUP_ALIPAY_RETURN_URL"),
+            Map.entry("return_url", "AGENT_GROUP_ALIPAY_RETURN_URL")
+    );
 
     private DotenvPropertySource() {
     }
@@ -114,10 +129,15 @@ final class DotenvPropertySource {
             return;
         }
         String key = text.substring(0, splitIndex).trim();
-        if (!key.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+        if (!key.matches("[A-Za-z_][A-Za-z0-9_.-]*")) {
             return;
         }
-        values.put(key, cleanEnvValue(text.substring(splitIndex + 1).trim()));
+        String value = cleanEnvValue(text.substring(splitIndex + 1).trim());
+        values.put(key, value);
+        String alias = PROPERTY_ALIASES.get(key.toLowerCase(Locale.ROOT));
+        if (StringUtils.hasText(alias)) {
+            values.put(alias, value);
+        }
     }
 
     private static String cleanEnvValue(String value) {

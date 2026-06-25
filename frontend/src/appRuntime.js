@@ -118,14 +118,7 @@ export function isPaymentFormHtml(value = "") {
 export function preferredFrontendPayChannel(explicitChannel = "") {
   const configured = String(explicitChannel || import.meta.env?.VITE_PAYMENT_CHANNEL || "").trim();
   if (configured) return configured.toUpperCase();
-  const host = typeof window !== "undefined" ? window.location?.hostname : "";
-  return host === "localhost" || host === "127.0.0.1" || host === "::1" ? "MOCK_PAY" : "ALIPAY";
-}
-
-export function isMockPayment(payment = {}) {
-  const channel = String(payment.payChannel || "").toUpperCase();
-  const payUrl = String(payment.payUrl || "");
-  return channel === "MOCK_PAY" || payUrl.startsWith("mock://");
+  return "ALIPAY";
 }
 
 export function openGatewayPayment(payment = {}, targetWindow = null) {

@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.trade.gateway;
 
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
-import com.linrun.domain.trade.model.payment.PaymentCreateResult;
+import com.linrun.types.exception.AppException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -11,13 +11,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("OfficialPaymentGatewayClient 熔断降级测试")
 class OfficialPaymentGatewayClientResilienceTest {
 
-    /** 复用现有测试的占位构造方式（MOCK_PAY 通道不依赖真实支付宝/微信配置）。 */
+    /** 使用空配置，避免测试连接真实支付宝/微信。 */
     private OfficialPaymentGatewayClient client() {
         return new OfficialPaymentGatewayClient(
                 "https://openapi-sandbox.dl.alipaydev.com/gateway.do",
@@ -25,7 +24,7 @@ class OfficialPaymentGatewayClientResilienceTest {
                 "", "", "", "", "");
     }
 
-    private PaymentCreateCommand mockPayCommand() {
+    private PaymentCreateCommand unsupportedChannelCommand() {
         PaymentCreateCommand command = new PaymentCreateCommand();
         command.setOrderId("order-1");
         command.setPayOrderId("pay-1");
@@ -36,13 +35,13 @@ class OfficialPaymentGatewayClientResilienceTest {
     }
 
     @Test
-    @DisplayName("熔断器/重试器未注入时创建支付正常返回，保持兼容")
-    void shouldCreateMockPaymentWhenNoResilience() {
+    @DisplayName("不支持的支付渠道未接入熔断时也会被拒绝")
+    void shouldRejectUnsupportedPaymentChannelWhenNoResilience() {
         OfficialPaymentGatewayClient client = client();
 
-        PaymentCreateResult result = client.createPayment(mockPayCommand());
-
-        assertThat(result).isNotNull();
+        assertThatThrownBy(() -> client.createPayment(unsupportedChannelCommand()))
+                .isInstanceOf(AppException.class)
+                .hasMessageContaining("不支持的支付渠道");
     }
 
     @Test
@@ -53,7 +52,7 @@ class OfficialPaymentGatewayClientResilienceTest {
         breaker.transitionToForcedOpenState();
         ReflectionTestUtils.setField(client, "circuitBreaker", breaker);
 
-        assertThatThrownBy(() -> client.createPayment(mockPayCommand()))
+        assertThatThrownBy(() -> client.createPayment(unsupportedChannelCommand()))
             .isInstanceOf(CallNotPermittedException.class);
     }
 }

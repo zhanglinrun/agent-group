@@ -88,7 +88,7 @@ describe("app runtime helpers", () => {
         hostname: "localhost"
       }
     });
-    expect(preferredFrontendPayChannel()).toBe("MOCK_PAY");
+    expect(preferredFrontendPayChannel()).toBe("ALIPAY");
   });
 
   it("builds workspace tool result events consistently", () => {

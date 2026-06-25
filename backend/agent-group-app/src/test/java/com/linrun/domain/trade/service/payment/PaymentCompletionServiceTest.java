@@ -1,7 +1,5 @@
 package com.linrun.domain.trade.service.payment;
 
-import com.linrun.api.dto.MockPayCallbackRequest;
-import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
@@ -17,6 +15,8 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
+import com.linrun.domain.trade.model.payment.PaymentCompletionCommand;
+import com.linrun.domain.trade.model.payment.PaymentCompletionResult;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class MockPayCallbackServiceTest {
+class PaymentCompletionServiceTest {
 
     private static final LocalDateTime CREATE_TIME = LocalDateTime.of(2026, 5, 13, 16, 40, 0);
     private static final LocalDateTime PAY_TIME = LocalDateTime.of(2026, 5, 13, 16, 45, 0);
@@ -44,16 +44,16 @@ class MockPayCallbackServiceTest {
     void shouldMarkOrderAndPayOrderSuccess() {
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(waitPayOrder(), waitPay());
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
-        MockPayCallbackService service = service(repository, flowRepository);
-        MockPayCallbackRequest request = request("O10001", "T10001", PAY_TIME);
+        PaymentCompletionService service = service(repository, flowRepository);
+        PaymentCompletionCommand request = request("O10001", "T10001", PAY_TIME);
 
-        MockPayCallbackResponse response = service.paySuccess(request);
+        PaymentCompletionResult response = service.complete(request);
 
         assertEquals("O10001", response.getOrderId());
         assertEquals("P10001", response.getPayOrderId());
         assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), response.getOrderStatus());
         assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getPayStatus());
-        assertEquals("T10001", response.getOutTradeNo());
+        assertEquals("T10001", response.getGatewayTradeNo());
         assertEquals(PAY_TIME, response.getPayTime());
         assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS, repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatusEnumVO.SUCCESS, repository.payOrder.getPayStatus());
@@ -71,13 +71,13 @@ class MockPayCallbackServiceTest {
         payOrder.markSuccess("T10001", PAY_TIME);
         FakeTradeOrderRepository repository = new FakeTradeOrderRepository(tradeOrder, payOrder);
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
-        MockPayCallbackService service = service(repository, flowRepository);
+        PaymentCompletionService service = service(repository, flowRepository);
 
-        MockPayCallbackResponse response = service.paySuccess(request("O10001", "T10002", PAY_TIME.plusMinutes(1)));
+        PaymentCompletionResult response = service.complete(request("O10001", "T10002", PAY_TIME.plusMinutes(1)));
 
         assertEquals(TradeOrderStatusEnumVO.PAY_SUCCESS.name(), response.getOrderStatus());
         assertEquals(PayStatusEnumVO.SUCCESS.name(), response.getPayStatus());
-        assertEquals("T10001", response.getOutTradeNo());
+        assertEquals("T10001", response.getGatewayTradeNo());
         assertEquals(PAY_TIME, response.getPayTime());
         assertEquals(0, repository.updateCount);
         assertEquals(0, flowRepository.flows.size());
@@ -91,13 +91,13 @@ class MockPayCallbackServiceTest {
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         UserQuotaService userQuotaService = mock(UserQuotaService.class);
         when(userQuotaService.grantQuotaForOrderIds(List.of("O10001"))).thenReturn(List.of());
-        MockPayCallbackService service = service(
+        PaymentCompletionService service = service(
                 repository,
                 flowRepository,
                 new SuccessGroupBuyOrderLockRepository(),
                 userQuotaService);
 
-        MockPayCallbackResponse response = service.paySuccess(request("O10001", "T10001", PAY_TIME));
+        PaymentCompletionResult response = service.complete(request("O10001", "T10001", PAY_TIME));
 
         assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED.name(), response.getOrderStatus());
         assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED, repository.tradeOrder.getOrderStatus());
@@ -105,10 +105,10 @@ class MockPayCallbackServiceTest {
 
     @Test
     void shouldThrowWhenOrderMissing() {
-        MockPayCallbackService service = service(new FakeTradeOrderRepository(null, null));
+        PaymentCompletionService service = service(new FakeTradeOrderRepository(null, null));
 
         AppException exception = assertThrows(AppException.class,
-                () -> service.paySuccess(request("O404", "T10001", PAY_TIME)));
+                () -> service.complete(request("O404", "T10001", PAY_TIME)));
 
         assertEquals("TRADE_0013", exception.getCode());
         assertEquals("订单不存在", exception.getMessage());
@@ -116,38 +116,34 @@ class MockPayCallbackServiceTest {
 
     @Test
     void shouldThrowWhenOutTradeNoIsBlank() {
-        MockPayCallbackService service = service(new FakeTradeOrderRepository(waitPayOrder(), waitPay()));
+        PaymentCompletionService service = service(new FakeTradeOrderRepository(waitPayOrder(), waitPay()));
 
         AppException exception = assertThrows(AppException.class,
-                () -> service.paySuccess(request("O10001", " ", PAY_TIME)));
+                () -> service.complete(request("O10001", " ", PAY_TIME)));
 
         assertEquals("0001", exception.getCode());
         assertEquals("外部交易单号不能为空", exception.getMessage());
     }
 
-    private MockPayCallbackRequest request(String orderId, String outTradeNo, LocalDateTime payTime) {
-        MockPayCallbackRequest request = new MockPayCallbackRequest();
-        request.setOrderId(orderId);
-        request.setOutTradeNo(outTradeNo);
-        request.setPayTime(payTime);
-        return request;
+    private PaymentCompletionCommand request(String orderId, String outTradeNo, LocalDateTime payTime) {
+        return PaymentCompletionCommand.paid(orderId, outTradeNo, payTime);
     }
 
-    private MockPayCallbackService service(FakeTradeOrderRepository repository) {
+    private PaymentCompletionService service(FakeTradeOrderRepository repository) {
         return service(repository, new FakeTradeStatusFlowRepository());
     }
 
-    private MockPayCallbackService service(FakeTradeOrderRepository repository,
-                                           FakeTradeStatusFlowRepository flowRepository) {
+    private PaymentCompletionService service(FakeTradeOrderRepository repository,
+                                             FakeTradeStatusFlowRepository flowRepository) {
         return service(repository, flowRepository, new EmptyGroupBuyOrderLockRepository(), null);
     }
 
-    private MockPayCallbackService service(FakeTradeOrderRepository repository,
-                                           FakeTradeStatusFlowRepository flowRepository,
-                                           GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                           UserQuotaService userQuotaService) {
+    private PaymentCompletionService service(FakeTradeOrderRepository repository,
+                                             FakeTradeStatusFlowRepository flowRepository,
+                                             GroupBuyOrderLockRepository groupBuyOrderLockRepository,
+                                             UserQuotaService userQuotaService) {
         TradeStatusFlowService tradeStatusFlowService = new TradeStatusFlowService(flowRepository);
-        return new MockPayCallbackService(
+        return new PaymentCompletionService(
                 repository,
                 new TradeOrderService(),
                 new GroupBuySettlementService(groupBuyOrderLockRepository, repository, tradeStatusFlowService),
@@ -171,7 +167,7 @@ class MockPayCallbackServiceTest {
 
     private PayOrderEntity waitPay() {
         return PayOrderEntity.waitPay("P10001", "O10001", new BigDecimal("2399.00"),
-                "MOCK_PAY", "mock://MOCK_PAY/O10001", CREATE_TIME);
+                "ALIPAY", null, CREATE_TIME);
     }
 
     private static class FakeTradeOrderRepository implements TradeOrderRepository {

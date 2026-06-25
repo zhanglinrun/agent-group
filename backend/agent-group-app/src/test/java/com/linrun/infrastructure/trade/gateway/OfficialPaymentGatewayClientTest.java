@@ -19,9 +19,9 @@ class OfficialPaymentGatewayClientTest {
         assertFalse(status.isOfficialSandboxReady());
         assertFalse(status.isAlipaySandboxReady());
         assertEquals("ALIPAY", status.getRecommendedChannel());
-        assertTrue(status.getOfficialSandboxMissingItems().contains("AGENT_GROUP_ALIPAY_APP_ID"));
-        assertTrue(status.getOfficialSandboxMissingItems().contains("AGENT_GROUP_ALIPAY_PRIVATE_KEY"));
-        assertTrue(status.getOfficialSandboxMissingItems().contains("PUBLIC_AGENT_GROUP_ALIPAY_NOTIFY_URL"));
+        assertTrue(status.getOfficialSandboxMissingItems().contains("AGENT_GROUP_ALIPAY_APP_ID / alipay.app_id"));
+        assertTrue(status.getOfficialSandboxMissingItems().contains("AGENT_GROUP_ALIPAY_PRIVATE_KEY / alipay.merchant_private_key"));
+        assertTrue(status.getOfficialSandboxMissingItems().contains("PUBLIC_AGENT_GROUP_ALIPAY_NOTIFY_URL / public alipay.notify_url"));
 
         PaymentGatewayStatusResponse.ChannelStatus alipay = alipay(status);
         assertTrue(alipay.isSandboxMode());

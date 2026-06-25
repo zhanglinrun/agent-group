@@ -28,10 +28,6 @@ const DEFAULT_MODEL_CONFIG = {
 function preferredPayChannel(explicitChannel = "") {
   const configured = String(explicitChannel || import.meta.env?.VITE_PAYMENT_CHANNEL || "").trim();
   if (configured) return configured.toUpperCase();
-  const host = typeof window !== "undefined" ? window.location?.hostname : "";
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
-    return "MOCK_PAY";
-  }
   return "ALIPAY";
 }
 
@@ -92,7 +88,7 @@ export function normalizeApiMessage(message, fallback = "操作失败") {
     return "模型密钥未配置或不可用，请检查 .env 中的 DashScope API Key，或在模型配置里填写可用的 API 地址和密钥";
   }
   if (lower.includes("alipay config incomplete")) {
-    return "支付宝沙箱配置不完整；本地开发可使用模拟支付，真实支付需要配置支付宝 appId、应用私钥和支付宝公钥";
+    return "支付宝配置不完整，请检查 .env 中的 app_id、merchant_private_key、alipay_public_key、notify_url、return_url 和 gatewayUrl";
   }
   if ((lower.includes("duplicate entry") || lower.includes("sqlintegrityconstraintviolationexception"))
     && (lower.includes("uk_user_biz_flow") || lower.includes("user_quota_flow"))) {
@@ -1059,19 +1055,6 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
       notifyConfigVO: {
         notifyType: "MQ"
       }
-    })
-  });
-}
-
-export async function mockPaySuccess(orderId) {
-  return request("/api/v1/trade/order/mock-pay-success", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      orderId,
-      outTradeNo: `MOCK_${orderId}_${Date.now()}`,
-      payChannel: "MOCK_PAY"
     })
   });
 }

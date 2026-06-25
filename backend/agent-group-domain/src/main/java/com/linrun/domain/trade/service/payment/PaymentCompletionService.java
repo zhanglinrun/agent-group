@@ -1,34 +1,27 @@
 package com.linrun.domain.trade.service.payment;
 
-import com.linrun.api.dto.MockPayCallbackRequest;
-import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.domain.account.service.UserQuotaService;
+import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
-import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
+import com.linrun.domain.trade.model.payment.PaymentCompletionCommand;
+import com.linrun.domain.trade.model.payment.PaymentCompletionResult;
+import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
-import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 支付成功后的统一处理服务。
- *
- * 名字里的 Mock 是历史遗留：它最初服务于模拟支付入口，但现在真实支付回调
- * （{@link PaymentService#handleWebhook}）验签后也复用这里的 {@link #paySuccess} 完成
- * 订单状态流转、拼团结算和额度发放。换言之这是真实交易链路的核心一环，并非仅供测试。
- */
 @Service
-public class MockPayCallbackService {
+public class PaymentCompletionService {
 
     private final TradeOrderRepository tradeOrderRepository;
     private final TradeOrderService tradeOrderService;
@@ -36,19 +29,19 @@ public class MockPayCallbackService {
     private final TradeStatusFlowService tradeStatusFlowService;
     private final UserQuotaService userQuotaService;
 
-    public MockPayCallbackService(TradeOrderRepository tradeOrderRepository,
-                                  TradeOrderService tradeOrderService,
-                                  GroupBuySettlementService groupBuySettlementService,
-                                  TradeStatusFlowService tradeStatusFlowService) {
+    public PaymentCompletionService(TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    GroupBuySettlementService groupBuySettlementService,
+                                    TradeStatusFlowService tradeStatusFlowService) {
         this(tradeOrderRepository, tradeOrderService, groupBuySettlementService, tradeStatusFlowService, null);
     }
 
     @Autowired
-    public MockPayCallbackService(TradeOrderRepository tradeOrderRepository,
-                                  TradeOrderService tradeOrderService,
-                                  GroupBuySettlementService groupBuySettlementService,
-                                  TradeStatusFlowService tradeStatusFlowService,
-                                  UserQuotaService userQuotaService) {
+    public PaymentCompletionService(TradeOrderRepository tradeOrderRepository,
+                                    TradeOrderService tradeOrderService,
+                                    GroupBuySettlementService groupBuySettlementService,
+                                    TradeStatusFlowService tradeStatusFlowService,
+                                    UserQuotaService userQuotaService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.tradeOrderService = tradeOrderService;
         this.groupBuySettlementService = groupBuySettlementService;
@@ -57,37 +50,37 @@ public class MockPayCallbackService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public MockPayCallbackResponse paySuccess(MockPayCallbackRequest request) {
-        if (request == null) {
+    public PaymentCompletionResult complete(PaymentCompletionCommand command) {
+        if (command == null) {
             throw new AppException("0001", "支付回调参数不能为空");
         }
-        if (!StringUtils.hasText(request.getOrderId())) {
+        if (!StringUtils.hasText(command.getOrderId())) {
             throw new AppException("0001", "订单编号不能为空");
         }
-        if (!StringUtils.hasText(request.getOutTradeNo())) {
+        if (!StringUtils.hasText(command.getGatewayTradeNo())) {
             throw new AppException("0001", "外部交易单号不能为空");
         }
 
-        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(request.getOrderId())
+        TradeOrderEntity tradeOrder = tradeOrderRepository.queryTradeOrderByOrderId(command.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0013", "订单不存在"));
-        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(request.getOrderId())
+        PayOrderEntity payOrder = tradeOrderRepository.queryPayOrderByOrderId(command.getOrderId())
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
         if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
             grantQuotaIfAvailable(tradeOrder);
-            return toResponse(tradeOrder, payOrder);
+            return toResult(tradeOrder, payOrder);
         }
 
         TradeOrderStatusEnumVO fromOrderStatus = tradeOrder.getOrderStatus();
         PayStatusEnumVO fromPayStatus = payOrder.getPayStatus();
-        LocalDateTime payTime = request.getPayTime() == null ? LocalDateTime.now() : request.getPayTime();
-        tradeOrderService.markPaySuccess(tradeOrder, payOrder, request.getOutTradeNo(), payTime);
+        LocalDateTime payTime = command.getPayTime() == null ? LocalDateTime.now() : command.getPayTime();
+        tradeOrderService.markPaySuccess(tradeOrder, payOrder, command.getGatewayTradeNo(), payTime);
         tradeOrderRepository.updatePaySuccess(tradeOrder, payOrder);
         recordPaySuccessFlow(tradeOrder, payOrder, fromOrderStatus, fromPayStatus);
         List<String> settledOrderIds = groupBuySettlementService.settlePaySuccess(tradeOrder);
         grantQuotaIfAvailable(tradeOrder, settledOrderIds);
 
-        return toResponse(tradeOrder, payOrder);
+        return toResult(tradeOrder, payOrder);
     }
 
     private void grantQuotaIfAvailable(TradeOrderEntity tradeOrder) {
@@ -138,28 +131,14 @@ public class MockPayCallbackService {
                 "pay success");
     }
 
-    private MockPayCallbackResponse toResponse(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
-        MockPayCallbackResponse response = new MockPayCallbackResponse();
-        response.setOrderId(tradeOrder.getOrderId());
-        response.setPayOrderId(payOrder.getPayOrderId());
-        response.setOrderStatus(tradeOrder.getOrderStatus().name());
-        response.setPayStatus(payOrder.getPayStatus().name());
-        response.setOutTradeNo(payOrder.getOutTradeNo());
-        response.setPayTime(payOrder.getPayTime());
-        return response;
+    private PaymentCompletionResult toResult(TradeOrderEntity tradeOrder, PayOrderEntity payOrder) {
+        PaymentCompletionResult result = new PaymentCompletionResult();
+        result.setOrderId(tradeOrder.getOrderId());
+        result.setPayOrderId(payOrder.getPayOrderId());
+        result.setOrderStatus(tradeOrder.getOrderStatus().name());
+        result.setPayStatus(payOrder.getPayStatus().name());
+        result.setGatewayTradeNo(payOrder.getOutTradeNo());
+        result.setPayTime(payOrder.getPayTime());
+        return result;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

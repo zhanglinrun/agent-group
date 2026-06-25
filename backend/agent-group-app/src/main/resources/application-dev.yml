@@ -162,7 +162,6 @@ agent:
       admin-password: ${AGENT_GROUP_ADMIN_PASSWORD:admin_dev}
       operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
       operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
-      mock-payment-enabled: ${AGENT_GROUP_MOCK_PAYMENT_ENABLED:true}
       demo-user-enabled: ${AGENT_GROUP_DEMO_USER_ENABLED:true}
     evaluate:
       case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
@@ -170,14 +169,14 @@ agent:
       webhook:
         replay-window-seconds: ${AGENT_GROUP_PAYMENT_WEBHOOK_REPLAY_WINDOW_SECONDS:300}
       alipay:
-        gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+        gateway-url: ${AGENT_GROUP_ALIPAY_GATEWAY_URL:${alipay.gatewayUrl:${gatewayUrl:https://openapi-sandbox.dl.alipaydev.com/gateway.do}}}
         app-id: ${AGENT_GROUP_ALIPAY_APP_ID:}
         private-key: ${AGENT_GROUP_ALIPAY_PRIVATE_KEY:}
         public-key: ${AGENT_GROUP_ALIPAY_PUBLIC_KEY:}
         charset: ${AGENT_GROUP_ALIPAY_CHARSET:UTF-8}
         sign-type: ${AGENT_GROUP_ALIPAY_SIGN_TYPE:RSA2}
-        notify-url: ${AGENT_GROUP_ALIPAY_NOTIFY_URL:http://localhost:8080/api/v1/payment/alipay/notify}
-        return-url: ${AGENT_GROUP_ALIPAY_RETURN_URL:}
+        notify-url: ${AGENT_GROUP_ALIPAY_NOTIFY_URL:${alipay.notify_url:${notify_url:}}}
+        return-url: ${AGENT_GROUP_ALIPAY_RETURN_URL:${alipay.return_url:${return_url:}}}
       wechat:
         app-id: ${AGENT_GROUP_WECHAT_APP_ID:}
         merchant-id: ${AGENT_GROUP_WECHAT_MERCHANT_ID:}

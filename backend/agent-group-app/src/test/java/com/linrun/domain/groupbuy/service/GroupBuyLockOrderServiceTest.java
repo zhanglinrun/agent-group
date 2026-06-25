@@ -5,8 +5,6 @@ import com.linrun.api.dto.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.dto.RefundGroupBuyOrderRequest;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
 import com.linrun.api.dto.LockGroupBuyOrderResponse;
-import com.linrun.api.dto.MockPayCallbackRequest;
-import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyStockRepository;
@@ -25,6 +23,8 @@ import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
+import com.linrun.domain.trade.model.payment.PaymentCompletionCommand;
+import com.linrun.domain.trade.model.payment.PaymentCompletionResult;
 import com.linrun.domain.trade.model.payment.PaymentReconcileCommand;
 import com.linrun.domain.trade.model.payment.PaymentReconcileResult;
 import com.linrun.domain.trade.model.payment.PaymentRefundCommand;
@@ -44,7 +44,7 @@ import com.linrun.domain.trade.service.TradeCompensationService;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.domain.trade.service.TradeRefundService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
-import com.linrun.domain.trade.service.payment.MockPayCallbackService;
+import com.linrun.domain.trade.service.payment.PaymentCompletionService;
 import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.domain.trade.service.payment.PaymentWebhookReplayGuard;
 import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
@@ -61,6 +61,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -94,7 +95,7 @@ class GroupBuyLockOrderServiceTest {
         assertTrue(response.getPayOrderId().startsWith("P"));
         assertEquals(TradeOrderStatusEnumVO.PAY_WAIT.name(), response.getOrderStatus());
         assertEquals(PayStatusEnumVO.WAIT_PAY.name(), response.getPayStatus());
-        assertTrue(response.getPayUrl().contains(response.getOrderId()));
+        assertNull(response.getPayUrl());
         assertEquals(TradeBuyTypeEnumVO.GROUP_BUY, tradeOrderRepository.savedTradeOrder.getBuyType());
         assertEquals("A10001", tradeOrderRepository.savedTradeOrder.getActivityId());
         assertEquals(new BigDecimal("2399.00"), tradeOrderRepository.savedTradeOrder.getOriginAmount());
@@ -233,18 +234,16 @@ class GroupBuyLockOrderServiceTest {
     }
 
     @Test
-    void shouldMarkGroupBuyOrderPaySuccessAfterMockCallback() {
+    void shouldMarkGroupBuyOrderPaySuccessAfterPaymentComplete() {
         FakeGroupBuyOrderLockRepository lockRepository = new FakeGroupBuyOrderLockRepository();
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_10006"));
-        MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
-        MockPayCallbackRequest callbackRequest = new MockPayCallbackRequest();
-        callbackRequest.setOrderId(lockResponse.getOrderId());
-        callbackRequest.setOutTradeNo("T10006");
+        PaymentCompletionService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
+        PaymentCompletionCommand callbackRequest = callback(lockResponse.getOrderId(), "T10006");
 
-        MockPayCallbackResponse callbackResponse = callbackService.paySuccess(callbackRequest);
+        PaymentCompletionResult callbackResponse = callbackService.complete(callbackRequest);
 
         assertEquals(lockResponse.getOrderId(), callbackResponse.getOrderId());
         assertEquals(lockResponse.getPayOrderId(), callbackResponse.getPayOrderId());
@@ -264,15 +263,15 @@ class GroupBuyLockOrderServiceTest {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
-        MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
+        PaymentCompletionService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
 
         LockGroupBuyOrderResponse first = lockOrderService.lock(request(null, "IDEM_20001"));
         LockGroupBuyOrderResponse second = lockOrderService.lock(request(first.getTeamId(), "IDEM_20002"));
         LockGroupBuyOrderResponse third = lockOrderService.lock(request(first.getTeamId(), "IDEM_20003"));
 
-        callbackService.paySuccess(callback(first.getOrderId(), "T20001"));
-        callbackService.paySuccess(callback(second.getOrderId(), "T20002"));
-        MockPayCallbackResponse thirdCallback = callbackService.paySuccess(callback(third.getOrderId(), "T20003"));
+        callbackService.complete(callback(first.getOrderId(), "T20001"));
+        callbackService.complete(callback(second.getOrderId(), "T20002"));
+        PaymentCompletionResult thirdCallback = callbackService.complete(callback(third.getOrderId(), "T20003"));
 
         assertEquals(TradeOrderStatusEnumVO.GROUP_SETTLED.name(), thirdCallback.getOrderStatus());
         assertEquals(GroupBuyTeamStatus.SUCCESS, lockRepository.teams.get(first.getTeamId()).getTeamStatus());
@@ -315,12 +314,12 @@ class GroupBuyLockOrderServiceTest {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
-        MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
+        PaymentCompletionService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService compensationService = compensationService(lockRepository, tradeOrderRepository, flowRepository);
         TradeRefundService tradeRefundService = tradeRefundService(
                 tradeOrderRepository, callbackService, compensationService, flowRepository);
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_30002"));
-        callbackService.paySuccess(callback(lockResponse.getOrderId(), "T30002"));
+        callbackService.complete(callback(lockResponse.getOrderId(), "T30002"));
         RefundGroupBuyOrderRequest refundRequest = new RefundGroupBuyOrderRequest();
         refundRequest.setOrderId(lockResponse.getOrderId());
         refundRequest.setRefundReason("用户申请拼团退款");
@@ -349,7 +348,7 @@ class GroupBuyLockOrderServiceTest {
         FakeGroupBuyStockRepository stockRepository = new FakeGroupBuyStockRepository(1);
         FakeGroupBuyTeamStockRepository teamStockRepository = new FakeGroupBuyTeamStockRepository();
         GroupBuyLockOrderService lockOrderService = service(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
-        MockPayCallbackService callbackService = callbackService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
+        PaymentCompletionService callbackService = callbackService(lockRepository, stockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService compensationService = compensationService(
                 lockRepository, stockRepository, teamStockRepository, tradeOrderRepository, flowRepository);
         TradeRefundService tradeRefundService = tradeRefundService(
@@ -361,7 +360,7 @@ class GroupBuyLockOrderServiceTest {
         assertEquals(1, stockRepository.stock.getLockedStock());
         assertEquals(GroupBuyStockFlowType.LOCK.name(), stockRepository.flows.get(0));
 
-        callbackService.paySuccess(callback(lockResponse.getOrderId(), "TSTOCK10001"));
+        callbackService.complete(callback(lockResponse.getOrderId(), "TSTOCK10001"));
 
         assertEquals(0, stockRepository.stock.getLockedStock());
         assertEquals(1, stockRepository.stock.getPaidStock());
@@ -383,7 +382,7 @@ class GroupBuyLockOrderServiceTest {
         FakeTradeOrderRepository tradeOrderRepository = new FakeTradeOrderRepository();
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         GroupBuyLockOrderService lockOrderService = service(lockRepository, tradeOrderRepository, flowRepository);
-        MockPayCallbackService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
+        PaymentCompletionService callbackService = callbackService(lockRepository, tradeOrderRepository, flowRepository);
         GroupBuyCompensationService groupCompensationService = compensationService(
                 lockRepository, tradeOrderRepository, flowRepository);
         PaymentService paymentService = new PaymentService(
@@ -407,7 +406,7 @@ class GroupBuyLockOrderServiceTest {
                 paymentService);
 
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_TIMEOUT_REFUND_10001"));
-        callbackService.paySuccess(callback(lockResponse.getOrderId(), "TTIMEOUT10001"));
+        callbackService.complete(callback(lockResponse.getOrderId(), "TTIMEOUT10001"));
         GroupBuyOrderLock orderLock = lockRepository.queryLockByOrderId(lockResponse.getOrderId()).orElseThrow();
         lockRepository.teams.get(orderLock.getTeamId()).setValidEndTime(LocalDateTime.now().minusMinutes(1));
 
@@ -544,30 +543,27 @@ class GroupBuyLockOrderServiceTest {
         return request;
     }
 
-    private MockPayCallbackRequest callback(String orderId, String outTradeNo) {
-        MockPayCallbackRequest callback = new MockPayCallbackRequest();
-        callback.setOrderId(orderId);
-        callback.setOutTradeNo(outTradeNo);
-        return callback;
+    private PaymentCompletionCommand callback(String orderId, String outTradeNo) {
+        return PaymentCompletionCommand.paid(orderId, outTradeNo, null);
     }
 
-    private MockPayCallbackService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
-                                                   FakeTradeOrderRepository tradeOrderRepository) {
+    private PaymentCompletionService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                     FakeTradeOrderRepository tradeOrderRepository) {
         return callbackService(lockRepository, tradeOrderRepository, new FakeTradeStatusFlowRepository());
     }
 
-    private MockPayCallbackService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
-                                                   FakeTradeOrderRepository tradeOrderRepository,
-                                                   FakeTradeStatusFlowRepository flowRepository) {
+    private PaymentCompletionService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                     FakeTradeOrderRepository tradeOrderRepository,
+                                                     FakeTradeStatusFlowRepository flowRepository) {
         return callbackService(lockRepository, GroupBuyStockRepository.noop(), tradeOrderRepository, flowRepository);
     }
 
-    private MockPayCallbackService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
-                                                   GroupBuyStockRepository stockRepository,
-                                                   FakeTradeOrderRepository tradeOrderRepository,
-                                                   FakeTradeStatusFlowRepository flowRepository) {
+    private PaymentCompletionService callbackService(FakeGroupBuyOrderLockRepository lockRepository,
+                                                     GroupBuyStockRepository stockRepository,
+                                                     FakeTradeOrderRepository tradeOrderRepository,
+                                                     FakeTradeStatusFlowRepository flowRepository) {
         TradeStatusFlowService tradeStatusFlowService = new TradeStatusFlowService(flowRepository);
-        return new MockPayCallbackService(
+        return new PaymentCompletionService(
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new GroupBuySettlementService(lockRepository, stockRepository, tradeOrderRepository, tradeStatusFlowService),
@@ -580,7 +576,7 @@ class GroupBuyLockOrderServiceTest {
     }
 
     private TradeRefundService tradeRefundService(FakeTradeOrderRepository tradeOrderRepository,
-                                                  MockPayCallbackService callbackService,
+                                                  PaymentCompletionService callbackService,
                                                   GroupBuyCompensationService compensationService,
                                                   FakeTradeStatusFlowRepository flowRepository) {
         PaymentService paymentService = new PaymentService(
@@ -845,7 +841,7 @@ class GroupBuyLockOrderServiceTest {
                     command.getOrderId(),
                     command.getPayOrderId(),
                     command.getPayChannel(),
-                    "mock://pay/" + command.getPayOrderId(),
+                    "https://pay.example.com/" + command.getPayOrderId(),
                     "GT" + command.getPayOrderId(),
                     "created");
         }

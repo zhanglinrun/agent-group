@@ -1,25 +1,14 @@
 ﻿{
     "case":  "payment-sandbox-check",
-    "result":  "PASS",
+    "result":  "FAIL",
     "runId":  "20260602231508189",
-    "requireOfficialSandbox":  false,
+    "requireOfficialSandbox":  true,
     "status":  {
-                   "mockReady":  true,
+                   "mockReady":  false,
                    "officialGatewayReady":  false,
                    "officialSandboxReady":  false,
-                   "message":  "official payment sandbox is not ready; local mock payment remains available",
+                   "message":  "official payment sandbox is not ready; MOCK_PAY is disabled",
                    "channels":  [
-                                    {
-                                        "payChannel":  "MOCK_PAY",
-                                        "mode":  "MOCK",
-                                        "configured":  true,
-                                        "sandboxMode":  true,
-                                        "gatewayUrl":  "mock://pay",
-                                        "requiredItems":  {
-                                                              "localMock":  true
-                                                          },
-                                        "message":  "local mock payment is ready"
-                                    },
                                     {
                                         "payChannel":  "ALIPAY",
                                         "mode":  "MISSING",

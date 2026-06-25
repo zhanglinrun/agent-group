@@ -13,13 +13,14 @@ import com.linrun.api.dto.QueryPaymentRefundResponse;
 import com.linrun.api.dto.ReconcilePaymentRequest;
 import com.linrun.api.dto.RefundPaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
-import com.linrun.api.dto.MockPayCallbackResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
 import com.linrun.api.dto.RefundPaymentResponse;
 import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.adapter.repository.PaymentWebhookReplayRepository;
+import com.linrun.domain.trade.model.payment.PaymentCompletionCommand;
+import com.linrun.domain.trade.model.payment.PaymentCompletionResult;
 import com.linrun.domain.trade.model.payment.PaymentCreateCommand;
 import com.linrun.domain.trade.model.payment.PaymentCreateResult;
 import com.linrun.domain.trade.model.payment.PaymentReconcileCommand;
@@ -70,7 +71,7 @@ class PaymentServiceTest {
 
         CreatePaymentResponse response = fixture.service.createPayment(request);
 
-        assertEquals("mock://pay/P10001", response.getPayUrl());
+        assertEquals("https://pay.example.com/P10001", response.getPayUrl());
         assertEquals("P10001", fixture.gateway.createCommand.getPayOrderId());
         assertTrue(fixture.flowRepository.flows.stream()
                 .anyMatch(flow -> TradeStatusFlowService.EVENT_CREATE_GATEWAY_PAYMENT.equals(flow.getEventType())));
@@ -310,7 +311,7 @@ class PaymentServiceTest {
         AppException exception = assertThrows(AppException.class, () -> fixture.service.handleWebhook(request));
 
         assertEquals("PAY_0015", exception.getCode());
-        assertEquals(0, fixture.callbackService.paySuccessCount);
+        assertEquals(0, fixture.paymentCompletionService.completeCount);
     }
 
     @Test
@@ -329,7 +330,7 @@ class PaymentServiceTest {
         PaymentWebhookResponse response = fixture.service.handleWebhook(request);
 
         assertTrue(response.isVerified());
-        assertEquals(1, fixture.callbackService.paySuccessCount);
+        assertEquals(1, fixture.paymentCompletionService.completeCount);
         assertEquals(0, fixture.repository.updatePaySuccessCount);
     }
 
@@ -379,43 +380,43 @@ class PaymentServiceTest {
         FakeTradeStatusFlowRepository flowRepository = new FakeTradeStatusFlowRepository();
         TradeStatusFlowService flowService = new TradeStatusFlowService(flowRepository);
         TradeOrderService tradeOrderService = new TradeOrderService();
-        CountingMockPayCallbackService callbackService = new CountingMockPayCallbackService(
+        CountingPaymentCompletionService paymentCompletionService = new CountingPaymentCompletionService(
                 repository,
                 tradeOrderService,
                 new GroupBuySettlementService(null, repository, flowService),
                 flowService);
         FakePaymentGatewayClient gateway = new FakePaymentGatewayClient();
         return new Fixture(
-                new PaymentService(repository, tradeOrderService, callbackService,
+                new PaymentService(repository, tradeOrderService, paymentCompletionService,
                         gateway, replayGuard, flowService),
                 repository,
                 flowRepository,
                 gateway,
-                callbackService);
+                paymentCompletionService);
     }
 
     private record Fixture(PaymentService service,
                            FakeTradeOrderRepository repository,
                            FakeTradeStatusFlowRepository flowRepository,
                            FakePaymentGatewayClient gateway,
-                           CountingMockPayCallbackService callbackService) {
+                           CountingPaymentCompletionService paymentCompletionService) {
     }
 
-    private static class CountingMockPayCallbackService extends MockPayCallbackService {
+    private static class CountingPaymentCompletionService extends PaymentCompletionService {
 
-        private int paySuccessCount;
+        private int completeCount;
 
-        private CountingMockPayCallbackService(TradeOrderRepository tradeOrderRepository,
-                                               TradeOrderService tradeOrderService,
-                                               GroupBuySettlementService groupBuySettlementService,
-                                               TradeStatusFlowService tradeStatusFlowService) {
+        private CountingPaymentCompletionService(TradeOrderRepository tradeOrderRepository,
+                                                 TradeOrderService tradeOrderService,
+                                                 GroupBuySettlementService groupBuySettlementService,
+                                                 TradeStatusFlowService tradeStatusFlowService) {
             super(tradeOrderRepository, tradeOrderService, groupBuySettlementService, tradeStatusFlowService);
         }
 
         @Override
-        public MockPayCallbackResponse paySuccess(com.linrun.api.dto.MockPayCallbackRequest request) {
-            paySuccessCount++;
-            return super.paySuccess(request);
+        public PaymentCompletionResult complete(PaymentCompletionCommand command) {
+            completeCount++;
+            return super.complete(command);
         }
     }
 
@@ -446,7 +447,7 @@ class PaymentServiceTest {
                     command.getOrderId(),
                     command.getPayOrderId(),
                     command.getPayChannel(),
-                    "mock://pay/" + command.getPayOrderId(),
+                    "https://pay.example.com/" + command.getPayOrderId(),
                     "GT" + command.getPayOrderId(),
                     "created");
         }
@@ -563,7 +564,7 @@ class PaymentServiceTest {
                     "O10001",
                     new BigDecimal("2399.00"),
                     "ALIPAY",
-                    "mock://pay/P10001",
+                    null,
                     LocalDateTime.now());
             payOrder.setPayStatus(payStatus);
         }

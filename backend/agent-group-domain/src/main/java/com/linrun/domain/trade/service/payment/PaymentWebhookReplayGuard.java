@@ -44,9 +44,6 @@ public class PaymentWebhookReplayGuard {
     }
 
     public boolean acquireProcessingLock(PaymentChannel channel, PaymentWebhookResult result) {
-        if (PaymentChannel.MOCK_PAY.equals(channel)) {
-            return true;
-        }
         LocalDateTime now = validateWebhookTime(result);
         String replayKey = replayKey(channel, result);
         if (replayRepository != null) {
@@ -60,9 +57,6 @@ public class PaymentWebhookReplayGuard {
     }
 
     public void releaseProcessingLock(PaymentChannel channel, PaymentWebhookResult result) {
-        if (PaymentChannel.MOCK_PAY.equals(channel)) {
-            return;
-        }
         String replayKey = replayKey(channel, result);
         if (replayRepository != null) {
             replayRepository.releaseProcessingLock(replayKey);

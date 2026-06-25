@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,7 +28,7 @@ class TradeOrderServiceTest {
         TradeOrderService service = new TradeOrderService();
 
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.DIRECT, null, "2399.00", "2399.00"));
-        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "MOCK_PAY");
+        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "ALIPAY");
 
         assertTrue(order.getOrderId().startsWith("O"));
         assertEquals("U10001", order.getUserId());
@@ -39,8 +40,8 @@ class TradeOrderServiceTest {
         assertTrue(payOrder.getPayOrderId().startsWith("P"));
         assertEquals(order.getOrderId(), payOrder.getOrderId());
         assertEquals(PayStatusEnumVO.WAIT_PAY, payOrder.getPayStatus());
-        assertEquals("MOCK_PAY", payOrder.getPayChannel());
-        assertTrue(payOrder.getPayUrl().contains(order.getOrderId()));
+        assertEquals("ALIPAY", payOrder.getPayChannel());
+        assertNull(payOrder.getPayUrl());
     }
 
     @Test
@@ -82,7 +83,7 @@ class TradeOrderServiceTest {
     void shouldMarkPaySuccessIdempotently() {
         TradeOrderService service = new TradeOrderService();
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.DIRECT, null, "2399.00", "2399.00"));
-        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "MOCK_PAY");
+        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "ALIPAY");
 
         service.markPaySuccess(order, tradePayOrder.getPayOrder(), "T10001", PAY_TIME);
         service.markPaySuccess(order, tradePayOrder.getPayOrder(), "T10001", PAY_TIME.plusMinutes(1));
@@ -98,7 +99,7 @@ class TradeOrderServiceTest {
     void shouldCloseUnpaidOrder() {
         TradeOrderService service = new TradeOrderService();
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.DIRECT, null, "2399.00", "2399.00"));
-        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "MOCK_PAY");
+        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "ALIPAY");
         LocalDateTime closeTime = PAY_TIME.plusMinutes(30);
 
         service.closeUnpaidOrder(order, tradePayOrder.getPayOrder(), closeTime);
@@ -112,7 +113,7 @@ class TradeOrderServiceTest {
     void shouldRejectClosingPaidOrder() {
         TradeOrderService service = new TradeOrderService();
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.DIRECT, null, "2399.00", "2399.00"));
-        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "MOCK_PAY");
+        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "ALIPAY");
         service.markPaySuccess(order, tradePayOrder.getPayOrder(), "T10001", PAY_TIME);
 
         AppException exception = assertThrows(AppException.class,
@@ -125,7 +126,7 @@ class TradeOrderServiceTest {
     void shouldSettlePaidGroupBuyOrder() {
         TradeOrderService service = new TradeOrderService();
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.GROUP_BUY, "A10001", "2399.00", "2099.00"));
-        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "MOCK_PAY");
+        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "ALIPAY");
         service.markPaySuccess(order, tradePayOrder.getPayOrder(), "T10001", PAY_TIME);
 
         order.markGroupSettled();
@@ -138,7 +139,7 @@ class TradeOrderServiceTest {
     void shouldRejectGroupSettlementForDirectOrder() {
         TradeOrderService service = new TradeOrderService();
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.DIRECT, null, "2399.00", "2399.00"));
-        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "MOCK_PAY");
+        TradePayOrderAggregate tradePayOrder = service.createPayOrder(order, "ALIPAY");
         service.markPaySuccess(order, tradePayOrder.getPayOrder(), "T10001", PAY_TIME);
 
         AppException exception = assertThrows(AppException.class, order::markGroupSettled);
@@ -151,7 +152,7 @@ class TradeOrderServiceTest {
         TradeOrderService service = new TradeOrderService();
         TradeOrderEntity order = service.createOrder(command(TradeBuyTypeEnumVO.DIRECT, null, "2399.00", "2399.00"));
         PayOrderEntity payOrder = PayOrderEntity.waitPay("P10001", "OTHER_ORDER", new BigDecimal("2399.00"),
-                "MOCK_PAY", "mock://pay", PAY_TIME);
+                "ALIPAY", null, PAY_TIME);
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.markPaySuccess(order, payOrder, "T10001", PAY_TIME));

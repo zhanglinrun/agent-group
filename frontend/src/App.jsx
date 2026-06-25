@@ -91,7 +91,6 @@ import {
   hasAssistantPayload,
   isImageArtifact,
   isImageUpload,
-  isMockPayment,
   isOperatorAuthText,
   isPaymentFormHtml,
   latestAssistantWithPayload,
@@ -130,7 +129,6 @@ import {
   login,
   logout,
   modelConfigReady,
-  mockPaySuccess,
   normalizeApiMessage,
   queryAgentCapabilities,
   queryAcademicReplay,
@@ -2199,20 +2197,6 @@ function AgentWorkspaceApp() {
         ...paymentDialog,
         payFormHtml: paymentDialog.payFormHtml || (isPaymentFormHtml(paymentDialog.payUrl) ? paymentDialog.payUrl : "")
       };
-      if (isMockPayment(preparedPayment)) {
-        const mockRes = await mockPaySuccess(paymentDialog.orderId);
-        if (!apiSucceeded(mockRes)) {
-          throw new Error(normalizeUserMessage(mockRes?.info || mockRes?.message, "模拟支付失败"));
-        }
-        setPaymentDialog(null);
-        setToast(Number(paymentDialog.marketType) === 1
-          ? (paymentDialog.productType === "MEMBERSHIP_PLAN" ? "模拟支付完成，拼团成团后会员生效" : "模拟支付完成，拼团成团后额度到账")
-          : (paymentDialog.productType === "MEMBERSHIP_PLAN" ? "模拟支付完成，会员已生效" : "模拟支付完成，额度已到账"));
-        await loadOrders().catch(() => {});
-        await loadQuota().catch(() => {});
-        await loadGroupMarketConfig().catch(() => {});
-        return;
-      }
       const payWindow = window.open("", "_blank");
       if (payWindow && !payWindow.closed) {
         payWindow.document.write("<!doctype html><html><head><meta charset=\"UTF-8\"><title>支付宝支付</title></head><body>正在进入支付宝...</body></html>");
@@ -4524,7 +4508,6 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
   const amount = Number(payment?.amount || 0).toFixed(2);
   const isGroupOrder = Number(payment?.marketType) === 1;
   const isMembershipOrder = payment?.productType === "MEMBERSHIP_PLAN";
-  const mockPayment = isMockPayment(payment);
   const paying = buyingKey === `pay-${payment?.orderId}`;
 
   return (
@@ -4534,12 +4517,12 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
         <div className="payment-icon">
           <CreditCard size={24} />
         </div>
-        <h3>{mockPayment ? "确认模拟支付" : "进入支付宝支付"}</h3>
+        <h3>进入支付宝支付</h3>
         <p>{isGroupOrder
           ? (isMembershipOrder ? "支付完成后先等待成团，成团后会员才会生效。" : "支付完成后先等待成团，成团后额度才会到账。")
           : isMembershipOrder
-            ? (mockPayment ? "本地模拟支付完成后，会员会按后端交易状态生效。" : "支付完成并回调成功后会员会自动生效。")
-            : (mockPayment ? "本地模拟支付完成后，额度会按后端交易状态到账。" : "支付完成并回调成功后额度会自动到账。")}</p>
+            ? "支付完成并回调成功后会员会自动生效。"
+            : "支付完成并回调成功后额度会自动到账。"}</p>
         <div className="payment-summary">
           <div>
             <span>订单</span>
@@ -4564,7 +4547,7 @@ function PaymentConfirmDialog({ payment, buyingKey, onConfirm, onCancel }) {
           <button type="button" onClick={onCancel} disabled={paying}>取消</button>
           <button type="button" className="primary" onClick={onConfirm} disabled={paying}>
             {paying ? <Loader2 size={16} className="spin" /> : <CreditCard size={16} />}
-            {paying ? "处理中" : (mockPayment ? "确认模拟支付" : "去支付宝支付")}
+            {paying ? "处理中" : "去支付宝支付"}
           </button>
         </div>
       </div>

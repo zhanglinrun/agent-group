@@ -65,6 +65,34 @@ class DotenvPropertySourceTest {
         assertEquals("from-env-local", environment.getProperty("DOTENV_LOCAL_TEST_KEY"));
     }
 
+    @Test
+    void mapsAlipayDotenvAliasesToProjectProperties() throws IOException {
+        Path projectRoot = tempDir.resolve("agent-group");
+        Files.createDirectories(projectRoot);
+        Files.writeString(projectRoot.resolve("AGENTS.md"), "# test\n");
+        Files.writeString(projectRoot.resolve(".env"), """
+                alipay.app_id=app-1001
+                alipay.merchant_private_key=private-key
+                alipay.alipay_public_key=public-key
+                alipay.notify_url=https://pay.example.com/notify
+                alipay.return_url=https://pay.example.com/return
+                alipay.gatewayUrl=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+                """);
+        System.setProperty("user.dir", projectRoot.toString());
+
+        StandardEnvironment environment = new StandardEnvironment();
+
+        DotenvPropertySource.addTo(environment);
+
+        assertEquals("app-1001", environment.getProperty("AGENT_GROUP_ALIPAY_APP_ID"));
+        assertEquals("private-key", environment.getProperty("AGENT_GROUP_ALIPAY_PRIVATE_KEY"));
+        assertEquals("public-key", environment.getProperty("AGENT_GROUP_ALIPAY_PUBLIC_KEY"));
+        assertEquals("https://pay.example.com/notify", environment.getProperty("AGENT_GROUP_ALIPAY_NOTIFY_URL"));
+        assertEquals("https://pay.example.com/return", environment.getProperty("AGENT_GROUP_ALIPAY_RETURN_URL"));
+        assertEquals("https://openapi-sandbox.dl.alipaydev.com/gateway.do",
+                environment.getProperty("AGENT_GROUP_ALIPAY_GATEWAY_URL"));
+    }
+
     private StandardEnvironment environmentWithSystemEnv(String key, String value) {
         StandardEnvironment environment = new StandardEnvironment();
         environment.getPropertySources().replace(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME,

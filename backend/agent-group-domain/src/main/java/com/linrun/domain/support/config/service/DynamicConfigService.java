@@ -30,7 +30,6 @@ public class DynamicConfigService {
     public static final String GROUP_REFUND_NOTIFY_MQ = "groupRefundNotifyMQ";
     public static final String PAYMENT_QUERY_COMPENSATION_SWITCH = "paymentQueryCompensationSwitch";
     public static final String PAYMENT_QUERY_COMPENSATION_LIMIT = "paymentQueryCompensationLimit";
-    public static final String MOCK_PAY_SWITCH = "mockPaySwitch";
     public static final String PAYMENT_RISK_CHECK_SWITCH = "paymentRiskCheckSwitch";
     public static final String AGENT_PLAN_EXECUTE_SWITCH = "agentPlanExecuteSwitch";
     public static final String AGENT_CONTEXT_COMPACT_THRESHOLD = "agentContextCompactThreshold";
@@ -166,10 +165,6 @@ public class DynamicConfigService {
 
     public int paymentQueryCompensationLimit() {
         return Math.max(1, parseInt(getValue(PAYMENT_QUERY_COMPENSATION_LIMIT, "50"), 50));
-    }
-
-    public boolean isMockPayOpen() {
-        return "1".equals(getValue(MOCK_PAY_SWITCH, "0"));
     }
 
     public boolean isPaymentRiskCheckOpen() {

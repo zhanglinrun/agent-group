@@ -286,7 +286,7 @@ insert into trade_status_flow (
   flow_id, order_id, biz_type, biz_id, event_type, from_status, to_status, remark, create_time
 ) values
 ('F-DEMO-DIRECT-001', 'O-DEMO-DIRECT-001', 'ORDER', 'O-DEMO-DIRECT-001', 'CREATE_DIRECT_ORDER', null, 'PAY_WAIT', '演示数据：直接购买订单创建', date_sub(now(), interval 70 minute)),
-('F-DEMO-DIRECT-002', 'O-DEMO-DIRECT-001', 'PAY', 'P-DEMO-DIRECT-001', 'PAY_SUCCESS', 'PAY_WAIT', 'PAY_SUCCESS', '演示数据：模拟支付成功', date_sub(now(), interval 60 minute)),
+('F-DEMO-DIRECT-002', 'O-DEMO-DIRECT-001', 'PAY', 'P-DEMO-DIRECT-001', 'PAY_SUCCESS', 'PAY_WAIT', 'PAY_SUCCESS', '演示数据：支付宝支付成功', date_sub(now(), interval 60 minute)),
 ('F-DEMO-GROUP-001', 'O-DEMO-GROUP-001', 'ORDER', 'O-DEMO-GROUP-001', 'CREATE_GROUP_ORDER', null, 'PAY_WAIT', '演示数据：拼团订单创建', date_sub(now(), interval 40 minute)),
 ('F-DEMO-GROUP-002', 'O-DEMO-GROUP-001', 'GROUP', 'L-DEMO-GROUP-001', 'GROUP_LOCKED', null, 'LOCKED', '演示数据：拼团名额锁定', date_sub(now(), interval 38 minute)),
 ('F-DEMO-GROUP-003', 'O-DEMO-GROUP-001', 'PAY', 'P-DEMO-GROUP-001', 'PAY_SUCCESS', 'PAY_WAIT', 'PAY_SUCCESS', '演示数据：拼团订单支付成功', date_sub(now(), interval 30 minute)),

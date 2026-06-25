@@ -49,7 +49,7 @@
   &quot;goodsId&quot;: &quot;${__P(GOODS_ID,G10001)}&quot;,&#xd;
   &quot;activityId&quot;: &quot;${__P(ACTIVITY_ID,A10001)}&quot;,&#xd;
   &quot;idempotentKey&quot;: &quot;LT${__UUID()}&quot;,&#xd;
-  &quot;payChannel&quot;: &quot;${__P(PAY_CHANNEL,MOCK_PAY)}&quot;&#xd;
+  &quot;payChannel&quot;: &quot;${__P(PAY_CHANNEL,ALIPAY)}&quot;&#xd;
 }</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
@@ -107,7 +107,7 @@
   &quot;userId&quot;: &quot;${__P(USER_ID,U10001)}&quot;,&#xd;
   &quot;goodsId&quot;: &quot;${__P(GOODS_ID,G10001)}&quot;,&#xd;
   &quot;idempotentKey&quot;: &quot;LT${__UUID()}&quot;,&#xd;
-  &quot;payChannel&quot;: &quot;${__P(PAY_CHANNEL,MOCK_PAY)}&quot;&#xd;
+  &quot;payChannel&quot;: &quot;${__P(PAY_CHANNEL,ALIPAY)}&quot;&#xd;
 }</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>

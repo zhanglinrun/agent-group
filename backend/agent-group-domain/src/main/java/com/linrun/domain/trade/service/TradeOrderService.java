@@ -49,7 +49,7 @@ public class TradeOrderService {
                 order.getOrderId(),
                 order.getPayAmount(),
                 payChannel,
-                "mock://" + payChannel + "/" + order.getOrderId(),
+                null,
                 LocalDateTime.now());
 
         TradePayOrderAggregate result = new TradePayOrderAggregate();
