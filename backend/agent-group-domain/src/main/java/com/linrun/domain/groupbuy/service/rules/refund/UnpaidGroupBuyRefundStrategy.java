@@ -8,7 +8,11 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.groupbuy.service.GroupBuyCompensationService;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
+@Component
+@Order(1)
 public class UnpaidGroupBuyRefundStrategy implements GroupBuyRefundStrategy {
 
     private final GroupBuyCompensationService groupBuyCompensationService;

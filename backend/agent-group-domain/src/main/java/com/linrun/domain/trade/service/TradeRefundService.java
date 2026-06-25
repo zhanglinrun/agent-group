@@ -14,7 +14,6 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.service.task.NotifyTaskService;
 import com.linrun.domain.trade.service.payment.PaymentService;
-import com.linrun.domain.groupbuy.service.rules.refund.GroupBuyRefundStrategyRouter;
 import com.linrun.domain.groupbuy.service.rules.refund.rule.GroupBuyRefundRuleChain;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,34 +27,23 @@ public class TradeRefundService {
     private final TradeOrderRepository tradeOrderRepository;
     private final PaymentService paymentService;
     private final GroupBuyCompensationService groupBuyCompensationService;
-    private final GroupBuyRefundStrategyRouter groupBuyRefundStrategyRouter;
     private final GroupBuyRefundRuleChain groupBuyRefundRuleChain;
     private final NotifyTaskService notifyTaskService;
     private final UserQuotaService userQuotaService;
-
-    public TradeRefundService(TradeOrderRepository tradeOrderRepository,
-                              PaymentService paymentService,
-                              GroupBuyCompensationService groupBuyCompensationService) {
-        this(tradeOrderRepository, paymentService, groupBuyCompensationService, null, null);
-    }
 
     @Autowired
     public TradeRefundService(TradeOrderRepository tradeOrderRepository,
                               PaymentService paymentService,
                               GroupBuyCompensationService groupBuyCompensationService,
+                              GroupBuyRefundRuleChain groupBuyRefundRuleChain,
                               NotifyTaskService notifyTaskService,
                               UserQuotaService userQuotaService) {
         this.tradeOrderRepository = tradeOrderRepository;
         this.paymentService = paymentService;
         this.groupBuyCompensationService = groupBuyCompensationService;
+        this.groupBuyRefundRuleChain = groupBuyRefundRuleChain;
         this.notifyTaskService = notifyTaskService;
         this.userQuotaService = userQuotaService;
-        this.groupBuyRefundStrategyRouter = new GroupBuyRefundStrategyRouter(paymentService, groupBuyCompensationService);
-        this.groupBuyRefundRuleChain = new GroupBuyRefundRuleChain(
-                tradeOrderRepository,
-                groupBuyCompensationService,
-                groupBuyRefundStrategyRouter,
-                notifyTaskService);
     }
 
     @Transactional(rollbackFor = Exception.class)

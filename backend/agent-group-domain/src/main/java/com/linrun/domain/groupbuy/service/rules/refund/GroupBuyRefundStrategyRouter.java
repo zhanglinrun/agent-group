@@ -4,23 +4,18 @@ import com.linrun.api.dto.RefundGroupBuyOrderRequest;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
-import com.linrun.domain.groupbuy.service.GroupBuyCompensationService;
-import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.types.exception.AppException;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+@Component
 public class GroupBuyRefundStrategyRouter {
 
     private final List<GroupBuyRefundStrategy> strategies;
 
-    public GroupBuyRefundStrategyRouter(PaymentService paymentService,
-                                        GroupBuyCompensationService groupBuyCompensationService) {
-        this.strategies = List.of(
-                new UnpaidGroupBuyRefundStrategy(groupBuyCompensationService),
-                new PaidUnsettledGroupBuyRefundStrategy(paymentService, groupBuyCompensationService),
-                new PaidSettledGroupBuyRefundStrategy(paymentService, groupBuyCompensationService)
-        );
+    public GroupBuyRefundStrategyRouter(List<GroupBuyRefundStrategy> strategies) {
+        this.strategies = strategies;
     }
 
     public GroupBuyCompensationResponse refund(RefundGroupBuyOrderRequest request,

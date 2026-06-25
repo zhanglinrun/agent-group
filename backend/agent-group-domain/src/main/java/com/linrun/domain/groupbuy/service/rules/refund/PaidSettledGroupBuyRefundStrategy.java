@@ -6,7 +6,11 @@ import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.groupbuy.service.GroupBuyCompensationService;
 import com.linrun.domain.trade.service.payment.PaymentService;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
+@Component
+@Order(3)
 public class PaidSettledGroupBuyRefundStrategy extends PaidUnsettledGroupBuyRefundStrategy {
 
     public PaidSettledGroupBuyRefundStrategy(PaymentService paymentService,

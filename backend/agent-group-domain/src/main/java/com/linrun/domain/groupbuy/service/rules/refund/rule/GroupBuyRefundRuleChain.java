@@ -11,6 +11,7 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.service.task.NotifyTaskService;
 import com.linrun.types.exception.AppException;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
@@ -18,6 +19,7 @@ import org.springframework.util.StringUtils;
  * 参数校验 → 订单加载 → 拼团类型校验 → 退款幂等（已有退款单补做名额释放和通知任务） →
  * 按订单状态路由退款策略 → 创建退款通知任务。
  */
+@Component
 public class GroupBuyRefundRuleChain {
 
     private final TradeOrderRepository tradeOrderRepository;

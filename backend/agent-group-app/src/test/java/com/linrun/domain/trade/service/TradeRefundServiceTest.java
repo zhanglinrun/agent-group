@@ -79,6 +79,7 @@ class TradeRefundServiceTest {
                 paymentService,
                 groupBuyCompensationService,
                 null,
+                null,
                 userQuotaService);
         return new Fixture(service, repository, paymentService, userQuotaService);
     }
