@@ -1,5 +1,6 @@
 package com.linrun.domain.academic.runtime.agent;
 
+import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Service
 public class AcademicAgentFlowExecutionService {
 
     private final AcademicAgentFlowProjector flowProjector;

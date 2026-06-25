@@ -28,7 +28,7 @@ class UsageRecordingChatModelTest {
     /** 构造一个很容易触发 OPEN 的熔断器：4 次调用窗口、4 次起算、失败率阈值 50%。 */
     private CircuitBreaker fastOpenBreaker() {
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
-                .failureRateThreshold(0.5f)
+                .failureRateThreshold(50f)
                 .slidingWindowSize(4)
                 .minimumNumberOfCalls(4)
                 .waitDurationInOpenState(Duration.ofSeconds(30))

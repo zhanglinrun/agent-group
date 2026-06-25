@@ -392,13 +392,18 @@ public class PlanExecuteAgent extends BaseAgent {
 
         StringBuilder responseBuffer = new StringBuilder();
         final boolean[] inThinkHolder = {false};
+        StreamingTextDelta textDelta = new StreamingTextDelta();
 
         Disposable disposable = chatClient.prompt()
                 .messages(messages)
                 .stream()
                 .content()
                 .doOnNext(chunk -> {
-                    ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(chunk, inThinkHolder[0]);
+                    String delta = textDelta.apply(chunk);
+                    if (delta.isEmpty()) {
+                        return;
+                    }
+                    ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(delta, inThinkHolder[0]);
                     inThinkHolder[0] = parseResult.inThink();
                     for (ThinkTagParser.Segment segment : parseResult.segments()) {
                         emit(sink, finished, segment.content(), "thinking", thinkingBuffer);
@@ -463,13 +468,18 @@ public class PlanExecuteAgent extends BaseAgent {
 
         StringBuilder topicBuffer = new StringBuilder();
         final boolean[] topicInThinkHolder = {false};
+        StreamingTextDelta textDelta = new StreamingTextDelta();
 
         Disposable disposable = chatClient.prompt()
                 .messages(messages)
                 .stream()
                 .content()
                 .doOnNext(chunk -> {
-                    ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(chunk, topicInThinkHolder[0]);
+                    String delta = textDelta.apply(chunk);
+                    if (delta.isEmpty()) {
+                        return;
+                    }
+                    ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(delta, topicInThinkHolder[0]);
                     topicInThinkHolder[0] = parseResult.inThink();
                     for (ThinkTagParser.Segment segment : parseResult.segments()) {
                         emit(sink, finished, segment.content(), "thinking", thinkingBuffer);
@@ -721,7 +731,7 @@ public class PlanExecuteAgent extends BaseAgent {
                 // 所有轮次完成后的分隔。
                 emit(sink, finished, "\n研究阶段完成，准备生成最终报告\n", "thinking", thinkingBuffer);
 
-                summarizeStream(state, sink, finished, finalAnswerBuffer, thinkingBuffer);
+                summarizeStream(state, sink, finished, thinkingBuffer);
             } catch (Exception e) {
                 // 检查是否是 dispose 导致的异常。
                 if (compositeDisposable.isDisposed() || Thread.currentThread().isInterrupted()
@@ -1221,12 +1231,12 @@ public class PlanExecuteAgent extends BaseAgent {
     private void summarizeStream(OverAllState state,
                                  Sinks.Many<String> sink,
                                  AtomicBoolean finished,
-                                 StringBuilder finalAnswerBuffer,
                                  StringBuilder thinkingBuffer) {
 
         emit(sink, finished, "\n正在生成最终研究报告...\n\n", "thinking", thinkingBuffer);
 
         final boolean[] summarizeInThinkHolder = {false};
+        StreamingTextDelta textDelta = new StreamingTextDelta();
 
         // 提取工具执行结果，排除中间过程。
         String toolResults = state.extractToolResults();
@@ -1271,13 +1281,17 @@ public class PlanExecuteAgent extends BaseAgent {
                         return;
                     }
 
-                    ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(text, summarizeInThinkHolder[0]);
+                    String delta = textDelta.apply(text);
+                    if (delta.isEmpty()) {
+                        return;
+                    }
+
+                    ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(delta, summarizeInThinkHolder[0]);
                     summarizeInThinkHolder[0] = parseResult.inThink();
                     for (ThinkTagParser.Segment segment : parseResult.segments()) {
                         if (segment.thinking()) {
                             emit(sink, finished, segment.content(), "thinking", thinkingBuffer);
                         } else {
-                            finalAnswerBuffer.append(segment.content());
                             emit(sink, finished, segment.content(), "text");
                         }
                     }

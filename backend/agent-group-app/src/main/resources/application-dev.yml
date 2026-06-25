@@ -9,6 +9,9 @@ server:
     accept-count: ${AGENT_GROUP_TOMCAT_ACCEPT_COUNT:10}
 
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
   mvc:
     async:
       request-timeout: 60000

@@ -27,8 +27,8 @@ public class LlmResilienceConfig {
 
     @Bean
     public CircuitBreaker llmChatCircuitBreaker(
-            @Value("${agent.group.llm.circuitbreaker.failure-rate-threshold:0.5}") float failureRateThreshold,
-            @Value("${agent.group.llm.circuitbreaker.slow-call-rate-threshold:0.8}") float slowCallRateThreshold,
+            @Value("${agent.group.llm.circuitbreaker.failure-rate-threshold:50}") float failureRateThreshold,
+            @Value("${agent.group.llm.circuitbreaker.slow-call-rate-threshold:80}") float slowCallRateThreshold,
             @Value("${agent.group.llm.circuitbreaker.wait-duration-seconds:30}") long waitDurationSeconds,
             @Value("${agent.group.llm.circuitbreaker.slow-call-duration-seconds:20}") long slowCallDurationSeconds,
             @Value("${agent.group.llm.circuitbreaker.sliding-window-size:20}") int slidingWindowSize,

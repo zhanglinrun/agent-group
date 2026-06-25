@@ -6,12 +6,18 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 final class DotenvPropertySource {
 
@@ -34,20 +40,52 @@ final class DotenvPropertySource {
         }
         MapPropertySource propertySource = new MapPropertySource(PROPERTY_SOURCE_NAME, values);
         if (environment.getPropertySources().contains(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)) {
-            environment.getPropertySources().addAfter(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, propertySource);
+            environment.getPropertySources()
+                    .addBefore(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, propertySource);
         } else {
             environment.getPropertySources().addLast(propertySource);
         }
     }
 
     private static List<Path> candidateDirectories() {
-        Path current = Path.of(System.getProperty("user.dir", ".")).toAbsolutePath().normalize();
-        Path parent = current.getParent();
-        Path grandParent = parent == null ? null : parent.getParent();
-        return List.of(current, parent, grandParent).stream()
-                .filter(path -> path != null)
-                .distinct()
-                .toList();
+        Set<Path> directories = new LinkedHashSet<>();
+        codeSourceDirectory().ifPresent(path -> addProjectScopedAncestors(path, directories));
+        addProjectScopedAncestors(Path.of(System.getProperty("user.dir", ".")), directories);
+        return List.copyOf(directories);
+    }
+
+    private static Optional<Path> codeSourceDirectory() {
+        try {
+            URL location = DotenvPropertySource.class.getProtectionDomain().getCodeSource().getLocation();
+            if (location == null) {
+                return Optional.empty();
+            }
+            Path path = Path.of(location.toURI()).toAbsolutePath().normalize();
+            return Optional.of(Files.isRegularFile(path) ? path.getParent() : path);
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private static void addProjectScopedAncestors(Path start, Set<Path> directories) {
+        if (start == null) {
+            return;
+        }
+        List<Path> ancestors = new ArrayList<>();
+        Path current = start.toAbsolutePath().normalize();
+        while (current != null) {
+            ancestors.add(current);
+            if (isProjectRoot(current)) {
+                break;
+            }
+            current = current.getParent();
+        }
+        Collections.reverse(ancestors);
+        directories.addAll(ancestors);
+    }
+
+    private static boolean isProjectRoot(Path directory) {
+        return Files.exists(directory.resolve(".git")) || Files.isRegularFile(directory.resolve("AGENTS.md"));
     }
 
     private static void readEnvFile(Path file, Map<String, Object> values) {
@@ -59,7 +97,7 @@ final class DotenvPropertySource {
                 parseEnvLine(line, values);
             }
         } catch (IOException ignored) {
-            // 无法读取 .env 时忽略，继续使用系统环境变量。
+            // 无法读取单个 .env 文件时继续启动。
         }
     }
 

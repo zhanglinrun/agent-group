@@ -3,6 +3,9 @@ package com.linrun.trigger.config;
 import com.zaxxer.hikari.HikariDataSource;
 import io.minio.MinioClient;
 import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
@@ -12,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 
@@ -60,6 +64,23 @@ public class AcademicAgentRuntimeConfig {
         dataSource.setMinimumIdle(1);
         dataSource.setPoolName("AcademicAgentPgVectorPool");
         return dataSource;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(VectorStore.class)
+    public VectorStore vectorStore(@Qualifier("pgVectorDataSource") DataSource dataSource,
+                                   EmbeddingModel embeddingModel,
+                                   @Value("${spring.ai.vectorstore.pgvector.table-name:spring_ai_knowledge_embedding}") String tableName,
+                                   @Value("${spring.ai.vectorstore.pgvector.dimensions:1024}") int dimensions) {
+        return PgVectorStore.builder(new JdbcTemplate(dataSource), embeddingModel)
+                .dimensions(dimensions)
+                .distanceType(PgVectorStore.PgDistanceType.COSINE_DISTANCE)
+                .indexType(PgVectorStore.PgIndexType.HNSW)
+                .initializeSchema(true)
+                .removeExistingVectorStoreTable(false)
+                .vectorTableName(tableName)
+                .maxDocumentBatchSize(100)
+                .build();
     }
 
     @Bean

@@ -236,6 +236,7 @@ public class SimpleReactAgent {
         RoundMode mode = RoundMode.UNKNOWN;
 
         StringBuilder textBuffer = new StringBuilder();
+        StreamingTextDelta textDelta = new StreamingTextDelta();
         List<AssistantMessage.ToolCall> toolCalls = Collections.synchronizedList(new ArrayList<>());
         /** ThinkTagParser ??inThink 状??*/
         boolean inThink = false;
@@ -353,7 +354,11 @@ public class SimpleReactAgent {
 
         // 还没出现 tool_call，使??ThinkTagParser 解析 <think/> 标签
         if (text != null) {
-            ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(text, state.inThink);
+            String delta = state.textDelta.apply(text);
+            if (delta.isEmpty()) {
+                return;
+            }
+            ThinkTagParser.ParseResult parseResult = ThinkTagParser.parse(delta, state.inThink);
             state.inThink = parseResult.inThink();
             for (ThinkTagParser.Segment segment : parseResult.segments()) {
                 if (!segment.thinking()) {
@@ -433,6 +438,7 @@ public class SimpleReactAgent {
                 """));
 
         StringBuilder stringBuilder = new StringBuilder();
+        StreamingTextDelta textDelta = new StreamingTextDelta();
         chatClient.prompt()
                 .messages(messages)
                 .stream()
@@ -448,8 +454,12 @@ public class SimpleReactAgent {
                             .getText();
 
                     if (text != null && !hasSentFinalResult.get()) {
-                        sink.tryEmitNext(text);
-                        stringBuilder.append(text);
+                        String delta = textDelta.apply(text);
+                        if (delta.isEmpty()) {
+                            return;
+                        }
+                        sink.tryEmitNext(delta);
+                        stringBuilder.append(delta);
                     }
                 })
                 .doOnComplete(() -> {

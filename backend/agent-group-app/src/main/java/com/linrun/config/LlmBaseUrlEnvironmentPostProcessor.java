@@ -18,6 +18,9 @@ public class LlmBaseUrlEnvironmentPostProcessor implements EnvironmentPostProces
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         DotenvPropertySource.addTo(environment);
+        if (environment.getPropertySources().contains(PROPERTY_SOURCE_NAME)) {
+            return;
+        }
         String normalized = normalize(environment.getProperty(PROPERTY_NAME));
         if (!StringUtils.hasText(normalized)) {
             return;
