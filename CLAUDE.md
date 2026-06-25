@@ -66,6 +66,8 @@ DDD 分层，依赖方向是 trigger → domain ← infrastructure，app 负责�
 - `diagnosis`：异常诊断（执行耗时、工具失败、额度异常、频繁重规划等）
 - `support/trace`：基于 `TraceId`/`SpanId` 的全链路追踪
 
+注意：当前线上对话的实际执行体在 `trigger/agent/agent/` 下（`PlanExecuteAgent`、`SimpleReactAgent`、`WebSearchReactAgent`、`SkillsReactAgent`、`FileReactAgent`、`PPTBuilderAgent` 等，继承 `BaseAgent`），由 `AcademicAgentNativeService` 按 `agentType` 调用，承载 deep、skills、websearch、file、ppt 等模式。`domain/academic/runtime` 这套基于阶段/重规划的框架主要用于离线评测（`AgentEvalHarnessTest`）和编排策略研究，两套并行存在，不要互相替换。详细说明见 `.trellis/spec/backend/directory-structure.md`。
+
 大模型主链路优先使用 Spring AI 的 `ChatClient`、`EmbeddingModel`、`VectorStore`（写入 pgvector）；原有手写 OpenAPI 客户端和本地向量是回退链路，避免没有密钥或向量库不可用时演示中断，不要删。
 
 ## 交易与额度规则（业务红线）

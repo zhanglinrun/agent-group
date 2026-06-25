@@ -3902,7 +3902,7 @@ function AuthDialog({ mode, setMode, form, setForm, error, loading = false, onSu
         <button type="button" className="modal-close" onClick={onClose} disabled={loading}><X size={18} /></button>
         <img className="auth-logo" src="/bear-doctor-logo.png" alt="熊博士 Agent" />
         <h3>{mode === "login" ? "登录熊博士 Agent" : "创建用户账号"}</h3>
-        <p className="auth-tip">这里是普通用户入口；后台管理请使用运营端账号认证。</p>
+        <p className="auth-tip">登录后即可使用学术问答、文件解读、PPT 生成等能力。</p>
         <div className="auth-switch">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")} disabled={loading}>登录</button>
           <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")} disabled={loading}>注册</button>
@@ -3934,7 +3934,7 @@ function AuthDialog({ mode, setMode, form, setForm, error, loading = false, onSu
         </button>
         {mode === "login" && (
           <button className="auth-demo" type="button" onClick={onDemoLogin} disabled={loading}>
-            使用演示账号
+            快速体验
           </button>
         )}
       </form>
@@ -4146,6 +4146,8 @@ function RechargeDialog({
   };
   const marketGoods = groupMarketConfig?.goods || {};
   const teamList = groupMarketConfig?.teamList || [];
+  const groupEnabled = groupMarketConfig?.enable !== false;
+  const groupMessage = groupMarketConfig?.message || "";
   const teamSize = groupTeamSizeLabel({
     ...groupPreviewPackage,
     teamSize: groupMarketConfig?.discount?.target || groupPreviewPackage?.teamSize || teamList[0]?.targetCount
@@ -4264,7 +4266,7 @@ function RechargeDialog({
                     <button
                       type="button"
                       onClick={() => onBuy(previewProduct, "group", { teamId: team.teamId })}
-                      disabled={Boolean(buyingKey) || remaining <= 0 || expired}
+                      disabled={Boolean(buyingKey) || remaining <= 0 || expired || !groupEnabled}
                     >
                       <UserPlus size={15} /> {buyingKey === `${groupPreviewPackage.goodsId}-group-${team.teamId}` ? "处理中" : "加入拼团"}
                     </button>
@@ -4277,12 +4279,16 @@ function RechargeDialog({
               <button type="button" onClick={() => onBuy(previewProduct, "direct")} disabled={Boolean(buyingKey)}>
                 <CreditCard size={16} /> {isDirectBuying ? "处理中" : `直接购买 ￥${formatMoney(previewProduct.originPrice)}`}
               </button>
-              <button className="primary" type="button" onClick={() => onBuy(previewProduct, "group")} disabled={Boolean(buyingKey)}>
+              <button className="primary" type="button" onClick={() => onBuy(previewProduct, "group")} disabled={Boolean(buyingKey) || !groupEnabled} title={groupEnabled ? "" : groupMessage}>
                 <UserPlus size={16} /> {isGroupBuying ? "处理中" : `自己开团 ￥${formatMoney(previewProduct.groupPrice)}`}
               </button>
             </div>
             <div className="group-detail-tip">
-              {teamSize} 人成团，支付成功后需等待成团，成团后{isMembershipPreview ? "会员权益生效" : "额度到账"}。
+              {!groupEnabled ? (groupMessage || "当前拼团活动暂不可参加") : (
+                <>
+                  {teamSize} 人成团，支付成功后需等待成团，成团后{isMembershipPreview ? "会员权益生效" : "额度到账"}。
+                </>
+              )}
             </div>
           </div>
         </div>
