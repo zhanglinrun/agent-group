@@ -13,7 +13,7 @@ import reactor.core.Disposable;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * 失败状态策??
+ * 失败状态策略
  */
 @Slf4j
 public class FailedStrategy implements PptStateStrategy {
@@ -73,7 +73,7 @@ public class FailedStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任??
+        // 保存 disposable 到任务管理器，用于停止任务
         context.setDisposable(inst.getConversationId(), disposable);
     }
 
@@ -83,7 +83,7 @@ public class FailedStrategy implements PptStateStrategy {
     }
 
     /**
-     * 保存结果到会??
+     * 保存结果到会话
      */
     private void saveResultToSession(PptStateStrategyContext context, AiPptInst inst,
                                      String result, StringBuilder thinkingBuffer) {

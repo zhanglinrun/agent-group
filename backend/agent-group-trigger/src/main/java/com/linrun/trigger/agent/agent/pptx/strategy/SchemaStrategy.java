@@ -8,7 +8,7 @@ import com.linrun.trigger.agent.entity.record.pptx.PptSchema;
 import com.linrun.trigger.agent.entity.record.pptx.Slide;
 import com.linrun.trigger.agent.prompts.PptBuilderPrompts;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
-import com.alibaba.fastjson2.JSON;
+import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -54,7 +54,7 @@ public class SchemaStrategy implements PptStateStrategy {
                     String json = ThinkTagParser.stripThinkTags(
                             context.getChatModel().call(new Prompt(prompt)).getResult().getOutput().getText());
                     PptSchema pptSchema = parsePptSchema(json);
-                    String pptSchemaJson = JSON.toJSONString(pptSchema);
+                    String pptSchemaJson = JsonUtils.toJson(pptSchema);
 
                     context.getPptInstService().updatePptSchema(inst.getId(), pptSchemaJson, TARGET_STATUS);
 
@@ -62,7 +62,7 @@ public class SchemaStrategy implements PptStateStrategy {
                     processImageGeneration(pptSchema, sink, inst.getConversationId(), context);
 
                     // 更新包含图片URL的schema
-                    context.getPptInstService().updatePptSchema(inst.getId(), JSON.toJSONString(pptSchema), TARGET_STATUS);
+                    context.getPptInstService().updatePptSchema(inst.getId(), JsonUtils.toJson(pptSchema), TARGET_STATUS);
                     context.continueStateMachine(inst, sink, query, thinkingBuffer);
                     return null;
                 })
@@ -77,19 +77,19 @@ public class SchemaStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任??
+        // 保存 disposable 到任务管理器，用于停止任务
         context.setDisposable(inst.getConversationId(), disposable);
     }
 
     /**
-     * 执行 Schema 策略，支持修改模??
+     * 执行 Schema 策略，支持修改模式
      *
      * @param inst PPT 实例
      * @param sink 输出 sink
      * @param query 用户查询
-     * @param thinkingBuffer 思考缓??
-     * @param context 策略上下??
-     * @param modifyPrompt 修改提示词，如果??null 表示正常流程
+     * @param thinkingBuffer 思考缓冲区
+     * @param context 策略上下文
+     * @param modifyPrompt 修改提示词，如果为null 表示正常流程
      */
     public void executeWithModifyPrompt(AiPptInst inst, Sinks.Many<String> sink, String query,
                                         StringBuilder thinkingBuffer, PptStateStrategyContext context,
@@ -100,7 +100,7 @@ public class SchemaStrategy implements PptStateStrategy {
                     String json = ThinkTagParser.stripThinkTags(
                             context.getChatModel().call(new Prompt(context.enhancePrompt(modifyPrompt))).getResult().getOutput().getText());
                     PptSchema pptSchema = parsePptSchema(json);
-                    String pptSchemaJson = JSON.toJSONString(pptSchema);
+                    String pptSchemaJson = JsonUtils.toJson(pptSchema);
 
                     context.getPptInstService().updatePptSchema(inst.getId(), pptSchemaJson, TARGET_STATUS);
 
@@ -108,7 +108,7 @@ public class SchemaStrategy implements PptStateStrategy {
                     processImageGeneration(pptSchema, sink, inst.getConversationId(), context);
 
                     // 更新包含图片URL的schema
-                    context.getPptInstService().updatePptSchema(inst.getId(), JSON.toJSONString(pptSchema), TARGET_STATUS);
+                    context.getPptInstService().updatePptSchema(inst.getId(), JsonUtils.toJson(pptSchema), TARGET_STATUS);
                     context.continueStateMachine(inst, sink, query, thinkingBuffer);
                     return null;
                 })
@@ -123,7 +123,7 @@ public class SchemaStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任??
+        // 保存 disposable 到任务管理器，用于停止任务
         context.setDisposable(inst.getConversationId(), disposable);
     }
 

@@ -15,8 +15,8 @@ import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.service.MinioService;
 import com.linrun.trigger.agent.utils.AppContextClient;
 import com.linrun.trigger.agent.utils.ImageGenerationService;
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
+import com.linrun.trigger.agent.common.JsonUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -157,12 +157,12 @@ public class PPTBuilderAgent extends BaseAgent {
                 .doOnNext(chunk -> {
                     // 解析 JSON，分离收集 text 与 thinking
                     try {
-                        JSONObject json = JSON.parseObject(chunk);
-                        String type = json.getString("type");
+                        JsonNode json = JsonUtils.parse(chunk);
+                        String type = json != null && json.has("type") ? json.get("type").asText() : null;
                         if ("thinking".equals(type)) {
-                            thinkingBuffer.append(json.getString("content"));
+                            thinkingBuffer.append(json.has("content") ? json.get("content").asText() : "");
                         } else if ("text".equals(type)) {
-                            finalAnswerBuffer.append(json.getString("content"));
+                            finalAnswerBuffer.append(json.has("content") ? json.get("content").asText() : "");
                         }
                     } catch (Exception e) {
                         // 解析失败，忽略

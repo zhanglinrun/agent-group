@@ -6,7 +6,6 @@ import com.linrun.trigger.agent.entity.record.pptx.PptInstStatus;
 import com.linrun.trigger.agent.entity.record.TemplateSelectionResult;
 import com.linrun.trigger.agent.prompts.PptBuilderPrompts;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
-import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
@@ -30,10 +29,10 @@ public class TemplateStrategy implements PptStateStrategy {
 
         String requirement = inst.getRequirement();
 
-        // 获取所有可用模??
+        // 获取所有可用模板
         List<AiPptTemplate> templates = context.getPptTemplateService().getAllTemplates();
 
-        // 构建模板信息字符??
+        // 构建模板信息字符串
         StringBuilder templatesInfo = new StringBuilder();
         for (AiPptTemplate template : templates) {
             templatesInfo.append(String.format("""

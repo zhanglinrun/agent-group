@@ -6,7 +6,7 @@ import com.linrun.trigger.agent.entity.record.pptx.PptSchema;
 import com.linrun.trigger.agent.entity.vo.UpdateAnswerRequest;
 import com.linrun.trigger.agent.prompts.PptBuilderPrompts;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
-import com.alibaba.fastjson2.JSON;
+import com.linrun.trigger.agent.common.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.util.StringUtils;
@@ -15,7 +15,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * 成功状态策??
+ * 成功状态策略
  */
 @Slf4j
 public class SuccessStrategy implements PptStateStrategy {
@@ -30,13 +30,13 @@ public class SuccessStrategy implements PptStateStrategy {
 
         String prompt;
 
-        // 根据是否为修改操作使用不同的提示??
+        // 根据是否为修改操作使用不同的提示词
         if (context.isModifyMode()) {
-            // 修改操作使用修改总结提示词，??Context 获取当前修改需??
+            // 修改操作使用修改总结提示词，从 Context 获取当前修改需求
             String modifyRequest = context.getModifyQuery();
             prompt = PptBuilderPrompts.getModifySummaryPrompt(modifyRequest, fileUrl);
         } else {
-            // 创建操作使用创建总结提示??
+            // 创建操作使用创建总结提示词
             String requirement = inst.getRequirement();
             prompt = PptBuilderPrompts.getSummaryPrompt(requirement, fileUrl, pageCount);
         }
@@ -54,19 +54,19 @@ public class SuccessStrategy implements PptStateStrategy {
                     llmResponse.append(chunk);
                 })
                 .doOnComplete(() -> {
-                    // 保存大模型返回的内容（去除think标签??
+                    // 保存大模型返回的内容（去除think标签）
                     saveResultToSession(context, inst,
                             ThinkTagParser.stripThinkTags(llmResponse.toString()),
                             thinkingBuffer);
                     sink.tryEmitComplete();
-                    // 清理修改模式标记和修改需??
+                    // 清理修改模式标记和修改需求
                     context.setModifyMode(false);
                     context.setModifyQuery(null);
                 })
                 .doOnError(err -> {
                     log.error("总结生成异常", err);
                     sink.tryEmitError(err);
-                    // 清理修改模式标记和修改需??
+                    // 清理修改模式标记和修改需求
                     context.setModifyMode(false);
                     context.setModifyQuery(null);
                 })
@@ -85,12 +85,12 @@ public class SuccessStrategy implements PptStateStrategy {
         if (inst.getPptSchema() == null) {
             return 0;
         }
-        PptSchema pptSchema = JSON.parseObject(inst.getPptSchema(), PptSchema.class);
+        PptSchema pptSchema = JsonUtils.parseValue(inst.getPptSchema(), PptSchema.class);
         return pptSchema.getSlides() == null ? 0 : pptSchema.getSlides().size();
     }
 
     /**
-     * 保存结果到会??
+     * 保存结果到会话
      */
     private void saveResultToSession(PptStateStrategyContext context, AiPptInst inst,
                                       String result, StringBuilder thinkingBuffer) {

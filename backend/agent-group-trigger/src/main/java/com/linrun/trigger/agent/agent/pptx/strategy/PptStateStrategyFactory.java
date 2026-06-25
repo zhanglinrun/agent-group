@@ -10,8 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * PPT状态策略工??
- * 使用工厂模式管理所有状态策??
+ * PPT状态策略工厂
+ * 使用工厂模式管理所有状态策略
  */
 @Slf4j
 public class PptStateStrategyFactory {
@@ -19,11 +19,11 @@ public class PptStateStrategyFactory {
     private static final Map<PptInstStatus, PptStateStrategy> STRATEGY_MAP = new HashMap<>();
 
     private PptStateStrategyFactory() {
-        // 私有构造函数，防止实例??
+        // 私有构造函数，防止实例化
     }
 
     static {
-        // 初始化策略映??
+        // 初始化策略映射
         STRATEGY_MAP.put(PptInstStatus.INIT, new RequirementStrategy());
         STRATEGY_MAP.put(PptInstStatus.REQUIREMENT, new RequirementStrategy());
         STRATEGY_MAP.put(PptInstStatus.TEMPLATE, new TemplateStrategy());
@@ -55,12 +55,12 @@ public class PptStateStrategyFactory {
     }
 
     /**
-     * 执行下一个状??
+     * 执行下一个状态
      */
     public void executeNextState(AiPptInst inst, Sinks.Many<String> sink, String query,
                                   StringBuilder thinkingBuffer, PptStateStrategyContext context) {
         try {
-            // 重新加载最新状??
+            // 重新加载最新状态
             AiPptInst latestInst = context.getPptInstService().getById(inst.getId());
             if (latestInst != null) {
                 inst = latestInst;
@@ -71,7 +71,7 @@ public class PptStateStrategyFactory {
                     && latestInst.getStatusEnum() != PptInstStatus.SUCCESS) {
                 log.info("检测到断点重连: status={}, errorMsg={}",
                         latestInst.getStatusEnum(), latestInst.getErrorMsg());
-                // 清空错误信息，允许继续执??
+                // 清空错误信息，允许继续执行
                 context.getPptInstService().updateError(latestInst.getId(), "", latestInst.getStatusEnum());
             }
 
@@ -105,7 +105,7 @@ public class PptStateStrategyFactory {
     }
 
     /**
-     * 执行 FAILED 状态策??
+     * 执行 FAILED 状态策略
      * 统一处理失败场景，避免各策略重复创建 FailedStrategy 实例
      */
     public void executeFailedState(AiPptInst inst, Sinks.Many<String> sink, String query,
@@ -115,14 +115,14 @@ public class PptStateStrategyFactory {
     }
 
     /**
-     * 执行 Schema 策略，支持修改模??
-     * 用于修改流程，直接调??SchemaStrategy 而不需要通过状态机流转
+     * 执行 Schema 策略，支持修改模板
+     * 用于修改流程，直接调用 SchemaStrategy 而不需要通过状态机流转
      *
      * @param inst PPT 实例
      * @param sink 输出 sink
      * @param query 用户查询
-     * @param thinkingBuffer 思考缓??
-     * @param context 策略上下??
+     * @param thinkingBuffer 思考缓冲区
+     * @param context 策略上下文
      */
     public void executeSchemaStrategy(AiPptInst inst, Sinks.Many<String> sink, String query,
                                       StringBuilder thinkingBuffer, PptStateStrategyContext context) {
@@ -134,14 +134,14 @@ public class PptStateStrategyFactory {
     }
 
     /**
-     * 单例持有??
+     * 单例持有者
      */
     private static class SingletonHolder {
         private static final PptStateStrategyFactory INSTANCE = new PptStateStrategyFactory();
     }
 
     /**
-     * 默认策略，用于处理未知状??
+     * 默认策略，用于处理未知状态
      */
     private static class DefaultStrategy implements PptStateStrategy {
         @Override

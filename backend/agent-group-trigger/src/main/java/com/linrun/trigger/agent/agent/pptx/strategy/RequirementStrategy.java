@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 需求澄清策??
+ * 需求澄清策略
  */
 @Slf4j
 public class RequirementStrategy implements PptStateStrategy {
@@ -60,20 +60,21 @@ public class RequirementStrategy implements PptStateStrategy {
                 .doOnComplete(() -> {
                 log.info("需求分析完成 {}", responseBuffer);
                     String response = ThinkTagParser.stripThinkTags(responseBuffer.toString());
+                    String displayResponse = context.stripDecisionMarker(response);
 
                     if (context.shouldContinueToNextStep(response)) {
                         // 信息完整，继续下一步：信息收集
-                        context.getPptInstService().updateRequirement(inst.getId(), response, TARGET_STATUS);
+                        context.getPptInstService().updateRequirement(inst.getId(), displayResponse, TARGET_STATUS);
                     sink.tryEmitNext(context.createThinkingResponse("\n需求已确认，开始收集相关信息\n"));
                         context.continueStateMachine(inst, sink, query, thinkingBuffer);
                     } else {
                         // 信息不足，保存当前状态，转到 FAILED 策略统一输出
-                        context.getPptInstService().updateRequirement(inst.getId(), response, PptInstStatus.REQUIREMENT);
-                        context.getPptInstService().updateError(inst.getId(), "需要补充信息：\n" + response, PptInstStatus.REQUIREMENT);
+                        context.getPptInstService().updateRequirement(inst.getId(), displayResponse, PptInstStatus.REQUIREMENT);
+                        context.getPptInstService().updateError(inst.getId(), "需要补充信息：\n" + displayResponse, PptInstStatus.REQUIREMENT);
 
                         // 保存AI回复到chatMemory
                         if (context.getChatMemory() != null) {
-                            context.getChatMemory().add(inst.getConversationId(), new AssistantMessage(response));
+                            context.getChatMemory().add(inst.getConversationId(), new AssistantMessage(displayResponse));
                         }
                         // 转到 FAILED 策略
                         PptStateStrategyFactory.getInstance().executeFailedState(inst, sink, query, thinkingBuffer, context);
@@ -90,7 +91,7 @@ public class RequirementStrategy implements PptStateStrategy {
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe();
 
-        // 保存 disposable 到任务管理器，用于停止任??
+        // 保存 disposable 到任务管理器，用于停止任务
         context.setDisposable(conversationId, disposable);
     }
 

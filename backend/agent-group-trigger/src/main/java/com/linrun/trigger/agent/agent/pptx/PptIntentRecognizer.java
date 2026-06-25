@@ -7,7 +7,6 @@ import com.linrun.trigger.agent.entity.record.pptx.PptInstStatus;
 import com.linrun.trigger.agent.entity.record.pptx.PptIntentResult;
 import com.linrun.trigger.agent.prompts.PptBuilderPrompts;
 import com.linrun.trigger.agent.service.AiPptInstService;
-import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -17,7 +16,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.util.StringUtils;
 
 /**
- * PPT意图识别??
+ * PPT意图识别器
  */
 @Slf4j
 public class PptIntentRecognizer {
@@ -50,14 +49,14 @@ public class PptIntentRecognizer {
         PptInstStatus status = latestInst.getStatusEnum();
         String errorMsg = latestInst.getErrorMsg();
 
-        // 检查是否需要断点重??
+        // 检查是否需要断点重连
         if (needsResume(status, errorMsg, query)) {
             log.info("检测到断点重连需求 status={}, hasError={}", status, StringUtils.hasText(errorMsg));
             return new PptIntentResult(PptIntent.RESUME_PPT,
                     "检测到上次执行未完成，从状态 " + status + " 继续执行");
         }
 
-        // 如果是SUCCESS状态，调用LLM进行意图识别（CREATE_PPT ??MODIFY_PPT??
+        // 如果是SUCCESS状态，调用LLM进行意图识别（CREATE_PPT 或MODIFY_PPT）
         if (status == PptInstStatus.SUCCESS) {
             return recognizeWithLLM(query);
         }
@@ -68,10 +67,10 @@ public class PptIntentRecognizer {
     }
 
     /**
-     * 判断是否需要断点重??
+     * 判断是否需要断点重连
      */
     private boolean needsResume(PptInstStatus status, String errorMsg, String query) {
-        // 如果有错误信息，说明上次执行失败，需要重??
+        // 如果有错误信息，说明上次执行失败，需要重连
         if (StringUtils.hasText(errorMsg)) {
             return true;
         }
@@ -87,11 +86,11 @@ public class PptIntentRecognizer {
 
         // 对于中间状态（非SUCCESS、非INIT），如果用户没有明确要求新建，则继续
         if (status != PptInstStatus.SUCCESS && status != PptInstStatus.INIT) {
-            // 检查用户是否明确要求新??
+            // 检查用户是否明确要求新建
             String[] newKeywords = {"新建", "重新", "重新生成", "new", "create new"};
             for (String keyword : newKeywords) {
                 if (lowerQuery.contains(keyword)) {
-                    return false; // 用户明确要新??
+                    return false; // 用户明确要新建
                 }
             }
             return true; // 默认继续
