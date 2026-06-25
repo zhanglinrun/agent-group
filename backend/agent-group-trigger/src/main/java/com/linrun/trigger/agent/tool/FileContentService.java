@@ -3,13 +3,18 @@ package com.linrun.trigger.agent.tool;
 import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.service.EmbeddingService;
 import com.linrun.trigger.agent.service.FileManageService;
+import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 文件内容服务工具
@@ -43,46 +48,21 @@ public class FileContentService {
         log.info("EXECUTE Tool: loadContent: fileId={}, question={}", fileId, question);
 
         if (fileId == null || fileId.trim().isEmpty()) {
-            return "文件ID不能为空";
+            return JSON.toJSONString(errorPayload("", "文件ID不能为空"));
         }
 
         List<String> fileIds = splitFileIds(fileId);
         if (fileIds.size() > 1) {
-            StringBuilder result = new StringBuilder("已读取多个附件：\n");
-            for (int i = 0; i < fileIds.size(); i++) {
-                result.append("\n--- 附件 ").append(i + 1).append(" ---\n");
-                result.append(loadContent(fileIds.get(i), question)).append("\n");
-            }
-            return result.toString();
+            return JSON.toJSONString(loadMultiple(fileIds, question));
         }
 
         try {
-            // 查询文件信息
-            var fileInfo = fileManageService.getFileInfo(fileId);
-            if (fileInfo == null) {
-                return "文件不存在，文件ID: " + fileId;
-            }
-
-            // 检查文件处理状态。
-            if (fileInfo.getStatus() != FileInfo.FileStatus.SUCCESS) {
-                return String.format("文件处理中或处理失败，当前状态：%s，文件ID：%s", fileInfo.getStatus(), fileId);
-            }
-
-            // 根据 embed 字段选择加载方式
-            Integer embed = fileInfo.getEmbed();
-            if (embed != null && embed == 1) {
-                // embed=1: 使用 RAG 语义检索。
-                return retrieveWithRAG(fileId, fileInfo, question);
-            } else {
-                // embed=0 或 null: 直接加载完整文件内容。
-                return loadDirectly(fileId, fileInfo);
-            }
-
+            return JSON.toJSONString(loadSingle(fileId, question));
         } catch (IllegalArgumentException e) {
-            return e.getMessage();
+            return JSON.toJSONString(errorPayload(fileId, e.getMessage()));
         } catch (Exception e) {
             log.error("加载文件内容失败: fileId={}, question={}", fileId, question, e);
-            return "加载文件内容失败: " + e.getMessage();
+            return JSON.toJSONString(errorPayload(fileId, "加载文件内容失败: " + e.getMessage()));
         }
     }
 
@@ -100,68 +80,146 @@ public class FileContentService {
         return result;
     }
 
+    private Map<String, Object> loadMultiple(List<String> fileIds, String question) {
+        List<Map<String, Object>> files = new ArrayList<>();
+        for (String item : fileIds) {
+            try {
+                files.add(loadSingle(item, question));
+            } catch (Exception e) {
+                files.add(errorPayload(item, e.getMessage()));
+            }
+        }
+        Map<String, Object> payload = basePayload(String.join(",", fileIds), null, "multi");
+        payload.put("success", files.stream().anyMatch(file -> Boolean.TRUE.equals(file.get("success"))));
+        payload.put("summary", "已读取多个附件：" + fileIds.size() + " 个");
+        payload.put("hitCount", files.stream()
+                .mapToInt(file -> ((Number) file.getOrDefault("hitCount", 0)).intValue())
+                .sum());
+        payload.put("files", files);
+        payload.put("fileRefs", files.stream()
+                .flatMap(file -> ((List<?>) file.getOrDefault("fileRefs", List.of())).stream())
+                .toList());
+        payload.put("content", files.stream()
+                .map(file -> String.valueOf(file.getOrDefault("content", "")))
+                .filter(StringUtils::hasText)
+                .reduce((left, right) -> left + "\n\n" + right)
+                .orElse(""));
+        return payload;
+    }
+
+    private Map<String, Object> loadSingle(String fileId, String question) {
+        FileInfo fileInfo = fileManageService.getFileInfo(fileId);
+        if (fileInfo == null) {
+            return errorPayload(fileId, "文件不存在，文件ID: " + fileId);
+        }
+
+        if (fileInfo.getStatus() != FileInfo.FileStatus.SUCCESS) {
+            Map<String, Object> payload = basePayload(fileId, fileInfo, "unavailable");
+            payload.put("success", false);
+            payload.put("summary", String.format("文件处理中或处理失败，当前状态：%s", fileInfo.getStatus()));
+            payload.put("content", "");
+            payload.put("segments", List.of());
+            payload.put("hitCount", 0);
+            return payload;
+        }
+
+        Integer embed = fileInfo.getEmbed();
+        if (embed != null && embed == 1) {
+            return retrieveWithRAG(fileId, fileInfo, question);
+        }
+        return loadDirectly(fileId, fileInfo);
+    }
+
     /**
      * 使用 RAG 语义检索方式加载文件内容。
      */
-    private String retrieveWithRAG(String fileId, FileInfo fileInfo, String question) {
+    private Map<String, Object> retrieveWithRAG(String fileId, FileInfo fileInfo, String question) {
+        Map<String, Object> payload = basePayload(fileId, fileInfo, "rag");
         if (question == null || question.trim().isEmpty()) {
-            // 如果没有提供问题，返回提示。
-            return buildResponse(fileId, fileInfo, "请提供具体问题以进行语义检索", null);
+            payload.put("success", false);
+            payload.put("summary", "请提供具体问题以进行语义检索");
+            payload.put("content", "");
+            payload.put("segments", List.of());
+            payload.put("hitCount", 0);
+            return payload;
         }
 
-        // 调用 EmbeddingService 进行 RAG 检索。
-        List<String> results = embeddingService.ragRetrieve(fileId, question);
+        EmbeddingService.RagRetrievalResult result = embeddingService.ragRetrieveDetailed(fileId, question);
+        List<Map<String, Object>> segments = result.hits().stream()
+                .map(this::segmentPayload)
+                .toList();
+        String content = result.hits().stream()
+                .map(EmbeddingService.RagHit::content)
+                .filter(StringUtils::hasText)
+                .reduce((left, right) -> left + "\n\n" + right)
+                .orElse(result.message());
 
-        if (results == null || results.isEmpty()) {
-            return buildResponse(fileId, fileInfo, "未检索到与问题相关的内容", null);
-        }
-
-        return buildResponse(fileId, fileInfo, "RAG检索", results);
+        payload.put("success", result.success());
+        payload.put("query", result.originalQuestion());
+        payload.put("compressedQuery", result.compressedQuestion());
+        payload.put("expandedQueries", result.expandedQueries());
+        payload.put("summary", result.message());
+        payload.put("content", content);
+        payload.put("segments", segments);
+        payload.put("hitCount", result.hitCount());
+        return payload;
     }
 
     /**
      * 直接加载完整文件内容
      */
-    private String loadDirectly(String fileId, FileInfo fileInfo) {
-        // 获取文件内容
+    private Map<String, Object> loadDirectly(String fileId, FileInfo fileInfo) {
         String content = fileManageService.getFileContent(fileId);
         String contentText = (content != null && !content.trim().isEmpty()) ? content : "该文件没有可识别的内容";
 
-        return buildResponse(fileId, fileInfo, contentText, null);
+        Map<String, Object> payload = basePayload(fileId, fileInfo, "full_text");
+        payload.put("success", true);
+        payload.put("summary", "全文读取：" + fileInfo.getFileName());
+        payload.put("content", contentText);
+        payload.put("segments", List.of());
+        payload.put("hitCount", 0);
+        return payload;
     }
 
-    /**
-     * 统一构建响应格式
-     *
-     * @param fileId   文件ID
-     * @param fileInfo 文件信息
-     * @param content  内容或检索结果
-     * @param segments 检索片段列表（RAG 模式）
-     * @return 统一格式的响应字符串
-     */
-    private String buildResponse(String fileId, FileInfo fileInfo, String content, List<String> segments) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== 文件信息 ===\n");
-        sb.append("文件名: ").append(fileInfo.getFileName()).append("\n");
-        sb.append("文件类型: ").append(fileInfo.getFileType()).append("\n");
+    private Map<String, Object> basePayload(String fileId, FileInfo fileInfo, String mode) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("toolName", "file_tool");
+        payload.put("mode", mode);
+        payload.put("fileId", fileId);
+        payload.put("fileName", fileInfo == null ? "" : fileInfo.getFileName());
+        payload.put("fileType", fileInfo == null ? "" : fileInfo.getFileType());
+        payload.put("fileSize", fileInfo == null ? 0L : fileInfo.getFileSize());
+        payload.put("fileStatus", fileInfo == null || fileInfo.getStatus() == null ? "" : fileInfo.getStatus().name());
+        payload.put("fileRefs", fileInfo == null ? List.of() : List.of(fileRef(fileInfo)));
+        return payload;
+    }
 
-        sb.append("\n=== 文件内容 ===\n");
+    private Map<String, Object> errorPayload(String fileId, String message) {
+        Map<String, Object> payload = basePayload(fileId, null, "error");
+        payload.put("success", false);
+        payload.put("summary", message == null ? "文件读取失败" : message);
+        payload.put("content", "");
+        payload.put("segments", List.of());
+        payload.put("hitCount", 0);
+        return payload;
+    }
 
-        if (segments != null && !segments.isEmpty()) {
-            // RAG 检索结果格式。
-            sb.append("相关内容: ").append("\n\n");
-            for (int i = 0; i < segments.size(); i++) {
-                sb.append(segments.get(i)).append("\n\n");
-            }
-        } else if (content != null) {
-            // 直接加载内容格式
-            sb.append(content);
-        } else {
-            // 提示信息
-            sb.append("无内容可显示");
-        }
+    private Map<String, Object> segmentPayload(EmbeddingService.RagHit hit) {
+        Map<String, Object> segment = new LinkedHashMap<>();
+        segment.put("rank", hit.rank());
+        segment.put("documentId", hit.documentId());
+        segment.put("content", hit.content());
+        segment.put("metadata", hit.metadata() == null ? Map.of() : hit.metadata());
+        return segment;
+    }
 
-        return sb.toString();
+    private Map<String, Object> fileRef(FileInfo fileInfo) {
+        Map<String, Object> fileRef = new LinkedHashMap<>();
+        fileRef.put("fileId", fileInfo.getFileId());
+        fileRef.put("fileName", fileInfo.getFileName());
+        fileRef.put("fileType", fileInfo.getFileType());
+        fileRef.put("fileSize", fileInfo.getFileSize());
+        return fileRef;
     }
 }
 

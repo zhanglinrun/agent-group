@@ -80,14 +80,24 @@ public class EmbeddingService {
      * @return 相关文档内容列表
      */
     public List<String> ragRetrieve(String fileId, String question) {
+        RagRetrievalResult result = ragRetrieveDetailed(fileId, question);
+        if (result.hits().isEmpty()) {
+            return Collections.singletonList(result.message());
+        }
+        return result.hits().stream()
+                .map(RagHit::content)
+                .collect(Collectors.toList());
+    }
+
+    public RagRetrievalResult ragRetrieveDetailed(String fileId, String question) {
         log.info("RAG 检索开始 fileId={}, question={}", fileId, question);
 
         if (StringUtils.isBlank(fileId) || StringUtils.isBlank(question)) {
             log.warn("RAG 检索参数为空 fileId={}, question={}", fileId, question);
-            return Collections.singletonList("检索参数不能为空");
+            return RagRetrievalResult.failed("rag", question, "", List.of(), "检索参数不能为空");
         }
         if (vectorStore == null) {
-            return Collections.singletonList("向量库不可用，请直接读取文件全文");
+            return RagRetrievalResult.failed("rag", question, "", List.of(), "向量库不可用，请直接读取文件全文");
         }
 
         try {
@@ -113,7 +123,7 @@ public class EmbeddingService {
             log.info("扩展后的Query：{}", expandedQueries);
 
             // 3. 语义向量检索 - 使用 fileid 过滤。
-            List<String> results = new ArrayList<>();
+            List<RagHit> hits = new ArrayList<>();
             Set<String> seenIds = new HashSet<>();
 
             FilterExpressionBuilder builder = new FilterExpressionBuilder();
@@ -128,19 +138,61 @@ public class EmbeddingService {
                                 .build());
 
                 for (Document doc : docs) {
-                    if (seenIds.add(doc.getId())) {
-                        results.add(doc.getText());
+                    String docId = StringUtils.defaultString(doc.getId(),
+                            "doc-" + Math.abs(Objects.hash(doc.getText(), hits.size())));
+                    if (seenIds.add(docId)) {
+                        hits.add(new RagHit(
+                                hits.size() + 1,
+                                docId,
+                                doc.getText(),
+                                new LinkedHashMap<>(doc.getMetadata())));
                     }
                 }
             }
 
-            log.info("RAG 检索完成 fileId={}, 返回结果数={}", fileId, results.size());
-            return results;
+            log.info("RAG 检索完成 fileId={}, 返回结果数={}", fileId, hits.size());
+            return new RagRetrievalResult(
+                    true,
+                    "rag",
+                    question,
+                    compressed.text(),
+                    expandedQueries.stream().map(Query::text).toList(),
+                    hits.size(),
+                    hits.isEmpty() ? "未检索到与问题相关的内容" : "RAG检索命中 " + hits.size() + " 段",
+                    hits);
 
         } catch (Exception e) {
             log.error("RAG 检索失败 fileId={}, question={}", fileId, question, e);
-            return Collections.singletonList("RAG 检索失败：" + e.getMessage());
+            return RagRetrievalResult.failed("rag", question, "", List.of(), "RAG 检索失败：" + e.getMessage());
         }
+    }
+
+    public record RagRetrievalResult(
+            boolean success,
+            String mode,
+            String originalQuestion,
+            String compressedQuestion,
+            List<String> expandedQueries,
+            int hitCount,
+            String message,
+            List<RagHit> hits) {
+
+        private static RagRetrievalResult failed(String mode,
+                                                 String originalQuestion,
+                                                 String compressedQuestion,
+                                                 List<String> expandedQueries,
+                                                 String message) {
+            return new RagRetrievalResult(false, mode, originalQuestion, compressedQuestion,
+                    expandedQueries == null ? List.of() : expandedQueries, 0,
+                    StringUtils.defaultString(message, "检索失败"), List.of());
+        }
+    }
+
+    public record RagHit(
+            int rank,
+            String documentId,
+            String content,
+            Map<String, Object> metadata) {
     }
 }
 

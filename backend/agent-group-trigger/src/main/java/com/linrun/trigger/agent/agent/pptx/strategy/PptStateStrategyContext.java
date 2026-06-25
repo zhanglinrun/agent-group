@@ -16,7 +16,9 @@ import org.springframework.util.StringUtils;
 import com.alibaba.fastjson2.JSON;
 import reactor.core.publisher.Sinks;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * PPT状态策略上下文
@@ -240,6 +242,19 @@ public class PptStateStrategyContext {
      */
     public String createThinkingResponse(String content) {
         return createJsonResponse(content, "thinking");
+    }
+
+    public String createPptStatusResponse(String stage, String message, AiPptInst inst) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "ppt_status");
+        payload.put("stage", stage == null ? "" : stage);
+        payload.put("message", message == null ? "" : message);
+        if (inst != null) {
+            payload.put("pptInstId", inst.getId() == null ? "" : String.valueOf(inst.getId()));
+            payload.put("pptStatus", inst.getStatusEnum() == null ? "" : inst.getStatusEnum().name());
+            payload.put("fileUrl", inst.getFileUrl() == null ? "" : inst.getFileUrl());
+        }
+        return JSON.toJSONString(payload);
     }
 
     /**

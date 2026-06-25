@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -365,6 +366,7 @@ public class AcademicAgentHandler {
                 case "reflection" -> reflectionEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_start" -> toolStartEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_end" -> toolEndEvents(node, sessionId, requestId, sequence, runState);
+                case "ppt_status" -> pptStatusEvents(node, sessionId, requestId, sequence, runState);
                 case "plan_update" -> planUpdateEvents(node, sessionId, requestId, sequence, runState);
                 case "replan", "replanned" -> replanEvents(node, sessionId, requestId, sequence, runState);
                 case "reference" -> referenceEvents(node, sessionId, requestId, sequence);
@@ -548,15 +550,18 @@ public class AcademicAgentHandler {
         String invocationId = runState.toolInvocations.getOrDefault(toolKey(toolCallId, toolName), "");
         String resultText = jsonOrText(node, "result", "output", "content", "detail");
         String rawStatus = firstText(node, "status", "state");
-        String status = isFailureStatus(rawStatus) ? AcademicAgentRun.STATUS_FAILED : AcademicAgentRun.STATUS_SUCCESS;
+        Map<String, Object> structuredOutput = parseObject(resultText);
+        String status = isFailureStatus(rawStatus) || structuredOutput.containsKey("error")
+                ? AcademicAgentRun.STATUS_FAILED
+                : AcademicAgentRun.STATUS_SUCCESS;
         if (AcademicAgentRun.STATUS_FAILED.equals(status)) {
             runState.failedToolCount++;
         }
         String errorMessage = AcademicAgentRun.STATUS_FAILED.equals(status)
-                ? firstText(node, "message", "error", "detail")
+                ? firstText(node, "message", "error", "detail",
+                Objects.toString(structuredOutput.getOrDefault("error", ""), ""))
                 : "";
         long latencyMillis = longValue(node, "latencyMillis", 0L);
-        Map<String, Object> structuredOutput = parseObject(resultText);
         academicExecutionLedgerService.recordToolFinish(invocationId, status,
                 limit(resultText, 1024), resultText, integer(node, "retryCount", 0), errorMessage, latencyMillis);
         if (AcademicAgentRun.STATUS_SUCCESS.equals(status) && !structuredOutput.isEmpty()) {
@@ -569,6 +574,27 @@ public class AcademicAgentHandler {
         events.add(event("tool_result", sessionId, requestId, sequence,
                 toolResult(invocationId, toolCallId, toolName, status, resultText, structuredOutput, errorMessage, latencyMillis)));
         return events;
+    }
+
+    private List<QuotaStreamEvent<?>> pptStatusEvents(JsonNode node,
+                                                      String sessionId,
+                                                      String requestId,
+                                                      AtomicInteger sequence,
+                                                      RunState runState) {
+        String stage = firstText(node, "stage", "status");
+        String message = firstText(node, "message", "content", "detail");
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", runState.run.getRunId());
+        data.put("stage", StringUtils.hasText(stage) ? stage : "PPT");
+        data.put("message", message);
+        data.put("pptInstId", firstText(node, "pptInstId", "instId"));
+        data.put("pptStatus", firstText(node, "pptStatus", "status"));
+        data.put("fileUrl", firstText(node, "fileUrl", "downloadUrl"));
+        return List.of(
+                event("task_status", sessionId, requestId, sequence,
+                        status("PPT", StringUtils.hasText(message) ? message : "PPT流程更新")),
+                event("ppt_status", sessionId, requestId, sequence, data)
+        );
     }
 
     private List<QuotaStreamEvent<?>> errorEvents(String sessionId,
@@ -612,7 +638,7 @@ public class AcademicAgentHandler {
                 events.add(event("artifact_delta", sessionId, requestId, sequence, artifact));
             });
         }
-        if ("skills".equals(taskType)) {
+        if ("skills".equals(taskType) || "manual-skills".equals(taskType)) {
             for (AcademicSessionDetailResponse.Artifact artifact :
                     academicArtifactService.collectAndSave(user.getUserId(), sessionId, startedAt,
                             runState.run.getRunId(), "", "AGENT", taskType)) {

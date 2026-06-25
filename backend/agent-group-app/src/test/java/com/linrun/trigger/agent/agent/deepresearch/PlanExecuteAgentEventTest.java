@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.trigger.agent.entity.record.CritiqueResult;
 import com.linrun.trigger.agent.entity.record.PlanTask;
+import com.linrun.trigger.agent.entity.record.SearchResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlanExecuteAgentEventTest {
 
@@ -56,19 +58,36 @@ class PlanExecuteAgentEventTest {
         assertEquals("缺少多源对比", root.path("feedback").asText());
         assertEquals("replan", root.path("action").asText());
     }
+
+    @Test
+    void createsDeepResearchToolStartEvent() throws Exception {
+        String json = PlanExecuteAgent.createDeepResearchToolStartEvent(
+                "call-1",
+                new PlanTask("T1", "查找资料", 2),
+                "上一阶段结果");
+
+        JsonNode node = objectMapper.readTree(json);
+        assertEquals("tool_start", node.path("type").asText());
+        assertEquals("deep_research_step", node.path("toolName").asText());
+        assertEquals("T1", node.path("arguments").path("taskId").asText());
+        assertEquals(2, node.path("arguments").path("order").asInt());
+    }
+
+    @Test
+    void createsDeepResearchToolEndEventWithReferences() throws Exception {
+        String json = PlanExecuteAgent.createDeepResearchToolEndEvent(
+                "call-1",
+                new PlanTask("T1", "查找资料", 1),
+                true,
+                "阶段结论",
+                null,
+                List.of(new SearchResult("https://example.com", "资料", "摘要")),
+                System.currentTimeMillis());
+
+        JsonNode node = objectMapper.readTree(json);
+        assertEquals("tool_end", node.path("type").asText());
+        assertEquals("success", node.path("status").asText());
+        assertTrue(node.path("result").path("success").asBoolean());
+        assertEquals(1, node.path("result").path("references").size());
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

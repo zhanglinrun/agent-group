@@ -67,7 +67,7 @@ public class PptStateStrategyFactory {
             }
 
             // 检查是否有错误信息，如果有则说明是断点重连
-            if (latestInst.getErrorMsg() != null && !latestInst.getErrorMsg().isEmpty()
+            if (latestInst != null && latestInst.getErrorMsg() != null && !latestInst.getErrorMsg().isEmpty()
                     && latestInst.getStatusEnum() != PptInstStatus.SUCCESS) {
                 log.info("检测到断点重连: status={}, errorMsg={}",
                         latestInst.getStatusEnum(), latestInst.getErrorMsg());
@@ -77,6 +77,8 @@ public class PptStateStrategyFactory {
 
             PptInstStatus status = inst.getStatusEnum();
             log.info("状态机执行: status={}", status);
+            sink.tryEmitNext(context.createPptStatusResponse(
+                    status == null ? "" : status.name(), "进入PPT阶段：" + statusLabel(status), inst));
 
             PptStateStrategy strategy = getStrategy(status);
             strategy.execute(inst, sink, query, thinkingBuffer, context);
@@ -84,6 +86,22 @@ public class PptStateStrategyFactory {
             log.error("继续状态机执行失败", e);
             sink.tryEmitError(e);
         }
+    }
+
+    private String statusLabel(PptInstStatus status) {
+        if (status == null) {
+            return "未知";
+        }
+        return switch (status) {
+            case INIT, REQUIREMENT -> "需求确认";
+            case SEARCH -> "资料收集";
+            case TEMPLATE -> "模板选择";
+            case OUTLINE -> "大纲生成";
+            case SCHEMA -> "内容生成";
+            case RENDER -> "文件渲染";
+            case SUCCESS -> "生成完成";
+            case FAILED -> "执行失败";
+        };
     }
 
     /**
@@ -110,6 +128,8 @@ public class PptStateStrategyFactory {
                                       StringBuilder thinkingBuffer, PptStateStrategyContext context) {
         SchemaStrategy schemaStrategy = new SchemaStrategy();
         String modifyPrompt = PptBuilderPrompts.getSchemaModifyPrompt(query, inst.getPptSchema());
+        sink.tryEmitNext(context.createPptStatusResponse(
+                PptInstStatus.SCHEMA.name(), "进入PPT阶段：内容生成", inst));
         schemaStrategy.executeWithModifyPrompt(inst, sink, query, thinkingBuffer, context, modifyPrompt);
     }
 

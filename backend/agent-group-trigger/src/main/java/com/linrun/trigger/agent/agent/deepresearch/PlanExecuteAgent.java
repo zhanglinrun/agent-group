@@ -999,10 +999,15 @@ public class PlanExecuteAgent extends BaseAgent {
                                         Sinks.Many<String> sink, AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer) {
 
         Throwable lastError = null;
+        long startedAt = System.currentTimeMillis();
+        String toolCallId = deepResearchToolCallId(task);
         emit(sink, hasSentFinal, "⚙️ 正在执行任务 " + task.id() + " : " + task.instruction() + "\n", "thinking", thinkingBuffer);
+        emitJson(sink, hasSentFinal, createDeepResearchToolStartEvent(toolCallId, task, dependencyContext));
 
         // 检查是否已被停??
         if (hasSentFinal.get() || compositeDisposable.isDisposed()) {
+            emitJson(sink, hasSentFinal, createDeepResearchToolEndEvent(
+                    toolCallId, task, false, null, "任务被用户停止", List.of(), startedAt));
             return new TaskResult(task.id(), false, null, "任务被用户停止");
         }
         try {
@@ -1028,6 +1033,8 @@ public class PlanExecuteAgent extends BaseAgent {
             SimpleReactResult result = agent.callWithReference(null, fullContext);
 
             if (compositeDisposable.isDisposed()) {
+                emitJson(sink, hasSentFinal, createDeepResearchToolEndEvent(
+                        toolCallId, task, false, null, "任务被用户停止", result.getSearchResults(), startedAt));
                 return new TaskResult(task.id(), false, null, "任务被用户停止");
             }
 
@@ -1040,12 +1047,16 @@ public class PlanExecuteAgent extends BaseAgent {
 
             String answer = result.getAnswer();
             emit(sink, hasSentFinal, "执行结果: " + answer + "\n\n", "thinking", thinkingBuffer);
+            emitJson(sink, hasSentFinal, createDeepResearchToolEndEvent(
+                    toolCallId, task, true, answer, null, result.getSearchResults(), startedAt));
             return new TaskResult(task.id(), true, answer, null);
         } catch (Exception e) {
             // 检查是否是中断导致的异??
             if (compositeDisposable.isDisposed() || Thread.currentThread().isInterrupted()
                     || (e.getMessage() != null && e.getMessage().contains("interrupted"))) {
                 log.info("Task {} 执行被用户停止 {}", task.id(), e.getMessage());
+                emitJson(sink, hasSentFinal, createDeepResearchToolEndEvent(
+                        toolCallId, task, false, null, "任务被用户停止", List.of(), startedAt));
                 return new TaskResult(task.id(), false, null, "任务被用户停止");
             }
             lastError = e;
@@ -1054,12 +1065,96 @@ public class PlanExecuteAgent extends BaseAgent {
 
         // 执行失败
         emit(sink, hasSentFinal, "\n任务 " + task.id() + " 执行失败: " + (lastError == null ? "unknown error" : lastError.getMessage()) + "\n\n", "thinking", thinkingBuffer);
+        emitJson(sink, hasSentFinal, createDeepResearchToolEndEvent(
+                toolCallId, task, false, null,
+                lastError == null ? "unknown error" : lastError.getMessage(), List.of(), startedAt));
         return new TaskResult(
                 task.id(),
                 false,
                 null,
                 lastError == null ? "unknown error" : lastError.getMessage()
         );
+    }
+
+    private void emitJson(Sinks.Many<String> sink, AtomicBoolean finished, String json) {
+        if (finished.get() || !StringUtils.hasText(json)) {
+            return;
+        }
+        sink.tryEmitNext(json);
+    }
+
+    private static String deepResearchToolCallId(PlanTask task) {
+        String taskId = task == null ? "unknown" : Objects.toString(task.id(), "unknown");
+        return "deep_research_step_" + taskId.replaceAll("[^a-zA-Z0-9_-]", "_") + "_" + System.nanoTime();
+    }
+
+    static String createDeepResearchToolStartEvent(String toolCallId, PlanTask task, String dependencyContext) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("taskId", task == null ? "" : Objects.toString(task.id(), ""));
+        arguments.put("instruction", task == null ? "" : Objects.toString(task.instruction(), ""));
+        arguments.put("order", task == null ? 1 : Math.max(1, task.order()));
+        arguments.put("dependencyCharCount", dependencyContext == null ? 0 : dependencyContext.length());
+        arguments.put("dependencyContext", limitText(dependencyContext, 1200));
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "tool_start");
+        payload.put("toolName", "deep_research_step");
+        payload.put("toolCallId", toolCallId);
+        payload.put("action", "execute_step");
+        payload.put("arguments", arguments);
+        return JSON.toJSONString(payload);
+    }
+
+    static String createDeepResearchToolEndEvent(String toolCallId,
+                                                 PlanTask task,
+                                                 boolean success,
+                                                 String answer,
+                                                 String error,
+                                                 List<SearchResult> references,
+                                                 long startedAt) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("toolName", "deep_research_step");
+        result.put("taskId", task == null ? "" : Objects.toString(task.id(), ""));
+        result.put("success", success);
+        result.put("summary", success ? limitText(answer, 360) : Objects.toString(error, ""));
+        result.put("content", Objects.toString(answer, ""));
+        result.put("references", referencePayload(references));
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "tool_end");
+        payload.put("toolName", "deep_research_step");
+        payload.put("toolCallId", toolCallId);
+        payload.put("status", success ? "success" : "failed");
+        payload.put("latencyMillis", Math.max(0L, System.currentTimeMillis() - startedAt));
+        payload.put("result", result);
+        if (!success) {
+            payload.put("error", Objects.toString(error, ""));
+        }
+        return JSON.toJSONString(payload);
+    }
+
+    private static List<Map<String, Object>> referencePayload(List<SearchResult> references) {
+        if (references == null || references.isEmpty()) {
+            return List.of();
+        }
+        return references.stream()
+                .filter(Objects::nonNull)
+                .map(reference -> {
+                    Map<String, Object> data = new LinkedHashMap<>();
+                    data.put("url", Objects.toString(reference.url(), ""));
+                    data.put("title", Objects.toString(reference.title(), ""));
+                    data.put("content", Objects.toString(reference.content(), ""));
+                    return data;
+                })
+                .toList();
+    }
+
+    private static String limitText(String text, int maxChars) {
+        if (!StringUtils.hasText(text) || maxChars <= 0) {
+            return "";
+        }
+        String normalized = text.trim();
+        return normalized.length() <= maxChars ? normalized : normalized.substring(0, maxChars) + "...";
     }
 
     /**

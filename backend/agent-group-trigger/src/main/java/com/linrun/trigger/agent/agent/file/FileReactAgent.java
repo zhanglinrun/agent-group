@@ -1,6 +1,7 @@
 package com.linrun.trigger.agent.agent.file;
 
 import com.linrun.trigger.agent.agent.BaseAgent;
+import com.linrun.trigger.agent.entity.event.AgentStreamEvent;
 import com.linrun.trigger.agent.entity.record.RoundMode;
 import com.linrun.trigger.agent.entity.record.RoundState;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
@@ -636,12 +637,14 @@ public class FileReactAgent extends BaseAgent {
 
                 String toolName = tc.name();
                 String argsJson = tc.arguments();
+                sink.tryEmitNext(new AgentStreamEvent.ToolStart(toolName, tc.id(), argsJson).toJSON());
 
                 ToolCallback callback = findTool(toolName);
                 if (callback == null) {
-                    // 工具未找到时，也放入 responseMap
+                    String errorResult = JSON.toJSONString(Map.of("error", "工具未找到：" + toolName));
+                    sink.tryEmitNext(new AgentStreamEvent.ToolEnd(toolName, tc.id(), errorResult).toJSON());
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具未找到：" + toolName + "\" }"));
+                            tc.id(), toolName, errorResult));
                     completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
                     return;
                 }
@@ -657,18 +660,20 @@ public class FileReactAgent extends BaseAgent {
 
                 try {
                     Object result = callback.call(argsJson);
-                    String resultStr = result.toString();
+                    String resultStr = Objects.toString(result, "");
 
                     // 记录使用的工??
                     recordUsedTool(toolName);
+                    sink.tryEmitNext(new AgentStreamEvent.ToolEnd(toolName, tc.id(), resultStr).toJSON());
 
                     // 将结果放??responseMap，key ??toolCall.id()
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
                             tc.id(), toolName, resultStr));
                 } catch (Exception ex) {
-                    // 工具执行失败时，也放??responseMap
+                    String errorResult = JSON.toJSONString(Map.of("error", "工具执行失败：" + Objects.toString(ex.getMessage(), "")));
+                    sink.tryEmitNext(new AgentStreamEvent.ToolEnd(toolName, tc.id(), errorResult).toJSON());
                     responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }"));
+                            tc.id(), toolName, errorResult));
                 } finally {
                     completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
                 }
