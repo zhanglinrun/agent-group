@@ -7,6 +7,7 @@ import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyActivityStatus;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.types.exception.AppException;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
@@ -16,6 +17,7 @@ import org.springframework.util.StringUtils;
  * 校验本身就是一段线性顺序，直接用普通方法调用表达，
  * 不引入额外的规则链框架；新增校验时在 {@link #apply} 里按顺序补一行即可。
  */
+@Component
 public class GroupBuyLockRuleChain {
 
     private final GroupBuyOrderLockRepository groupBuyOrderLockRepository;

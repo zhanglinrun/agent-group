@@ -12,6 +12,7 @@ import com.linrun.domain.groupbuy.model.GroupBuyMarketTrialCommand;
 import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
 import com.linrun.domain.groupbuy.model.SourceChannelSkuActivity;
 import com.linrun.domain.groupbuy.service.discount.DiscountCalculateService;
+import com.linrun.domain.groupbuy.service.discount.GroupBuyPriceCalculator;
 import com.linrun.domain.groupbuy.service.discount.MJCalculateService;
 import com.linrun.domain.groupbuy.service.discount.NCalculateService;
 import com.linrun.domain.groupbuy.service.discount.ZJCalculateService;
@@ -75,12 +76,13 @@ class GroupBuyMarketTrialServiceTest {
         discountServices.put("MJ", new MJCalculateService(marketRepository));
         discountServices.put("ZK", new ZKCalculateService(marketRepository));
         discountServices.put("N", new NCalculateService(marketRepository));
+        GroupBuyPriceCalculator priceCalculator = new GroupBuyPriceCalculator(marketRepository, discountServices);
         return new GroupBuyMarketTrialService(
                 activityRepository,
                 marketRepository,
                 new FakeQuotaProductRepository(),
                 new DynamicConfigService(new FakeDynamicConfigRepository()),
-                discountServices);
+                priceCalculator);
     }
 
     private GroupBuyMarketTrialCommand command(String userId, String goodsId, String source, String channel) {

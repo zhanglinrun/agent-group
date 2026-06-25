@@ -2,7 +2,6 @@ package com.linrun.domain.groupbuy.service;
 
 import com.linrun.api.dto.LockGroupBuyOrderRequest;
 import com.linrun.api.dto.LockGroupBuyOrderResponse;
-import com.linrun.api.dto.CreatePaymentRequest;
 import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
@@ -12,23 +11,23 @@ import com.linrun.domain.groupbuy.model.GroupBuyActivity;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
-import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
 import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
 import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.CreateTradeOrderCommandEntity;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
-import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.aggregate.TradePayOrderAggregate;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.domain.trade.service.TradeStatusFlowService;
+import com.linrun.domain.trade.service.AbstractTradeOrderService;
 import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.domain.groupbuy.service.rules.lock.GroupBuyLockContext;
 import com.linrun.domain.groupbuy.service.rules.lock.GroupBuyLockRuleChain;
+import com.linrun.domain.groupbuy.service.discount.GroupBuyPriceCalculator;
 import com.linrun.domain.support.lock.DistributedLock;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +41,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 @Service
-public class GroupBuyLockOrderService {
+public class GroupBuyLockOrderService extends AbstractTradeOrderService {
 
     private static final DateTimeFormatter ORDER_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static final String DEFAULT_PAY_CHANNEL = "ALIPAY";
@@ -58,21 +57,7 @@ public class GroupBuyLockOrderService {
     private final QuotaOrderSnapshotValidator quotaOrderSnapshotValidator;
     private final AgentObservabilityMetrics metrics;
     private final GroupBuyLockRuleChain groupBuyLockRuleChain;
-    private final PaymentService paymentService;
-
-    public GroupBuyLockOrderService(QuotaProductRepository quotaProductRepository,
-                                    GroupBuyActivityRepository groupBuyActivityRepository,
-                                    GroupBuyOrderLockRepository groupBuyOrderLockRepository,
-                                    GroupBuyStockRepository groupBuyStockRepository,
-                                    GroupBuyTeamStockRepository groupBuyTeamStockRepository,
-                                    TradeOrderRepository tradeOrderRepository,
-                                    TradeOrderService tradeOrderService,
-                                    TradeStatusFlowService tradeStatusFlowService,
-                                    QuotaOrderSnapshotRepository quotaOrderSnapshotRepository) {
-        this(quotaProductRepository, groupBuyActivityRepository, groupBuyOrderLockRepository, groupBuyStockRepository,
-                groupBuyTeamStockRepository, tradeOrderRepository, tradeOrderService, tradeStatusFlowService,
-                new QuotaOrderSnapshotValidator(quotaOrderSnapshotRepository), AgentObservabilityMetrics.noop(), null);
-    }
+    private final GroupBuyPriceCalculator groupBuyPriceCalculator;
 
     @Autowired
     public GroupBuyLockOrderService(QuotaProductRepository quotaProductRepository,
@@ -85,7 +70,10 @@ public class GroupBuyLockOrderService {
                                     TradeStatusFlowService tradeStatusFlowService,
                                     QuotaOrderSnapshotValidator quotaOrderSnapshotValidator,
                                     AgentObservabilityMetrics metrics,
-                                    PaymentService paymentService) {
+                                    PaymentService paymentService,
+                                    GroupBuyLockRuleChain groupBuyLockRuleChain,
+                                    GroupBuyPriceCalculator groupBuyPriceCalculator) {
+        super(paymentService);
         this.quotaProductRepository = quotaProductRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyOrderLockRepository = groupBuyOrderLockRepository;
@@ -96,11 +84,8 @@ public class GroupBuyLockOrderService {
         this.tradeStatusFlowService = tradeStatusFlowService;
         this.quotaOrderSnapshotValidator = quotaOrderSnapshotValidator;
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
-        this.paymentService = paymentService;
-        this.groupBuyLockRuleChain = new GroupBuyLockRuleChain(
-                groupBuyOrderLockRepository,
-                groupBuyTeamStockRepository,
-                quotaOrderSnapshotValidator);
+        this.groupBuyLockRuleChain = groupBuyLockRuleChain;
+        this.groupBuyPriceCalculator = groupBuyPriceCalculator;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -133,7 +118,7 @@ public class GroupBuyLockOrderService {
             CreatePaymentResponse payment = createGatewayPayment(
                     tradePayOrder.getTradeOrder(),
                     tradePayOrder.getPayOrder(),
-                    request);
+                    resolvePayChannel(request));
             return toResponse(new GroupBuyLockResult(repeatedLock, team, true),
                     tradePayOrder,
                     request.getDecisionId(),
@@ -150,7 +135,7 @@ public class GroupBuyLockOrderService {
         groupBuyLockRuleChain.apply(lockContext);
 
         String teamId = StringUtils.hasText(request.getTeamId()) ? request.getTeamId() : nextNo("T");
-        BigDecimal payAmount = resolvePayAmount(activity);
+        BigDecimal payAmount = resolvePayAmount(request.getUserId(), activity, product.getOriginPrice());
         GroupBuyOrderLock orderLock = GroupBuyOrderLock.locked(
                 nextNo("L"),
                 request.getIdempotentKey(),
@@ -172,7 +157,7 @@ public class GroupBuyLockOrderService {
             CreatePaymentResponse payment = createGatewayPayment(
                     tradePayOrder.getTradeOrder(),
                     tradePayOrder.getPayOrder(),
-                    request);
+                    resolvePayChannel(request));
             return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
         }
 
@@ -189,7 +174,7 @@ public class GroupBuyLockOrderService {
             CreatePaymentResponse payment = createGatewayPayment(
                     tradePayOrder.getTradeOrder(),
                     tradePayOrder.getPayOrder(),
-                    request);
+                    resolvePayChannel(request));
             return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
         } catch (RuntimeException e) {
             if (lockContext.isTeamStockOccupied()) {
@@ -273,11 +258,8 @@ public class GroupBuyLockOrderService {
         return tradeOrderService.createPayOrder(tradeOrder, resolvePayChannel(request));
     }
 
-    private BigDecimal resolvePayAmount(GroupBuyActivity activity) {
-        if (activity.getGroupPrice() != null) {
-            return activity.getGroupPrice();
-        }
-        return BigDecimal.ZERO;
+    private BigDecimal resolvePayAmount(String userId, GroupBuyActivity activity, BigDecimal originalPrice) {
+        return groupBuyPriceCalculator.calculatePayPrice(userId, originalPrice, activity);
     }
 
     private TradePayOrderAggregate queryTradePayOrder(String orderId) {
@@ -297,21 +279,6 @@ public class GroupBuyLockOrderService {
 
     private String resolvePayChannel(LockGroupBuyOrderRequest request) {
         return StringUtils.hasText(request.getPayChannel()) ? request.getPayChannel() : DEFAULT_PAY_CHANNEL;
-    }
-
-    private CreatePaymentResponse createGatewayPayment(TradeOrderEntity tradeOrder,
-                                                       PayOrderEntity payOrder,
-                                                       LockGroupBuyOrderRequest request) {
-        if (paymentService == null || payOrder == null || !PayStatusEnumVO.WAIT_PAY.equals(payOrder.getPayStatus())) {
-            return null;
-        }
-        if (StringUtils.hasText(payOrder.getPayUrl())) {
-            return null;
-        }
-        CreatePaymentRequest paymentRequest = new CreatePaymentRequest();
-        paymentRequest.setOrderId(tradeOrder.getOrderId());
-        paymentRequest.setPayChannel(resolvePayChannel(request));
-        return paymentService.createPayment(paymentRequest, tradeOrder.getUserId());
     }
 
     private LockGroupBuyOrderResponse toResponse(GroupBuyLockResult result,
@@ -348,18 +315,6 @@ public class GroupBuyLockOrderService {
         response.setPayChannel(payment == null ? payOrder.getPayChannel() : payment.getPayChannel());
         response.setGatewayTradeNo(payment == null ? payOrder.getOutTradeNo() : payment.getGatewayTradeNo());
         return response;
-    }
-
-    private String resolvePayFormHtml(String payUrl) {
-        return looksLikePaymentForm(payUrl) ? payUrl : null;
-    }
-
-    private String resolvePaymentType(String payUrl) {
-        return looksLikePaymentForm(payUrl) ? "PAGE_FORM" : "URL";
-    }
-
-    private boolean looksLikePaymentForm(String value) {
-        return StringUtils.hasText(value) && value.toLowerCase().contains("<form");
     }
 
     private String nextNo(String prefix) {

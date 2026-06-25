@@ -26,6 +26,16 @@ public interface IGroupBuyStockDao {
     int releasePaidStock(@Param("activityId") String activityId, @Param("goodsId") String goodsId);
 
     void insertStockFlow(GroupBuyStockFlowPO flow);
+
+    int insertStock(GroupBuyStockPO stock);
+
+    /**
+     * 调整总库存：available 同步为 total - locked - paid。
+     * where 条件保证 total >= locked + paid，否则不更新（返回 0）。
+     */
+    int updateTotalStock(@Param("activityId") String activityId, @Param("totalStock") int totalStock);
+
+    int deleteByActivityId(@Param("activityId") String activityId);
 }
 
 

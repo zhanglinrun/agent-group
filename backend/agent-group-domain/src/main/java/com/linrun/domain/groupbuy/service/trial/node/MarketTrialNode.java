@@ -12,7 +12,7 @@ import com.linrun.domain.groupbuy.model.GroupBuyMarketTrialCommand;
 import com.linrun.domain.groupbuy.model.GroupBuyStock;
 import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
 import com.linrun.domain.groupbuy.model.SourceChannelSkuActivity;
-import com.linrun.domain.groupbuy.service.discount.DiscountCalculateService;
+import com.linrun.domain.groupbuy.service.discount.GroupBuyPriceCalculator;
 import com.linrun.domain.groupbuy.service.trial.GroupBuyMarketTrialContext;
 import com.linrun.domain.support.tree.AbstractStrategyRouter;
 import com.linrun.domain.support.tree.StrategyHandler;
@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-import java.util.Map;
 import java.util.Optional;
 
 public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> {
@@ -35,17 +34,17 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
     private final QuotaProductRepository quotaProductRepository;
     private final GroupBuyStockRepository groupBuyStockRepository;
     private final Executor executor;
-    private final Map<String, DiscountCalculateService> discountCalculateServiceMap;
+    private final GroupBuyPriceCalculator groupBuyPriceCalculator;
     private final StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next;
 
     public MarketTrialNode(GroupBuyActivityRepository groupBuyActivityRepository,
                            GroupBuyMarketRepository groupBuyMarketRepository,
                            QuotaProductRepository quotaProductRepository,
                            GroupBuyStockRepository groupBuyStockRepository,
-                           Map<String, DiscountCalculateService> discountCalculateServiceMap,
+                           GroupBuyPriceCalculator groupBuyPriceCalculator,
                            StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next) {
         this(groupBuyActivityRepository, groupBuyMarketRepository, quotaProductRepository, groupBuyStockRepository,
-                ForkJoinPool.commonPool(), discountCalculateServiceMap, next);
+                ForkJoinPool.commonPool(), groupBuyPriceCalculator, next);
     }
 
     public MarketTrialNode(GroupBuyActivityRepository groupBuyActivityRepository,
@@ -53,14 +52,14 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
                            QuotaProductRepository quotaProductRepository,
                            GroupBuyStockRepository groupBuyStockRepository,
                            Executor executor,
-                           Map<String, DiscountCalculateService> discountCalculateServiceMap,
+                           GroupBuyPriceCalculator groupBuyPriceCalculator,
                            StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> next) {
         this.groupBuyActivityRepository = groupBuyActivityRepository;
         this.groupBuyMarketRepository = groupBuyMarketRepository;
         this.quotaProductRepository = quotaProductRepository;
         this.groupBuyStockRepository = groupBuyStockRepository == null ? GroupBuyStockRepository.noop() : groupBuyStockRepository;
         this.executor = executor == null ? ForkJoinPool.commonPool() : executor;
-        this.discountCalculateServiceMap = discountCalculateServiceMap;
+        this.groupBuyPriceCalculator = groupBuyPriceCalculator;
         this.next = next;
     }
 
@@ -158,21 +157,9 @@ public class MarketTrialNode extends AbstractStrategyRouter<GroupBuyMarketTrialC
 
     private void calculateDiscount(GroupBuyMarketTrialCommand request, GroupBuyMarketTrialContext dynamicContext) {
         BigDecimal originalPrice = normalize(dynamicContext.getSku().getOriginalPrice());
-        BigDecimal payPrice;
-        GroupBuyDiscount discount = dynamicContext.getDiscount();
-        if (discount == null) {
-            payPrice = dynamicContext.getActivity().getGroupPrice() == null
-                    ? originalPrice
-                    : normalize(dynamicContext.getActivity().getGroupPrice());
-        } else {
-            DiscountCalculateService discountCalculateService = discountCalculateServiceMap.get(discount.getMarketPlan());
-            if (discountCalculateService == null) {
-                throw new AppException("GROUP_0015", "暂不支持当前优惠规则");
-            }
-            payPrice = discountCalculateService.calculate(request.getUserId(), originalPrice, discount);
-        }
+        BigDecimal payPrice = groupBuyPriceCalculator.calculatePayPrice(request.getUserId(), originalPrice, dynamicContext.getActivity());
         dynamicContext.setPayPrice(payPrice);
-        dynamicContext.setDeductionPrice(originalPrice.subtract(payPrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
+        dynamicContext.setDeductionPrice(normalize(originalPrice).subtract(payPrice).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
     }
 
     private BigDecimal normalize(BigDecimal value) {

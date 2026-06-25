@@ -137,6 +137,11 @@ public class MyBatisGroupBuyOrderLockRepository implements GroupBuyOrderLockRepo
     }
 
     @Override
+    public int countInProgressLocksByActivityId(String activityId) {
+        return groupBuyOrderLockDao.countInProgressLocksByActivityId(activityId);
+    }
+
+    @Override
     public List<GroupBuyTeamDetail> queryInProgressTeamDetails(String activityId,
                                                                String userId,
                                                                int ownerCount,

@@ -247,6 +247,13 @@
           and lock_status in ('LOCKED', 'PAID')
     </select>
 
+    <select id="countInProgressLocksByActivityId" resultType="int">
+        select count(1)
+        from group_buy_order_lock
+        where activity_id = #{activityId}
+          and lock_status in ('LOCKED', 'PAID')
+    </select>
+
     <select id="queryInProgressOwnerTeamDetails" resultMap="GroupBuyTeamDetailMap">
         select l.user_id,
                t.team_id,

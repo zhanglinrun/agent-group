@@ -100,6 +100,49 @@
         order by id desc
         limit #{limit}
     </select>
+
+    <insert id="insertActivity" parameterType="com.linrun.infrastructure.po.GroupBuyActivityPO"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into group_activity (
+          activity_id, activity_name, goods_id, group_price, team_size, discount_id,
+          group_type, take_limit_count, target, valid_time, status,
+          start_time, end_time, tag_id, tag_scope, enabled
+        ) values (
+          #{activityId}, #{activityName}, #{goodsId}, #{groupPrice}, #{teamSize}, #{discountId},
+          #{groupType}, #{takeLimitCount}, #{target}, #{validTime}, #{status},
+          #{startTime}, #{endTime}, #{tagId}, #{tagScope}, #{enabled}
+        )
+    </insert>
+
+    <update id="updateActivity" parameterType="com.linrun.infrastructure.po.GroupBuyActivityPO">
+        update group_activity
+        set activity_name    = #{activityName},
+            goods_id         = #{goodsId},
+            group_price      = #{groupPrice},
+            team_size        = #{teamSize},
+            discount_id      = #{discountId},
+            group_type       = #{groupType},
+            take_limit_count = #{takeLimitCount},
+            target           = #{target},
+            valid_time       = #{validTime},
+            status           = #{status},
+            start_time       = #{startTime},
+            end_time         = #{endTime},
+            tag_id           = #{tagId},
+            tag_scope        = #{tagScope}
+        where activity_id = #{activityId}
+    </update>
+
+    <update id="updateEnabled">
+        update group_activity
+        set enabled = #{enabled}
+        where activity_id = #{activityId}
+    </update>
+
+    <delete id="deleteByActivityId">
+        delete from group_activity
+        where activity_id = #{activityId}
+    </delete>
 </mapper>
 
 

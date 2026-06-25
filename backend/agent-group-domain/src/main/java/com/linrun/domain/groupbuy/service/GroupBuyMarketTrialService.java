@@ -7,7 +7,7 @@ import com.linrun.domain.groupbuy.adapter.repository.GroupBuyMarketRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyMarketTrialCommand;
 import com.linrun.domain.groupbuy.model.GroupBuyTrialResult;
-import com.linrun.domain.groupbuy.service.discount.DiscountCalculateService;
+import com.linrun.domain.groupbuy.service.discount.GroupBuyPriceCalculator;
 import com.linrun.domain.groupbuy.service.trial.GroupBuyMarketTrialContext;
 import com.linrun.domain.groupbuy.service.trial.node.EndTrialNode;
 import com.linrun.domain.groupbuy.service.trial.node.MarketTrialNode;
@@ -20,8 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.Map;
-
 @Service
 public class GroupBuyMarketTrialService {
 
@@ -31,9 +29,9 @@ public class GroupBuyMarketTrialService {
                                       GroupBuyMarketRepository groupBuyMarketRepository,
                                       QuotaProductRepository quotaProductRepository,
                                       DynamicConfigService dynamicConfigService,
-                                      Map<String, DiscountCalculateService> discountCalculateServiceMap) {
+                                      GroupBuyPriceCalculator groupBuyPriceCalculator) {
         this(groupBuyActivityRepository, groupBuyMarketRepository, GroupBuyStockRepository.noop(),
-                quotaProductRepository, dynamicConfigService, discountCalculateServiceMap);
+                quotaProductRepository, dynamicConfigService, groupBuyPriceCalculator);
     }
 
     @Autowired
@@ -42,14 +40,14 @@ public class GroupBuyMarketTrialService {
                                       GroupBuyStockRepository groupBuyStockRepository,
                                       QuotaProductRepository quotaProductRepository,
                                       DynamicConfigService dynamicConfigService,
-                                      Map<String, DiscountCalculateService> discountCalculateServiceMap) {
+                                      GroupBuyPriceCalculator groupBuyPriceCalculator) {
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> endNode =
                 new EndTrialNode();
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> tagNode =
                 new TagTrialNode(groupBuyMarketRepository, endNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> marketNode =
                 new MarketTrialNode(groupBuyActivityRepository, groupBuyMarketRepository, quotaProductRepository,
-                        groupBuyStockRepository, discountCalculateServiceMap, tagNode);
+                        groupBuyStockRepository, groupBuyPriceCalculator, tagNode);
         StrategyHandler<GroupBuyMarketTrialCommand, GroupBuyMarketTrialContext, GroupBuyTrialResult> switchNode =
                 new SwitchTrialNode(dynamicConfigService, marketNode);
         this.trialStrategyTree = new StrategyTree<>(switchNode);

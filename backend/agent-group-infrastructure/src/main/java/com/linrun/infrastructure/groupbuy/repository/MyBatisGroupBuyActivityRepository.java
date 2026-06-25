@@ -32,6 +32,28 @@ public class MyBatisGroupBuyActivityRepository implements GroupBuyActivityReposi
     public List<GroupBuyActivity> queryActivityList(int limit) {
         return ActivityPOConverter.toActivities(groupBuyActivityDao.queryActivityList(Math.max(1, limit)));
     }
+
+    @Override
+    public GroupBuyActivity save(GroupBuyActivity activity) {
+        groupBuyActivityDao.insertActivity(ActivityPOConverter.toPO(activity));
+        return queryByActivityId(activity.getActivityId()).orElse(activity);
+    }
+
+    @Override
+    public GroupBuyActivity update(GroupBuyActivity activity) {
+        groupBuyActivityDao.updateActivity(ActivityPOConverter.toPO(activity));
+        return queryByActivityId(activity.getActivityId()).orElse(activity);
+    }
+
+    @Override
+    public boolean updateEnabled(String activityId, boolean enabled) {
+        return groupBuyActivityDao.updateEnabled(activityId, enabled) > 0;
+    }
+
+    @Override
+    public boolean removeByActivityId(String activityId) {
+        return groupBuyActivityDao.deleteByActivityId(activityId) > 0;
+    }
 }
 
 

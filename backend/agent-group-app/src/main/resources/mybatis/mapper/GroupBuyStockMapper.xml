@@ -126,6 +126,30 @@
           #{createTime}
         )
     </insert>
+
+    <insert id="insertStock" parameterType="com.linrun.infrastructure.po.GroupBuyStockPO"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into group_buy_stock (
+          activity_id, goods_id, total_stock, available_stock, locked_stock, paid_stock, create_time, update_time
+        ) values (
+          #{activityId}, #{goodsId}, #{totalStock}, #{availableStock}, #{lockedStock}, #{paidStock},
+          #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <update id="updateTotalStock">
+        update group_buy_stock
+        set total_stock      = #{totalStock},
+            available_stock  = #{totalStock} - locked_stock - paid_stock,
+            update_time      = now()
+        where activity_id = #{activityId}
+          and #{totalStock} &gt;= locked_stock + paid_stock
+    </update>
+
+    <delete id="deleteByActivityId">
+        delete from group_buy_stock
+        where activity_id = #{activityId}
+    </delete>
 </mapper>
 
 

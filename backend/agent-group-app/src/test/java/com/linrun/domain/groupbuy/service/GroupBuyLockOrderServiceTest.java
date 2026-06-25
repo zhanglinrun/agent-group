@@ -6,18 +6,22 @@ import com.linrun.api.dto.RefundGroupBuyOrderRequest;
 import com.linrun.api.dto.GroupBuyCompensationResponse;
 import com.linrun.api.dto.LockGroupBuyOrderResponse;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
+import com.linrun.domain.groupbuy.adapter.repository.GroupBuyMarketRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyStockRepository;
 import com.linrun.domain.groupbuy.adapter.repository.GroupBuyTeamStockRepository;
 import com.linrun.domain.groupbuy.model.GroupBuyActivity;
+import com.linrun.domain.groupbuy.model.GroupBuyDiscount;
 import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
 import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
+import com.linrun.domain.groupbuy.model.GroupBuyMarketSku;
 import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
 import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
 import com.linrun.domain.groupbuy.model.GroupBuyStock;
 import com.linrun.domain.groupbuy.model.GroupBuyStockFlowType;
 import com.linrun.domain.groupbuy.model.GroupBuyTeam;
 import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
+import com.linrun.domain.groupbuy.model.SourceChannelSkuActivity;
 import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
 import com.linrun.domain.agent.conversation.model.QuotaProduct;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
@@ -49,6 +53,15 @@ import com.linrun.domain.trade.service.payment.PaymentService;
 import com.linrun.domain.trade.service.payment.PaymentWebhookReplayGuard;
 import com.linrun.domain.agent.conversation.adapter.QuotaOrderSnapshotRepository;
 import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
+import com.linrun.domain.agent.conversation.service.QuotaOrderSnapshotValidator;
+import com.linrun.domain.groupbuy.service.rules.lock.GroupBuyLockRuleChain;
+import com.linrun.domain.groupbuy.service.discount.GroupBuyPriceCalculator;
+import com.linrun.domain.groupbuy.service.rules.refund.GroupBuyRefundStrategyRouter;
+import com.linrun.domain.groupbuy.service.rules.refund.PaidSettledGroupBuyRefundStrategy;
+import com.linrun.domain.groupbuy.service.rules.refund.PaidUnsettledGroupBuyRefundStrategy;
+import com.linrun.domain.groupbuy.service.rules.refund.UnpaidGroupBuyRefundStrategy;
+import com.linrun.domain.groupbuy.service.rules.refund.rule.GroupBuyRefundRuleChain;
+import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 
@@ -392,7 +405,7 @@ class GroupBuyLockOrderServiceTest {
                 new FakePaymentGatewayClient(),
                 new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
-        TradeRefundService tradeRefundService = new TradeRefundService(
+        TradeRefundService tradeRefundService = refundService(
                 tradeOrderRepository,
                 paymentService,
                 groupCompensationService);
@@ -432,7 +445,7 @@ class GroupBuyLockOrderServiceTest {
                 new TradeOrderService(),
                 groupCompensationService,
                 lockRepository,
-                new TradeRefundService(tradeOrderRepository, null, groupCompensationService),
+                refundService(tradeOrderRepository, null, groupCompensationService),
                 new TradeStatusFlowService(flowRepository));
 
         LockGroupBuyOrderResponse lockResponse = lockOrderService.lock(request(null, "IDEM_TIMEOUT_CLOSE_10001"));
@@ -468,6 +481,8 @@ class GroupBuyLockOrderServiceTest {
 
     @Test
     void shouldRejectEndedActivity() {
+        FakeQuotaOrderSnapshotRepository snapshotRepository = new FakeQuotaOrderSnapshotRepository();
+        QuotaOrderSnapshotValidator validator = new QuotaOrderSnapshotValidator(snapshotRepository);
         GroupBuyLockOrderService service = new GroupBuyLockOrderService(
                 new FakeQuotaProductRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", LocalDateTime.now().minusHours(1))),
@@ -477,7 +492,11 @@ class GroupBuyLockOrderServiceTest {
                 new FakeTradeOrderRepository(),
                 new TradeOrderService(),
                 new TradeStatusFlowService(new FakeTradeStatusFlowRepository()),
-                new FakeQuotaOrderSnapshotRepository());
+                validator,
+                AgentObservabilityMetrics.noop(),
+                null,
+                new GroupBuyLockRuleChain(new FakeGroupBuyOrderLockRepository(), GroupBuyTeamStockRepository.noop(), validator),
+                new GroupBuyPriceCalculator(new FakeGroupBuyMarketRepository(), new HashMap<>()));
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.lock(request(null, "IDEM_10005")));
@@ -520,6 +539,8 @@ class GroupBuyLockOrderServiceTest {
                                              FakeTradeOrderRepository tradeOrderRepository,
                                              FakeTradeStatusFlowRepository flowRepository,
                                              QuotaOrderSnapshotRepository quotaOrderSnapshotRepository) {
+        QuotaOrderSnapshotValidator validator = new QuotaOrderSnapshotValidator(quotaOrderSnapshotRepository);
+        GroupBuyLockRuleChain ruleChain = new GroupBuyLockRuleChain(lockRepository, teamStockRepository, validator);
         return new GroupBuyLockOrderService(
                 new FakeQuotaProductRepository(),
                 new FakeGroupBuyActivityRepository(activity("A10001", "G10001", END_TIME)),
@@ -529,7 +550,24 @@ class GroupBuyLockOrderServiceTest {
                 tradeOrderRepository,
                 new TradeOrderService(),
                 new TradeStatusFlowService(flowRepository),
-                quotaOrderSnapshotRepository);
+                validator,
+                AgentObservabilityMetrics.noop(),
+                null,
+                ruleChain,
+                new GroupBuyPriceCalculator(new FakeGroupBuyMarketRepository(), new HashMap<>()));
+    }
+
+    private TradeRefundService refundService(TradeOrderRepository tradeOrderRepository,
+                                             PaymentService paymentService,
+                                             GroupBuyCompensationService groupCompensationService) {
+        GroupBuyRefundStrategyRouter router = new GroupBuyRefundStrategyRouter(java.util.List.of(
+                new UnpaidGroupBuyRefundStrategy(groupCompensationService),
+                new PaidUnsettledGroupBuyRefundStrategy(paymentService, groupCompensationService),
+                new PaidSettledGroupBuyRefundStrategy(paymentService, groupCompensationService)));
+        GroupBuyRefundRuleChain ruleChain = new GroupBuyRefundRuleChain(
+                tradeOrderRepository, groupCompensationService, router, null);
+        return new TradeRefundService(tradeOrderRepository, paymentService, groupCompensationService,
+                ruleChain, null, null);
     }
 
     private LockGroupBuyOrderRequest request(String teamId, String idempotentKey) {
@@ -586,7 +624,7 @@ class GroupBuyLockOrderServiceTest {
                 new FakePaymentGatewayClient(),
                 new PaymentWebhookReplayGuard(300L),
                 new TradeStatusFlowService(flowRepository));
-        return new TradeRefundService(tradeOrderRepository, paymentService, compensationService);
+        return refundService(tradeOrderRepository, paymentService, compensationService);
     }
 
     private GroupBuyCompensationService compensationService(FakeGroupBuyOrderLockRepository lockRepository,
@@ -687,6 +725,28 @@ class GroupBuyLockOrderServiceTest {
         @Override
         public Optional<GroupBuyActivity> queryByActivityId(String activityId) {
             return Optional.of(activity);
+        }
+    }
+
+    private static class FakeGroupBuyMarketRepository implements GroupBuyMarketRepository {
+        @Override
+        public Optional<GroupBuyMarketSku> querySkuByGoodsId(String goodsId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<SourceChannelSkuActivity> querySourceChannelSkuActivity(String source, String channel, String goodsId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<GroupBuyDiscount> queryDiscountByDiscountId(String discountId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public boolean isTagCrowdRange(String tagId, String userId) {
+            return false;
         }
     }
 

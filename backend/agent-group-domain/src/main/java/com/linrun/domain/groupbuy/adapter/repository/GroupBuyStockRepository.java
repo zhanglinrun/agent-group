@@ -21,6 +21,29 @@ public interface GroupBuyStockRepository {
         return List.of();
     }
 
+    /**
+     * 初始化活动库存（新建活动时调用）。available = total。
+     */
+    default GroupBuyStock initStock(String activityId, String goodsId, int totalStock) {
+        return null;
+    }
+
+    /**
+     * 调整活动总库存（编辑活动时调用）。
+     * 新 totalStock 不能小于 lockedStock + paidStock，否则抛 GROUP_0017。
+     * availableStock 同步调整为 totalStock - lockedStock - paidStock。
+     */
+    default GroupBuyStock updateTotalStock(String activityId, int totalStock) {
+        return null;
+    }
+
+    /**
+     * 删除活动库存记录（删除活动时联动调用）。
+     */
+    default boolean removeByActivityId(String activityId) {
+        return false;
+    }
+
     static GroupBuyStockRepository noop() {
         return NoopGroupBuyStockRepository.INSTANCE;
     }
@@ -57,6 +80,27 @@ public interface GroupBuyStockRepository {
         @Override
         public List<GroupBuyStock> queryStockList(int limit) {
             return List.of();
+        }
+
+        @Override
+        public GroupBuyStock initStock(String activityId, String goodsId, int totalStock) {
+            GroupBuyStock stock = empty(activityId, goodsId);
+            stock.setTotalStock(totalStock);
+            stock.setAvailableStock(totalStock);
+            return stock;
+        }
+
+        @Override
+        public GroupBuyStock updateTotalStock(String activityId, int totalStock) {
+            GroupBuyStock stock = empty(activityId, null);
+            stock.setTotalStock(totalStock);
+            stock.setAvailableStock(totalStock);
+            return stock;
+        }
+
+        @Override
+        public boolean removeByActivityId(String activityId) {
+            return true;
         }
 
         private GroupBuyStock empty(String activityId, String goodsId) {

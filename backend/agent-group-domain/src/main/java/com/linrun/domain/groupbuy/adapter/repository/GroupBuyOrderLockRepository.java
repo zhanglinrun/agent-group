@@ -43,6 +43,13 @@ public interface GroupBuyOrderLockRepository {
         return 0;
     }
 
+    /**
+     * 统计活动下处于进行中（LOCKED 或 PAID）的锁单数，用于删除活动前的校验。
+     */
+    default int countInProgressLocksByActivityId(String activityId) {
+        return 0;
+    }
+
     default List<GroupBuyTeamDetail> queryInProgressTeamDetails(String activityId,
                                                                 String userId,
                                                                 int ownerCount,
@@ -52,6 +59,55 @@ public interface GroupBuyOrderLockRepository {
 
     default GroupBuyTeamStatistic queryTeamStatisticByActivityId(String activityId) {
         return new GroupBuyTeamStatistic();
+    }
+
+    static GroupBuyOrderLockRepository noop() {
+        return new GroupBuyOrderLockRepository() {
+            @Override
+            public Optional<GroupBuyOrderLock> queryLockByIdempotentKey(String idempotentKey) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<GroupBuyTeam> queryTeamByTeamId(String teamId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public GroupBuyLockResult lockNewTeam(GroupBuyTeam team, GroupBuyOrderLock orderLock) {
+                return new GroupBuyLockResult(orderLock, team, true);
+            }
+
+            @Override
+            public GroupBuyLockResult lockExistingTeam(GroupBuyOrderLock orderLock) {
+                return new GroupBuyLockResult(orderLock, null, true);
+            }
+
+            @Override
+            public Optional<GroupBuyOrderLock> queryLockByOrderId(String orderId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public GroupBuySettlementResult settlePaidOrder(String orderId) {
+                return new GroupBuySettlementResult();
+            }
+
+            @Override
+            public List<String> queryPaidOrderIdsByTeamId(String teamId) {
+                return List.of();
+            }
+
+            @Override
+            public GroupBuySettlementResult releaseLockedOrder(String orderId) {
+                return new GroupBuySettlementResult();
+            }
+
+            @Override
+            public GroupBuySettlementResult releasePaidOrder(String orderId) {
+                return new GroupBuySettlementResult();
+            }
+        };
     }
 }
 

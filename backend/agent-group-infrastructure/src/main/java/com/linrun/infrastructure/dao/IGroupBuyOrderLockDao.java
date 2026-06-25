@@ -47,6 +47,8 @@ public interface IGroupBuyOrderLockDao {
 
     int countUserActivityLocks(@Param("userId") String userId, @Param("activityId") String activityId);
 
+    int countInProgressLocksByActivityId(@Param("activityId") String activityId);
+
     List<GroupBuyTeamDetailPO> queryInProgressOwnerTeamDetails(@Param("activityId") String activityId,
                                                                @Param("userId") String userId,
                                                                @Param("limit") int limit);
