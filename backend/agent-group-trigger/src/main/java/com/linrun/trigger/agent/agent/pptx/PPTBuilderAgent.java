@@ -12,8 +12,7 @@ import com.linrun.trigger.agent.entity.vo.SaveQuestionRequest;
 import com.linrun.trigger.agent.entity.vo.UpdateAnswerRequest;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
-import com.linrun.trigger.agent.service.MinioService;
-import com.linrun.trigger.agent.utils.AppContextClient;
+import com.linrun.domain.agent.file.adapter.FileStoragePort;
 import com.linrun.trigger.agent.utils.ImageGenerationService;
 import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,9 +33,9 @@ import reactor.core.publisher.Sinks;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * PPT Builder Agent
@@ -50,39 +49,43 @@ public class PPTBuilderAgent extends BaseAgent {
     private final AiPptTemplateService pptTemplateService;
     private final PptPythonRenderService pythonRenderService;
     private final ImageGenerationService imageGenerationService;
-    private final MinioService minioService;
+    private final FileStoragePort fileStoragePort;
 
     private final List<ToolCallback> toolCallbacks;
     private final PptIntentRecognizer intentRecognizer;
     private final String executionMemoryPrompt;
     private PptStateStrategyContext strategyContext;
 
-    public PPTBuilderAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks, AiSessionService sessionService, AgentTaskManager taskManager) {
-        this(chatModel, toolCallbacks, "", sessionService, taskManager);
+    public PPTBuilderAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks, AiSessionService sessionService, AgentTaskManager taskManager,
+                           AiPptInstService pptInstService, AiPptTemplateService pptTemplateService,
+                           PptPythonRenderService pythonRenderService, ImageGenerationService imageGenerationService, FileStoragePort fileStoragePort) {
+        this(chatModel, toolCallbacks, "", sessionService, taskManager, pptInstService, pptTemplateService, pythonRenderService, imageGenerationService, fileStoragePort);
     }
 
     public PPTBuilderAgent(ChatModel chatModel, List<ToolCallback> toolCallbacks, String executionMemoryPrompt,
-                           AiSessionService sessionService, AgentTaskManager taskManager) {
+                           AiSessionService sessionService, AgentTaskManager taskManager,
+                           AiPptInstService pptInstService, AiPptTemplateService pptTemplateService,
+                           PptPythonRenderService pythonRenderService, ImageGenerationService imageGenerationService, FileStoragePort fileStoragePort) {
         super("PPTBuilderAgent", chatModel, "pptx");
         this.sessionService = sessionService;
         this.taskManager = taskManager;
         this.toolCallbacks = toolCallbacks;
         this.executionMemoryPrompt = executionMemoryPrompt == null ? "" : executionMemoryPrompt;
 
-        // 通过AppContextClient获取其他Service
-        this.pptInstService = AppContextClient.getBean(AiPptInstService.class);
-        this.pptTemplateService = AppContextClient.getBean(AiPptTemplateService.class);
-        this.pythonRenderService = AppContextClient.getBean(PptPythonRenderService.class);
-        this.imageGenerationService = AppContextClient.getBean(ImageGenerationService.class);
-        this.minioService = AppContextClient.getBean(MinioService.class);
+        // 依赖通过构造注入，避免运行期再从容器抓取
+        this.pptInstService = pptInstService;
+        this.pptTemplateService = pptTemplateService;
+        this.pythonRenderService = pythonRenderService;
+        this.imageGenerationService = imageGenerationService;
+        this.fileStoragePort = fileStoragePort;
 
         this.chatClient = ChatClient.builder(chatModel).build();
 
         // 初始化意图识别器
         this.intentRecognizer = new PptIntentRecognizer(chatClient, pptInstService);
 
-        // 初始化工具记录集合
-        this.usedTools = new HashSet<>();
+        // 初始化工具记录集合（并发安全：多个工具调用在 boundedElastic 线程并行写）
+        this.usedTools = ConcurrentHashMap.newKeySet();
     }
 
     /**
@@ -202,7 +205,7 @@ public class PPTBuilderAgent extends BaseAgent {
                 pptTemplateService,
                 pythonRenderService,
                 imageGenerationService,
-                minioService,
+                fileStoragePort,
                 sessionService,
                 taskManager,
                 toolCallbacks,

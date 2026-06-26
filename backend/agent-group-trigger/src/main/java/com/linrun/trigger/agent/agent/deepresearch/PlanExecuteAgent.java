@@ -12,7 +12,6 @@ import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.ai.chat.client.ChatClient;
@@ -67,8 +66,6 @@ public class PlanExecuteAgent extends BaseAgent {
     // 存储所有搜索结果，用于保存到数据库和发送给前端
     private List<SearchResult> allReferences;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     public PlanExecuteAgent(ChatModel chatModel,
                             List<ToolCallback> tools,
                             int maxRounds,
@@ -102,8 +99,8 @@ public class PlanExecuteAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
 
-        // 初始化工具记录集合
-        this.usedTools = new HashSet<>();
+        // 初始化工具记录集合（并发安全：多个工具调用在 boundedElastic 线程并行写）
+        this.usedTools = ConcurrentHashMap.newKeySet();
     }
 
     public static Builder builder() {

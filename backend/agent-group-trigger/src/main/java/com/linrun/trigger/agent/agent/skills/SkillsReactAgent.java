@@ -81,7 +81,7 @@ public class SkillsReactAgent extends BaseAgent {
         this.chatMemory = chatMemory;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
-        this.usedTools = new HashSet<>();
+        this.usedTools = ConcurrentHashMap.newKeySet();
         this.checkpointStore = checkpointStore;
         this.continueTraceId = continueTraceId;
 

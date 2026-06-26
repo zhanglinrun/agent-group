@@ -6,8 +6,8 @@ import com.linrun.trigger.agent.utils.ThinkTagParser;
 import com.linrun.trigger.agent.entity.record.SearchResult;
 import com.linrun.trigger.agent.entity.record.SimpleReactResult;
 import com.linrun.trigger.agent.prompts.PlanExecutePrompts;
+import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ChatClientResponse;
@@ -87,8 +87,6 @@ public class SimpleReactAgent {
     private List<Advisor> advisors;
     // 最大反思轮次
     private int maxReflectionRounds;
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public SimpleReactAgent(String name, ChatModel chatModel, List<ToolCallback> tools, String systemPrompt, int maxRounds, ChatMemory chatMemory, List<Advisor> advisors, int maxReflectionRounds) {
         this.name = name;
@@ -575,7 +573,7 @@ public class SimpleReactAgent {
      */
     private void parseSearchResult(String resultJson, AgentState state) {
         try {
-            JsonNode root = MAPPER.readTree(resultJson);
+            JsonNode root = JsonUtils.parse(resultJson);
 
             // tavily 搜索结果格式: [{ "text": { "results": [...] } }]
             if (!root.isArray() || root.isEmpty()) {
@@ -591,7 +589,7 @@ public class SimpleReactAgent {
 
             JsonNode textJson;
             if (textNode.isTextual()) {
-                textJson = MAPPER.readTree(textNode.asText());
+                textJson = JsonUtils.parse(textNode.asText());
             } else {
                 textJson = textNode;
             }

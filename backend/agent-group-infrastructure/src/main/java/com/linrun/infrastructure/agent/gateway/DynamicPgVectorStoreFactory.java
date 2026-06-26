@@ -1,4 +1,4 @@
-package com.linrun.trigger.agent.utils;
+package com.linrun.infrastructure.agent.gateway;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -10,6 +10,9 @@ import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 
+/**
+ * 动态 PgVectorStore 工厂，按表名创建/加载向量库。
+ */
 @Component
 @Slf4j
 public class DynamicPgVectorStoreFactory {
@@ -24,7 +27,6 @@ public class DynamicPgVectorStoreFactory {
     }
 
     public PgVectorStore createPgVectorStore(String tableName) {
-        // 参数校验
         if (tableName == null || tableName.trim().isEmpty()) {
             throw new IllegalArgumentException("向量表名称不能为空！");
         }
@@ -78,18 +80,3 @@ public class DynamicPgVectorStoreFactory {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,5 +1,6 @@
 package com.linrun.trigger.agent.agent.pptx.strategy;
 
+import com.linrun.domain.agent.file.adapter.FileStoragePort;
 import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
 import com.linrun.trigger.agent.service.*;
 import com.linrun.trigger.agent.utils.ImageGenerationService;
@@ -38,7 +39,7 @@ public class PptStateStrategyContext {
     private final AiPptTemplateService pptTemplateService;
     private final PptPythonRenderService pythonRenderService;
     private final ImageGenerationService imageGenerationService;
-    private final MinioService minioService;
+    private final FileStoragePort fileStoragePort;
     private final AiSessionService sessionService;
     private final AgentTaskManager taskManager;
     private final List<ToolCallback> toolCallbacks;
@@ -55,13 +56,13 @@ public class PptStateStrategyContext {
                                     AiPptTemplateService pptTemplateService,
                                     PptPythonRenderService pythonRenderService,
                                     ImageGenerationService imageGenerationService,
-                                    MinioService minioService,
+                                    FileStoragePort fileStoragePort,
                                     AiSessionService sessionService,
                                     AgentTaskManager taskManager,
                                     List<ToolCallback> toolCallbacks,
                                     ChatMemory chatMemory) {
         this(chatClient, chatModel, pptInstService, pptTemplateService, pythonRenderService,
-                imageGenerationService, minioService, sessionService, taskManager, toolCallbacks,
+                imageGenerationService, fileStoragePort, sessionService, taskManager, toolCallbacks,
                 chatMemory, "");
     }
 
@@ -70,7 +71,7 @@ public class PptStateStrategyContext {
                                     AiPptTemplateService pptTemplateService,
                                     PptPythonRenderService pythonRenderService,
                                     ImageGenerationService imageGenerationService,
-                                    MinioService minioService,
+                                    FileStoragePort fileStoragePort,
                                     AiSessionService sessionService,
                                     AgentTaskManager taskManager,
                                     List<ToolCallback> toolCallbacks,
@@ -82,7 +83,7 @@ public class PptStateStrategyContext {
         this.pptTemplateService = pptTemplateService;
         this.pythonRenderService = pythonRenderService;
         this.imageGenerationService = imageGenerationService;
-        this.minioService = minioService;
+        this.fileStoragePort = fileStoragePort;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
         this.toolCallbacks = toolCallbacks;
@@ -116,8 +117,8 @@ public class PptStateStrategyContext {
         return imageGenerationService;
     }
 
-    public MinioService getMinioService() {
-        return minioService;
+    public FileStoragePort getFileStoragePort() {
+        return fileStoragePort;
     }
 
     public AiSessionService getSessionService() {

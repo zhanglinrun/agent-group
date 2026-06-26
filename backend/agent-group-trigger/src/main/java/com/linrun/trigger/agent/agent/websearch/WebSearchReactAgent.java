@@ -14,7 +14,6 @@ import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -55,7 +54,6 @@ public class WebSearchReactAgent extends BaseAgent {
     private final List<Advisor> advisors;
     private final int maxReflectionRounds;
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Pattern PSEUDO_SEARCH_CALL_PATTERN =
             Pattern.compile("(?is)ToolCall\\s*[:：]\\s*search\\s*\\((.*?)\\)");
     private static final Pattern PSEUDO_SEARCH_QUERY_PATTERN =
@@ -78,8 +76,8 @@ public class WebSearchReactAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
 
-        // 初始化工具记录集合
-        this.usedTools = new HashSet<>();
+        // 初始化工具记录集合（并发安全：多个工具调用在 boundedElastic 线程并行写）
+        this.usedTools = ConcurrentHashMap.newKeySet();
 
         initChatClient();
 
@@ -595,7 +593,7 @@ public class WebSearchReactAgent extends BaseAgent {
 
     private void parseSearchResult(String resultJson, AgentState state) {
         try {
-            JsonNode root = MAPPER.readTree(resultJson);
+            JsonNode root = JsonUtils.parse(resultJson);
             JsonNode results = null;
 
             if (root.isObject() && root.path("results").isArray()) {
@@ -609,7 +607,7 @@ public class WebSearchReactAgent extends BaseAgent {
                 } else {
                     JsonNode textJson;
                     if (textNode.isTextual()) {
-                        textJson = MAPPER.readTree(textNode.asText());
+                        textJson = JsonUtils.parse(textNode.asText());
                     } else {
                         textJson = textNode;
                     }

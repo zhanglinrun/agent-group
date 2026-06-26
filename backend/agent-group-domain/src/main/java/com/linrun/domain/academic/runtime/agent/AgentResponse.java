@@ -10,6 +10,11 @@ import java.util.Map;
  * Agent 统一流式响应格式工具类
  *
  * 所有 Agent 流式输出必须使用本类方法，确保前端能统一解析
+ *
+ * <p>本类仅服务于 domain 层离线评测链路（AgentEvalHarness 及 runtime 下的 Skill/PPT 编排 Agent）。
+ * trigger 层线上对话另有一套同名但职责不同的
+ * {@code com.linrun.trigger.agent.common.AgentResponse}，二者方法签名不兼容、
+ * 不可互相替换，属于按场景分立而非重复实现。</p>
  */
 public class AgentResponse {
 

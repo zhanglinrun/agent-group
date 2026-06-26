@@ -49,16 +49,8 @@ public class AcademicWebFetchToolRuntime {
                 .build(), false);
     }
 
-    public AcademicWebFetchToolRuntime(HttpClient httpClient) {
-        this(null, httpClient, false);
-    }
-
     public AcademicWebFetchToolRuntime(HttpClient httpClient, boolean allowPrivateAddresses) {
         this(null, httpClient, allowPrivateAddresses);
-    }
-
-    public AcademicWebFetchToolRuntime(AcademicWebFetchPort remotePort, HttpClient httpClient) {
-        this(remotePort, httpClient, false);
     }
 
     public AcademicWebFetchToolRuntime(AcademicWebFetchPort remotePort,

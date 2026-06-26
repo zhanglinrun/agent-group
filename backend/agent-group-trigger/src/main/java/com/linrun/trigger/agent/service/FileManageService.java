@@ -1,5 +1,10 @@
 package com.linrun.trigger.agent.service;
 
+import com.linrun.domain.agent.file.adapter.EmbeddingPort;
+import com.linrun.domain.agent.file.adapter.FileParsePort;
+import com.linrun.domain.agent.file.adapter.FileStoragePort;
+import com.linrun.domain.agent.file.model.EmbeddingChunk;
+import com.linrun.domain.agent.file.model.ParsedFile;
 import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.service.impl.FileInfoServiceImpl;
 import com.linrun.trigger.agent.splitter.OverlapParagraphTextSplitter;
@@ -9,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.document.Document;
@@ -45,16 +49,16 @@ import java.util.stream.Collectors;
 public class FileManageService {
 
     @Autowired
-    private MinioService minioService;
+    private FileStoragePort fileStoragePort;
 
     @Autowired
-    private FileParserService fileParserService;
+    private FileParsePort fileParsePort;
 
     @Autowired
     private FileInfoServiceImpl fileInfoService;
 
     @Autowired
-    private EmbeddingService embeddingService;
+    private EmbeddingPort embeddingPort;
 
     private OpenAiChatModel multimodalChatModel;
 
@@ -129,10 +133,10 @@ public class FileManageService {
             // 先保存到数据库（初始状态为 PROCESSING）。
             fileInfoService.saveFileInfo(fileInfo);
 
-            // 上传到 MinIO。
+            // 上传到对象存储。
             String objectName = generateObjectName(fileId, fileType);
-            String minioPath = minioService.uploadFile(file, objectName);
-            log.info("MinIO 上传完成: fileId={}", fileId);
+            String minioPath = fileStoragePort.upload(objectName, file.getBytes(), file.getContentType());
+            log.info("对象存储上传完成: fileId={}", fileId);
 
             // 更新MinIO路径
             fileInfo.setMinioPath(minioPath);
@@ -142,9 +146,9 @@ public class FileManageService {
             // 根据文件类型进行不同的处理。
             if (isTextFile(fileType)) {
                 try {
-                    var parseResult = fileParserService.parseFile(file);
-                    String fullText = parseResult.getFullText();
-                    String extractedText = parseResult.getTruncatedText();
+                    ParsedFile parseResult = fileParsePort.parse(filename, file.getBytes(), file.getContentType());
+                    String fullText = parseResult.fullText();
+                    String extractedText = parseResult.truncatedText();
 
                     log.info("文件解析完成: fileId={}, 全量文本长度: {}, 截断后长度: {}",
                             fileId, fullText.length(), extractedText.length());
@@ -320,10 +324,10 @@ public class FileManageService {
         }
 
         try {
-            // 从 MinIO 删除。
+            // 从对象存储删除。
             if (fileInfo.getMinioPath() != null) {
                 String objectName = extractObjectName(fileInfo.getMinioPath());
-                minioService.deleteFile(objectName);
+                fileStoragePort.delete(objectName);
             }
 
             // 从数据库删除
@@ -345,7 +349,7 @@ public class FileManageService {
         if (fileInfo.getMinioPath() != null) {
             try {
                 String objectName = extractObjectName(fileInfo.getMinioPath());
-                minioService.deleteFile(objectName);
+                fileStoragePort.delete(objectName);
             } catch (Exception e) {
                 log.warn("会话文件对象清理失败，继续删除文件元数据: fileId={}, reason={}",
                         fileId, e.getClass().getSimpleName());
@@ -478,7 +482,7 @@ public class FileManageService {
         String objectName = StringUtils.isNotBlank(fileInfo.getMinioPath())
                 ? extractObjectName(fileInfo.getMinioPath())
                 : generateObjectName(fileInfo.getFileId(), fileInfo.getFileType());
-        try (InputStream inputStream = minioService.downloadFile(objectName)) {
+        try (InputStream inputStream = fileStoragePort.download(objectName)) {
             String text = IOUtils.toString(inputStream, java.nio.charset.StandardCharsets.UTF_8).trim();
             if (StringUtils.isBlank(text)) {
                 return;
@@ -568,15 +572,18 @@ public class FileManageService {
         List<Document> chunks = splitter.apply(documents);
         log.info("文档切分完成: fileId={}, 切分数量: {}", fileId, chunks.size());
 
-        // 3. 为每个切分添加元数据
+        // 3. 转成端口入参并补充元数据
+        List<EmbeddingChunk> portChunks = new java.util.ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
             Document chunk = chunks.get(i);
-            chunk.getMetadata().put("fileid", fileId);
-            chunk.getMetadata().put("chunkId", i);
+            Map<String, Object> metadata = new java.util.HashMap<>(chunk.getMetadata());
+            metadata.put("fileid", fileId);
+            metadata.put("chunkId", i);
+            portChunks.add(EmbeddingChunk.of(chunk.getText(), metadata));
         }
 
         // 4. 向量化并存储
-        embeddingService.embedAndStore(chunks);
+        embeddingPort.embedAndStore(portChunks);
         log.info("大文件向量化存储完成: fileId={}, 切分数量: {}", fileId, chunks.size());
     }
 }

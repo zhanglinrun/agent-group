@@ -25,7 +25,7 @@ public class AppContextClient {
     }
 
     public static boolean ready() {
-        return applicationContextRef == null;
+        return applicationContextRef != null;
     }
 
     public static <T> T getBean(String beanName) {

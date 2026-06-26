@@ -364,28 +364,6 @@ public abstract class BaseAgent {
         }
     }
 
-    /**
-     * 从响应中提取JSON数组
-     *
-     * @param response 响应字符串
-     * @return JSON数组字符串，提取失败返回null
-     */
-    private String extractJsonArray(String response) {
-        if (response == null) {
-            return null;
-        }
-
-        // 查找第一个 [ 和最后一个 ]
-        int start = response.indexOf('[');
-        int end = response.lastIndexOf(']');
-
-        if (start >= 0 && end > start) {
-            return response.substring(start, end + 1);
-        }
-
-        return null;
-    }
-
     // ===== 保存会话的通用方法 =====
 
     /**

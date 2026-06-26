@@ -24,12 +24,15 @@ import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
 import com.linrun.trigger.agent.entity.vo.SaveQuestionRequest;
 import com.linrun.trigger.agent.entity.vo.UpdateAnswerRequest;
-import com.linrun.trigger.agent.mapper.AiSessionMapper;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiPptInstService;
+import com.linrun.trigger.agent.service.AiPptTemplateService;
 import com.linrun.trigger.agent.service.AiSessionService;
 import com.linrun.trigger.agent.service.FileInfoService;
 import com.linrun.trigger.agent.service.FileManageService;
+import com.linrun.domain.agent.file.adapter.FileStoragePort;
+import com.linrun.trigger.agent.service.PptPythonRenderService;
+import com.linrun.trigger.agent.utils.ImageGenerationService;
 import com.linrun.trigger.agent.tool.FileContentService;
 import com.linrun.trigger.agent.tool.AcademicToolCallbackFactory;
 import com.linrun.trigger.agent.tool.SearchTool;
@@ -97,7 +100,6 @@ public class AcademicAgentNativeService {
     private final FileManageService fileManageService;
     private final FileInfoService fileInfoService;
     private final AiPptInstService aiPptInstService;
-    private final AiSessionMapper aiSessionMapper;
     private final UserAccountService userAccountService;
     private final UserQuotaService userQuotaService;
     private final AcademicExternalSearchService externalSearchService;
@@ -112,6 +114,10 @@ public class AcademicAgentNativeService {
     private final ObjectProvider<AgentCheckpointStore> checkpointStoreProvider;
     private final ObjectProvider<CircuitBreaker> llmCircuitBreakerProvider;
     private final ObjectProvider<Retry> llmRetryProvider;
+    private final ObjectProvider<AiPptTemplateService> aiPptTemplateServiceProvider;
+    private final ObjectProvider<PptPythonRenderService> pptPythonRenderServiceProvider;
+    private final ObjectProvider<ImageGenerationService> imageGenerationServiceProvider;
+    private final ObjectProvider<FileStoragePort> fileStoragePortProvider;
 
     @Value("${spring.ai.openai.chat.options.model:qwen3.7-plus}")
     private String defaultChatModel;
@@ -123,7 +129,6 @@ public class AcademicAgentNativeService {
                                   FileManageService fileManageService,
                                   FileInfoService fileInfoService,
                                   AiPptInstService aiPptInstService,
-                                  AiSessionMapper aiSessionMapper,
                                   UserAccountService userAccountService,
                                   UserQuotaService userQuotaService,
                                   AcademicExternalSearchService externalSearchService,
@@ -139,7 +144,11 @@ public class AcademicAgentNativeService {
                                   @Qualifier("llmChatCircuitBreaker")
                                   ObjectProvider<CircuitBreaker> llmCircuitBreakerProvider,
                                   @Qualifier("llmChatRetry")
-                                  ObjectProvider<Retry> llmRetryProvider) {
+                                  ObjectProvider<Retry> llmRetryProvider,
+                                  ObjectProvider<AiPptTemplateService> aiPptTemplateServiceProvider,
+                                  ObjectProvider<PptPythonRenderService> pptPythonRenderServiceProvider,
+                                  ObjectProvider<ImageGenerationService> imageGenerationServiceProvider,
+                                  ObjectProvider<FileStoragePort> fileStoragePortProvider) {
         this.chatModelProvider = chatModelProvider;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
@@ -147,7 +156,6 @@ public class AcademicAgentNativeService {
         this.fileManageService = fileManageService;
         this.fileInfoService = fileInfoService;
         this.aiPptInstService = aiPptInstService;
-        this.aiSessionMapper = aiSessionMapper;
         this.userAccountService = userAccountService;
         this.userQuotaService = userQuotaService;
         this.externalSearchService = externalSearchService;
@@ -162,6 +170,10 @@ public class AcademicAgentNativeService {
         this.checkpointStoreProvider = checkpointStoreProvider;
         this.llmCircuitBreakerProvider = llmCircuitBreakerProvider;
         this.llmRetryProvider = llmRetryProvider;
+        this.aiPptTemplateServiceProvider = aiPptTemplateServiceProvider;
+        this.pptPythonRenderServiceProvider = pptPythonRenderServiceProvider;
+        this.imageGenerationServiceProvider = imageGenerationServiceProvider;
+        this.fileStoragePortProvider = fileStoragePortProvider;
     }
 
     public Flux<String> stream(String token,
@@ -333,10 +345,6 @@ public class AcademicAgentNativeService {
         return agentSessionService.rollbackSessionFromMessage(token, conversationId, messageId);
     }
 
-    private Long parseRecordId(String messageId) {
-        return agentContextResolver.parseRecordId(messageId);
-    }
-
     public Map<String, Object> capabilities() {
         return capabilityService.capabilities();
     }
@@ -369,6 +377,7 @@ public class AcademicAgentNativeService {
                 .systemPrompt(executionMemoryPrompt)
                 .sessionService(sessionService)
                 .taskManager(taskManager)
+                .fileContentService(fileContentService)
                 .build();
     }
 
@@ -381,7 +390,10 @@ public class AcademicAgentNativeService {
                 academicToolCallbacks("ppt", userId, conversationId, webSearchEnabled),
                 skillsRuntimeResolver.skillsToolCallbacks()
         );
-        return new PPTBuilderAgent(chatModel, Arrays.asList(tools), executionMemoryPrompt, sessionService, taskManager);
+        return new PPTBuilderAgent(chatModel, Arrays.asList(tools), executionMemoryPrompt, sessionService, taskManager,
+                aiPptInstService, aiPptTemplateServiceProvider.getObject(),
+                pptPythonRenderServiceProvider.getObject(), imageGenerationServiceProvider.getObject(),
+                fileStoragePortProvider.getObject());
     }
 
     private PlanExecuteAgent initPlanExecuteAgent(String userId, String conversationId, ChatModel chatModel,
@@ -676,21 +688,6 @@ public class AcademicAgentNativeService {
         return StringUtils.hasText(text) ? text : fallback;
     }
 
-    private long numberValue(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        String text = text(value);
-        if (!StringUtils.hasText(text)) {
-            return 0L;
-        }
-        try {
-            return Long.parseLong(text);
-        } catch (NumberFormatException ignored) {
-            return 0L;
-        }
-    }
-
     private String text(Object value) {
         return value == null ? "" : String.valueOf(value).trim();
     }
@@ -901,9 +898,5 @@ public class AcademicAgentNativeService {
         }
     }
     private record RuntimeModelSelection(ChatModel chatModel, boolean customModelUsed) {
-    }
-
-    private String blank(String value) {
-        return agentContextResolver.blank(value);
     }
 }

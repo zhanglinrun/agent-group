@@ -6,43 +6,33 @@ import com.linrun.trigger.agent.entity.record.RoundMode;
 import com.linrun.trigger.agent.entity.record.RoundState;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
 import com.linrun.trigger.agent.prompts.ReactAgentPrompts;
-import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.entity.AiSession;
 import com.linrun.trigger.agent.entity.vo.SaveQuestionRequest;
 import com.linrun.trigger.agent.entity.vo.UpdateAnswerRequest;
 import com.linrun.trigger.agent.service.AgentTaskManager;
 import com.linrun.trigger.agent.service.AiSessionService;
-import com.linrun.trigger.agent.service.FileManageService;
-import com.linrun.trigger.agent.service.MinioService;
 import com.linrun.trigger.agent.tool.FileContentService;
-import com.linrun.trigger.agent.utils.AppContextClient;
 import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
-import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.util.MimeTypeUtils;
 import org.springframework.util.StringUtils;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,8 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static com.linrun.trigger.agent.service.FileManageService.generateObjectName;
 
 /**
  * 文件问答智能体
@@ -68,12 +56,14 @@ public class FileReactAgent extends BaseAgent {
     private final String systemPrompt;
     private int maxRounds;
     private String currentFileId;
+    private final FileContentService fileContentService;
 
     private boolean enableRecommendations = false;
 
     public FileReactAgent(String name, ChatModel chatModel, List<ToolCallback> tools,
                           String systemPrompt, int maxRounds, ChatMemory chatMemory,
-                          AiSessionService sessionService, AgentTaskManager taskManager) {
+                          AiSessionService sessionService, AgentTaskManager taskManager,
+                          FileContentService fileContentService) {
         super(name, chatModel, "file");
         this.tools = tools;
         this.systemPrompt = systemPrompt;
@@ -81,9 +71,10 @@ public class FileReactAgent extends BaseAgent {
         this.chatMemory = chatMemory;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
+        this.fileContentService = fileContentService;
 
-        // 初始化工具记录集合
-        this.usedTools = new HashSet<>();
+        // 初始化工具记录集合（并发安全：多个工具调用在 boundedElastic 线程并行写）
+        this.usedTools = ConcurrentHashMap.newKeySet();
 
         initChatClient();
 
@@ -170,11 +161,6 @@ public class FileReactAgent extends BaseAgent {
         loadChatHistory(conversationId, messages, true, true);
 
         // ===== 加载文件内容或文件信息 =====
-        // 注释掉原有的 loadFileContent 调用，使用新的 FileContentService 工具替代
-        // UserMessage userMessage = loadFileContent();
-        // if (userMessage != null && StringUtils.hasText(userMessage.getText()))
-        //     messages.add(userMessage);;
-
         String attachmentContext = buildAttachmentContext(question);
         if (StringUtils.hasText(attachmentContext)) {
             messages.add(new UserMessage(attachmentContext));
@@ -274,7 +260,6 @@ public class FileReactAgent extends BaseAgent {
             return "";
         }
         try {
-            FileContentService fileContentService = AppContextClient.getBean(FileContentService.class);
             StringBuilder context = new StringBuilder("以下是系统已经读取到的本轮附件内容，请优先基于这些附件回答用户问题；不要在最终回答中透露文件ID。\n");
             for (int i = 0; i < fileIds.size(); i++) {
                 String fileId = fileIds.get(i);
@@ -301,104 +286,6 @@ public class FileReactAgent extends BaseAgent {
             }
         }
         return result;
-    }
-
-    /**
-     * 加载文件内容并构建用户消息
-     */
-    private UserMessage loadFileContent() {
-        // 1. 获取依赖服务
-        FileManageService fileManageService = AppContextClient.getBean(FileManageService.class);
-        MinioService minioService = AppContextClient.getBean(MinioService.class);
-
-        // 2. 查询文件信息
-        FileInfo fileInfo = fileManageService.getFileInfo(currentFileId);
-        if (fileInfo == null) {
-            return UserMessage.builder().text("文件信息不存在，请检查文件ID是否正确").build();
-        }
-
-        if (isImageFile(fileInfo.getFileType())) {
-            return handleImageFile(fileInfo, minioService);
-        } else {
-            return handleTextFile(fileInfo);
-        }
-    }
-
-    /**
-     * 处理图片文件
-     */
-    private UserMessage handleImageFile(FileInfo fileInfo, MinioService minioService) {
-        String fileId = fileInfo.getFileId();
-        String fileType = fileInfo.getFileType();
-
-        try {
-            // 生成MinIO对象名称
-            String objectName = generateObjectName(fileId, fileType);
-
-            try (InputStream inputStream = minioService.downloadFile(objectName)) {
-                // 读取文件字节数组
-                byte[] fileBytes = IOUtils.toByteArray(inputStream);
-
-                // 校验文件字节是否为空
-                if (fileBytes == null || fileBytes.length == 0) {
-                    return UserMessage.builder().text("图片文件内容为空，请检查文件是否上传完成").build();
-                }
-
-                // 构建图片消息
-                ByteArrayResource imageResource = new ByteArrayResource(fileBytes);
-                List<Media> mediaList = Collections.singletonList(
-                        new Media(resolveImageMimeType(fileType), imageResource)
-                );
-
-                return UserMessage.builder()
-                        .text("当前文件是一张图片，请围绕这个文件进行问答：")
-                        .media(mediaList)
-                        .build();
-            }
-        } catch (Exception e) {
-            return UserMessage.builder().text("图片文件处理失败：" + e.getMessage()).build();
-        }
-    }
-
-    /**
-     * 处理文本文件
-     */
-    private UserMessage handleTextFile(FileInfo fileInfo) {
-        String extractedText = fileInfo.getExtractedText();
-        // 校验文本内容是否为空，提升用户体验
-        String textContent = (extractedText == null || extractedText.trim().isEmpty())
-                ? "当前文件是一个文本文件，但文件内容为空，请检查文件是否有效"
-                : "当前文件是一个文本文件，请围绕这个文件进行问答，以下是这个文件的具体内容：\n" + extractedText;
-
-        return UserMessage.builder()
-                .text(textContent)
-                .build();
-    }
-
-    /**
-     * 判断是否为图片文件
-     */
-    private boolean isImageFile(String fileType) {
-        return ("jpg".equalsIgnoreCase(fileType) ||
-                "jpeg".equalsIgnoreCase(fileType) ||
-                "png".equalsIgnoreCase(fileType) ||
-                "gif".equalsIgnoreCase(fileType) ||
-                "bmp".equalsIgnoreCase(fileType) ||
-                "webp".equalsIgnoreCase(fileType));
-    }
-
-    private org.springframework.util.MimeType resolveImageMimeType(String fileType) {
-        String lowerType = StringUtils.hasText(fileType) ? fileType.toLowerCase(Locale.ROOT) : "";
-        if ("jpg".equals(lowerType) || "jpeg".equals(lowerType)) {
-            return MimeTypeUtils.IMAGE_JPEG;
-        }
-        if ("gif".equals(lowerType)) {
-            return MimeTypeUtils.IMAGE_GIF;
-        }
-        if ("webp".equals(lowerType)) {
-            return MimeTypeUtils.parseMimeType("image/webp");
-        }
-        return MimeTypeUtils.IMAGE_PNG;
     }
 
     private void scheduleRound(List<Message> messages, Sinks.Many<String> sink,
@@ -738,6 +625,7 @@ public class FileReactAgent extends BaseAgent {
         private ChatMemory chatMemory;
         private AiSessionService sessionService;
         private AgentTaskManager taskManager;
+        private FileContentService fileContentService;
 
         public Builder name(String name) {
             this.name = name;
@@ -784,11 +672,16 @@ public class FileReactAgent extends BaseAgent {
             return this;
         }
 
+        public Builder fileContentService(FileContentService fileContentService) {
+            this.fileContentService = fileContentService;
+            return this;
+        }
+
         public FileReactAgent build() {
             if (chatModel == null) {
                 throw new IllegalArgumentException("chatModel 不能为空");
             }
-            return new FileReactAgent(name, chatModel, tools, systemPrompt, maxRounds, chatMemory, sessionService, taskManager);
+            return new FileReactAgent(name, chatModel, tools, systemPrompt, maxRounds, chatMemory, sessionService, taskManager, fileContentService);
         }
     }
 }

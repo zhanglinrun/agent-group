@@ -2,8 +2,10 @@ package com.linrun.trigger.agent.tool;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.linrun.domain.agent.file.adapter.EmbeddingPort;
+import com.linrun.domain.agent.file.model.RagHit;
+import com.linrun.domain.agent.file.model.RagRetrievalResult;
 import com.linrun.trigger.agent.entity.record.FileInfo;
-import com.linrun.trigger.agent.service.EmbeddingService;
 import com.linrun.trigger.agent.service.FileManageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -22,10 +24,10 @@ class FileContentServiceTest {
 
     @Test
     void loadContentReturnsStructuredRagEvidence() throws Exception {
-        EmbeddingService embeddingService = mock(EmbeddingService.class);
+        EmbeddingPort embeddingPort = mock(EmbeddingPort.class);
         FileManageService fileManageService = mock(FileManageService.class);
         FileContentService service = new FileContentService();
-        ReflectionTestUtils.setField(service, "embeddingService", embeddingService);
+        ReflectionTestUtils.setField(service, "embeddingPort", embeddingPort);
         ReflectionTestUtils.setField(service, "fileManageService", fileManageService);
 
         FileInfo fileInfo = FileInfo.builder()
@@ -37,8 +39,8 @@ class FileContentServiceTest {
                 .embed(1)
                 .build();
         when(fileManageService.getFileInfo("file-1")).thenReturn(fileInfo);
-        when(embeddingService.ragRetrieveDetailed("file-1", "研究问题"))
-                .thenReturn(new EmbeddingService.RagRetrievalResult(
+        when(embeddingPort.ragRetrieve("file-1", "研究问题"))
+                .thenReturn(new RagRetrievalResult(
                         true,
                         "rag",
                         "研究问题",
@@ -46,7 +48,7 @@ class FileContentServiceTest {
                         List.of("研究问题"),
                         1,
                         "RAG检索命中 1 段",
-                        List.of(new EmbeddingService.RagHit(
+                        List.of(new RagHit(
                                 1,
                                 "doc-1",
                                 "命中片段",
@@ -65,3 +67,4 @@ class FileContentServiceTest {
         assertEquals(1, ((List<?>) payload.get("segments")).size());
     }
 }
+

@@ -1,7 +1,9 @@
 package com.linrun.trigger.agent.tool;
 
+import com.linrun.domain.agent.file.adapter.EmbeddingPort;
+import com.linrun.domain.agent.file.model.RagHit;
+import com.linrun.domain.agent.file.model.RagRetrievalResult;
 import com.linrun.trigger.agent.entity.record.FileInfo;
-import com.linrun.trigger.agent.service.EmbeddingService;
 import com.linrun.trigger.agent.service.FileManageService;
 import com.linrun.trigger.agent.common.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +28,7 @@ import java.util.Map;
 public class FileContentService {
 
     @Autowired
-    private EmbeddingService embeddingService;
+    private EmbeddingPort embeddingPort;
 
     @Autowired
     private FileManageService fileManageService;
@@ -144,12 +146,12 @@ public class FileContentService {
             return payload;
         }
 
-        EmbeddingService.RagRetrievalResult result = embeddingService.ragRetrieveDetailed(fileId, question);
+        RagRetrievalResult result = embeddingPort.ragRetrieve(fileId, question);
         List<Map<String, Object>> segments = result.hits().stream()
                 .map(this::segmentPayload)
                 .toList();
         String content = result.hits().stream()
-                .map(EmbeddingService.RagHit::content)
+                .map(RagHit::content)
                 .filter(StringUtils::hasText)
                 .reduce((left, right) -> left + "\n\n" + right)
                 .orElse(result.message());
@@ -204,7 +206,7 @@ public class FileContentService {
         return payload;
     }
 
-    private Map<String, Object> segmentPayload(EmbeddingService.RagHit hit) {
+    private Map<String, Object> segmentPayload(RagHit hit) {
         Map<String, Object> segment = new LinkedHashMap<>();
         segment.put("rank", hit.rank());
         segment.put("documentId", hit.documentId());

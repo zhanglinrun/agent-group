@@ -4,7 +4,7 @@ import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
 import com.linrun.trigger.agent.entity.record.pptx.AiPptTemplate;
 import com.linrun.trigger.agent.service.AiPptTemplateService;
 import com.linrun.trigger.agent.service.PptPythonRenderService;
-import com.linrun.trigger.agent.service.MinioService;
+import com.linrun.domain.agent.file.adapter.FileStoragePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -34,11 +34,11 @@ import java.util.concurrent.TimeUnit;
 public class PptPythonRenderServiceImpl implements PptPythonRenderService {
 
     private final AiPptTemplateService templateService;
-    private final MinioService minioService;
+    private final FileStoragePort fileStoragePort;
 
-    public PptPythonRenderServiceImpl(AiPptTemplateService templateService, MinioService minioService) {
+    public PptPythonRenderServiceImpl(AiPptTemplateService templateService, FileStoragePort fileStoragePort) {
         this.templateService = templateService;
-        this.minioService = minioService;
+        this.fileStoragePort = fileStoragePort;
     }
 
     @Override
@@ -148,7 +148,7 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
             // 构建MinIO对象名称: ppt/{conversationId}/{filename}
             String objectName = "ppt/" + inst.getConversationId() + "/" + outputFileName;
 
-            String fileUrl = minioService.uploadFile(objectName, fileBytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+            String fileUrl = fileStoragePort.upload(objectName, fileBytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
 
             log.info("PPT已上传到MinIO: {}", fileUrl);
             return fileUrl;

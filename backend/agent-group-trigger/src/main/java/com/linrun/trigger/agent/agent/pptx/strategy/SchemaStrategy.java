@@ -414,7 +414,7 @@ public class SchemaStrategy implements PptStateStrategy {
                 if (imageBytes != null && imageBytes.length > 0) {
                     // 上传到MinIO
                     String objectName = "ppt/" + conversationId + "/images/" + System.currentTimeMillis() + "_" + (i + 1) + ".png";
-                    String minioUrl = context.getMinioService().uploadFile(objectName, imageBytes, "image/png");
+                    String minioUrl = context.getFileStoragePort().upload(objectName, imageBytes, "image/png");
 
                     // 更新schema中的url为MinIO地址
                     task.fieldData.setUrl(minioUrl);
