@@ -187,16 +187,16 @@ npm run dev
 
 ## 项目文档
 
-### 核心文档（必看）
-- **`docs/RESUME_GUIDE.md`**：简历表述 + 面试问答（⭐⭐⭐⭐⭐）
-- **`docs/PERFORMANCE_REPORT.md`**：性能指标报告（⭐⭐⭐⭐）
-- **`COMPLETION_REPORT.md`**：完整交付清单（⭐⭐⭐⭐）
-- **`OPTIMIZATION_PLAN.md`**：优化计划详情（⭐⭐⭐）
+### 开发与复盘
+- **`docs/dev-challenges-and-improvements.md`**：开发过程问题记录与改进方案（面试讲述素材）
+- **`docs/trade-high-concurrency.md`**：交易链路高并发设计
+- **`docs/autumn-recruit-evidence.md`**：秋招项目证据材料
 
-### 技术设计
-- **`docs/agent-platform-upgrade.md`**：Agent 平台升级方案
-- **`docs/autumn-recruit-project-overview.md`**：秋招项目概览
-- **`docs/goal-autumn-recruit-readiness.md`**：秋招准备目标
+### 运维与环境
+- **`docs/dev-ops/README.md`**：本地环境与运营端说明
+- **`docs/dev-ops/loadtest/README.md`**：交易接口压测脚本与结果记录
+- **`docs/dev-ops/payment-sandbox.md`**：支付宝沙箱就绪检查
+- **`docs/dev-ops/local-real-deps-check.md`**：本地真实依赖检查
 
 ---
 
@@ -204,23 +204,23 @@ npm run dev
 
 ```
 backend/
-├── agent-group-api/          # 接口契约
-├── agent-group-app/          # 启动入口
-├── agent-group-domain/       # 领域核心
-│   ├── academic/runtime/
-│   │   ├── agent/           # Agent 基础设施
-│   │   ├── reasoning/       # 推理、重规划、反思
-│   │   ├── mode/            # 执行模式抽象
-│   │   └── diagnosis/       # 异常诊断
-│   └── support/trace/       # 链路追踪
-├── agent-group-infrastructure/ # 基础设施
-├── agent-group-trigger/      # 接口入口
-└── agent-group-types/        # 通用类型
+├── agent-group-api/            # 接口契约
+├── agent-group-app/            # 启动入口
+├── agent-group-domain/         # 领域核心
+│   ├── academic/runtime/       # 离线评测 Agent 引擎（推理、重规划、反思、诊断）
+│   ├── agent/file/             # 会话文件端口（存储、解析、向量化）
+│   ├── agent/knowledge/        # 知识库文档端口与模型
+│   └── support/trace/          # 链路追踪
+├── agent-group-infrastructure/ # 基础设施（DB、缓存、消息、对象存储、Spring AI 适配）
+├── agent-group-trigger/        # 接口入口（HTTP、SSE、定时任务、线上 Agent）
+└── agent-group-types/          # 通用类型
 ```
 
----
+> 会话文件的技术接入（MinIO 读写、PDF/DOCX 解析、向量存取与 RAG 检索）以端口形式定义在 `domain.agent.file.adapter`，由 `infrastructure.agent.gateway` 提供实现，trigger 面向端口编程，避免技术实现泄漏到接口层。
 
 ---
 
-**更新时间**：2026-06  
+---
+
+**更新时间**：2026-06-26  
 **适用场景**：2027 届秋招 后端/AI 开发岗位

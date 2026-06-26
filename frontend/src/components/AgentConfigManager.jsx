@@ -23,7 +23,7 @@ const MODEL_GROUPS = [
   { key: "image", label: "图像模型", hint: "图像生成用，可填 DashScope 或兼容接口" }
 ];
 
-export default function AgentConfigManager({ section = "llmConfig" }) {
+export default function AgentConfigManager({ section = "llmConfig", authVersion }) {
   const [llm, setLlm] = useState({ chat: {}, embedding: {}, image: {}, persisted: EMPTY_LLM_FORM, overrideFile: "" });
   const [llmForm, setLlmForm] = useState(EMPTY_LLM_FORM);
   const [llmEditing, setLlmEditing] = useState(false);
@@ -67,7 +67,7 @@ export default function AgentConfigManager({ section = "llmConfig" }) {
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [authVersion]);
 
   const updateLlmField = (group, key, value) => setLlmForm((prev) => ({
     ...prev,

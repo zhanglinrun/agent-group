@@ -81,7 +81,7 @@ function defaultDiscountName(plan, expr) {
   }
 }
 
-export default function GroupBuyActivityManager() {
+export default function GroupBuyActivityManager({ authVersion }) {
   const [activities, setActivities] = useState([]);
   const [goodsOptions, setGoodsOptions] = useState([]);
   const [discountOptions, setDiscountOptions] = useState([]);
@@ -90,6 +90,7 @@ export default function GroupBuyActivityManager() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [optionsMessage, setOptionsMessage] = useState("");
 
   const [discountEditing, setDiscountEditing] = useState(null);
   const [discountForm, setDiscountForm] = useState(EMPTY_DISCOUNT_FORM);
@@ -100,15 +101,24 @@ export default function GroupBuyActivityManager() {
   const [inlineDiscount, setInlineDiscount] = useState({ plan: "ZJ", expr: "", name: "" });
 
   const loadOptions = async () => {
+    setOptionsMessage("");
     try {
       const [goodsRes, discountRes] = await Promise.all([
         queryGroupBuyGoodsOptions(),
         queryGroupBuyDiscountOptions()
       ]);
-      if (goodsRes?.code === "0000") setGoodsOptions(goodsRes.data || []);
-      if (discountRes?.code === "0000") setDiscountOptions(discountRes.data || []);
-    } catch {
-      // 未登录或网络异常时静默，等登录后刷新即可
+      const goodsOk = goodsRes?.code === "0000";
+      const discountOk = discountRes?.code === "0000";
+      if (goodsOk) setGoodsOptions(goodsRes.data || []);
+      if (discountOk) setDiscountOptions(discountRes.data || []);
+      if (!goodsOk || !discountOk) {
+        const hint = (!goodsOk && !discountOk)
+          ? "加载额度包和折扣失败，请先在左侧登录运营端"
+          : (goodsOk ? "加载折扣失败，请先登录运营端" : "加载额度包失败，请先登录运营端");
+        setOptionsMessage(normalizeApiMessage(goodsOk ? discountRes : goodsRes) || hint);
+      }
+    } catch (err) {
+      setOptionsMessage(normalizeApiMessage(err) || "加载额度包和折扣失败，请先在左侧登录运营端");
     }
   };
 
@@ -144,7 +154,7 @@ export default function GroupBuyActivityManager() {
     loadActivities();
     loadOptions();
     loadDiscounts();
-  }, []);
+  }, [authVersion]);
 
   const startCreate = () => {
     setEditing("create");
@@ -408,6 +418,7 @@ export default function GroupBuyActivityManager() {
             <button className="admin-btn outline small" onClick={cancelEdit}><X size={14} /></button>
           </div>
           <div className="admin-hint">团价和折扣二选一：填了团价就不能选折扣，选了折扣团价会被清空。折扣可以选已有的，也可在下拉里选「新建折扣」当场填金额。</div>
+          {optionsMessage && <div className="admin-tip">{optionsMessage}</div>}
           <div className="admin-form-grid">
             <label className="admin-field">
               <span>活动名称</span>
@@ -415,8 +426,8 @@ export default function GroupBuyActivityManager() {
             </label>
             <label className="admin-field">
               <span>额度包</span>
-              <select value={form.goodsId} onChange={(e) => updateField("goodsId", e.target.value)}>
-                <option value="">请选择</option>
+              <select value={form.goodsId} onChange={(e) => updateField("goodsId", e.target.value)} disabled={goodsOptions.length === 0}>
+                <option value="">{goodsOptions.length === 0 ? "无可用额度包，请先登录运营端" : "请选择"}</option>
                 {goodsOptions.map((g) => (
                   <option key={g.goodsId} value={g.goodsId}>{g.goodsName}（￥{g.originalPrice}）</option>
                 ))}

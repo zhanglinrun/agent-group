@@ -97,6 +97,7 @@ export default function AdminDashboard() {
   const [opsDashboard, setOpsDashboard] = useState({ channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [authVersion, setAuthVersion] = useState(0);
 
   useEffect(() => {
     applyTheme(theme);
@@ -126,6 +127,11 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setErrorMsg("");
     applyResults(await fetchAdminData());
+  };
+
+  const handleAuthChanged = async () => {
+    setAuthVersion((v) => v + 1);
+    await loadData();
   };
 
   useEffect(() => {
@@ -160,7 +166,7 @@ export default function AdminDashboard() {
         onSelect={setCurrent}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onAuthChanged={loadData}
+        onAuthChanged={handleAuthChanged}
       />
 
       <div className="admin-main">
@@ -208,7 +214,7 @@ export default function AdminDashboard() {
           {current === "activity" && (
             <div className="admin-card">
               <div className="admin-card-body">
-                <GroupBuyActivityManager />
+                <GroupBuyActivityManager authVersion={authVersion} />
               </div>
             </div>
           )}
@@ -262,7 +268,7 @@ export default function AdminDashboard() {
           )}
 
           {(current === "llmConfig" || current === "skills" || current === "mcp") && (
-            <AgentConfigManager section={current} />
+            <AgentConfigManager section={current} authVersion={authVersion} />
           )}
 
           {current === "order" && (
