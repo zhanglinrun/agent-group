@@ -11,7 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 /**
- * 学术 Agent 的文件管理服务，从 AcademicAgentNativeService 抽出。
+ * Agent 的文件管理服务，从 AcademicAgentNativeService 抽出。
  * 负责文件上传、查询、内容读取、删除、列表和存在性校验，统一走文件归属校验。
  */
 @Service

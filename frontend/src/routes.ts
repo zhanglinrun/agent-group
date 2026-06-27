@@ -3,7 +3,6 @@ export const APP_ROUTES = {
   agent: "/",
   workspaceImage: "/workspace/image",
   workspaceData: "/workspace/data",
-  workspaceMrag: "/workspace/mrag",
   workspaceTrade: "/workspace/trade"
 } as const;
 
@@ -15,7 +14,6 @@ export const WORKSPACE_ROUTES = [
 export const INTERNAL_WORKSPACE_ROUTES = [
   ...WORKSPACE_ROUTES,
   APP_ROUTES.workspaceData,
-  APP_ROUTES.workspaceMrag,
   APP_ROUTES.workspaceTrade
 ] as const;
 

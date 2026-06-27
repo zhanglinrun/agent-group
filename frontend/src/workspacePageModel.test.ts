@@ -48,14 +48,7 @@ describe("workspace page model", () => {
     expect(model.actions.map((action) => action.key)).toEqual(["run", "history"]);
   });
 
-  it("models MRAG and trade workspaces with different input surfaces", () => {
-    expect(buildWorkspacePageModel("mrag", null)).toMatchObject({
-      status: "pending",
-      acceptsFiles: true,
-      supportsHistory: true,
-      inputKinds: ["prompt", "file", "knowledge-base"]
-    });
-
+  it("models trade workspace with quota-focused input surface", () => {
     const trade = buildWorkspacePageModel("trade", {
       workspaceProfiles: [
         {
@@ -79,7 +72,7 @@ describe("workspace page model", () => {
     const model = buildWorkspacePageModel("missing", {});
 
     expect(model.workspace.id).toBe("agent");
-    expect(model.profile.taskType).toBe("chat");
+    expect(model.profile.taskType).toBe("auto");
     expect(model.prompts.length).toBeGreaterThan(0);
     expect(model.actions).toEqual([
       {

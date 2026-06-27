@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.agent.repository;
 
 import com.linrun.domain.agent.conversation.model.QuotaProduct;
-import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
+import com.linrun.domain.agent.conversation.service.QuotaProductKeywordService;
 import com.linrun.infrastructure.dao.IQuotaProductDao;
 import com.linrun.infrastructure.po.QuotaProductPO;
 import org.junit.jupiter.api.Test;
@@ -19,7 +19,7 @@ class MyBatisQuotaProductRepositoryTest {
         FakeGuideDataDao guideDataDao = new FakeGuideDataDao();
         MyBatisQuotaProductRepository repository = new MyBatisQuotaProductRepository(
                 guideDataDao,
-                new KnowledgeKeywordService());
+                new QuotaProductKeywordService());
 
         List<QuotaProduct> products = repository.queryCandidateProducts("paper reading", 5);
 
@@ -36,7 +36,7 @@ class MyBatisQuotaProductRepositoryTest {
         guideDataDao.detail.setGroupPrice(null);
         MyBatisQuotaProductRepository repository = new MyBatisQuotaProductRepository(
                 guideDataDao,
-                new KnowledgeKeywordService());
+                new QuotaProductKeywordService());
 
         QuotaProduct product = repository.queryProductByGoodsId("G10001").orElseThrow();
 

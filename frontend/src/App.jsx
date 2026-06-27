@@ -47,12 +47,10 @@ import {
   workspacePath
 } from "./workspaces";
 import {
-  buildKnowledgeBaseCatalog,
   buildWorkspaceDataCatalogDraft,
   buildWorkspaceDataRunPayload,
   buildWorkspaceImageGeneratePayload,
   buildWorkspaceStreamDraft,
-  knowledgeBaseCatalogKey,
   normalizeWorkspaceHistoryItems,
   workspaceAcceptsFile,
   workspaceSupportsHistory
@@ -103,8 +101,7 @@ import {
   toUiReference,
   workspaceDataToolResultEvent,
   workspaceImageArtifacts,
-  workspaceImageToolResultEvent,
-  workspaceMragToolResultEvent
+  workspaceImageToolResultEvent
 } from "./appRuntime";
 import {
   applyAcademicProjectPatch,
@@ -113,13 +110,9 @@ import {
   createDirectOrder,
   createAcademicProject,
   deleteAcademicSession,
-  deleteKnowledgeDocument,
   downloadAcademicArtifact,
   generateWorkspaceImage,
-  getKnowledgeDocumentFullContent,
   getAdminAuth,
-  getKnowledgeFragments,
-  getKnowledgeDocuments,
   getModelConfig,
   getQuotaSummary,
   getSessionId,
@@ -142,22 +135,16 @@ import {
   queryWorkspaceDataCatalog,
   queryWorkspaceDataHistory,
   queryWorkspaceImageHistory,
-  queryWorkspaceMragHistory,
   queryUserOrderList,
-  rebuildKnowledgeVector,
   register,
   rollbackAcademicSession,
   requestAcademicAttachStream,
   requestAcademicResumeStream,
   requestAcademicStream,
   runWorkspaceData,
-  runWorkspaceMrag,
   saveAdminAuth,
   saveModelConfig,
   stopAcademicStream,
-  compensateKnowledgeVector,
-  uploadKnowledgeDocument,
-  uploadKnowledgeWebUrl,
   uploadAcademicFile
 } from "./services/api";
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
@@ -202,6 +189,15 @@ const DEEP_RESEARCH_STYLE_INSTRUCTION = [
 ].join("\n");
 
 const COMPOSER_MODE_INTENTS = {
+  auto: {
+    label: "智能调度",
+    executionMode: "Auto",
+    route: "任务分析 -> 模式选择 -> 自动路由",
+    hint: "系统会根据问题、附件和上下文自动选择 ReAct、Plan-Execute 或 PPT Workflow 等执行路线。",
+    agents: "模式选择器 / 对话 / 深度 / PPT / 文件 / 技能",
+    outputs: "按自动识别结果输出对应产物",
+    trace: "任务分析、模式选择、执行路由、执行过程"
+  },
   chat: {
     label: "即时任务执行",
     executionMode: "ReAct",
@@ -250,6 +246,7 @@ const COMPOSER_MODE_INTENTS = {
 };
 
 const COMPOSER_PLACEHOLDERS = {
+  auto: "直接提问即可，系统会自动选择最合适的执行模式",
   chat: "直接提问，或说明要完成的任务",
   ppt: "例如：做一份 8 页项目汇报 PPT，包含架构和业务闭环",
   deep: "例如：调研某个技术方案，输出对比、结论和依据",
@@ -354,17 +351,6 @@ function AgentWorkspaceApp() {
   const [dataWorkspaceCatalog, setDataWorkspaceCatalog] = useState(null);
   const [dataWorkspaceCatalogLoading, setDataWorkspaceCatalogLoading] = useState(false);
   const [dataWorkspaceCatalogError, setDataWorkspaceCatalogError] = useState("");
-  const [knowledgeDocuments, setKnowledgeDocuments] = useState([]);
-  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
-  const [knowledgeAction, setKnowledgeAction] = useState("");
-  const [knowledgeError, setKnowledgeError] = useState("");
-  const [activeKnowledgeBaseId, setActiveKnowledgeBaseId] = useState("");
-  const [activeKnowledgeDocumentId, setActiveKnowledgeDocumentId] = useState("");
-  const [knowledgeFragments, setKnowledgeFragments] = useState([]);
-  const [knowledgeFragmentsLoading, setKnowledgeFragmentsLoading] = useState(false);
-  const [knowledgeFragmentsError, setKnowledgeFragmentsError] = useState("");
-  const [knowledgeWebUrl, setKnowledgeWebUrl] = useState("");
-  const [knowledgeFullContent, setKnowledgeFullContent] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState(() => workspaceAgentMode(routeWorkspace));
   const [selectedSkillName, setSelectedSkillName] = useState("");
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -388,7 +374,6 @@ function AgentWorkspaceApp() {
   const [, setAgentCapabilitiesError] = useState("");
   const messagesContainer = useRef(null);
   const fileInputRef = useRef(null);
-  const knowledgeFileInputRef = useRef(null);
   const streamControllersRef = useRef({});
   const selectedFilePreviewUrlRef = useRef("");
 
@@ -452,23 +437,10 @@ function AgentWorkspaceApp() {
   const tradeWorkspaceSummary = useMemo(() => (
     summarizeTradeWorkspace({ quota, flows: quotaFlows, orders })
   ), [quota, quotaFlows, orders]);
-  const knowledgeBaseCatalog = useMemo(() => (
-    buildKnowledgeBaseCatalog(knowledgeDocuments)
-  ), [knowledgeDocuments]);
-  const visibleKnowledgeDocuments = useMemo(() => {
-    if (!activeKnowledgeBaseId) return knowledgeDocuments;
-    return knowledgeDocuments.filter((doc) => knowledgeBaseCatalogKey(doc) === activeKnowledgeBaseId);
-  }, [activeKnowledgeBaseId, knowledgeDocuments]);
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
-
-  useEffect(() => {
-    if (activeKnowledgeBaseId && !knowledgeBaseCatalog.some((item) => item.id === activeKnowledgeBaseId)) {
-      setActiveKnowledgeBaseId("");
-    }
-  }, [activeKnowledgeBaseId, knowledgeBaseCatalog]);
 
   useEffect(() => {
     if (!selectedSkillName) return;
@@ -706,8 +678,7 @@ function AgentWorkspaceApp() {
       }
       const query = {
         image: queryWorkspaceImageHistory,
-        data: queryWorkspaceDataHistory,
-        mrag: queryWorkspaceMragHistory
+        data: queryWorkspaceDataHistory
       }[targetWorkspaceId];
       if (!query) {
         throw new Error("工作区历史暂不可用");
@@ -760,92 +731,6 @@ function AgentWorkspaceApp() {
       setDataWorkspaceCatalogLoading(false);
     }
   }, []);
-
-  const loadKnowledgeDocuments = useCallback(async () => {
-    const adminAuth = getAdminAuth();
-    if (!adminAuth?.username || !adminAuth?.password) {
-      setKnowledgeDocuments([]);
-      setActiveKnowledgeDocumentId("");
-      setKnowledgeFragments([]);
-      setKnowledgeFullContent(null);
-      setKnowledgeError("");
-      setKnowledgeLoading(false);
-      return;
-    }
-    setKnowledgeLoading(true);
-    setKnowledgeError("");
-    try {
-      const res = await getKnowledgeDocuments();
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res?.info || res?.message, "知识文档读取失败"));
-      }
-      const docs = res.data || [];
-      setKnowledgeDocuments(docs);
-      setActiveKnowledgeDocumentId((prev) => (
-        docs.some((doc) => doc.documentId === prev) ? prev : ""
-      ));
-      setKnowledgeFullContent((prev) => (
-        prev && docs.some((doc) => doc.documentId === prev.documentId) ? prev : null
-      ));
-    } catch (error) {
-      setKnowledgeError(normalizeUserMessage(error.message, "知识文档读取失败"));
-    } finally {
-      setKnowledgeLoading(false);
-    }
-  }, []);
-
-  const loadKnowledgeFragments = useCallback(async (documentId) => {
-    if (!documentId) {
-      setActiveKnowledgeDocumentId("");
-      setKnowledgeFragments([]);
-      setKnowledgeFullContent(null);
-      setKnowledgeFragmentsError("");
-      return;
-    }
-    const adminAuth = getAdminAuth();
-    if (!adminAuth?.username || !adminAuth?.password) {
-      setKnowledgeFragmentsError("请先保存后台权限");
-      return;
-    }
-    setActiveKnowledgeDocumentId(documentId);
-    setKnowledgeFullContent(null);
-    setKnowledgeFragmentsLoading(true);
-    setKnowledgeFragmentsError("");
-    try {
-      const res = await getKnowledgeFragments(documentId);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res?.info || res?.message, "知识片段读取失败"));
-      }
-      setKnowledgeFragments(res.data || []);
-    } catch (error) {
-      setKnowledgeFragments([]);
-      setKnowledgeFragmentsError(normalizeUserMessage(error.message, "知识片段读取失败"));
-    } finally {
-      setKnowledgeFragmentsLoading(false);
-    }
-  }, []);
-
-  const runKnowledgeAction = useCallback(async (actionKey, apiCall, successMessage) => {
-    const adminAuth = getAdminAuth();
-    if (!adminAuth?.username || !adminAuth?.password) {
-      setKnowledgeError("请先保存后台权限");
-      return;
-    }
-    setKnowledgeAction(actionKey);
-    setKnowledgeError("");
-    try {
-      const res = await apiCall();
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res?.info || res?.message, "知识库操作失败"));
-      }
-      setToast(successMessage);
-      await loadKnowledgeDocuments();
-    } catch (error) {
-      setKnowledgeError(normalizeUserMessage(error.message, "知识库操作失败"));
-    } finally {
-      setKnowledgeAction("");
-    }
-  }, [loadKnowledgeDocuments]);
 
   const toUiMessages = useCallback((items = []) => items.map((item, index) => ({
     id: item.messageId ? `${item.role || "MSG"}_${item.messageId}` : `${item.role || "MSG"}_${index}_${item.createTime || "local"}`,
@@ -942,7 +827,7 @@ function AgentWorkspaceApp() {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
-    if (["task_analysis", "mode_selection", "agent_routing", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
+    if (["task_analysis", "mode_selection", "agent_routing", "execution_applied", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
       const artifacts = eventArtifacts(event);
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
@@ -1168,11 +1053,6 @@ function AgentWorkspaceApp() {
   }, [activeWorkspace, auth?.token, loadDataWorkspaceCatalog]);
 
   useEffect(() => {
-    if (activeWorkspace !== "mrag") return;
-    loadKnowledgeDocuments().catch(() => {});
-  }, [activeWorkspace, loadKnowledgeDocuments]);
-
-  useEffect(() => {
     if (!auth?.token) return;
     loadTaskStatus(currentChatId).catch(() => {});
   }, [auth, currentChatId, loadTaskStatus]);
@@ -1240,7 +1120,7 @@ function AgentWorkspaceApp() {
 
   const selectAgent = (agentId) => {
     setSelectedAgent(agentId);
-    if (agentId === "image" || agentId === "data" || agentId === "mrag") {
+    if (agentId === "image" || agentId === "data") {
       const workspace = WORKSPACES.find((item) => item.agentId === agentId);
       if (workspace) {
         setActiveWorkspace(workspace.id);
@@ -1249,7 +1129,7 @@ function AgentWorkspaceApp() {
           navigate(path);
         }
       }
-    } else if (activeWorkspace === "image" || activeWorkspace === "data" || activeWorkspace === "mrag") {
+    } else if (activeWorkspace === "image" || activeWorkspace === "data") {
       setActiveWorkspace("agent");
       if (location.pathname !== "/") {
         navigate("/");
@@ -1733,96 +1613,6 @@ function AgentWorkspaceApp() {
       return;
     }
 
-    if (currentWorkspace.id === "mrag" && !file) {
-      const controller = {
-        aborted: false,
-        abort() {
-          this.aborted = true;
-        }
-      };
-      streamControllersRef.current[sessionId] = controller;
-      processStreamEvent(sessionId, assistantId, {
-        event: "run_start",
-        data: { taskType: "mrag", model: "workspace-mrag" }
-      });
-      processStreamEvent(sessionId, assistantId, {
-        event: "tool_call",
-        data: {
-          invocationId: `workspace-mrag-${assistantId}`,
-          toolName: "mrag_workspace",
-          action: "run",
-          argumentsJson: streamDraft.question
-        }
-      });
-      runWorkspaceMrag({
-        sessionId,
-        question: streamDraft.question,
-        text: streamDraft.question
-      })
-        .then((res) => {
-          if (controller.aborted) return;
-          if (!apiSucceeded(res)) {
-            throw new Error(normalizeUserMessage(res?.info, "mrag workspace failed"));
-          }
-          const data = res.data || {};
-          (data.toolResults || []).forEach((result) => {
-            processStreamEvent(sessionId, assistantId, workspaceMragToolResultEvent(result));
-          });
-          processStreamEvent(sessionId, assistantId, {
-            event: "tool_result",
-            data: {
-              invocationId: `workspace-mrag-${assistantId}`,
-              toolName: "mrag_workspace",
-              status: "SUCCESS",
-              resultSummary: data.summary || ""
-            }
-          });
-          const missing = (data.missingTools || []).length
-            ? `\n\nMissing tools: ${(data.missingTools || []).join(", ")}`
-            : "";
-          updateAssistantInChat(sessionId, assistantId, (message) => ({
-            ...message,
-            content: `${data.summary || "mrag workspace completed"}${missing}`,
-            showTimeline: true
-          }));
-          processStreamEvent(sessionId, assistantId, {
-            event: "run_done",
-            data: {}
-          });
-        })
-        .catch((error) => {
-          if (controller.aborted) return;
-          const message = normalizeUserMessage(error.message, "mrag workspace failed");
-          processStreamEvent(sessionId, assistantId, {
-            event: "tool_result",
-            data: {
-              invocationId: `workspace-mrag-${assistantId}`,
-              toolName: "mrag_workspace",
-              status: "FAILED",
-              errorMessage: message
-            }
-          });
-          processStreamEvent(sessionId, assistantId, {
-            event: "run_error",
-            data: { message }
-          });
-          appendAssistantTextInChat(sessionId, assistantId, `\n\n${message}`);
-        })
-        .finally(() => {
-          if (streamControllersRef.current[sessionId] === controller) {
-            delete streamControllersRef.current[sessionId];
-          }
-          setChatRunning(sessionId, false);
-          closeAssistantTimelineInChat(sessionId, assistantId);
-          loadQuota().catch(() => {});
-          loadSessions().catch(() => {});
-          loadWorkspaceHistory("mrag").catch(() => {});
-          refreshTaskStatus(sessionId).catch(() => {});
-          window.setTimeout(() => refreshSessionDetail(sessionId).catch(() => {}), 300);
-        });
-      return;
-    }
-
     streamControllersRef.current[sessionId] = requestAcademicStream(
       {
         sessionId,
@@ -2006,115 +1796,6 @@ function AgentWorkspaceApp() {
         setConnectionError(normalizeUserMessage(error.message, "模型配置保存失败"));
       });
   };
-
-  const handleSaveKnowledgeAdminAuth = () => {
-    handleSaveAdminAuth();
-    loadKnowledgeDocuments().catch(() => {});
-  };
-
-  const handleKnowledgeFileSelect = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    await runKnowledgeAction(
-      "upload",
-      () => uploadKnowledgeDocument(file, "global", file.name, "MRAG Knowledge"),
-      "知识文档已上传"
-    );
-  };
-
-  const handleKnowledgeWebUrlImport = async () => {
-    const url = knowledgeWebUrl.trim();
-    if (!url) {
-      setKnowledgeError("请输入网页地址");
-      return;
-    }
-    const adminAuth = getAdminAuth();
-    if (!adminAuth?.username || !adminAuth?.password) {
-      setKnowledgeError("请先保存后台权限");
-      return;
-    }
-    setKnowledgeAction("web-url");
-    setKnowledgeError("");
-    try {
-      const res = await uploadKnowledgeWebUrl({ url, goodsId: "global" });
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res?.info || res?.message, "网页资料导入失败"));
-      }
-      setKnowledgeWebUrl("");
-      setToast("网页资料已加入知识库");
-      await loadKnowledgeDocuments();
-    } catch (error) {
-      setKnowledgeError(normalizeUserMessage(error.message, "网页资料导入失败"));
-    } finally {
-      setKnowledgeAction("");
-    }
-  };
-
-  const handleKnowledgeFullContent = async (documentId) => {
-    if (!documentId) return;
-    const adminAuth = getAdminAuth();
-    if (!adminAuth?.username || !adminAuth?.password) {
-      setKnowledgeFragmentsError("请先保存后台权限");
-      return;
-    }
-    setActiveKnowledgeDocumentId(documentId);
-    setKnowledgeAction(`full-${documentId}`);
-    setKnowledgeFragmentsLoading(true);
-    setKnowledgeFragmentsError("");
-    try {
-      const res = await getKnowledgeDocumentFullContent(documentId);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res?.info || res?.message, "知识文档全文读取失败"));
-      }
-      const content = res.data || null;
-      setKnowledgeFullContent(content);
-      setKnowledgeFragments(content?.fragments || []);
-    } catch (error) {
-      setKnowledgeFullContent(null);
-      setKnowledgeFragmentsError(normalizeUserMessage(error.message, "知识文档全文读取失败"));
-    } finally {
-      setKnowledgeFragmentsLoading(false);
-      setKnowledgeAction("");
-    }
-  };
-
-  const handleDisableKnowledgeDocument = async (documentId) => {
-    if (!documentId) return;
-    const adminAuth = getAdminAuth();
-    if (!adminAuth?.username || !adminAuth?.password) {
-      setKnowledgeError("请先保存后台权限");
-      return;
-    }
-    setKnowledgeAction(`disable-${documentId}`);
-    setKnowledgeError("");
-    try {
-      const res = await deleteKnowledgeDocument(documentId);
-      if (!apiSucceeded(res)) {
-        throw new Error(normalizeUserMessage(res?.info || res?.message, "知识文档下线失败"));
-      }
-      if (activeKnowledgeDocumentId === documentId) {
-        setActiveKnowledgeDocumentId("");
-        setKnowledgeFragments([]);
-        setKnowledgeFullContent(null);
-      }
-      setToast("知识文档已下线");
-      await loadKnowledgeDocuments();
-    } catch (error) {
-      setKnowledgeError(normalizeUserMessage(error.message, "知识文档下线失败"));
-    } finally {
-      setKnowledgeAction("");
-    }
-  };
-
-  const handleRebuildKnowledgeVector = () => {
-    runKnowledgeAction("rebuild", rebuildKnowledgeVector, "知识向量已重建").catch(() => {});
-  };
-
-  const handleCompensateKnowledgeVector = () => {
-    runKnowledgeAction("compensate", compensateKnowledgeVector, "知识向量已补偿").catch(() => {});
-  };
-
 
   const buyPackage = async (pkg, buyType, options = {}) => {
     if (!auth?.token) {
@@ -2348,37 +2029,6 @@ function AgentWorkspaceApp() {
                 catalog={dataWorkspaceCatalog}
                 catalogLoading={dataWorkspaceCatalogLoading}
                 catalogError={dataWorkspaceCatalogError}
-              />
-            )}
-            {currentWorkspace.id === "mrag" && (
-              <MragKnowledgePanel
-                adminForm={adminForm}
-                setAdminForm={setAdminForm}
-                knowledgeBases={knowledgeBaseCatalog}
-                activeKnowledgeBaseId={activeKnowledgeBaseId}
-                onSelectKnowledgeBase={setActiveKnowledgeBaseId}
-                documents={visibleKnowledgeDocuments}
-                fragments={knowledgeFragments}
-                loading={knowledgeLoading}
-                fragmentsLoading={knowledgeFragmentsLoading}
-                actionKey={knowledgeAction}
-                error={knowledgeError}
-                fragmentsError={knowledgeFragmentsError}
-                activeDocumentId={activeKnowledgeDocumentId}
-                webUrl={knowledgeWebUrl}
-                fullContent={knowledgeFullContent}
-                fileInputRef={knowledgeFileInputRef}
-                onWebUrlChange={setKnowledgeWebUrl}
-                onWebUrlImport={handleKnowledgeWebUrlImport}
-                onSaveAuth={handleSaveKnowledgeAdminAuth}
-                onRefresh={loadKnowledgeDocuments}
-                onOpenFragments={loadKnowledgeFragments}
-                onFullContent={handleKnowledgeFullContent}
-                onDisableDocument={handleDisableKnowledgeDocument}
-                onUploadClick={() => knowledgeFileInputRef.current?.click()}
-                onFileChange={handleKnowledgeFileSelect}
-                onRebuild={handleRebuildKnowledgeVector}
-                onCompensate={handleCompensateKnowledgeVector}
               />
             )}
             {currentWorkspace.id === "trade" && (
@@ -2863,213 +2513,6 @@ function WorkspaceHistoryPanel({
   );
 }
 
-function MragKnowledgePanel({
-  adminForm,
-  setAdminForm,
-  knowledgeBases = [],
-  activeKnowledgeBaseId,
-  onSelectKnowledgeBase,
-  documents = [],
-  fragments = [],
-  loading,
-  fragmentsLoading,
-  actionKey,
-  error,
-  fragmentsError,
-  activeDocumentId,
-  webUrl = "",
-  fullContent,
-  fileInputRef,
-  onWebUrlChange,
-  onWebUrlImport,
-  onSaveAuth,
-  onRefresh,
-  onOpenFragments,
-  onFullContent,
-  onDisableDocument,
-  onUploadClick,
-  onFileChange,
-  onRebuild,
-  onCompensate
-}) {
-  const hasAdminAuth = Boolean(adminForm.username && adminForm.password);
-  return (
-    <section className="mrag-knowledge-panel">
-      <div className="mrag-knowledge-head">
-        <div>
-          <strong>MRAG 知识库</strong>
-          <span>上传资料后可进入向量检索和多模态问答链路</span>
-        </div>
-        <button type="button" onClick={onRefresh} disabled={loading || !hasAdminAuth}>
-          {loading ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
-          <span>{loading ? "刷新中" : "刷新"}</span>
-        </button>
-      </div>
-
-      <div className="mrag-knowledge-auth">
-        <input
-          value={adminForm.username}
-          onChange={(event) => setAdminForm({ ...adminForm, username: event.target.value })}
-          placeholder="后台账号"
-        />
-        <input
-          value={adminForm.password}
-          onChange={(event) => setAdminForm({ ...adminForm, password: event.target.value })}
-          type="password"
-          placeholder="后台密码"
-        />
-        <button type="button" onClick={onSaveAuth}>保存</button>
-      </div>
-
-      {error && <div className="mrag-knowledge-error"><AlertTriangle size={14} /> <span>{error}</span></div>}
-
-      <div className="mrag-knowledge-web">
-        <Globe2 size={15} />
-        <input
-          value={webUrl}
-          onChange={(event) => onWebUrlChange?.(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onWebUrlImport?.();
-            }
-          }}
-          placeholder="https://example.com/article"
-        />
-        <button type="button" onClick={onWebUrlImport} disabled={!hasAdminAuth || Boolean(actionKey)}>
-          <span>{actionKey === "web-url" ? "导入中" : "导入网页"}</span>
-        </button>
-      </div>
-
-      <div className="mrag-knowledge-actions">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".md,.txt,.pdf,.docx"
-          onChange={onFileChange}
-          hidden
-        />
-        <button type="button" onClick={onUploadClick} disabled={!hasAdminAuth || Boolean(actionKey)}>
-          <Paperclip size={15} />
-          <span>{actionKey === "upload" ? "上传中" : "上传文档"}</span>
-        </button>
-        <button type="button" onClick={onRebuild} disabled={!hasAdminAuth || Boolean(actionKey)}>
-          <RotateCcw size={15} />
-          <span>{actionKey === "rebuild" ? "重建中" : "重建向量"}</span>
-        </button>
-        <button type="button" onClick={onCompensate} disabled={!hasAdminAuth || Boolean(actionKey)}>
-          <AlertTriangle size={15} />
-          <span>{actionKey === "compensate" ? "补偿中" : "补偿向量"}</span>
-        </button>
-      </div>
-
-      {knowledgeBases.length > 0 && (
-        <div className="mrag-kb-catalog">
-          <button
-            type="button"
-            className={!activeKnowledgeBaseId ? "active" : ""}
-            onClick={() => onSelectKnowledgeBase?.("")}
-          >
-            <strong>全部知识</strong>
-            <span>{knowledgeBases.reduce((sum, item) => sum + item.documentCount, 0)} 文档</span>
-          </button>
-          {knowledgeBases.slice(0, 4).map((kb) => (
-            <button
-              type="button"
-              className={activeKnowledgeBaseId === kb.id ? "active" : ""}
-              key={kb.id}
-              onClick={() => onSelectKnowledgeBase?.(kb.id)}
-            >
-              <strong>{kb.name}</strong>
-              <span>{kb.documentCount} 文档 · {kb.fragmentCount} 段 · {kb.version}</span>
-              {kb.failedCount > 0 && <em>{kb.failedCount} 失败</em>}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="mrag-knowledge-list">
-        {documents.slice(0, 6).map((doc) => (
-          <article
-            className={`mrag-knowledge-row ${activeDocumentId === doc.documentId ? "active" : ""}`}
-            key={doc.documentId || doc.documentName}
-          >
-            <button
-              type="button"
-              className="mrag-knowledge-row-main"
-              onClick={() => onOpenFragments?.(doc.documentId)}
-              disabled={!doc.documentId || fragmentsLoading}
-            >
-              <FileText size={15} />
-              <div>
-                <strong>{doc.documentName || doc.documentId}</strong>
-                <span>
-                  {doc.documentType || "Document"} · {doc.documentStatus || "-"} · {doc.fragmentCount || 0} 段
-                </span>
-              </div>
-              <em>{formatWorkspaceHistoryTime(doc.updateTime || doc.createTime)}</em>
-            </button>
-            <div className="mrag-knowledge-row-actions">
-              <button
-                type="button"
-                onClick={() => onFullContent?.(doc.documentId)}
-                disabled={!doc.documentId || actionKey === `full-${doc.documentId}`}
-              >
-                {actionKey === `full-${doc.documentId}` ? "读取中" : "全文"}
-              </button>
-              <button
-                type="button"
-                className="danger"
-                onClick={() => onDisableDocument?.(doc.documentId)}
-                disabled={!doc.documentId || actionKey === `disable-${doc.documentId}`}
-              >
-                {actionKey === `disable-${doc.documentId}` ? "下线中" : "下线"}
-              </button>
-            </div>
-          </article>
-        ))}
-        {!loading && documents.length === 0 && (
-          <div className="mrag-knowledge-empty">
-            {hasAdminAuth ? "暂无知识文档" : "请先保存后台账号"}
-          </div>
-        )}
-      </div>
-      {(activeDocumentId || fragmentsError) && (
-        <div className="mrag-fragment-panel">
-          <div className="mrag-fragment-head">
-            <strong>文档片段</strong>
-            <span>{fragmentsLoading ? "读取中" : `${fragments.length} 段`}</span>
-          </div>
-          {fragmentsError && (
-            <div className="mrag-knowledge-error"><AlertTriangle size={14} /> <span>{fragmentsError}</span></div>
-          )}
-          {!fragmentsLoading && !fragmentsError && fragments.length === 0 && (
-            <div className="mrag-knowledge-empty">暂无可查看片段</div>
-          )}
-          {fragments.slice(0, 5).map((fragment) => (
-            <article className="mrag-fragment-card" key={fragment.fragmentId || `${fragment.documentId}-${fragment.rankNo}`}>
-              <div>
-                <b>#{fragment.rankNo ?? "-"}</b>
-                <span>{fragment.fragmentStatus || "-"} · {fragment.chunkType || "chunk"}</span>
-              </div>
-              <p>{fragment.content}</p>
-            </article>
-          ))}
-          {fullContent?.content && (
-            <article className="mrag-full-content-card">
-              <div>
-                <strong>{fullContent.documentName || fullContent.documentId}</strong>
-                <span>{fullContent.fragmentCount || 0} 段</span>
-              </div>
-              <pre>{fullContent.content}</pre>
-            </article>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
 function ResultPanelList({ panels = [], onDownloadArtifact }) {
   if (!panels.length) return null;
   return (
@@ -3508,14 +2951,23 @@ function TimelineContent({ timeline = [] }) {
               )}
               {item.type === "mode_selection" && (
                 <div className="timeline-reasoning">
-                  <strong>{item.executionMode || "ReAct"}</strong>
-                  <span>{item.agentType || "chat"} · {item.modeFamily || "react"}</span>
+                  <strong>{item.title || "模式选择"}</strong>
+                  <span>{item.executionModeLabel || item.executionMode || "思考-行动循环"} · {item.agentTypeLabel || item.agentType || "对话助手"}</span>
+                  {item.content && <small>{item.content}</small>}
+                </div>
+              )}
+              {item.type === "execution_applied" && (
+                <div className="timeline-reasoning">
+                  <strong>{item.title || "执行路由"}</strong>
+                  <span>{item.executionModeLabel || item.executionMode || "自动选择"} · {item.executionAgentTypeLabel || item.executionAgentType || "对话助手"}</span>
+                  {item.autoRouted && <em>已由智能调度自动选择</em>}
                   {item.content && <small>{item.content}</small>}
                 </div>
               )}
               {item.type === "agent_routing" && (
                 <div className="timeline-routing">
-                  <strong>{item.title || "Agent 协作"}</strong>
+                  <strong>{item.title || "协作编排"}</strong>
+                  <span>{item.agentTypeLabel || item.agentType || "对话助手"}</span>
                   <div>
                     {(item.selectedAgents || []).map((agentName) => (
                       <span key={agentName}>{agentName}</span>
@@ -3902,7 +3354,7 @@ function AuthDialog({ mode, setMode, form, setForm, error, loading = false, onSu
         <button type="button" className="modal-close" onClick={onClose} disabled={loading}><X size={18} /></button>
         <img className="auth-logo" src="/bear-doctor-logo.png" alt="熊博士 Agent" />
         <h3>{mode === "login" ? "登录熊博士 Agent" : "创建用户账号"}</h3>
-        <p className="auth-tip">登录后即可使用学术问答、文件解读、PPT 生成等能力。</p>
+        <p className="auth-tip">登录后即可使用对话问答、文件解读、PPT 生成等能力。</p>
         <div className="auth-switch">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")} disabled={loading}>登录</button>
           <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")} disabled={loading}>注册</button>

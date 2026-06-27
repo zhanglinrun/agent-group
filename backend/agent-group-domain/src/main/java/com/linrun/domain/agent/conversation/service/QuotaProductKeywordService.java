@@ -1,4 +1,4 @@
-package com.linrun.domain.agent.knowledge.service;
+package com.linrun.domain.agent.conversation.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
-public class KnowledgeKeywordService {
+public class QuotaProductKeywordService {
 
     private static final List<String> BUSINESS_KEYWORDS = List.of(
             "预算",
@@ -50,7 +50,6 @@ public class KnowledgeKeywordService {
             "深度任务额度包",
             "团队拼团额度包",
             "不确定",
-            "直接购买",
             "直接购买",
             "额度包",
             "订单金额",
@@ -96,18 +95,3 @@ public class KnowledgeKeywordService {
                 .toList();
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

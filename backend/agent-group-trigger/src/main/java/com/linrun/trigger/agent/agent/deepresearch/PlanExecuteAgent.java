@@ -1,5 +1,6 @@
 package com.linrun.trigger.agent.agent.deepresearch;
 
+import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReflectionService;
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.entity.AiSession;
 import com.linrun.trigger.agent.entity.OverAllState;
@@ -65,6 +66,8 @@ public class PlanExecuteAgent extends BaseAgent {
 
     // 存储所有搜索结果，用于保存到数据库和发送给前端
     private List<SearchResult> allReferences;
+
+    private final PlanExecuteDomainBridge domainBridge = new PlanExecuteDomainBridge();
 
     public PlanExecuteAgent(ChatModel chatModel,
                             List<ToolCallback> tools,
@@ -701,6 +704,27 @@ public class PlanExecuteAgent extends BaseAgent {
                     if (finished.get() || compositeDisposable.isDisposed()) {
                         return;
                     }
+
+                    int stepReplanCount = 0;
+                    if (domainBridge.hasFailures(plan, results)) {
+                        Optional<List<PlanTask>> retryTasks = domainBridge.buildRetryTasks(plan, results, stepReplanCount);
+                        if (retryTasks.isPresent() && !retryTasks.get().isEmpty()) {
+                            stepReplanCount++;
+                            emit(sink, finished, "\n--- 步骤失败，触发智能重规划 ---\n\n", "thinking", thinkingBuffer);
+                            sink.tryEmitNext(createPlanUpdateEvent(state.getRound(), retryTasks.get()));
+                            Map<String, TaskResult> retryResults = executePlan(
+                                    retryTasks.get(), state, sink, finished, thinkingBuffer);
+                            results.putAll(retryResults);
+                        }
+                    }
+                    if (finished.get() || compositeDisposable.isDisposed()) {
+                        return;
+                    }
+
+                    AcademicAgentReflectionService.ReflectionResult ruleReflection =
+                            domainBridge.reflect(plan, results);
+                    sink.tryEmitNext(JsonUtils.toJson(
+                            domainBridge.reflectionPayload(state.getRound(), ruleReflection)));
 
                     // 执行完成后的分隔
                     emit(sink, finished, "\n--- 任务执行完成 ---\n\n", "thinking", thinkingBuffer);

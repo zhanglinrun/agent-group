@@ -111,7 +111,7 @@ class TradeRefundServiceTest {
             tradeOrder.setOrderId("O10001");
             tradeOrder.setUserId("U10001");
             tradeOrder.setGoodsId("G10001");
-            tradeOrder.setGoodsName("基础学术额度包");
+            tradeOrder.setGoodsName("基础 Agent 额度包");
             tradeOrder.setBuyType(TradeBuyTypeEnumVO.DIRECT);
             tradeOrder.setOriginAmount(new BigDecimal("2399.00"));
             tradeOrder.setPayAmount(new BigDecimal("2399.00"));

@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 学术 Agent 的能力展示服务，从 AcademicAgentNativeService 抽出。
+ * Agent 的能力展示服务，从 AcademicAgentNativeService 抽出。
  * 负责组装 capabilities 能力清单及其全部展示子结构：执行模式、工作区画像、
  * 工具运行时与工具族就绪度、能力矩阵、平台就绪度、MCP/Admin 健康度等。
  */
@@ -164,6 +164,7 @@ public class AcademicAgentCapabilityService {
 
     private List<Map<String, Object>> agentExecutionModes() {
         return List.of(
+                agentExecutionMode("auto", "智能调度", "auto", "Auto", "根据问题与附件自动选择最合适的执行模式"),
                 agentExecutionMode("chat", "对话助手", "react", "ReAct", "通用问答、交易解释和轻量工具调用"),
                 agentExecutionMode("file", "文件问答", "react", "ReAct", "文件理解、引用回答和上下文追问"),
                 agentExecutionMode("ppt", "PPT 生成", "ppt-workflow", "PPT Workflow", "需求澄清、大纲、搜索、模板和渲染的业务执行路线"),
@@ -175,7 +176,6 @@ public class AcademicAgentCapabilityService {
                                 "planner history versions")),
                 agentExecutionMode("image", "图像生成", "react", "ReAct", "图像生成、图生图和多模态参考图处理"),
                 agentExecutionMode("data", "数据问答", "react", "ReAct", "数据分析、表格检索和自然语言转 SQL"),
-                agentExecutionMode("mrag", "MRAG 知识问答", "react", "ReAct", "多模态检索、知识库证据和资料交叉验证"),
                 agentExecutionMode("skills", "技能助手", "skill-orchestration", "Skill Orchestration", "自动选择技能并组合工具完成任务"),
                 agentExecutionMode("manual-skills", "手动技能", "skill-orchestration", "Skill Orchestration", "读取技能文件、检索技能目录和运行技能脚本")
         );
@@ -260,12 +260,6 @@ public class AcademicAgentCapabilityService {
                         List.of("table", "sql", "chart", "report"),
                         "/api/v1/academic/workspace/data/run",
                         "/api/v1/academic/workspace/data/history",
-                        toolNames),
-                workspaceProfile("mrag", "/workspace/mrag", "mrag", "file-or-image",
-                        List.of("multimodal_agent", "file_tool", "table_rag", "deep_search"),
-                        List.of("answer", "evidence", "file", "image"),
-                        "/api/v1/academic/workspace/mrag/run",
-                        "/api/v1/academic/workspace/mrag/history",
                         toolNames),
                 workspaceProfile("trade", "/workspace/trade", "trade-diagnosis", "none",
                         List.of("trade_order_list", "trade_diagnosis"),
@@ -400,8 +394,8 @@ public class AcademicAgentCapabilityService {
                                 "configCount=" + agentAdminStatistics.getOrDefault("configCount", 0)),
                         List.of()),
                 capabilityItem("workspace", "前端工作区", "ready",
-                        "前端已提供 Agent、图像生成、数据问答、多模态知识问答和拼团交易工作区。",
-                        List.of("/", "/workspace/image", "/workspace/data", "/workspace/mrag", "/workspace/trade"),
+                        "前端已提供 Agent、图像生成、数据问答和拼团交易工作区。",
+                        List.of("/", "/workspace/image", "/workspace/data", "/workspace/trade"),
                         List.of()),
                 capabilityItem("skill-runtime", "Skill 与脚本", StringUtils.hasText(resolvedSkillsDirectory) ? "ready" : "degraded",
                         "支持手动技能读取、技能目录检索、脚本定义和会话产物目录。",
@@ -604,7 +598,7 @@ public class AcademicAgentCapabilityService {
         List<String> missingTools = orderedTools.stream()
                 .filter(tool -> !readyTools.contains(tool))
                 .toList();
-        List<String> requiredWorkspaces = List.of("agent", "image", "data", "mrag", "trade");
+        List<String> requiredWorkspaces = List.of("agent", "image", "data", "trade");
         List<String> coveredWorkspaces = workspaceProfiles.stream()
                 .filter(this::workspaceEntryReady)
                 .map(profile -> text(profile.get("id")))

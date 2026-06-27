@@ -19,7 +19,6 @@ describe("workspace routing model", () => {
     expect(workspaceFromPath("/workspace/image")).toBe("image");
     expect(workspaceFromPath("/workspace/image/")).toBe("image");
     expect(workspaceFromPath("/workspace/data")).toBe("data");
-    expect(workspaceFromPath("/workspace/mrag")).toBe("mrag");
     expect(workspaceFromPath("/workspace/trade")).toBe("trade");
     expect(workspaceFromPath("/missing")).toBe("agent");
   });
@@ -37,13 +36,12 @@ describe("workspace routing model", () => {
   it("maps workspace ids back to paths and agent modes", () => {
     expect(workspacePath("image")).toBe("/workspace/image");
     expect(workspacePath("data")).toBe("/workspace/data");
-    expect(workspacePath("mrag")).toBe("/workspace/mrag");
     expect(workspacePath("unknown")).toBe("/");
+    expect(workspaceAgentMode("agent")).toBe("auto");
     expect(workspaceAgentMode("image")).toBe("image");
     expect(workspaceAgentMode("data")).toBe("data");
-    expect(workspaceAgentMode("mrag")).toBe("mrag");
     expect(workspaceAgentMode("trade")).toBe("trade-diagnosis");
-    expect(workspaceAgentMode("unknown")).toBe("chat");
+    expect(workspaceAgentMode("unknown")).toBe("auto");
   });
 
   it("keeps every workspace usable from navigation and prompt templates", () => {

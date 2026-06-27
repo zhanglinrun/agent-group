@@ -101,7 +101,7 @@ class QuotaPackageCatalogServiceTest {
             product.setQuotaAmount(new BigDecimal("1000"));
             product.setProductType("MEMBERSHIP_PLAN");
             product.setSpecSummary("每月会员额度和自定义模型权益");
-            product.setRecommendReason("适合高频使用学术助手");
+            product.setRecommendReason("适合高频使用 Agent 助手");
             product.setAfterSalePolicy("会员开通后按虚拟服务规则处理售后");
             return product;
         }

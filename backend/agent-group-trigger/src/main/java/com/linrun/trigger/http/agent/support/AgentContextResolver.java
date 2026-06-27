@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 学术 Agent 链路里跨组复用的身份与会话上下文、文件归属解析逻辑，从 AcademicAgentNativeService 抽出。
+ * Agent 链路里跨组复用的身份与会话上下文、文件归属解析逻辑，从 AcademicAgentNativeService 抽出。
  * 后续拆分出的会话、文件、能力等 Service 都注入这里复用同一套口径，避免每组各写一份。
  */
 @Component

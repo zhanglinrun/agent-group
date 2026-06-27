@@ -98,7 +98,7 @@ describe("workspace navigation view model", () => {
     expect(resolveWorkspaceNavigationTarget("unknown")).toEqual({
       workspaceId: "agent",
       path: "/",
-      agentId: "chat"
+      agentId: "auto"
     });
   });
 });

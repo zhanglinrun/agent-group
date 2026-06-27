@@ -1,226 +1,228 @@
-# 基于 Spring AI 的学术 Agent 智能执行引擎与额度交易系统
+# 基于 Spring AI 的 Agent 智能执行引擎与额度交易系统
 
-## 项目定位
-
-本项目是一个面向研究生学习和科研辅助场景的 AI Agent 平台，核心特色是**智能执行引擎 + 额度交易闭环**。
-
-不是简单的聊天机器人，而是集成了：
-- **Agent 执行策略选择**：以 ReAct、Plan-Execute 作为主 Agent 执行范式，并用 PPT Workflow、Skill Orchestration 承载 PPT 生成和技能编排
-- **智能重规划机制**：步骤失败时自动分析原因并生成新计划
-- **反思与评估**：自动评估执行质量并触发优化
-- **全链路追踪**：完整记录从用户请求到工具调用的执行过程
-- **额度交易系统**：支付、拼团、退款、额度发放的完整闭环
-
-适合在简历中定位为：**基于 Spring AI 的学术 Agent 执行引擎 + 额度交易系统**。
+通用多模式 Agent 工作台（对话、文件、深度任务、PPT、生图、技能编排）+ **额度交易闭环**。核心不是普通聊天机器人，而是 **Agent 智能执行引擎 + 额度交易系统**，适合在简历中表述为：**Spring AI 多模式 Agent 执行引擎 + 额度交易系统**。
 
 ---
 
-## 核心亮点
+## 项目定位
 
-### Agent 执行引擎（50%）
+| 子系统 | 做什么 |
+| --- | --- |
+| **Agent 子系统** | 流式对话、多模式执行、会话文件 RAG（检索增强生成）、项目工作区、全链路追踪 |
+| **交易子系统** | 账号与额度、直接购买、拼团、支付回调、退款、本地消息表补偿 |
 
-1. **执行策略选择**：支持 ReAct（思考-行动循环）、Plan-Execute（规划-执行）两类主 Agent 执行范式，并用 PPT Workflow（PPT 工作流）和 Skill Orchestration（技能编排）承载业务执行策略，根据任务特征自动选择最优执行路线，模式选择准确率 90%+。
+**Maven 多模块 DDD 分层**：`agent-group-app` 单进程启动，依赖方向 `trigger → domain ← infrastructure`。
 
-2. **智能重规划策略**：步骤失败时分析原因（工具不可用、参数错误、超时），评估已完成步骤价值，动态生成新计划，复用 70% 已完成步骤避免从头执行，重规划成功率 85%。
+---
 
-3. **反思与自我评估**：在计划执行后评估质量（完成率 60% + 输出可用性 40%），识别改进点（失败步骤、步骤过多、缺少输出），生成反思报告，质量低于 70% 时触发重规划，执行质量平均分 78/100。
+## 核心能力
 
-4. **推理过程可视化**：类似 OpenAI o1 的思考链展示，基于规则快速推断任务类型（深度分析、信息检索、内容生成）、预估步骤数和难度，在 Plan-Execute 模式中展示推理过程，降低推理成本 20%。
+### 线上 Agent（用户对话主链路）
 
-5. **全链路追踪**：基于 TraceId 和 SpanId 记录从用户请求到 Agent 执行、工具调用、额度扣减的完整调用链，支持 Span 嵌套和标签传播，为异常排查和性能分析提供完整链路证据。
+入口在 `AcademicAgentNativeService`，执行体在 `trigger/agent/agent/`，经 SSE（流式输出）推送到前端工作台。
 
-6. **异常诊断服务**：自动检测执行耗时过长、工具调用失败、额度消耗异常、频繁重规划等 5 类问题，生成诊断报告，告警触发率 15%，问题检测准确率 95%。
+用户端可选模式（`/` 工作台，默认 `auto` 智能调度）：
 
-### 额度交易系统（50%）
+| 模式 | 执行范式 | 说明 |
+| --- | --- | --- |
+| `auto` | 自动选择 | 规则推断任务类型，路由到 deep / ppt / chat / file / manual-skills 等 |
+| `chat` | ReAct（思考-行动循环） | 通用问答、轻量工具调用 |
+| `deep` | Plan-Execute（规划-执行） | 计划拆解、分步执行、失败重规划、反思评估 |
+| `ppt` | PPT Workflow（PPT 工作流） | 需求澄清 → 大纲 → 搜索 → 模板 → 渲染 |
+| `image` | ReAct + 图像工具 | 图像生成、图生图 |
+| `manual-skills` | Skill Orchestration（技能编排） | 手动选择技能并执行编排 |
 
-7. **额度账户闭环**：用户通过直接购买或拼团购买额度包，后端根据订单和支付状态发放额度，Agent 调用后记录额度消耗流水，保证交易状态与额度余额一致性。
+另有 `file`（文件问答）、`data`（表格 RAG / NL2SQL）、`skills` 等模式，主要通过工作区或附件场景触发，不在主工作台模式栏默认展示。
 
-8. **拼团交易闭环**：支持拼团活动试算、锁单占位、队伍名额控制、支付成功后的成团结算、未成团退款和通知补偿，通过分布式锁保证库存扣减与名额控制的一致性。
+**会话文件 RAG**：用户上传附件后解析、切片，经 `EmbeddingPort` 写入 pgvector 表 `vector_file_info`，供 file 模式语义检索。独立运营知识库文档管理已移除，不再提供知识库 CRUD 后台。
 
-9. **支付订单闭环**：支持直接购买和拼团购买两种路径，覆盖支付单创建、支付回调验签、防重放、订单状态流转、退款和补偿任务。
+**横切能力**：TraceId / SpanId 全链路追踪；对话前额度预检、执行后扣减流水；每次 run 结束推送诊断（`diagnosis_delta`）。
 
-10. **知识库闭环**：上传额度包说明、活动规则、学术任务资料后，解析、切片、向量化并优先通过 Spring AI VectorStore 写入 pgvector。
+### Agent 智能化四件套（线上）
 
-11. **质量评测与监控**：围绕知识召回、回答准确率、任务匹配率、工具调用正确率、额度扣减和交易状态一致性做批量评测；基于 Prometheus 暴露 Agent 执行耗时、工具调用成功率、大模型 token 消耗等业务指标。
+| 能力 | 覆盖范围 | 实现位置 |
+| --- | --- | --- |
+| **模式选择** | 全模式（含 `auto`） | `UnifiedAgentOrchestrator` + `AgentModeSelector`；SSE 推 `task_analysis` / `mode_selection` / `execution_applied` |
+| **智能重规划** | 主要 `deep` | `PlanExecuteDomainBridge` → domain 策略；步骤失败重试 + LLM 多轮 replan |
+| **反思评估** | 主要 `deep` | domain 规则反思（`source=domain_rule`）+ LLM critique；质量低触发继续重规划 |
+| **异常诊断** | 全模式 | `AgentDiagnosisService`；检测慢执行、工具失败、额度异常、频繁重规划、执行异常 |
+
+### Agent 引擎（domain 策略 + 线上执行体）
+
+`domain/academic/runtime` 提供模式选择、计划编排、智能重规划、反思评估、异常诊断等**策略能力**，经 `UnifiedAgentOrchestrator`、`PlanExecuteDomainBridge` 接入 `trigger/agent/agent/` 执行体（不再维护独立离线 harness）。
+
+路由与重规划单测：`AgentEngineRoutingTest`（23 条 auto 路由用例，断言准确率 ≥ 90% + domain 重规划桥接）。
+
+### 额度交易系统
+
+- **直接购买**：支付成功（`PAY_SUCCESS`）后发放额度。
+- **拼团购买**：支付成功只表示名额已支付；须等订单变为 `GROUP_SETTLED`（拼团已成团）或 `DEAL_DONE`（交易完成）后才发额；未成团不发额。
+- **一致性**：订单流水、额度流水、支付幂等键；`TradeEventOutbox` + RabbitMQ + 定时补偿处理回调、成团、退款。
+- **拼团**：活动试算、锁单占位、队伍名额、Redis 分布式锁、成团结算、未成团退款。
+- **Agent 扣额**：仅后端根据交易状态发额；前端与 Agent 不能直接改余额。
 
 ---
 
 ## 技术栈
 
-### 后端核心
-- **语言与框架**：Java 21、Spring Boot 3、Spring AI
-- **数据访问**：MyBatis
-- **领域设计**：DDD 分层架构
+**后端**：Java 21、Spring Boot 3.5、Spring AI、MyBatis、DDD 分层
 
-### 存储
-- **关系库**：MySQL（订单、额度、用户）
-- **缓存**：Redis（会话、分布式锁）
-- **向量库**：pgvector（知识检索）
-- **对象存储**：MinIO（文件、附件）
+**前端**：React 19、Vite、React Router 7
 
-### 消息与任务
-- **消息队列**：RabbitMQ
-- **事务消息**：TradeEventOutbox
-- **定时补偿**：Spring Scheduled
+**基础设施**（本地见 `docs/dev-ops`）：
 
-### AI 能力
-- **大模型调用**：Spring AI ChatClient
-- **向量模型**：EmbeddingModel
-- **向量检索**：VectorStore
-- **RAG**：检索增强生成
-- **工具调用**：ToolCallback
-- **流式输出**：SSE
+| 组件 | 用途 |
+| --- | --- |
+| MySQL | 用户、订单、额度、拼团 |
+| Redis / Redisson | 会话、缓存、分布式锁 |
+| PostgreSQL + pgvector | 会话文件向量（`vector_file_info`） |
+| MinIO | 附件与生成物对象存储 |
+| RabbitMQ | 交易事件异步投递 |
+| Prometheus + Grafana | 业务与 JVM 指标 |
 
-### 工程治理
-- **监控**：Actuator、Prometheus、Grafana
-- **链路追踪**：TraceId/SpanId
-- **异常诊断**：自研诊断服务
-- **质量评测**：批量评测脚本
-
----
-
-## 性能指标（实测数据）
-
-### Agent 执行性能
-- **平均响应时间**：P50 1.2s、P95 6.8s
-- **工具调用成功率**：95%
-- **重规划成功率**：85%
-- **步骤复用率**：70%
-- **执行质量平均分**：78/100
-
-### 模式选择
-- **选择准确率**：90%+
-- **ReAct 使用率**：60%（文件上传 + 简单问答）
-- **Plan-Execute 使用率**：30%（深度研究）
-- **PPT Workflow 使用率**：5%（PPT 生成）
-- **Skill Orchestration 使用率**：5%（技能调用）
-
-### 成本优化
-- **推理成本降低**：20%（基于规则替代 LLM 调用）
-- **任务分析耗时**：< 100ms
-- **重规划耗时**：1-3 秒
-
-### 交易性能
-- **拼团锁单 TPS**：50 次/秒
-- **库存一致性**：分布式锁 + 流水核对，锁单期间库存不超卖
-- **支付回调响应**：< 200ms
-
----
-
-## 本地启动
-
-### 1. 启动环境依赖
-```powershell
-cd docs/dev-ops
-docker compose -f docker-compose-environment.yml up -d
-```
-
-### 2. 启动后端
-```powershell
-cd E:\javaproject\agent-group\backend
-$env:SPRING_PROFILES_ACTIVE="dev"
-mvn -pl agent-group-app -am spring-boot:run
-```
-
-### 3. 启动前端
-```powershell
-cd E:\javaproject\agent-group\frontend
-npm install
-npm run dev
-```
-
-### 4. 访问地址
-- **用户端 Agent 工作台**：http://localhost:5173/
-- **运营端（知识库、评测、监控）**：http://localhost:5173/admin
-- **Grafana 看板**：http://127.0.0.1:13000
-
----
-
-## 推荐演示路径
-
-### 基础流程
-1. **注册登录**：创建账号，查看额度余额和流水
-2. **购买额度**：演示直接购买和拼团购买
-3. **运行 Agent**：长文档整理、文件问答、PPT 生成
-4. **查看消耗**：额度流水、工具调用记录
-
-### Agent 核心能力展示
-5. **执行策略切换**：
-   - 上传文件 → 自动选择 ReAct 模式
-   - 输入"深度研究区块链" → 自动选择 Plan-Execute 模式
-   - 输入"生成 PPT" → 自动选择 PPT Workflow 路线
-
-6. **智能重规划**：
-   - 模拟工具调用失败 → 观察自动分析原因并生成新计划
-   - 查看重规划日志 → 确认复用已完成步骤
-
-7. **推理可视化**：
-   - 深度研究任务 → 查看任务分析结果（类型、步骤数、难度）
-   - 观察推理过程展示（类似 o1 的思考链）
-
-8. **质量评估**：
-   - 执行完成后查看反思报告
-   - 查看质量评分、改进建议
-
-### 运营端演示
-9. **知识库管理**：上传文档、查看入库状态、验证向量检索
-10. **批量评测**：执行评测脚本、查看准确率报告
-11. **监控看板**：Grafana 查看 Agent 执行指标、工具调用成功率
-
----
-
-## 简历表述（优化版）
-
-### 完整版
-基于 Java 21、Spring Boot 3 和 Spring AI 实现学术 Agent 智能执行引擎与额度交易系统。
-
-**Agent 执行引擎**：实现 ReAct、Plan-Execute 两类主 Agent 执行范式，根据任务特征自动选择（准确率 90%+）；PPT 生成和技能调用分别由 PPT Workflow、Skill Orchestration 承载，不包装成标准 Agent 架构模式；设计智能重规划策略，步骤失败时分析原因并复用已完成步骤（成功率 85%、复用率 70%）；实现反思评估机制，自动评分并触发重规划（平均分 78/100）；类似 o1 的推理过程可视化，降低成本 20%；基于 TraceId/SpanId 的全链路追踪和异常诊断（检测准确率 95%）。
-
-**额度交易系统**：设计额度交易状态流转机制，通过订单流水、额度流水和支付幂等键保证一致性；实现本地消息表 + 定时补偿，保证支付回调、成团通知、退款补偿的可靠性；使用 Redisson 分布式锁实现拼团库存控制，锁单期间库存不超卖。
-
-**性能指标**：Agent 平均响应 P50 1.2s、P95 6.8s，工具调用成功率 95%，拼团锁单 TPS 50 次/秒。
-
-### 简洁版
-基于 Spring AI 实现学术 Agent 执行引擎，支持 ReAct、Plan-Execute 两类主执行范式和业务执行策略自动选择（准确率 90%+）、智能重规划（成功率 85%）、反思评估（平均分 78/100）、推理可视化（降本 20%）、全链路追踪和异常诊断（准确率 95%）；集成额度交易系统，保证支付、拼团、退款闭环的状态一致性。
-
----
-
-## 项目文档
-
-### 开发与复盘
-- **`docs/dev-challenges-and-improvements.md`**：开发过程问题记录与改进方案（面试讲述素材）
-- **`docs/trade-high-concurrency.md`**：交易链路高并发设计
-- **`docs/autumn-recruit-evidence.md`**：秋招项目证据材料
-
-### 运维与环境
-- **`docs/dev-ops/README.md`**：本地环境与运营端说明
-- **`docs/dev-ops/loadtest/README.md`**：交易接口压测脚本与结果记录
-- **`docs/dev-ops/payment-sandbox.md`**：支付宝沙箱就绪检查
-- **`docs/dev-ops/local-real-deps-check.md`**：本地真实依赖检查
+**AI**：Spring AI `ChatClient`、`EmbeddingModel`、自定义 pgvector 适配；大模型与 embedding 默认走 DashScope 兼容接口，密钥通过环境变量配置。
 
 ---
 
 ## 代码结构
 
 ```
-backend/
-├── agent-group-api/            # 接口契约
-├── agent-group-app/            # 启动入口
-├── agent-group-domain/         # 领域核心
-│   ├── academic/runtime/       # 离线评测 Agent 引擎（推理、重规划、反思、诊断）
-│   ├── agent/file/             # 会话文件端口（存储、解析、向量化）
-│   ├── agent/knowledge/        # 知识库文档端口与模型
-│   └── support/trace/          # 链路追踪
-├── agent-group-infrastructure/ # 基础设施（DB、缓存、消息、对象存储、Spring AI 适配）
-├── agent-group-trigger/        # 接口入口（HTTP、SSE、定时任务、线上 Agent）
-└── agent-group-types/          # 通用类型
+agent-group/
+├── backend/                    # Maven 多模块后端
+│   ├── agent-group-api/          # HTTP 契约与 DTO
+│   ├── agent-group-app/          # 启动入口、配置、全部单测
+│   ├── agent-group-domain/       # 领域逻辑
+│   │   ├── academic/             # 账本、项目工作区、runtime 策略层（代码包名 legacy）
+│   │   ├── account/              # 账号、额度
+│   │   ├── agent/                # 会话、文件 RAG 端口
+│   │   ├── groupbuy/             # 拼团
+│   │   ├── trade/                # 交易、支付、Outbox
+│   │   └── support/              # 追踪、锁、动态配置
+│   ├── agent-group-infrastructure/  # DB、缓存、MQ、Spring AI 适配
+│   ├── agent-group-trigger/      # HTTP、SSE、定时任务、线上 Agent 执行体
+│   └── agent-group-types/        # 通用响应与枚举
+├── frontend/                     # 用户工作台 + /admin 运营端
+├── docs/                         # 运维、压测、复盘文档
+└── study/                        # 架构图与面试口述材料
 ```
 
-> 会话文件的技术接入（MinIO 读写、PDF/DOCX 解析、向量存取与 RAG 检索）以端口形式定义在 `domain.agent.file.adapter`，由 `infrastructure.agent.gateway` 提供实现，trigger 面向端口编程，避免技术实现泄漏到接口层。
+会话文件的技术接入以端口形式定义在 `domain.agent.file`，由 `infrastructure` 实现，trigger 面向端口编程。
+
+更细的架构图见 `study/01-系统整体架构图.md`、`study/03-Agent执行引擎框架图.md`、`study/04-额度交易系统架构图.md`。
 
 ---
 
+## 本地启动
+
+### 1. 启动依赖
+
+```bash
+cd docs/dev-ops
+docker compose -f docker-compose-environment.yml up -d
+```
+
+### 2. 启动后端
+
+```bash
+cd backend
+# Windows PowerShell:
+# $env:SPRING_PROFILES_ACTIVE="dev"
+export SPRING_PROFILES_ACTIVE=dev   # Linux / macOS
+mvn -pl agent-group-app -am spring-boot:run
+```
+
+大模型、支付等敏感配置优先用环境变量，不要提交密钥。沙箱就绪检查见 `docs/dev-ops/payment-sandbox.md`。
+
+### 3. 启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. 访问地址
+
+| 地址 | 说明 |
+| --- | --- |
+| http://localhost:5173/ | 用户端 Agent 工作台 |
+| http://localhost:5173/admin | 运营端（模型、拼团、交易监控） |
+| http://localhost:8080 | 后端 API（dev 默认） |
+| Grafana | 见 `docs/dev-ops` 中 docker-compose 端口映射 |
+
 ---
 
-**更新时间**：2026-06-26  
-**适用场景**：2027 届秋招 后端/AI 开发岗位
+## 推荐演示路径
+
+1. **注册登录** → 查看额度余额与流水。
+2. **购买额度** → 分别演示直接购买与拼团（区分「支付成功，等待成团」与「额度已到账」）。
+3. **运行 Agent** → 默认 `auto` 或切换 chat / deep / ppt / image / manual-skills，观察 SSE 流式输出、模式选择与额度扣减。
+4. **文件问答** → 上传附件后提问，验证会话文件 RAG。
+5. **运营端** → 模型配置、拼团活动、订单一致性核查、Skills / MCP 管理。
+6. **引擎单测**（可选）→ `mvn -pl agent-group-app -am test -Dtest=AgentEngineRoutingTest`，验证 auto 路由与 domain 重规划。
+7. **交易压测**（可选）→ `docs/dev-ops/loadtest/`，跑完再把 QPS、P99 记入结果表；未实测的数字不要写进对外材料。
+
+---
+
+## 验证命令
+
+```bash
+# 后端默认验证（应用模块及依赖）
+cd backend && mvn -pl agent-group-app -am test
+
+# 全量编译 / 测试
+mvn clean compile
+mvn test
+
+# 单个测试类
+mvn -pl agent-group-app -am test -Dtest=GroupBuyLockOrderServiceTest
+
+# Agent 引擎路由单测
+mvn -pl agent-group-app -am test -Dtest=AgentEngineRoutingTest
+```
+
+```bash
+# 前端
+cd frontend && npm run test && npm run lint && npm run build
+```
+
+---
+
+## 文档索引
+
+**开发与复盘**
+
+- `docs/dev-challenges-and-improvements.md` — 开发问题与改进记录
+- `docs/trade-high-concurrency.md` — 交易高并发设计
+- `docs/autumn-recruit-evidence.md` — 秋招项目证据材料
+
+**运维与环境**
+
+- `docs/dev-ops/README.md` — 本地 Docker 环境与演示说明
+- `docs/dev-ops/loadtest/README.md` — 交易压测脚本与结果记录约定
+- `docs/dev-ops/payment-sandbox.md` — 支付宝沙箱检查
+
+**学习与面试**
+
+- `study/01-系统整体架构图.md` — 全局架构（30 秒口述版）
+- `study/02-后端DDD分层框架图.md`
+- `study/03-Agent执行引擎框架图.md`
+- `study/04-额度交易系统架构图.md`
+- `study/05-核心业务流程图.md`
+- `study/agent-group-interview-questions-200.md`
+
+---
+
+## 简历表述参考
+
+**完整版（按实际做过的能力裁剪，数字须有评测或压测出处）**
+
+基于 Java 21、Spring Boot 3 与 Spring AI 实现多模式 Agent 执行引擎与额度交易系统。线上支持 `auto` 智能调度及 ReAct、Plan-Execute 等主执行范式，PPT Workflow、Skill Orchestration 等业务编排；deep 模式接入 domain 重规划与反思；全模式 run 结束自动诊断；会话文件 RAG 写入 pgvector；TraceId 全链路追踪。交易侧实现直接购买与拼团发额规则、支付回调幂等、TradeEventOutbox 异步补偿与拼团分布式锁控库存。引擎路由单测 `AgentEngineRoutingTest` 可复现；交易性能以 `docs/dev-ops/loadtest` 实测为准。
+
+**简洁版**
+
+Spring AI 多模式 Agent 执行 + 额度交易闭环（支付、拼团、退款、Outbox 补偿），DDD 分层工程，适合后端 / AI 应用方向秋招项目表达。
+
+---
+
+**更新时间**：2026-06-27

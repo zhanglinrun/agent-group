@@ -18,7 +18,6 @@
 | `TradeTimeoutCompensationJob`（交易超时补偿任务） | `agent.group.trade.timeout-close.enabled`（交易超时关闭开关） | `agent.group.trade.timeout-close.cron`（交易超时关闭定时表达式） | 关闭超时未支付订单。 |
 | `TimeoutRefundJob`（超时退款任务） | `agent.group.trade.timeout-refund.enabled`（超时退款开关） | `agent.group.trade.timeout-refund.cron`（超时退款定时表达式） | 处理已支付但超时未成团订单的退款补偿。 |
 | `GroupBuyNotifyTaskJob`（通知补偿任务） | `agent.group.notify.job.enabled`（通知任务开关） | `agent.group.notify.job.cron`（通知任务定时表达式） | 批量重试待通知任务。 |
-| `DocumentCompensationJob`（文档补偿任务） | `agent.group.knowledge.compensation.enabled`（知识补偿开关） | `agent.group.knowledge.compensation.embedding-cron`（向量补偿定时表达式） | 重试向量入库失败的知识文档。 |
 
 ## 消息队列
 
@@ -92,19 +91,10 @@ route -> query routed
 aggregate -> references ranked
 ```
 
-查询路由会把问题分到 `trade_system`（交易系统）、`market_system`（营销系统）、`knowledge_base`（知识库）或 `hybrid`（混合检索）。这样前端可以展示“为什么查订单走交易表、为什么查售后走知识库”。
-
-## 知识补偿与工具化
-
-文档上传时，如果 `Spring AI VectorStore`（向量存储接口）写入失败，文档会标记为 `EMBEDDING_FAILED`（向量入库失败），再由定时任务或接口重试：
-
-```text
-POST /api/v1/knowledge/vector/compensate-failed-embedding?limit=20
-```
-
 交易状态、退款状态、额度流水只作为后台排障和运营核对数据，不再作为用户对话 `Agent`（智能体）的工具暴露。
 
-用户侧主要使用学术问答、文件理解、数据分析、图像生成和技能执行；交易相关信息在购买页、订单页和后台管理端查看。
+用户侧主要使用对话问答、文件理解、深度任务、PPT 生成、数据分析、图像生成和技能执行；交易相关信息在购买页、订单页和后台管理端查看。
+
 ## 排障检查
 
 ```powershell

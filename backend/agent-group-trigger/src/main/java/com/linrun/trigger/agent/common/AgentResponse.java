@@ -5,12 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Agent通用响应类型
- * 用于统一各Agent的流式输出格式
- *
- * <p>本类仅服务于 trigger 层线上流式对话（BaseAgent 及其子类、AgentTaskManager）。
- * domain 层的离线评测链路（AgentEvalHarness）另有一套同名但职责不同的
- * {@code com.linrun.domain.academic.runtime.agent.AgentResponse}，二者方法签名不兼容、
- * 不可互相替换，属于按场景分立而非重复实现。</p>
+ * 用于统一各 Agent 的流式输出格式（BaseAgent 及其子类、AgentTaskManager）。
  */
 public class AgentResponse {
 

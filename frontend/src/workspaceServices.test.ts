@@ -4,9 +4,7 @@ import {
   buildWorkspaceDataRunPayload,
   buildWorkspaceDataCatalogDraft,
   buildWorkspaceImageGeneratePayload,
-  buildKnowledgeBaseCatalog,
   buildWorkspaceStreamDraft,
-  knowledgeBaseCatalogKey,
   normalizeWorkspaceHistoryItems,
   visibleAgentExecutionModes,
   visibleCapabilityMatrix,
@@ -30,8 +28,6 @@ describe("workspace service profiles", () => {
     expect(workspaceServiceProfile("image").runEndpoint).toBe("/api/v1/academic/workspace/image/generate");
     expect(workspaceServiceProfile("data").primaryTools).toContain("nl2sql");
     expect(workspaceServiceProfile("data").runEndpoint).toBe("/api/v1/academic/workspace/data/run");
-    expect(workspaceServiceProfile("mrag").primaryTools).toContain("multimodal_agent");
-    expect(workspaceServiceProfile("mrag").runEndpoint).toBe("/api/v1/academic/workspace/mrag/run");
     expect(workspaceServiceProfile("trade").taskType).toBe("trade-diagnosis");
     expect(workspaceServiceProfile("trade").primaryTools).toEqual(["trade_order_list", "trade_diagnosis"]);
     expect(workspaceServiceProfile("trade").runEndpoint).toBe("/api/v1/academic/stream");
@@ -146,13 +142,6 @@ describe("workspace service profiles", () => {
   });
 
   it("builds stream draft with workspace defaults", () => {
-    expect(buildWorkspaceStreamDraft({ workspaceId: "mrag" })).toEqual({
-      taskType: "mrag",
-      question: "请继续处理当前工作区任务",
-      fileId: "",
-      imageUrl: "",
-      imageName: ""
-    });
     expect(buildWorkspaceStreamDraft({ workspaceId: "trade" }).taskType).toBe("trade-diagnosis");
     expect(buildWorkspaceStreamDraft({
       workspaceId: "image",
@@ -393,7 +382,7 @@ describe("workspace service profiles", () => {
           name: "deep_search",
           status: "missing",
           outputKinds: ["research"],
-          workspaces: ["agent", "mrag"]
+          workspaces: ["agent"]
         },
         {
           name: "data_analysis",
@@ -405,7 +394,7 @@ describe("workspace service profiles", () => {
           name: "table_rag",
           status: "ready",
           outputKinds: ["evidence"],
-          workspaces: ["data", "mrag"]
+          workspaces: ["data"]
         },
         {
           name: "nl2sql",
@@ -435,7 +424,7 @@ describe("workspace service profiles", () => {
       readyCount: 3,
       totalCount: 3,
       outputKinds: ["table", "evidence", "sql"],
-      workspaces: ["data", "mrag"]
+      workspaces: ["data"]
     });
     expect(families.find((item) => item.key === "report")).toMatchObject({
       status: "missing",
@@ -457,7 +446,7 @@ describe("workspace service profiles", () => {
           tools: ["web_fetch", "deep_search"],
           missingTools: [],
           outputKinds: ["web", "reference"],
-          workspaces: ["agent", "mrag"],
+          workspaces: ["agent"],
           action: "核心工具已覆盖"
         }
       ],
@@ -477,7 +466,7 @@ describe("workspace service profiles", () => {
         tools: ["web_fetch", "deep_search"],
         missingTools: [],
         outputKinds: ["web", "reference"],
-        workspaces: ["agent", "mrag"],
+        workspaces: ["agent"],
         action: "核心工具已覆盖"
       }
     ]);
@@ -713,41 +702,5 @@ describe("workspace service profiles", () => {
       status: "支付成功，等待成团",
       createdAt: "2026-06-05T12:20:30"
     });
-  });
-
-  it("groups knowledge documents into catalog items", () => {
-    const catalog = buildKnowledgeBaseCatalog([
-      {
-        documentId: "DOC1",
-        documentType: "MRAG Knowledge",
-        knowledgeVersion: "v1",
-        documentStatus: "ENABLED",
-        fragmentCount: 3,
-        updateTime: "2026-06-05T10:00:00"
-      },
-      {
-        documentId: "DOC2",
-        documentType: "MRAG Knowledge",
-        knowledgeVersion: "v1",
-        documentStatus: "EMBEDDING_FAILED",
-        fragmentCount: 2,
-        updateTime: "2026-06-05T11:00:00"
-      }
-    ]);
-
-    expect(knowledgeBaseCatalogKey({ documentType: "MRAG Knowledge", knowledgeVersion: "v1" })).toBe("MRAG Knowledge::v1");
-    expect(catalog).toEqual([
-      {
-        id: "MRAG Knowledge::v1",
-        name: "MRAG Knowledge",
-        version: "v1",
-        documentType: "MRAG Knowledge",
-        documentCount: 2,
-        fragmentCount: 5,
-        enabledCount: 1,
-        failedCount: 1,
-        latestUpdate: "2026-06-05T11:00:00"
-      }
-    ]);
   });
 });

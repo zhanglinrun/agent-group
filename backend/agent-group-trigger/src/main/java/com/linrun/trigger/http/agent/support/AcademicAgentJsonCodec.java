@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 学术 Agent 链路里通用的 JSON / JsonNode 解析工具，从 AcademicAgentHandler 抽出，
+ * Agent 链路里通用的 JSON / JsonNode 解析工具，从 AcademicAgentHandler 抽出，
  * 让 Handler 和后续拆分出的会话、文件、能力等 Service 都能复用同一套解析口径。
  */
 @Component

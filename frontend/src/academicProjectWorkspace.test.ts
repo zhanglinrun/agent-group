@@ -32,7 +32,7 @@ describe("academic project workspace model", () => {
   it("returns empty-state labels without selected project", () => {
     const model = buildAcademicProjectWorkspace(null);
 
-    expect(model.title).toBe("未选择学术项目");
+    expect(model.title).toBe("未选择项目");
     expect(model.contextSummary).toBe("当前还没有项目上下文");
   });
 });

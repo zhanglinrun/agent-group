@@ -244,9 +244,6 @@ public class AcademicAgentNativeService {
             case "data" -> withMemory(initWorkspaceReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
                             searchTools, webSearchEnabled, "data", memoryPrompt, continueTraceId), internalConversationId)
                     .stream(internalConversationId, workspaceQuery("data", query), fileId);
-            case "mrag" -> withMemory(initWorkspaceReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
-                            searchTools, webSearchEnabled, "mrag", memoryPrompt, continueTraceId), internalConversationId)
-                    .stream(internalConversationId, workspaceQuery("mrag", query), fileId);
             case "trade-diagnosis" -> withMemory(initWorkspaceReactAgent(user.getUserId(), internalConversationId, runtimeChatModel,
                             searchTools, webSearchEnabled, "trade-diagnosis", memoryPrompt, continueTraceId), internalConversationId)
                     .stream(internalConversationId, workspaceQuery("trade-diagnosis", query), fileId);
@@ -536,13 +533,6 @@ public class AcademicAgentNativeService {
         if ("data".equals(workspace)) {
             return """
                     Handle this as a data-analysis workspace request. Prefer data_analysis, table_rag, or nl2sql.
-                    User request:
-                    %s
-                    """.formatted(safeQuery).trim();
-        }
-        if ("mrag".equals(workspace)) {
-            return """
-                    Handle this as a multimodal retrieval workspace request. Combine file, table, image, and retrieval evidence.
                     User request:
                     %s
                     """.formatted(safeQuery).trim();

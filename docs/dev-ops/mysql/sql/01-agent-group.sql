@@ -423,7 +423,7 @@ create table if not exists academic_agent_session (
   primary key (id),
   unique key uk_session_id (session_id),
   key idx_user_time (user_id, update_time)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体会话表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体会话表';
 
 create table if not exists academic_agent_message (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -437,7 +437,7 @@ create table if not exists academic_agent_message (
   primary key (id),
   unique key uk_message_id (message_id),
   key idx_user_session_time (user_id, session_id, create_time)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体消息表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体消息表';
 
 create table if not exists academic_agent_file (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -455,7 +455,7 @@ create table if not exists academic_agent_file (
   primary key (id),
   unique key uk_file_id (file_id),
   key idx_user_time (user_id, create_time)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体文件表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体文件表';
 
 create table if not exists academic_project (
   id bigint unsigned not null auto_increment comment 'auto id',
@@ -528,7 +528,7 @@ create table if not exists academic_agent_artifact (
   unique key uk_artifact_id (artifact_id),
   key idx_user_session_time (user_id, session_id, create_time),
   key idx_run_tool (run_id, tool_invocation_id)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体产物表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体产物表';
 
 create table if not exists academic_agent_run (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -554,7 +554,7 @@ create table if not exists academic_agent_run (
   key idx_request_id (request_id),
   key idx_user_project_time (user_id, project_id, started_at),
   key idx_user_session_time (user_id, session_id, started_at)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体执行运行表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体执行运行表';
 
 create table if not exists academic_llm_invocation (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -578,7 +578,7 @@ create table if not exists academic_llm_invocation (
   primary key (id),
   unique key uk_invocation_id (invocation_id),
   key idx_run_time (run_id, started_at)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体模型调用表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体模型调用表';
 
 create table if not exists academic_tool_invocation (
   id bigint unsigned not null auto_increment comment '自增主键',
@@ -603,7 +603,7 @@ create table if not exists academic_tool_invocation (
   unique key uk_invocation_id (invocation_id),
   key idx_run_time (run_id, started_at),
   key idx_tool_name_time (tool_name, started_at)
-) engine=InnoDB default charset=utf8mb4 comment='学术智能体工具调用表';
+) engine=InnoDB default charset=utf8mb4 comment='Agent智能体工具调用表';
 
 create table if not exists ai_file_info (
   id bigint not null auto_increment comment '主键ID',

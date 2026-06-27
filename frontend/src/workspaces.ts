@@ -1,6 +1,6 @@
-export type WorkspaceId = "agent" | "image" | "data" | "mrag" | "trade";
+export type WorkspaceId = "agent" | "image" | "data" | "trade";
 
-export type AgentMode = "chat" | "image" | "data" | "mrag" | "trade-diagnosis";
+export type AgentMode = "auto" | "chat" | "image" | "data" | "trade-diagnosis";
 
 export interface WorkspaceDefinition {
   id: WorkspaceId;
@@ -18,10 +18,9 @@ export interface WorkspacePrompt {
 }
 
 export const WORKSPACES: WorkspaceDefinition[] = [
-  { id: "agent", name: "熊博士Agent", path: "/", icon: "🐻", agentId: "chat" },
+  { id: "agent", name: "熊博士Agent", path: "/", icon: "🐻", agentId: "auto" },
   { id: "image", name: "图像生成", path: "/workspace/image", icon: "🖼", agentId: "image" },
   { id: "data", name: "数据问答", path: "/workspace/data", icon: "📈", agentId: "data", userVisible: false },
-  { id: "mrag", name: "MRAG 知识问答", path: "/workspace/mrag", icon: "MR", agentId: "mrag", userVisible: false },
   { id: "trade", name: "拼团交易", path: "/workspace/trade", icon: "💳", agentId: "trade-diagnosis", userVisible: false }
 ];
 
@@ -42,7 +41,11 @@ export function workspacePath(workspaceId: string): string {
 }
 
 export function workspaceAgentMode(workspaceId: string): AgentMode {
-  return WORKSPACES.find((workspace) => workspace.id === workspaceId)?.agentId || "chat";
+  const matched = WORKSPACES.find((workspace) => workspace.id === workspaceId);
+  if (matched) {
+    return matched.agentId;
+  }
+  return WORKSPACES.find((workspace) => workspace.id === "agent")?.agentId || "auto";
 }
 
 export function isUserWorkspace(workspaceId: string): boolean {
@@ -64,11 +67,6 @@ export const WORKSPACE_PROMPTS: Record<WorkspaceId, WorkspacePrompt[]> = {
     { icon: "chart", title: "数据指标分析", prompt: "分析上传表格中的核心指标、分布变化和异常值，并给出可复用的统计口径。" },
     { icon: "chart", title: "额度消耗分析", prompt: "分析 Agent 任务的额度消耗：按任务类型统计调用次数、消耗额度、失败率和平均耗时，并指出异常排查口径。" },
     { icon: "chart", title: "样本分布分析", prompt: "基于当前数据样本分析字段分布、缺失值、重复记录和可能影响结论的数据质量问题。" }
-  ],
-  mrag: [
-    { icon: "file", title: "多资料问答", prompt: "请基于我上传的文件、图片和表格做一次多模态知识问答，输出结论、证据来源和不确定点。" },
-    { icon: "globe", title: "资料交叉验证", prompt: "请结合文件内容、知识库和可联网资料交叉验证这个问题，区分确定事实、推断和需要补充的数据。" },
-    { icon: "chart", title: "资料一致性整理", prompt: "请把多份资料放在一起整理，指出内容差异、缺失字段和需要补充的证据。" }
   ],
   trade: []
 };

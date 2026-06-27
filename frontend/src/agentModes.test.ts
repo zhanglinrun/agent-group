@@ -15,7 +15,7 @@ describe("agent mode model", () => {
   });
 
   it("keeps the user selector focused on one chat surface", () => {
-    expect(USER_AGENT_MODES.map((agent) => agent.id)).toEqual(["chat", "ppt", "deep", "image", "manual-skills"]);
+    expect(USER_AGENT_MODES.map((agent) => agent.id)).toEqual(["auto", "chat", "ppt", "deep", "image", "manual-skills"]);
   });
 
   it("keeps every selector option displayable", () => {

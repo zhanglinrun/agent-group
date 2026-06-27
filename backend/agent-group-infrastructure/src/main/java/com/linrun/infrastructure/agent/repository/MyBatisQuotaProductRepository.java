@@ -2,7 +2,7 @@ package com.linrun.infrastructure.agent.repository;
 
 import com.linrun.domain.agent.conversation.adapter.QuotaProductRepository;
 import com.linrun.domain.agent.conversation.model.QuotaProduct;
-import com.linrun.domain.agent.knowledge.service.KnowledgeKeywordService;
+import com.linrun.domain.agent.conversation.service.QuotaProductKeywordService;
 import com.linrun.infrastructure.agent.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IQuotaProductDao;
 import org.springframework.stereotype.Repository;
@@ -15,19 +15,19 @@ import java.util.Optional;
 public class MyBatisQuotaProductRepository implements QuotaProductRepository {
 
     private final IQuotaProductDao guideDataDao;
-    private final KnowledgeKeywordService knowledgeKeywordService;
+    private final QuotaProductKeywordService quotaProductKeywordService;
 
     public MyBatisQuotaProductRepository(IQuotaProductDao guideDataDao,
-                                      KnowledgeKeywordService knowledgeKeywordService) {
+                                      QuotaProductKeywordService quotaProductKeywordService) {
         this.guideDataDao = guideDataDao;
-        this.knowledgeKeywordService = knowledgeKeywordService;
+        this.quotaProductKeywordService = quotaProductKeywordService;
     }
 
     @Override
     public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
         int safeLimit = limit <= 0 ? 5 : limit;
         return AgentPOConverter.toQuotaProducts(
-                        guideDataDao.queryCandidateProducts(knowledgeKeywordService.extractKeywords(question), safeLimit))
+                        guideDataDao.queryCandidateProducts(quotaProductKeywordService.extractKeywords(question), safeLimit))
                 .stream()
                 .map(this::normalizeProduct)
                 .flatMap(Optional::stream)

@@ -33,7 +33,7 @@ function executionModes() {
 }
 
 function workspaceProfiles() {
-  return ["agent", "image", "data", "mrag", "trade"].map((id) => ({
+  return ["agent", "image", "data", "trade"].map((id) => ({
     id,
     path: id === "agent" ? "/" : `/workspace/${id}`,
     runEndpoint: id === "agent" ? "" : `/api/v1/academic/workspace/${id}/run`

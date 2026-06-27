@@ -34,13 +34,6 @@ spring:
           encoding-format: float
     vectorstore:
       type: pgvector
-      pgvector:
-        table-name: spring_ai_knowledge_embedding
-        initialize-schema: true
-        dimensions: ${AGENT_GROUP_VECTOR_DIMENSION:1024}
-        distance-type: COSINE_DISTANCE
-        index-type: HNSW
-        id-type: TEXT
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${AGENT_GROUP_MYSQL_URL:jdbc:mysql://127.0.0.1:13306/agent_group?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}

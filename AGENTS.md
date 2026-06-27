@@ -43,7 +43,7 @@
 # Repository Guidelines
 
 ## 项目背景与目标
-本项目是面向研究生学习和科研辅助场景的学术 `Agent`（智能体）平台，核心定位是 **Agent 智能执行引擎 + 额度交易系统**。
+面向通用对话与内容生成场景的 `Agent`（智能体）平台，核心定位是 **Agent 智能执行引擎 + 额度交易系统**。
 
 不是简单的聊天机器人，重点在 `Agent`（智能体）的智能化能力：
 - 执行策略选择：当前主 `Agent`（智能体）架构是 `ReAct`（思考-行动循环）和 `Plan-Execute`（规划-执行）；`PPT Workflow`（PPT 工作流）和 `Skill Orchestration`（技能编排）是业务执行策略，不包装成标准 `Agent`（智能体）架构模式
@@ -53,7 +53,7 @@
 - 全链路追踪：记录从用户请求到工具调用的完整执行过程
 - 异常诊断：自动检测执行耗时、工具失败、额度异常等问题
 
-额度交易系统是支撑 `Agent`（智能体）运行的基础设施，通过支付、拼团、退款和额度发放闭环，保证交易状态与额度余额一致性。用户购买额度后，可以调用文件问答、深度研究、`PPT`（演示文稿）生成等学术能力。
+额度交易系统是支撑 `Agent`（智能体）运行的基础设施，通过支付、拼团、退款和额度发放闭环，保证交易状态与额度余额一致性。用户购买额度后，可以调用对话问答、文件理解、深度任务、`PPT`（演示文稿）生成、图像生成和技能编排等能力。
 
 秋招表达时优先聚焦 `Agent`（智能体）的智能化能力（多模式、重规划、反思、追踪、诊断），不要泛化成普通聊天机器人或单纯支付项目。
 
@@ -63,25 +63,27 @@
 - 核心特色：不是简单聊天机器人，而是**多模式执行引擎 + 智能重规划 + 反思评估 + 全链路追踪**。
 - 大模型主链路优先使用 Spring AI ChatClient、EmbeddingModel 和 VectorStore。
 - 原有手写 OpenAPI 客户端保留为回退链路，避免没有模型密钥或向量库不可用时演示中断。
-- 知识入库优先走 Spring AI VectorStore 写入 pgvector，同时保留本地向量回退。
+- 会话文件向量优先走 Spring AI VectorStore 写入 pgvector（表 `vector_file_info`），同时保留本地向量回退。
 
 ### 项目亮点
 
 优先表达为：
-1. **执行策略选择**：支持 ReAct、Plan-Execute 两类主 Agent 执行范式，并用 PPT Workflow、Skill Orchestration 承载 PPT 生成和技能编排，根据任务特征自动选择，准确率 90%+
-2. **智能重规划策略**：步骤失败时分析原因（工具不可用、参数错误、超时），复用 70% 已完成步骤，成功率 85%
-3. **反思与评估机制**：自动评估执行质量（完成率 60% + 输出可用性 40%），质量低于 70% 触发重规划，平均分 78/100
-4. **推理过程可视化**：类似 OpenAI o1 的思考链展示，基于规则快速推断任务类型、步骤数、难度，降低推理成本 20%
+1. **执行策略选择**：默认 `auto` 智能调度；支持 ReAct、Plan-Execute 两类主 Agent 执行范式，PPT Workflow、Skill Orchestration 承载业务编排；路由单测 23 条用例断言准确率 ≥ 90%
+2. **智能重规划策略**：deep 模式步骤失败时经 `PlanExecuteDomainBridge` 走 domain 策略分析原因并重试，另含 LLM 多轮 replan
+3. **反思与评估机制**：deep 模式 domain 规则反思（`source=domain_rule`）+ LLM critique；质量低触发继续重规划
+4. **推理过程可视化**：SSE 推送 `task_analysis`、`mode_selection`、`execution_applied` 及思考链 Timeline
 5. **全链路追踪**：基于 TraceId/SpanId 记录完整调用链，支持 Span 嵌套和标签传播
-6. **异常诊断服务**：自动检测执行耗时、工具失败、额度异常、频繁重规划等 5 类问题，检测准确率 95%
+6. **异常诊断服务**：每次 run 结束推送 `diagnosis_delta`；检测慢执行、工具失败、额度异常、频繁重规划、执行异常
 7. **交易状态一致性**：通过订单流水、额度流水、支付幂等键保证额度、订单、支付、拼团状态一致性
+
+> 亮点中的百分比、成功率等数字须有单测或压测出处；路由准确率来自 `AgentEngineRoutingTest`，不要包装成线上 LLM 指标。
 
 ### 秋招项目表达
 
-- 优先聚焦"**学术 Agent 智能执行引擎 + 额度交易系统**"
+- 优先聚焦"**Agent 智能执行引擎 + 额度交易系统**"
 - 强调 Agent 的**智能化能力**：多模式、重规划、反思、追踪、诊断
 - 不要泛化成普通聊天机器人或单纯支付项目
-- 用户对话 Agent 主要服务学术问答、文件理解、资料整理和内容生成
+- 用户对话 Agent 主要服务通用问答、文件理解、内容生成和多模式任务编排
 
 ## 交易与额度规则
 - 额度只能由后端交易状态发放，前端和 `Agent`（智能体）不能直接决定额度到账。
@@ -95,12 +97,12 @@
 ## 项目结构
 - `backend`（后端目录）：`Maven`（构建工具）多模块工程。
 - `frontend`（前端目录）：用户端 `Agent`（智能体）工作台、额度购买页、运营端页面和演示交互。
-- `docs`（文档目录）：运行环境、样例知识库、监控和项目复盘材料。
+- `docs`（文档目录）：运行环境、监控和项目复盘材料。
 
 后端模块职责：
 - `agent-group-api`（接口模块）：接口契约和对外模型。
 - `agent-group-app`（应用模块）：启动入口、配置和测试承载。
-- `agent-group-domain`（领域模块）：`Agent`（智能体）、知识库、账号、额度、拼团、交易、评测等核心业务逻辑。
+- `agent-group-domain`（领域模块）：`Agent`（智能体）、账号、额度、拼团、交易、评测等核心业务逻辑。
 - `agent-group-infrastructure`（基础设施模块）：数据库、缓存、消息、对象存储、`Spring AI`（Spring 人工智能框架）和大模型适配。
 - `agent-group-trigger`（入口模块）：网页接口、任务、消息监听和流式输出。
 - `agent-group-types`（通用模块）：通用响应、异常和枚举。
@@ -124,3 +126,25 @@
 - 不要一开始就铺完整 `MVP`（最小可用版本）或大而全方案；每次只实现当前阶段最小可验证能力。
 - 不要提交密码、令牌、`API Key`（接口密钥）或 `.env`（环境变量文件）。
 - 涉及大模型、支付和数据库配置时优先使用环境变量。
+
+<!-- TRELLIS:START -->
+# Trellis Instructions
+
+These instructions are for AI assistants working in this project.
+
+This project is managed by Trellis. The working knowledge you need lives under `.trellis/`:
+
+- `.trellis/workflow.md` — development phases, when to create tasks, skill routing
+- `.trellis/spec/` — package- and layer-scoped coding guidelines (read before writing code in a given layer)
+- `.trellis/workspace/` — per-developer journals and session traces
+- `.trellis/tasks/` — active and archived tasks (PRDs, research, jsonl context)
+
+If a Trellis command is available on your platform (e.g. `/trellis:finish-work`, `/trellis:continue`), prefer it over manual steps. Not every platform exposes every command.
+
+If you're using Codex or another agent-capable tool, additional project-scoped helpers may live in:
+- `.agents/skills/` — reusable Trellis skills
+- `.codex/agents/` — optional custom subagents
+
+Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
+
+<!-- TRELLIS:END -->

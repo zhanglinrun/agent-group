@@ -11,15 +11,12 @@ import {
   createPayment,
   createAcademicProject,
   deleteAgentAdminConfig,
-  deleteKnowledgeDocument,
   discoverMcpTools,
   enableAgentAdminConfig,
   enableMcpServer,
   exportAgentAdminState,
   exportMcpState,
   generateWorkspaceImage,
-  getKnowledgeDocumentFullContent,
-  getKnowledgeFragments,
   getUserAuth,
   getUserModelConfig,
   login,
@@ -42,18 +39,15 @@ import {
   queryWorkspaceDataCatalog,
   queryWorkspaceDataHistory,
   queryWorkspaceImageHistory,
-  queryWorkspaceMragHistory,
   register,
   registerMcpServer,
   proposeAcademicProjectPatch,
   requestAcademicResumeStream,
   requestAcademicStream,
   runWorkspaceData,
-  runWorkspaceMrag,
   saveAdminAuth,
   saveModelConfig,
   saveUserAuth,
-  uploadKnowledgeWebUrl,
   upsertAgentAdminConfig
 } from "./api";
 
@@ -730,69 +724,6 @@ describe("mcp admin api client", () => {
     );
   });
 
-  it("wires workspace mrag run and history APIs with user token", async () => {
-    saveUserAuth({ token: "user-token" });
-
-    await runWorkspaceMrag({
-      sessionId: "M1001",
-      question: "cross check paper figures",
-      imageUrls: ["https://example.com/figure.png"],
-      modelCodeList: ["paper_metadata"]
-    });
-    await queryWorkspaceMragHistory({ sessionId: "M1001", limit: 6 });
-
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/workspace/mrag/run", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Bearer user-token",
-        "Content-Type": "application/json"
-      }),
-      body: JSON.stringify({
-        sessionId: "M1001",
-        question: "cross check paper figures",
-        text: "",
-        imageUrls: ["https://example.com/figure.png"],
-        fileUrls: [],
-        modelCodeList: ["paper_metadata"],
-        sourceTypes: [],
-        topK: 5,
-        maxResults: 5,
-        includeMultimodal: true,
-        includeTableRag: true,
-        includeDeepSearch: true,
-        useVector: true,
-        useElastic: false,
-        metadata: {}
-      })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      "/api/v1/academic/workspace/mrag/history?sessionId=M1001&limit=6",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
-  });
-
-  it("wires knowledge fragment query with admin basic auth", async () => {
-    saveAdminAuth("ops", "secret");
-
-    await getKnowledgeFragments("DOC 1001");
-
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/v1/knowledge/document/fragments?documentId=DOC%201001",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Basic b3BzOnNlY3JldA=="
-        })
-      })
-    );
-  });
-
   it("creates an Alipay payment with user token", async () => {
     saveUserAuth({ token: "user-token" });
 
@@ -813,52 +744,5 @@ describe("mcp admin api client", () => {
         returnUrl: "http://localhost:5174/?paymentReturn=1&orderId=O10001"
       })
     }));
-  });
-
-  it("wires knowledge web import full content and delete APIs with admin basic auth", async () => {
-    saveAdminAuth("ops", "secret");
-
-    await uploadKnowledgeWebUrl({
-      url: "https://example.com/article",
-      goodsId: "global",
-      documentName: "Article"
-    });
-    await getKnowledgeDocumentFullContent("DOC 1001");
-    await deleteKnowledgeDocument("DOC 1001");
-
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/knowledge/document/upload-web-url", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Basic b3BzOnNlY3JldA==",
-        "Content-Type": "application/json"
-      }),
-      body: JSON.stringify({
-        url: "https://example.com/article",
-        goodsId: "global",
-        documentName: "Article",
-        documentType: "MRAG Web Page",
-        knowledgeVersion: ""
-      })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      "/api/v1/knowledge/document/full-content?documentId=DOC%201001",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Basic b3BzOnNlY3JldA=="
-        })
-      })
-    );
-    expect(fetch).toHaveBeenNthCalledWith(
-      3,
-      "/api/v1/knowledge/document/DOC%201001",
-      expect.objectContaining({
-        method: "DELETE",
-        headers: expect.objectContaining({
-          Authorization: "Basic b3BzOnNlY3JldA=="
-        })
-      })
-    );
   });
 });

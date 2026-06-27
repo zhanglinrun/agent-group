@@ -129,37 +129,40 @@ public class AcademicAgentHandler {
         return Flux.defer(() -> {
             UserAccount user = userAccountService.requireUserByToken(token);
             AcademicAgentStreamRequest safeRequest = request == null ? new AcademicAgentStreamRequest() : request;
-            String taskType = normalizeTaskType(safeRequest.getTaskType());
-            String query = normalizeQuery(safeRequest, taskType);
+            String requestedTaskType = normalizeTaskType(safeRequest.getTaskType());
+            String preliminaryQuery = normalizeQuery(safeRequest,
+                    UnifiedAgentOrchestrator.AUTO_TASK_TYPE.equals(requestedTaskType) ? "chat" : requestedTaskType);
             String fileId = effectiveFileIds(safeRequest);
             String projectId = nullToBlank(safeRequest.getProjectId());
             boolean webSearchEnabled = Boolean.TRUE.equals(safeRequest.getWebSearchEnabled());
             UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan =
-                    unifiedAgentOrchestrator.plan(query, taskType, fileId, webSearchEnabled, safeRequest);
+                    unifiedAgentOrchestrator.plan(preliminaryQuery, requestedTaskType, fileId, webSearchEnabled, safeRequest);
+            String executionAgentType = UnifiedAgentOrchestrator.resolveExecutionAgentType(requestedTaskType, orchestrationPlan);
+            String query = normalizeQuery(safeRequest, executionAgentType);
             long startedAt = System.currentTimeMillis();
             AtomicInteger sequence = new AtomicInteger(1);
             String modelName = modelName(user.getUserId(), safeRequest);
             boolean customModelConfigured = userQuotaService.hasEnabledModelConfig(user.getUserId())
                     || hasCustomModelConfig(safeRequest);
             AcademicAgentRun run = academicExecutionLedgerService.startRun(
-                    user.getUserId(), sessionId, projectId, requestId, taskType, query, modelName);
+                    user.getUserId(), sessionId, projectId, requestId, executionAgentType, query, modelName);
             String executionMemoryPrompt = joinPrompts(
-                    outputStylePrompt(effectiveOutputStyle(taskType, safeRequest.getOutputStyle())),
+                    outputStylePrompt(effectiveOutputStyle(executionAgentType, safeRequest.getOutputStyle())),
                     executionMemoryPrompt(user.getUserId(), sessionId, requestId)
             );
             AcademicLedgerContext.Context ledgerContext = new AcademicLedgerContext.Context(
-                    run.getRunId(), requestId, sessionId, user.getUserId(), taskType);
-            AcademicAgentPlan executionPlan = runPlanFactory.build(taskType, webSearchEnabled);
+                    run.getRunId(), requestId, sessionId, user.getUserId(), executionAgentType);
+            AcademicAgentPlan executionPlan = runPlanFactory.build(executionAgentType, webSearchEnabled);
             RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt,
-                    webSearchEnabled, executionPlan, orchestrationPlan);
+                    webSearchEnabled, executionPlan, orchestrationPlan, requestedTaskType, executionAgentType);
             runState.projectId = projectId;
             runState.projectContext = projectContext(user.getUserId(), projectId);
 
             boolean identityQuestion = isModelIdentityQuestion(query);
             Flux<QuotaStreamEvent<?>> executionEvents = identityQuestion
                     ? Flux.defer(() -> Flux.fromIterable(identityAnswerEvents(
-                            token, taskType, query, sessionId, fileId, requestId, sequence, runState)))
-                    : Flux.defer(() -> academicAgentNativeService.stream(token, taskType, query, sessionId, fileId,
+                            token, executionAgentType, query, sessionId, fileId, requestId, sequence, runState)))
+                    : Flux.defer(() -> academicAgentNativeService.stream(token, executionAgentType, query, sessionId, fileId,
                             webSearchEnabled, safeRequest.getLlmBaseUrl(), safeRequest.getLlmApiKey(),
                             safeRequest.getLlmModel(), executionMemoryPrompt, safeRequest.getContinueTraceId()))
                             .doOnSubscribe(subscription -> AcademicLedgerContext.set(ledgerContext))
@@ -168,7 +171,7 @@ public class AcademicAgentHandler {
             return Flux.concat(
                             Flux.fromIterable(startEvents(runState, sessionId, requestId, sequence)),
                             executionEvents.concatWith(Flux.defer(() -> Flux.fromIterable(completionEvents(
-                                    user, sessionId, requestId, sequence, taskType, startedAt, runState)))))
+                                    user, sessionId, requestId, sequence, executionAgentType, startedAt, runState)))))
                     .onErrorResume(error -> Flux.fromIterable(errorEvents(
                             sessionId, requestId, sequence, error, customModelConfigured, runState)))
                     .doFinally(signalType -> AcademicLedgerContext.clear());
@@ -383,8 +386,14 @@ public class AcademicAgentHandler {
                     runState.orchestrationPlan.modeSelectionData(runState.run.getRunId())));
             events.add(event("agent_routing", sessionId, requestId, sequence,
                     runState.orchestrationPlan.routingData(runState.run.getRunId())));
+            events.add(event("execution_applied", sessionId, requestId, sequence,
+                    UnifiedAgentOrchestrator.executionAppliedData(
+                            runState.run.getRunId(),
+                            runState.requestedTaskType,
+                            runState.executionAgentType,
+                            runState.orchestrationPlan)));
         }
-        events.add(event("run_start", sessionId, requestId, sequence, runStart(runState.run)));
+        events.add(event("run_start", sessionId, requestId, sequence, runStart(runState)));
         if (!runState.projectContext.isEmpty()) {
             events.add(event("project_context", sessionId, requestId, sequence, runState.projectContext));
         }
@@ -708,11 +717,14 @@ public class AcademicAgentHandler {
         return output;
     }
 
-    private Map<String, Object> runStart(AcademicAgentRun run) {
+    private Map<String, Object> runStart(RunState runState) {
+        AcademicAgentRun run = runState.run;
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("runId", run.getRunId());
         data.put("projectId", nullToBlank(run.getProjectId()));
-        data.put("taskType", run.getTaskType());
+        data.put("requestedTaskType", runState.requestedTaskType);
+        data.put("executionAgentType", runState.executionAgentType);
+        data.put("taskType", runState.executionAgentType);
         data.put("question", run.getQuestion());
         data.put("model", run.getModelName());
         data.put("status", run.getStatus());
@@ -1282,6 +1294,7 @@ public class AcademicAgentHandler {
             case "data", "data-qa", "workspace-data", "nl2sql", "table-rag" -> "data";
             case "skills" -> "skills";
             case "manual", "manual-skills", "skills-manual" -> "manual-skills";
+            case "auto", "smart", "orchestrator" -> UnifiedAgentOrchestrator.AUTO_TASK_TYPE;
             default -> "chat";
         };
     }
@@ -1563,6 +1576,8 @@ public class AcademicAgentHandler {
         private final String modelName;
         private final long startedAt;
         private final boolean webSearchEnabled;
+        private final String requestedTaskType;
+        private final String executionAgentType;
         private AcademicAgentPlan executionPlan;
         private final UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan;
         private final StringBuilder answer = new StringBuilder();
@@ -1582,7 +1597,9 @@ public class AcademicAgentHandler {
                          long startedAt,
                          boolean webSearchEnabled,
                          AcademicAgentPlan executionPlan,
-                         UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan) {
+                         UnifiedAgentOrchestrator.OrchestrationPlan orchestrationPlan,
+                         String requestedTaskType,
+                         String executionAgentType) {
             this.run = run;
             this.ledgerContext = ledgerContext;
             this.question = question;
@@ -1591,6 +1608,8 @@ public class AcademicAgentHandler {
             this.webSearchEnabled = webSearchEnabled;
             this.executionPlan = executionPlan;
             this.orchestrationPlan = orchestrationPlan;
+            this.requestedTaskType = requestedTaskType == null ? "chat" : requestedTaskType;
+            this.executionAgentType = executionAgentType == null ? "chat" : executionAgentType;
         }
     }
 

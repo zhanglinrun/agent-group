@@ -207,21 +207,3 @@ export function workspaceDataToolResultEvent(result = {}) {
     }
   };
 }
-
-export function workspaceMragToolResultEvent(result = {}) {
-  return {
-    event: "tool_result",
-    data: {
-      invocationId: result.invocationId || `${result.toolName || "mrag"}_${Date.now()}`,
-      toolName: result.toolName || "multimodal_agent",
-      status: "SUCCESS",
-      resultSummary: result.summary || result.title || "",
-      structuredOutput: result.structuredOutput || {
-        title: result.title || result.toolName || "mrag result",
-        summary: result.summary || "",
-        content: result.content || ""
-      },
-      fileRefs: Array.isArray(result.fileRefs) ? result.fileRefs : []
-    }
-  };
-}

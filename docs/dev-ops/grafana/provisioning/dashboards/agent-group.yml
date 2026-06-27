@@ -3,7 +3,7 @@ apiVersion: 1
 providers:
   - name: agent-group
     orgId: 1
-    folder: 基于 Spring AI 的学术 Agent 额度与拼团支付系统
+    folder: 基于 Spring AI 的 Agent 额度与拼团支付系统
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30

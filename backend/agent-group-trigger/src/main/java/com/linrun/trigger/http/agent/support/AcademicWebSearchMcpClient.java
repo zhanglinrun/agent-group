@@ -21,7 +21,7 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * 学术 Agent 的联网搜索 MCP 客户端，从 AcademicAgentNativeService 抽出。
+ * Agent 的联网搜索 MCP 客户端，从 AcademicAgentNativeService 抽出。
  * 把原先散在 Service 里的手写 MCP 初始化（Tavily Streamable HTTP transport + 直连 API 回退）集中到一处，
  * 既给 stream 编排提供搜索工具回调，又给能力展示提供搜索状态。
  */

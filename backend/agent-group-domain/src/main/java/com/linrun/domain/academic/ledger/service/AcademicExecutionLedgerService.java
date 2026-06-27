@@ -415,7 +415,7 @@ public class AcademicExecutionLedgerService {
                 dto.setExecutionMode("ReAct");
                 dto.setModeFamily("react");
                 dto.setAgentType(normalizeTaskType(taskType));
-                dto.setReason("适合文件问答、搜索或普通学术问答的思考-行动循环");
+                dto.setReason("适合文件问答、搜索或普通对话的思考-行动循环");
             }
         }
         return dto;

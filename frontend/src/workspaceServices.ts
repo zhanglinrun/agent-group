@@ -194,18 +194,6 @@ export interface WorkspaceHistoryItem {
   source?: Record<string, unknown>;
 }
 
-export interface KnowledgeBaseCatalogItem {
-  id: string;
-  name: string;
-  version: string;
-  documentType: string;
-  documentCount: number;
-  fragmentCount: number;
-  enabledCount: number;
-  failedCount: number;
-  latestUpdate: string;
-}
-
 const DEFAULT_QUESTION = "请继续处理当前工作区任务";
 
 const TOOL_RUNTIME_FAMILIES: Array<{ key: string; label: string; tools: string[] }> = [
@@ -220,7 +208,7 @@ const TOOL_RUNTIME_FAMILIES: Array<{ key: string; label: string; tools: string[]
 export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServiceProfile> = {
   agent: {
     id: "agent",
-    taskType: "chat",
+    taskType: "auto",
     title: "通用 Agent",
     summary: "统一承载对话、文件问答、深度任务、PPT 和 Skill 任务。",
     primaryTools: ["planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"],
@@ -250,17 +238,6 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     outputKinds: ["table", "sql", "chart", "report"],
     runEndpoint: "/api/v1/academic/workspace/data/run",
     historyEndpoint: "/api/v1/academic/workspace/data/history"
-  },
-  mrag: {
-    id: "mrag",
-    taskType: "mrag",
-    title: "MRAG 知识问答工作区",
-    summary: "结合文件、图片、表格、知识检索和网页资料做多模态问答。",
-    primaryTools: ["multimodal_agent", "file_tool", "table_rag", "deep_search"],
-    attachmentMode: "file-or-image",
-    outputKinds: ["answer", "evidence", "file", "image"],
-    runEndpoint: "/api/v1/academic/workspace/mrag/run",
-    historyEndpoint: "/api/v1/academic/workspace/mrag/history"
   },
   trade: {
     id: "trade",
@@ -551,7 +528,7 @@ export function visibleAgentExecutionModes(
 }
 
 export function workspaceSupportsHistory(workspaceId: string): boolean {
-  return workspaceId === "image" || workspaceId === "data" || workspaceId === "mrag" || workspaceId === "trade";
+  return workspaceId === "image" || workspaceId === "data" || workspaceId === "trade";
 }
 
 function textValue(record: Record<string, unknown>, ...keys: string[]): string {
@@ -606,46 +583,6 @@ function tradeHistorySummary(record: Record<string, unknown>): string {
     textValue(record, "displayStatus", "status", "orderStatus", "payStatus"),
     tradeOrderAmountText(record)
   ].filter(Boolean).join(" · ");
-}
-
-export function knowledgeBaseCatalogKey(value: unknown): string {
-  const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const documentType = textValue(record, "documentType") || "默认知识库";
-  const version = textValue(record, "knowledgeVersion") || "v1";
-  return `${documentType}::${version}`;
-}
-
-export function buildKnowledgeBaseCatalog(value: unknown): KnowledgeBaseCatalogItem[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const groups = new Map<string, KnowledgeBaseCatalogItem>();
-  for (const item of value) {
-    const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
-    const id = knowledgeBaseCatalogKey(record);
-    const documentType = textValue(record, "documentType") || "默认知识库";
-    const version = textValue(record, "knowledgeVersion") || "v1";
-    const status = textValue(record, "documentStatus").toUpperCase();
-    const latestUpdate = textValue(record, "updateTime", "createTime");
-    const current = groups.get(id) || {
-      id,
-      name: documentType,
-      version,
-      documentType,
-      documentCount: 0,
-      fragmentCount: 0,
-      enabledCount: 0,
-      failedCount: 0,
-      latestUpdate: ""
-    };
-    current.documentCount += 1;
-    current.fragmentCount += numberValue(record, "fragmentCount");
-    if (status === "ENABLED") current.enabledCount += 1;
-    if (status.includes("FAILED")) current.failedCount += 1;
-    current.latestUpdate = latestUpdate > current.latestUpdate ? latestUpdate : current.latestUpdate;
-    groups.set(id, current);
-  }
-  return Array.from(groups.values()).sort((a, b) => b.latestUpdate.localeCompare(a.latestUpdate));
 }
 
 export function normalizeWorkspaceHistoryItems(

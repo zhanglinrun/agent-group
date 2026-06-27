@@ -17,7 +17,7 @@ describe("TradeWorkspacePanel", () => {
         recentOrders: [
           {
             orderId: "T202606180001",
-            productName: "研究生学术额度包",
+            productName: "基础 Agent 额度包",
             orderStatus: "PAY_SUCCESS",
             marketType: 1,
             payAmount: 19.9

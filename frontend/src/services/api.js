@@ -673,41 +673,6 @@ export async function queryWorkspaceDataCatalog() {
   });
 }
 
-export async function runWorkspaceMrag(payload = {}) {
-  return request("/api/v1/academic/workspace/mrag/run", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: payload.sessionId || getSessionId(),
-      question: payload.question || payload.prompt || "",
-      text: payload.text || "",
-      imageUrls: payload.imageUrls || [],
-      fileUrls: payload.fileUrls || [],
-      modelCodeList: payload.modelCodeList || [],
-      sourceTypes: payload.sourceTypes || [],
-      topK: payload.topK || 5,
-      maxResults: payload.maxResults || 5,
-      includeMultimodal: payload.includeMultimodal !== false,
-      includeTableRag: payload.includeTableRag !== false,
-      includeDeepSearch: payload.includeDeepSearch !== false,
-      useVector: payload.useVector !== false,
-      useElastic: Boolean(payload.useElastic),
-      metadata: payload.metadata || {}
-    })
-  });
-}
-
-export async function queryWorkspaceMragHistory({ sessionId = "", limit = 20 } = {}) {
-  const params = new URLSearchParams();
-  if (sessionId) params.set("sessionId", sessionId);
-  params.set("limit", String(limit));
-  return request(`/api/v1/academic/workspace/mrag/history?${params.toString()}`, {
-    userAuth: true,
-    method: "GET"
-  });
-}
-
 export async function queryAgentCapabilities() {
   return request("/api/v1/academic/capabilities", {
     userAuth: true,
@@ -1104,93 +1069,6 @@ export async function createPayment(orderId, options = {}) {
       notifyUrl: options.notifyUrl || "",
       returnUrl
     })
-  });
-}
-
-export async function uploadKnowledgeDocument(file, goodsId, documentName, documentType) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("goodsId", goodsId || "global");
-  if (documentName) formData.append("documentName", documentName);
-  if (documentType) formData.append("documentType", documentType);
-
-  return request("/api/v1/knowledge/document/upload-file", {
-    auth: true,
-    method: "POST",
-    body: formData
-  });
-}
-
-export async function uploadKnowledgeWebUrl(payload = {}) {
-  return request("/api/v1/knowledge/document/upload-web-url", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url: payload.url || "",
-      goodsId: payload.goodsId || "global",
-      documentName: payload.documentName || "",
-      documentType: payload.documentType || "MRAG Web Page",
-      knowledgeVersion: payload.knowledgeVersion || ""
-    })
-  });
-}
-
-export async function rebuildKnowledgeVector() {
-  return request("/api/v1/knowledge/vector/rebuild", {
-    auth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({})
-  });
-}
-
-export async function compensateKnowledgeVector() {
-  return request("/api/v1/knowledge/vector/compensate-failed-embedding?limit=20", {
-    auth: true,
-    method: "POST"
-  });
-}
-
-export async function getKnowledgeDocuments() {
-  return request("/api/v1/knowledge/document/list?limit=10", {
-    auth: true,
-    method: "GET"
-  });
-}
-
-export async function getKnowledgeFragments(documentId) {
-  return request(`/api/v1/knowledge/document/fragments?documentId=${encodeURIComponent(documentId || "")}`, {
-    auth: true,
-    method: "GET"
-  });
-}
-
-export async function getKnowledgeDocumentFullContent(documentId) {
-  return request(`/api/v1/knowledge/document/full-content?documentId=${encodeURIComponent(documentId || "")}`, {
-    auth: true,
-    method: "GET"
-  });
-}
-
-export async function deleteKnowledgeDocument(documentId) {
-  return request(`/api/v1/knowledge/document/${encodeURIComponent(documentId || "")}`, {
-    auth: true,
-    method: "DELETE"
-  });
-}
-
-export async function runAgentEvaluation() {
-  return request("/api/v1/evaluate/agent/run", {
-    auth: true,
-    method: "POST"
-  });
-}
-
-export async function getLatestAgentEvaluation() {
-  return request("/api/v1/evaluate/agent/latest", {
-    auth: true,
-    method: "GET"
   });
 }
 

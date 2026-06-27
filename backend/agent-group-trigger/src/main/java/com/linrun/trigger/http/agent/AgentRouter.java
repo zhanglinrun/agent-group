@@ -30,7 +30,9 @@ public class AgentRouter {
     private String normalizeAgentType(String requestedTaskType,
                                       AgentModeSelector.ModeSelectionResult selection) {
         String requested = normalize(requestedTaskType);
-        if (StringUtils.hasText(requested) && !"chat".equals(requested)) {
+        if (StringUtils.hasText(requested)
+                && !"chat".equals(requested)
+                && !UnifiedAgentOrchestrator.AUTO_TASK_TYPE.equals(requested)) {
             return normalizeSkillAgentType(requested);
         }
         String selected = selection == null ? "" : selection.getAgentType();

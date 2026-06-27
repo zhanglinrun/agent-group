@@ -18,6 +18,28 @@ describe("agent timeline projection", () => {
     expect(normalizeTimelineStatus("REPLANNED")).toBe("replanned");
   });
 
+  it("maps execution_applied into a readable timeline item", () => {
+    const item = streamEventToTimelineItem({
+      event: "execution_applied",
+      data: {
+        requestedTaskType: "auto",
+        executionAgentType: "deep",
+        executionMode: "Plan-Execute",
+        autoRouted: true,
+        reason: "需要多步骤规划和依赖编排"
+      }
+    });
+
+    expect(item).toMatchObject({
+      type: "execution_applied",
+      title: "执行路由",
+      executionAgentType: "deep",
+      autoRouted: true
+    });
+    expect(String(item?.content || "")).toContain("规划-执行");
+    expect(String(item?.content || "")).toContain("深度任务");
+  });
+
   it("marks run start as running and exposes a readable label", () => {
     const item = streamEventToTimelineItem({
       event: "run_start",

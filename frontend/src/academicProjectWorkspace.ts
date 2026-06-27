@@ -59,7 +59,7 @@ export function buildAcademicProjectWorkspace(project: AcademicProjectLike | nul
   const files = Array.isArray(source.files) ? source.files : [];
   const patches = Array.isArray(source.patches) ? source.patches : [];
   const pendingPatches = patches.filter((patch) => text(patch.status).toUpperCase() === "PENDING");
-  const title = text(source.title) || "未选择学术项目";
+  const title = text(source.title) || "未选择项目";
   const researchQuestion = text(source.researchQuestion);
   const targetVenue = text(source.targetVenue);
   const subtitle = [researchQuestion, targetVenue].filter(Boolean).join(" · ");

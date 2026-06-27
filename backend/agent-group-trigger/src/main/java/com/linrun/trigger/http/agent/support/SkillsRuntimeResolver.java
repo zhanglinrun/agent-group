@@ -25,7 +25,7 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * 学术 Agent 的技能运行时解析器，从 AcademicAgentNativeService 抽出。
+ * Agent 的技能运行时解析器，从 AcademicAgentNativeService 抽出。
  * 集中负责 skills 目录定位、会话产物目录准备、技能工具回调组装，以及技能/工作区运行时提示词拼装。
  * 这些逻辑同时被流式编排（初始化各类 Agent）和能力展示（capabilities）使用，所以独立成一个共享组件。
  */
@@ -202,13 +202,6 @@ public class SkillsRuntimeResolver {
                     ## Data workspace
                     - Prefer data_analysis, table_rag, or nl2sql for tables, databases, and structured questions.
                     - Include data scope, key findings, and reproducible query or analysis steps.
-                    """ + base).trim();
-        }
-        if ("mrag".equals(workspace)) {
-            return ("""
-                    ## Multimodal retrieval workspace
-                    - Combine file_tool, multimodal_agent, table_rag, deep_search, and web_fetch when needed.
-                    - Separate file evidence, search evidence, and model inference.
                     """ + base).trim();
         }
         if ("trade".equals(workspace)) {

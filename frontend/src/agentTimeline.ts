@@ -1,3 +1,5 @@
+import { agentTypeLabel, executionModeLabel, modeFamilyLabel } from "./agentModes";
+
 export type TimelineItem = Record<string, unknown> & {
   type: string;
   status?: string;
@@ -145,11 +147,12 @@ export function streamEventToTimelineItem(
   const data = asObject(envelope.data);
   const eventName = text(envelope.event);
   if (eventName === "run_start") {
+    const executionType = text(data.executionAgentType) || text(data.taskType) || "chat";
     return {
       type: "run",
       status: "running",
       title: "运行开始",
-      content: `${text(data.taskType) || "chat"} · ${text(data.model) || "qwen3.7-plus"}`
+      content: `${agentTypeLabel(executionType)} · ${text(data.model) || "qwen3.7-plus"}`
     };
   }
   if (eventName === "task_analysis") {
@@ -165,24 +168,53 @@ export function streamEventToTimelineItem(
     };
   }
   if (eventName === "mode_selection") {
+    const executionMode = text(data.executionMode);
+    const agentType = text(data.agentType);
+    const modeFamily = text(data.modeFamily);
     return {
       type: "mode_selection",
       status: "planned",
       title: "模式选择",
-      executionMode: text(data.executionMode),
-      modeFamily: text(data.modeFamily),
-      agentType: text(data.agentType),
+      executionMode,
+      executionModeLabel: executionModeLabel(executionMode),
+      modeFamily,
+      modeFamilyLabel: modeFamilyLabel(modeFamily),
+      agentType,
+      agentTypeLabel: agentTypeLabel(agentType),
       content: text(data.reason) || text(data.summary)
     };
   }
   if (eventName === "agent_routing") {
+    const agentType = text(data.agentType);
     return {
       type: "agent_routing",
       status: "planned",
-      title: "Agent 协作",
-      agentType: text(data.agentType),
+      title: "协作编排",
+      agentType,
+      agentTypeLabel: agentTypeLabel(agentType),
       selectedAgents: Array.isArray(data.selectedAgents) ? data.selectedAgents.map(text).filter(Boolean) : [],
       content: text(data.routingReason)
+    };
+  }
+  if (eventName === "execution_applied") {
+    const executionType = text(data.executionAgentType);
+    const executionMode = text(data.executionMode);
+    const reason = text(data.reason) || text(data.summary);
+    const modeLabel = executionModeLabel(executionMode);
+    const typeLabel = agentTypeLabel(executionType);
+    return {
+      type: "execution_applied",
+      status: "planned",
+      title: "执行路由",
+      executionAgentType: executionType,
+      executionAgentTypeLabel: typeLabel,
+      executionMode,
+      executionModeLabel: modeLabel,
+      requestedTaskType: text(data.requestedTaskType),
+      autoRouted: Boolean(data.autoRouted),
+      content: executionMode && executionType
+        ? `${modeLabel} · ${typeLabel}${reason ? ` — ${reason}` : ""}`
+        : reason
     };
   }
   if (eventName === "plan_delta") {

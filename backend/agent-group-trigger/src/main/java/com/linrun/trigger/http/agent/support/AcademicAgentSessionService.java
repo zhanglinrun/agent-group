@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 学术 Agent 的会话管理服务，从 AcademicAgentNativeService 抽出。
+ * Agent 的会话管理服务，从 AcademicAgentNativeService 抽出。
  * 负责会话查询、消息回放、删除、按消息回滚、停止运行，以及确定性提问落库和 agentType 回填。
  */
 @Service

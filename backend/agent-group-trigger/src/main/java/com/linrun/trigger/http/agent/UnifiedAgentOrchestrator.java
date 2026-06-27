@@ -6,9 +6,12 @@ import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningServic
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class UnifiedAgentOrchestrator {
+
+    public static final String AUTO_TASK_TYPE = "auto";
 
     private final AgentModeSelector modeSelector;
     private final AgentRouter agentRouter;
@@ -53,7 +56,58 @@ public class UnifiedAgentOrchestrator {
         if (!StringUtils.hasText(requestedTaskType)) {
             return false;
         }
-        return !"chat".equalsIgnoreCase(requestedTaskType.trim());
+        String normalized = requestedTaskType.trim().toLowerCase(Locale.ROOT);
+        return !"chat".equals(normalized) && !AUTO_TASK_TYPE.equals(normalized);
+    }
+
+    /**
+     * 解析实际执行 agentType：auto 走编排路由；显式 chat 保持 chat；其他显式模式走 routing。
+     */
+    public static String resolveExecutionAgentType(String requestedTaskType, OrchestrationPlan plan) {
+        String requested = normalizeTaskTypeKey(requestedTaskType);
+        if (AUTO_TASK_TYPE.equals(requested)) {
+            return routedAgentType(plan, "chat");
+        }
+        if ("chat".equals(requested)) {
+            return "chat";
+        }
+        return routedAgentType(plan, requested);
+    }
+
+    public static Map<String, Object> executionAppliedData(String runId,
+                                                           String requestedTaskType,
+                                                           String executionAgentType,
+                                                           OrchestrationPlan plan) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", safe(runId));
+        data.put("requestedTaskType", safe(requestedTaskType));
+        data.put("executionAgentType", safe(executionAgentType));
+        data.put("autoRouted", AUTO_TASK_TYPE.equals(normalizeTaskTypeKey(requestedTaskType)));
+        if (plan != null && plan.modeSelection() != null) {
+            data.put("executionMode", plan.modeSelection().getExecutionMode());
+            data.put("modeFamily", plan.modeSelection().getModeFamily());
+            data.put("reason", plan.modeSelection().getReason());
+            data.put("summary", plan.modeSelection().getSummary());
+        }
+        return data;
+    }
+
+    private static String routedAgentType(OrchestrationPlan plan, String fallback) {
+        if (plan != null && plan.routing() != null && StringUtils.hasText(plan.routing().agentType())) {
+            return plan.routing().agentType().trim();
+        }
+        return fallback;
+    }
+
+    private static String normalizeTaskTypeKey(String taskType) {
+        if (!StringUtils.hasText(taskType)) {
+            return "chat";
+        }
+        return taskType.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 
     public record OrchestrationPlan(AgentModeSelector.ModeSelectionResult modeSelection,

@@ -24,7 +24,6 @@ export type WorkspacePageInputKind =
   | "file"
   | "image-options"
   | "data-catalog"
-  | "knowledge-base"
   | "quota";
 
 export interface WorkspacePageAction {
@@ -112,9 +111,6 @@ function inputKinds(workspaceId: WorkspaceId, acceptsFiles: boolean): WorkspaceP
   if (workspaceId === "data") {
     kinds.push("data-catalog");
   }
-  if (workspaceId === "mrag") {
-    kinds.push("knowledge-base");
-  }
   return kinds;
 }
 
@@ -155,19 +151,18 @@ function pageActions(
 function runLabel(workspaceId: WorkspaceId): string {
   if (workspaceId === "image") return "生成图像";
   if (workspaceId === "data") return "运行数据问答";
-  if (workspaceId === "mrag") return "运行知识问答";
   return "开始对话";
 }
 
 function isDedicatedWorkspaceRun(workspaceId: WorkspaceId, endpoint: string | undefined): boolean {
-  if (workspaceId === "image" || workspaceId === "data" || workspaceId === "mrag") {
+  if (workspaceId === "image" || workspaceId === "data") {
     return Boolean(endpoint);
   }
   return isDedicatedWorkspaceEndpoint(endpoint);
 }
 
 function isDedicatedWorkspaceHistory(workspaceId: WorkspaceId, endpoint: string | undefined): boolean {
-  if (workspaceId === "image" || workspaceId === "data" || workspaceId === "mrag") {
+  if (workspaceId === "image" || workspaceId === "data") {
     return Boolean(endpoint);
   }
   return isDedicatedWorkspaceEndpoint(endpoint);

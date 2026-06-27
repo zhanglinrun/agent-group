@@ -136,7 +136,7 @@ class AcademicExecutionLedgerServiceTest {
         run.setProjectId("AP1");
         run.setRequestId("REQ-" + runId);
         run.setTaskType(taskType);
-        run.setQuestion("分析学术任务");
+        run.setQuestion("分析复杂任务");
         run.setStatus(status);
         run.setModelName("test-model");
         run.setFinalSummary("done");

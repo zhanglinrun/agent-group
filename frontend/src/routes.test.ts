@@ -16,7 +16,6 @@ describe("app routes", () => {
   it("keeps internal workspace routes registered", () => {
     expect(WORKSPACE_ROUTES).toContain("/workspace/image");
     expect(INTERNAL_WORKSPACE_ROUTES).toContain("/workspace/data");
-    expect(INTERNAL_WORKSPACE_ROUTES).toContain("/workspace/mrag");
     expect(INTERNAL_WORKSPACE_ROUTES).toContain("/workspace/trade");
   });
 });

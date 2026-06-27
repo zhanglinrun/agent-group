@@ -702,7 +702,7 @@ class GroupBuyLockOrderServiceTest {
         public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
             QuotaProduct product = new QuotaProduct();
             product.setGoodsId(goodsId);
-            product.setGoodsName("学术研究额度包");
+            product.setGoodsName("标准 Agent 额度包");
             product.setOriginPrice(new BigDecimal("2399.00"));
             product.setGroupPrice(new BigDecimal("2099.00"));
             return Optional.of(product);
