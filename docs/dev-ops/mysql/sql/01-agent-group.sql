@@ -685,7 +685,7 @@ insert into ai_ppt_template (
   'AI科技风PPT',
   '适用于AI、人工智能、科技风等场景的PPT',
   '{"slides":[{"pageType":"COVER","pageDesc":"封面页","pageIndex":1},{"pageType":"CATALOG","pageDesc":"目录页","pageIndex":2},{"pageType":"COMPARE","pageDesc":"内容页，用于两者对比","pageIndex":3},{"pageType":"CONTENT","pageDesc":"内容页","pageIndex":4},{"pageType":"END","pageDesc":"结束页","pageIndex":5}]}',
-  'classpath:bear-doctor/templates/ai.pptx',
+  'classpath:academic-agent/templates/ai.pptx',
   '科技、AI、人工智能',
   5
 ) on duplicate key update
