@@ -1,5 +1,6 @@
 package com.linrun.trigger.agent.checkpoint;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -26,10 +27,10 @@ class AgentCheckpointSerializerTest {
         List<Message> messages = List.of(
                 new SystemMessage("你是订单诊断助手"),
                 new UserMessage("订单 O1 为什么额度没到账"),
-                new AssistantMessage("先查询一致性", Map.of(),
-                        List.of(new AssistantMessage.ToolCall("call_1", "function", "trade_diagnosis",
+                SpringAiMessageFactory.assistant("先查询一致性", List.of(
+                        new AssistantMessage.ToolCall("call_1", "function", "trade_diagnosis",
                                 "{\"orderId\":\"O1\"}"))),
-                new ToolResponseMessage(List.of(
+                SpringAiMessageFactory.toolResponse(List.of(
                         new ToolResponseMessage.ToolResponse("call_1", "trade_diagnosis",
                                 "{\"conclusion\":\"QUOTA_GRANT_REQUIRED\"}")))
         );

@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.agent.websearch;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.entity.record.AgentState;
 import com.linrun.trigger.agent.entity.record.RoundMode;
@@ -391,7 +393,7 @@ public class WebSearchReactAgent extends BaseAgent {
         }
 
         // TOOL_CALL
-        AssistantMessage assistantMsg = new AssistantMessage("", Map.of(), state.toolCalls);
+        AssistantMessage assistantMsg = SpringAiMessageFactory.assistant("", state.toolCalls);
         messages.add(assistantMsg);
 
         if (maxRounds > 0 && roundCounter.get() >= maxRounds) {
@@ -585,7 +587,7 @@ public class WebSearchReactAgent extends BaseAgent {
             }
 
             // 一次性添加所有工具响应（按原始顺序）
-            messages.add(new ToolResponseMessage(sortedResponses));
+            messages.add(SpringAiMessageFactory.toolResponse(sortedResponses));
 
             onComplete.run();
         }
@@ -722,7 +724,7 @@ public class WebSearchReactAgent extends BaseAgent {
                 "{ \"error\": \"" + errMsg + "\" }"
         );
 
-        messages.add(new ToolResponseMessage(List.of(tr)));
+        messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
     }
 
     private ToolCallback findTool(String name) {
@@ -820,19 +822,3 @@ public class WebSearchReactAgent extends BaseAgent {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

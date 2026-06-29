@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.agent.skills.manual;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.linrun.trigger.agent.agent.skills.manual.config.SkillConfig;
 import com.linrun.trigger.agent.agent.skills.manual.model.SkillLoadingException;
 import com.linrun.trigger.agent.agent.skills.manual.model.SkillMetadata;
@@ -196,7 +198,7 @@ public class SkillManager {
 
         ToolResponseMessage.ToolResponse tr = new ToolResponseMessage.ToolResponse(
                 toolCallId, READ_SKILL_TOOL_NAME, cleanedContent);
-        messages.add(new ToolResponseMessage(List.of(tr)));
+        messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
 
         messages.add(new UserMessage(String.format(
                 "【技能已加载】技能 \"%s\" 的内容已在上面的工具返回中。\n" +
@@ -210,19 +212,3 @@ public class SkillManager {
         return messages;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

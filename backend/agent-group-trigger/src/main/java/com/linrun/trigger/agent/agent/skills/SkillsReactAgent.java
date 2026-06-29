@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.agent.skills;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.checkpoint.AgentCheckpoint;
 import com.linrun.trigger.agent.checkpoint.AgentCheckpointSerializer;
@@ -508,7 +510,7 @@ public class SkillsReactAgent extends BaseAgent {
         for (AssistantMessage.ToolCall tc : state.toolCalls) {
             log.info("ToolCall merged result: name={}, args={}", tc.name(), tc.arguments());
         }
-        AssistantMessage assistantMsg = new AssistantMessage("", Map.of(), state.toolCalls);
+        AssistantMessage assistantMsg = SpringAiMessageFactory.assistant("", state.toolCalls);
         messages.add(assistantMsg);
 
         if (maxRounds > 0 && roundCounter.get() >= maxRounds) {
@@ -678,7 +680,7 @@ public class SkillsReactAgent extends BaseAgent {
                 }
             }
 
-            messages.add(new ToolResponseMessage(sortedResponses));
+            messages.add(SpringAiMessageFactory.toolResponse(sortedResponses));
             onComplete.run();
         }
     }
@@ -794,19 +796,3 @@ public class SkillsReactAgent extends BaseAgent {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

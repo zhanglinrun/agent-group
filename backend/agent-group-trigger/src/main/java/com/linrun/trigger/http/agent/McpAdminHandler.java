@@ -13,6 +13,7 @@ import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
+import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.slf4j.Logger;
@@ -736,7 +737,11 @@ public class McpAdminHandler {
                     .args(stringList(body.containsKey("args") ? body.get("args") : metadata.get("args")))
                     .env(stringMap(body.containsKey("env") ? body.get("env") : metadata.get("env")))
                     .build();
-            return new StdioClientTransport(serverParameters);
+            return stdioClientTransport(serverParameters);
+        }
+
+        private StdioClientTransport stdioClientTransport(ServerParameters serverParameters) {
+            return new StdioClientTransport(serverParameters, McpJsonMapper.createDefault());
         }
 
         private List<AcademicMcpToolDescriptor> readTools(String serverId, McpSyncClient client) {
@@ -1033,7 +1038,11 @@ public class McpAdminHandler {
                     .args(stringList(metadata.get("args")))
                     .env(stringMap(metadata.get("env")))
                     .build();
-            return new StdioClientTransport(serverParameters);
+            return stdioClientTransport(serverParameters);
+        }
+
+        private StdioClientTransport stdioClientTransport(ServerParameters serverParameters) {
+            return new StdioClientTransport(serverParameters, McpJsonMapper.createDefault());
         }
 
         private Map<String, Object> result(AcademicMcpToolDescriptor tool, McpSchema.CallToolResult result) {

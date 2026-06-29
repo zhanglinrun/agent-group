@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.agent.file;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.entity.event.AgentStreamEvent;
 import com.linrun.trigger.agent.entity.record.RoundMode;
@@ -401,7 +403,7 @@ public class FileReactAgent extends BaseAgent {
         }
 
         // TOOL_CALL
-        AssistantMessage assistantMsg = new AssistantMessage("", Map.of(), state.getToolCalls());
+        AssistantMessage assistantMsg = SpringAiMessageFactory.assistant("", state.getToolCalls());
         messages.add(assistantMsg);
 
         if (maxRounds > 0 && roundCounter.get() >= maxRounds) {
@@ -589,7 +591,7 @@ public class FileReactAgent extends BaseAgent {
             }
 
             // 一次性添加所有工具响应（按原始顺序）
-            messages.add(new ToolResponseMessage(sortedResponses));
+            messages.add(SpringAiMessageFactory.toolResponse(sortedResponses));
 
             onComplete.run();
         }
@@ -602,7 +604,7 @@ public class FileReactAgent extends BaseAgent {
                 "{ \"error\": \"" + errMsg + "\" }"
         );
 
-        messages.add(new ToolResponseMessage(List.of(tr)));
+        messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
     }
 
     private ToolCallback findTool(String name) {
@@ -685,19 +687,3 @@ public class FileReactAgent extends BaseAgent {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

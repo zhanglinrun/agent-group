@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.context;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.linrun.trigger.agent.prompts.ReactAgentPrompts;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
 import lombok.extern.slf4j.Slf4j;
@@ -116,7 +118,7 @@ public class ContextCompactor {
                 }
                 replaced.add(new ToolResponseMessage.ToolResponse(resp.id(), resp.name(), content));
             }
-            messages.set(msgIndex, new ToolResponseMessage(replaced));
+            messages.set(msgIndex, SpringAiMessageFactory.toolResponse(replaced));
         }
 
         // 5. 替换旧的 AssistantMessage.ToolCall 长参数（保留最近 keepRecentTools 个）
@@ -144,7 +146,7 @@ public class ContextCompactor {
                     replacedCalls.add(new AssistantMessage.ToolCall(
                             tc.id(), tc.type(), tc.name(), args));
                 }
-                messages.set(msgIndex, new AssistantMessage(original.getText(), Map.of(), replacedCalls));
+                messages.set(msgIndex, SpringAiMessageFactory.assistant(original.getText(), replacedCalls));
             }
         }
     }
@@ -264,19 +266,3 @@ public class ContextCompactor {
     }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

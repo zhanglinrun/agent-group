@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.agent.deepresearch;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.linrun.trigger.agent.entity.record.AgentState;
 import com.linrun.trigger.agent.entity.record.RoundMode;
 import com.linrun.trigger.agent.utils.ThinkTagParser;
@@ -198,7 +200,7 @@ public class SimpleReactAgent {
             }
 
             // ===== 有工具调用：执行工具 =====
-            messages.add(new AssistantMessage(assistantText, Map.of(), chatResponse.chatResponse().getResult().getOutput().getToolCalls()));
+            messages.add(SpringAiMessageFactory.assistant(assistantText, chatResponse.chatResponse().getResult().getOutput().getToolCalls()));
 
             chatResponse.chatResponse()
                     .getResult()
@@ -219,7 +221,7 @@ public class SimpleReactAgent {
                             result = callback.call(argsJson);
                             ToolResponseMessage.ToolResponse tr = new ToolResponseMessage.ToolResponse(toolCall.id(), toolName, result.toString());
 
-                            messages.add(new ToolResponseMessage(List.of(tr)));
+                            messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
                         } catch (Exception ex) {
                             addErrorToolResponse(messages, toolCall, "工具执行失败：" + ex.getMessage());
                         }
@@ -412,7 +414,7 @@ public class SimpleReactAgent {
         }
 
         // TOOL_CALL
-        AssistantMessage assistantMsg = new AssistantMessage("", Map.of(), state.toolCalls);
+        AssistantMessage assistantMsg = SpringAiMessageFactory.assistant("", state.toolCalls);
 
         messages.add(assistantMsg);
 
@@ -544,7 +546,7 @@ public class SimpleReactAgent {
             }
 
             // 一次性添加所有工具响应（按原始顺序）
-            messages.add(new ToolResponseMessage(sortedResponses));
+            messages.add(SpringAiMessageFactory.toolResponse(sortedResponses));
 
             onComplete.run();
         }
@@ -557,7 +559,7 @@ public class SimpleReactAgent {
                 "{ \"error\": \"" + errMsg + "\" }"
         );
 
-        messages.add(new ToolResponseMessage(List.of(tr)));
+        messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
     }
 
     private ToolCallback findTool(String name) {
@@ -706,7 +708,7 @@ public class SimpleReactAgent {
 
             // ===== 有工具调用：执行工具 =====
             List<AssistantMessage.ToolCall> toolCalls = chatResponse.chatResponse().getResult().getOutput().getToolCalls();
-            messages.add(new AssistantMessage(assistantText, Map.of(), toolCalls));
+            messages.add(SpringAiMessageFactory.assistant(assistantText, toolCalls));
 
             for (AssistantMessage.ToolCall toolCall : toolCalls) {
                 String toolName = toolCall.name();
@@ -729,7 +731,7 @@ public class SimpleReactAgent {
 
                     ToolResponseMessage.ToolResponse tr = new ToolResponseMessage.ToolResponse(
                             toolCall.id(), toolName, resultStr);
-                    messages.add(new ToolResponseMessage(List.of(tr)));
+                    messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
                 } catch (Exception ex) {
                     addErrorToolResponse(messages, toolCall, "工具执行失败：" + ex.getMessage());
                 }
@@ -813,19 +815,3 @@ public class SimpleReactAgent {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

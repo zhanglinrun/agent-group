@@ -122,6 +122,9 @@ public class AcademicAgentNativeService {
     @Value("${spring.ai.openai.chat.options.model:qwen3.7-plus}")
     private String defaultChatModel;
 
+    @Value("${agent.runtime.deep.graph.enabled:true}")
+    private boolean deepGraphRuntimeEnabled;
+
     public AcademicAgentNativeService(ObjectProvider<ChatModel> chatModelProvider,
                                   AiSessionService sessionService,
                                   AgentTaskManager taskManager,
@@ -408,6 +411,7 @@ public class AcademicAgentNativeService {
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .maxRounds(3)
+                .graphRuntimeEnabled(deepGraphRuntimeEnabled)
                 .build();
     }
 

@@ -1,5 +1,7 @@
 package com.linrun.trigger.agent.checkpoint;
 
+import com.linrun.trigger.agent.utils.SpringAiMessageFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -112,9 +114,8 @@ public class AgentCheckpointSerializer {
                     toolCalls.add(new AssistantMessage.ToolCall(call.id(), "function", call.name(), call.arguments()));
                 }
             }
-            return new AssistantMessage(
+            return SpringAiMessageFactory.assistant(
                     StringUtils.hasText(dto.getContent()) ? dto.getContent() : "",
-                    Map.of(),
                     toolCalls);
         }
         if ("tool".equals(role)) {
@@ -124,7 +125,7 @@ public class AgentCheckpointSerializer {
                     responses.add(new ToolResponseMessage.ToolResponse(response.id(), response.name(), response.response()));
                 }
             }
-            return new ToolResponseMessage(responses);
+            return SpringAiMessageFactory.toolResponse(responses);
         }
         return null;
     }

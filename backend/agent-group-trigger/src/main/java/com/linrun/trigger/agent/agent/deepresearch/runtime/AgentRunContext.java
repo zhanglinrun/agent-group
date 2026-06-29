@@ -1,0 +1,241 @@
+package com.linrun.trigger.agent.agent.deepresearch.runtime;
+
+import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
+import com.linrun.domain.support.trace.TraceContext;
+import com.linrun.trigger.agent.entity.OverAllState;
+import com.linrun.trigger.agent.entity.record.PlanTask;
+import com.linrun.trigger.agent.entity.record.TaskResult;
+import org.springframework.util.StringUtils;
+import reactor.core.publisher.Sinks;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * 一次 deep 模式运行中的工程上下文。
+ * 第一阶段只承载 Graph 最小闭环所需信息，后续再扩展 skill、memory 和 A2A。
+ */
+public class AgentRunContext {
+
+    private final String tenantId;
+    private final String userId;
+    private final String sessionId;
+    private final String runId;
+    private final String requestId;
+    private final String traceId;
+    private final String spanId;
+    private final String mode;
+    private final OverAllState state;
+    private final Sinks.Many<String> sink;
+    private final AtomicBoolean finished;
+    private final StringBuilder thinkingBuffer;
+    private List<PlanTask> currentPlan = List.of();
+    private Map<String, TaskResult> currentResults = new LinkedHashMap<>();
+    private boolean reviewPassed;
+    private String reviewFeedback = "";
+
+    private AgentRunContext(Builder builder) {
+        this.tenantId = blank(builder.tenantId);
+        this.userId = blank(builder.userId);
+        this.sessionId = blank(builder.sessionId);
+        this.runId = blank(builder.runId);
+        this.requestId = blank(builder.requestId);
+        this.traceId = blank(builder.traceId);
+        this.spanId = blank(builder.spanId);
+        this.mode = StringUtils.hasText(builder.mode) ? builder.mode.trim() : "deep";
+        this.state = builder.state;
+        this.sink = builder.sink;
+        this.finished = builder.finished;
+        this.thinkingBuffer = builder.thinkingBuffer;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static AgentRunContext fromCurrent(OverAllState state,
+                                              Sinks.Many<String> sink,
+                                              AtomicBoolean finished,
+                                              StringBuilder thinkingBuffer) {
+        AcademicLedgerContext.Context ledger = AcademicLedgerContext.current();
+        TraceContext.TraceSnapshot trace = TraceContext.snapshot();
+        return builder()
+                .userId(ledger == null ? "" : ledger.userId())
+                .sessionId(ledger == null ? "" : ledger.sessionId())
+                .runId(ledger == null ? "" : ledger.runId())
+                .requestId(ledger == null ? "" : ledger.requestId())
+                .traceId(trace == null ? "" : trace.getTraceId())
+                .spanId(trace == null ? "" : trace.getSpanId())
+                .mode(ledger == null ? "deep" : ledger.taskType())
+                .state(state)
+                .sink(sink)
+                .finished(finished)
+                .thinkingBuffer(thinkingBuffer)
+                .build();
+    }
+
+    public String tenantId() {
+        return tenantId;
+    }
+
+    public String userId() {
+        return userId;
+    }
+
+    public String sessionId() {
+        return sessionId;
+    }
+
+    public String runId() {
+        return runId;
+    }
+
+    public String requestId() {
+        return requestId;
+    }
+
+    public String traceId() {
+        return traceId;
+    }
+
+    public String spanId() {
+        return spanId;
+    }
+
+    public String mode() {
+        return mode;
+    }
+
+    public OverAllState state() {
+        return state;
+    }
+
+    public Sinks.Many<String> sink() {
+        return sink;
+    }
+
+    public AtomicBoolean finished() {
+        return finished;
+    }
+
+    public StringBuilder thinkingBuffer() {
+        return thinkingBuffer;
+    }
+
+    public List<PlanTask> currentPlan() {
+        return currentPlan;
+    }
+
+    public void currentPlan(List<PlanTask> currentPlan) {
+        this.currentPlan = currentPlan == null ? List.of() : currentPlan;
+    }
+
+    public Map<String, TaskResult> currentResults() {
+        return currentResults;
+    }
+
+    public void currentResults(Map<String, TaskResult> currentResults) {
+        this.currentResults = currentResults == null ? new LinkedHashMap<>() : currentResults;
+    }
+
+    public boolean reviewPassed() {
+        return reviewPassed;
+    }
+
+    public void reviewPassed(boolean reviewPassed) {
+        this.reviewPassed = reviewPassed;
+    }
+
+    public String reviewFeedback() {
+        return reviewFeedback;
+    }
+
+    public void reviewFeedback(String reviewFeedback) {
+        this.reviewFeedback = blank(reviewFeedback);
+    }
+
+    private static String blank(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public static class Builder {
+        private String tenantId;
+        private String userId;
+        private String sessionId;
+        private String runId;
+        private String requestId;
+        private String traceId;
+        private String spanId;
+        private String mode;
+        private OverAllState state;
+        private Sinks.Many<String> sink;
+        private AtomicBoolean finished;
+        private StringBuilder thinkingBuffer;
+
+        public Builder tenantId(String tenantId) {
+            this.tenantId = tenantId;
+            return this;
+        }
+
+        public Builder userId(String userId) {
+            this.userId = userId;
+            return this;
+        }
+
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
+            return this;
+        }
+
+        public Builder runId(String runId) {
+            this.runId = runId;
+            return this;
+        }
+
+        public Builder requestId(String requestId) {
+            this.requestId = requestId;
+            return this;
+        }
+
+        public Builder traceId(String traceId) {
+            this.traceId = traceId;
+            return this;
+        }
+
+        public Builder spanId(String spanId) {
+            this.spanId = spanId;
+            return this;
+        }
+
+        public Builder mode(String mode) {
+            this.mode = mode;
+            return this;
+        }
+
+        public Builder state(OverAllState state) {
+            this.state = state;
+            return this;
+        }
+
+        public Builder sink(Sinks.Many<String> sink) {
+            this.sink = sink;
+            return this;
+        }
+
+        public Builder finished(AtomicBoolean finished) {
+            this.finished = finished;
+            return this;
+        }
+
+        public Builder thinkingBuffer(StringBuilder thinkingBuffer) {
+            this.thinkingBuffer = thinkingBuffer;
+            return this;
+        }
+
+        public AgentRunContext build() {
+            return new AgentRunContext(this);
+        }
+    }
+}

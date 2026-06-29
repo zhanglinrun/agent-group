@@ -6,11 +6,15 @@ import com.linrun.trigger.agent.entity.record.CritiqueResult;
 import com.linrun.trigger.agent.entity.record.PlanTask;
 import com.linrun.trigger.agent.entity.record.SearchResult;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class PlanExecuteAgentEventTest {
 
@@ -89,5 +93,16 @@ class PlanExecuteAgentEventTest {
         assertEquals("success", node.path("status").asText());
         assertTrue(node.path("result").path("success").asBoolean());
         assertEquals(1, node.path("result").path("references").size());
+    }
+
+    @Test
+    void shouldKeepLegacyDeepRuntimeWhenGraphDisabled() {
+        PlanExecuteAgent agent = PlanExecuteAgent.builder()
+                .chatModel(mock(ChatModel.class))
+                .graphRuntimeEnabled(false)
+                .build();
+
+        assertEquals(false, ReflectionTestUtils.getField(agent, "graphRuntimeEnabled"));
+        assertNull(ReflectionTestUtils.getField(agent, "graphExecutionAdapter"));
     }
 }
