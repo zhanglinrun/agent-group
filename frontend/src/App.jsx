@@ -112,7 +112,6 @@ import {
   deleteAcademicSession,
   downloadAcademicArtifact,
   generateWorkspaceImage,
-  getAdminAuth,
   getModelConfig,
   getQuotaSummary,
   getSessionId,
@@ -142,7 +141,6 @@ import {
   requestAcademicResumeStream,
   requestAcademicStream,
   runWorkspaceData,
-  saveAdminAuth,
   saveModelConfig,
   stopAcademicStream,
   uploadAcademicFile
@@ -313,10 +311,6 @@ function AgentWorkspaceApp() {
   const [authForm, setAuthForm] = useState({ username: "", password: "", nickname: "", email: "" });
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
-  const [adminForm, setAdminForm] = useState(() => {
-    const saved = getAdminAuth();
-    return { username: saved?.username || "", password: saved?.password || "" };
-  });
   const [chatList, setChatList] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(() => getSessionId());
   const [academicProjects, setAcademicProjects] = useState([]);
@@ -1773,11 +1767,6 @@ function AgentWorkspaceApp() {
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "文件下载失败"));
     }
-  };
-
-  const handleSaveAdminAuth = () => {
-    saveAdminAuth(adminForm.username, adminForm.password);
-    setToast("后台权限已保存");
   };
 
   const handleSaveModelConfig = (nextConfig) => {
