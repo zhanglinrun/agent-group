@@ -2,6 +2,7 @@ package com.linrun.trigger.agent.agent.deepresearch;
 
 import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReflectionService;
 import com.linrun.trigger.agent.agent.BaseAgent;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentCapabilitySnapshot;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemoryService;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemorySnapshot;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRunContext;
@@ -804,6 +805,7 @@ public class PlanExecuteAgent extends BaseAgent {
                     emitJson(sink, finished, createMemoryLoadedEvent(runContext.memorySnapshot()));
                     emitJson(sink, finished, createContextLoadedEvent(runContext, registeredToolNames()));
                     emitJson(sink, finished, createSkillLoadedEvent(runContext.availableSkills(), registeredToolNames()));
+                    emitJson(sink, finished, createCapabilityLoadedEvent(runContext, registeredToolNames(), "spring-ai-alibaba-graph"));
                     graphExecutionAdapter.execute(runContext);
                     if (finished.get() || compositeDisposable.isDisposed()) {
                         return;
@@ -864,6 +866,7 @@ public class PlanExecuteAgent extends BaseAgent {
                     emitJson(sink, finished, createMemoryLoadedEvent(runContext.memorySnapshot()));
                     emitJson(sink, finished, createContextLoadedEvent(runContext, registeredToolNames()));
                     emitJson(sink, finished, createSkillLoadedEvent(availableSkills, registeredToolNames()));
+                    emitJson(sink, finished, createCapabilityLoadedEvent(runContext, registeredToolNames(), "legacy-plan-execute"));
 
                     // 执行计划前的分隔
                     emit(sink, finished, "\n--- 开始执行任务 ---\n\n", "thinking", thinkingBuffer);
@@ -1472,6 +1475,24 @@ public class PlanExecuteAgent extends BaseAgent {
         payload.put("type", "memory_loaded");
         payload.put("source", "agent_memory_service");
         payload.put("memory", memorySnapshot == null ? Map.of() : memorySnapshot.evidence());
+        return JsonUtils.toJson(payload);
+    }
+
+    static String createCapabilityLoadedEvent(AgentRunContext context,
+                                              Set<String> registeredTools,
+                                              String runtime) {
+        Set<String> safeTools = registeredTools == null ? Set.of() : registeredTools;
+        AgentCapabilitySnapshot snapshot = new AgentCapabilitySnapshot(
+                runtime,
+                context == null ? "" : context.mode(),
+                context == null ? 0 : context.availableSkills().size(),
+                safeTools.size(),
+                (int) safeTools.stream().filter(tool -> tool.endsWith("_agent")).count(),
+                context == null || context.memorySnapshot() == null ? Map.of() : context.memorySnapshot().evidence(),
+                context == null ? Map.of() : context.contextEvidence(safeTools.stream().sorted().toList()));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "capability_loaded");
+        payload.put("capability", snapshot.toMap());
         return JsonUtils.toJson(payload);
     }
 

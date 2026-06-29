@@ -114,4 +114,46 @@ class PlanExecuteAgentSkillInjectionTest {
         assertTrue(event.path("memory").path("longTermCount").asInt() == 1);
         assertFalse(event.toString().contains("style"));
     }
+
+    @Test
+    void capabilityLoadedEventCarriesInterviewProof() {
+        AgentRunContext context = AgentRunContext.builder()
+                .mode("deep")
+                .taskType("research")
+                .state(new OverAllState("S1001", "研究动态技能"))
+                .sink(Sinks.many().unicast().onBackpressureBuffer())
+                .finished(new AtomicBoolean(false))
+                .thinkingBuffer(new StringBuilder())
+                .memorySnapshot(new AgentMemorySnapshot(
+                        "tenant-a",
+                        "U1001",
+                        "S1001",
+                        List.of("short"),
+                        List.of("task"),
+                        List.of("style"),
+                        true))
+                .availableSkills(List.of(new SkillRuntimeDescriptor(
+                        "deep-report",
+                        "Deep report skill",
+                        List.of("deep"),
+                        List.of("research"),
+                        List.of("topic"),
+                        "markdown report",
+                        List.of("workspace-read"),
+                        "1.0",
+                        true,
+                        List.of("read_skill"),
+                        List.of("skills/deep-report/SKILL.md"))))
+                .build();
+
+        JsonNode event = JsonUtils.parse(PlanExecuteAgent.createCapabilityLoadedEvent(
+                context, Set.of("read_skill", "file_reader_agent"), "spring-ai-alibaba-graph"));
+
+        JsonNode capability = event.path("capability");
+        assertTrue(capability.path("runtime").asText().equals("spring-ai-alibaba-graph"));
+        assertTrue(capability.path("skillCount").asInt() == 1);
+        assertTrue(capability.path("subAgentCount").asInt() == 1);
+        assertTrue(capability.path("memory").path("longTermEnabled").asBoolean());
+        assertTrue(capability.path("interviewProof").toString().contains("skills_are_runtime_checked"));
+    }
 }
