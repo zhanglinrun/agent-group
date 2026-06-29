@@ -8,6 +8,7 @@ import com.linrun.trigger.http.agent.support.AcademicWebSearchMcpClient;
 import com.linrun.trigger.http.agent.support.SkillsRuntimeResolver;
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.agent.deepresearch.PlanExecuteAgent;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.LedgerAgentMemoryService;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.LocalSubAgentToolFactory;
 import com.linrun.trigger.agent.agent.file.FileReactAgent;
 import com.linrun.trigger.agent.agent.pptx.PPTBuilderAgent;
@@ -44,6 +45,7 @@ import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
+import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.types.exception.AppException;
@@ -120,6 +122,7 @@ public class AcademicAgentNativeService {
     private final ObjectProvider<PptPythonRenderService> pptPythonRenderServiceProvider;
     private final ObjectProvider<ImageGenerationService> imageGenerationServiceProvider;
     private final ObjectProvider<FileStoragePort> fileStoragePortProvider;
+    private final ObjectProvider<AcademicExecutionLedgerService> academicExecutionLedgerServiceProvider;
 
     @Value("${spring.ai.openai.chat.options.model:qwen3.7-plus}")
     private String defaultChatModel;
@@ -153,7 +156,8 @@ public class AcademicAgentNativeService {
                                   ObjectProvider<AiPptTemplateService> aiPptTemplateServiceProvider,
                                   ObjectProvider<PptPythonRenderService> pptPythonRenderServiceProvider,
                                   ObjectProvider<ImageGenerationService> imageGenerationServiceProvider,
-                                  ObjectProvider<FileStoragePort> fileStoragePortProvider) {
+                                  ObjectProvider<FileStoragePort> fileStoragePortProvider,
+                                  ObjectProvider<AcademicExecutionLedgerService> academicExecutionLedgerServiceProvider) {
         this.chatModelProvider = chatModelProvider;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
@@ -179,6 +183,7 @@ public class AcademicAgentNativeService {
         this.pptPythonRenderServiceProvider = pptPythonRenderServiceProvider;
         this.imageGenerationServiceProvider = imageGenerationServiceProvider;
         this.fileStoragePortProvider = fileStoragePortProvider;
+        this.academicExecutionLedgerServiceProvider = academicExecutionLedgerServiceProvider;
     }
 
     public Flux<String> stream(String token,
@@ -422,7 +427,15 @@ public class AcademicAgentNativeService {
                 .maxRounds(3)
                 .graphRuntimeEnabled(deepGraphRuntimeEnabled)
                 .skillRegistry(skillManager == null ? null : new ManualSkillRegistry(skillManager))
+                .memoryService(deepMemoryService())
                 .build();
+    }
+
+    private LedgerAgentMemoryService deepMemoryService() {
+        AcademicExecutionLedgerService ledgerService = academicExecutionLedgerServiceProvider == null
+                ? null
+                : academicExecutionLedgerServiceProvider.getIfAvailable();
+        return ledgerService == null ? null : new LedgerAgentMemoryService(ledgerService);
     }
 
     private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel,

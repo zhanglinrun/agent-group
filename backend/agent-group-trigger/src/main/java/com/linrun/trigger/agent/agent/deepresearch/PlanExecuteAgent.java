@@ -2,6 +2,8 @@ package com.linrun.trigger.agent.agent.deepresearch;
 
 import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReflectionService;
 import com.linrun.trigger.agent.agent.BaseAgent;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemoryService;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemorySnapshot;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRunContext;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.GraphExecutionAdapter;
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRegistry;
@@ -75,6 +77,7 @@ public class PlanExecuteAgent extends BaseAgent {
     private final boolean graphRuntimeEnabled;
     private final GraphExecutionAdapter graphExecutionAdapter;
     private final SkillRegistry skillRegistry;
+    private final AgentMemoryService memoryService;
 
     public PlanExecuteAgent(ChatModel chatModel,
                             List<ToolCallback> tools,
@@ -126,6 +129,22 @@ public class PlanExecuteAgent extends BaseAgent {
                             AgentTaskManager taskManager,
                             boolean graphRuntimeEnabled,
                             SkillRegistry skillRegistry) {
+        this(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries, systemPrompt,
+                chatMemory, sessionService, taskManager, graphRuntimeEnabled, skillRegistry, null);
+    }
+
+    public PlanExecuteAgent(ChatModel chatModel,
+                            List<ToolCallback> tools,
+                            int maxRounds,
+                            int contextCharLimit,
+                            int maxToolRetries,
+                            String systemPrompt,
+                            ChatMemory chatMemory,
+                            AiSessionService sessionService,
+                            AgentTaskManager taskManager,
+                            boolean graphRuntimeEnabled,
+                            SkillRegistry skillRegistry,
+                            AgentMemoryService memoryService) {
         super("PlanExecuteAgent", chatModel, "plan-execute");
         this.chatClient = ChatClient.builder(chatModel).build();
         this.tools = tools;
@@ -138,6 +157,7 @@ public class PlanExecuteAgent extends BaseAgent {
         this.sessionService = sessionService;
         this.taskManager = taskManager;
         this.skillRegistry = skillRegistry;
+        this.memoryService = memoryService;
         GraphExecutionAdapter adapter = null;
         boolean graphEnabled = graphRuntimeEnabled;
         if (graphRuntimeEnabled) {
@@ -184,6 +204,8 @@ public class PlanExecuteAgent extends BaseAgent {
         private boolean graphRuntimeEnabled = true;
 
         private SkillRegistry skillRegistry;
+
+        private AgentMemoryService memoryService;
 
         public Builder sessionService(AiSessionService sessionService) {
             this.sessionService = sessionService;
@@ -245,10 +267,16 @@ public class PlanExecuteAgent extends BaseAgent {
             return this;
         }
 
+        public Builder memoryService(AgentMemoryService memoryService) {
+            this.memoryService = memoryService;
+            return this;
+        }
+
         public PlanExecuteAgent build() {
             Objects.requireNonNull(chatModel, "chatModel must not be null");
             return new PlanExecuteAgent(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries,
-                    systemPrompt, chatMemory, sessionService, taskManager, graphRuntimeEnabled, skillRegistry);
+                    systemPrompt, chatMemory, sessionService, taskManager, graphRuntimeEnabled,
+                    skillRegistry, memoryService);
         }
     }
 
@@ -772,6 +800,8 @@ public class PlanExecuteAgent extends BaseAgent {
 
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
                     runContext.availableSkills(loadSkillsFor(runContext));
+                    runContext.memorySnapshot(loadMemoryFor(runContext));
+                    emitJson(sink, finished, createMemoryLoadedEvent(runContext.memorySnapshot()));
                     emitJson(sink, finished, createContextLoadedEvent(runContext, registeredToolNames()));
                     emitJson(sink, finished, createSkillLoadedEvent(runContext.availableSkills(), registeredToolNames()));
                     graphExecutionAdapter.execute(runContext);
@@ -830,6 +860,8 @@ public class PlanExecuteAgent extends BaseAgent {
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
                     List<SkillRuntimeDescriptor> availableSkills = loadSkillsFor(runContext);
                     runContext.availableSkills(availableSkills);
+                    runContext.memorySnapshot(loadMemoryFor(runContext));
+                    emitJson(sink, finished, createMemoryLoadedEvent(runContext.memorySnapshot()));
                     emitJson(sink, finished, createContextLoadedEvent(runContext, registeredToolNames()));
                     emitJson(sink, finished, createSkillLoadedEvent(availableSkills, registeredToolNames()));
 
@@ -938,6 +970,22 @@ public class PlanExecuteAgent extends BaseAgent {
         } catch (Exception e) {
             log.warn("deep Graph skill 加载失败，忽略本轮 skills，reason={}", e.getClass().getSimpleName());
             return List.of();
+        }
+    }
+
+    private AgentMemorySnapshot loadMemoryFor(AgentRunContext context) {
+        if (memoryService == null || context == null) {
+            return AgentMemorySnapshot.empty(
+                    context == null ? "" : context.tenantId(),
+                    context == null ? "" : context.userId(),
+                    context == null ? "" : context.sessionId());
+        }
+        try {
+            return memoryService.load(context.tenantId(), context.userId(), context.sessionId(),
+                    context.runId(), context.requestId(), true);
+        } catch (Exception e) {
+            log.warn("deep memory 加载失败，忽略本轮记忆，reason={}", e.getClass().getSimpleName());
+            return AgentMemorySnapshot.empty(context.tenantId(), context.userId(), context.sessionId());
         }
     }
 
@@ -1419,6 +1467,14 @@ public class PlanExecuteAgent extends BaseAgent {
         return JsonUtils.toJson(payload);
     }
 
+    static String createMemoryLoadedEvent(AgentMemorySnapshot memorySnapshot) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "memory_loaded");
+        payload.put("source", "agent_memory_service");
+        payload.put("memory", memorySnapshot == null ? Map.of() : memorySnapshot.evidence());
+        return JsonUtils.toJson(payload);
+    }
+
     private static List<Map<String, Object>> referencePayload(List<SearchResult> references) {
         if (references == null || references.isEmpty()) {
             return List.of();
@@ -1748,4 +1804,3 @@ public class PlanExecuteAgent extends BaseAgent {
         return builder.toString();
     }
 }
-

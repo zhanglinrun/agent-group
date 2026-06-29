@@ -33,6 +33,7 @@ public class AgentRunContext {
     private final Sinks.Many<String> sink;
     private final AtomicBoolean finished;
     private final StringBuilder thinkingBuffer;
+    private AgentMemorySnapshot memorySnapshot;
     private List<SkillRuntimeDescriptor> availableSkills = List.of();
     private List<PlanTask> currentPlan = List.of();
     private Map<String, TaskResult> currentResults = new LinkedHashMap<>();
@@ -53,6 +54,9 @@ public class AgentRunContext {
         this.sink = builder.sink;
         this.finished = builder.finished;
         this.thinkingBuffer = builder.thinkingBuffer;
+        this.memorySnapshot = builder.memorySnapshot == null
+                ? AgentMemorySnapshot.empty(this.tenantId, this.userId, this.sessionId)
+                : builder.memorySnapshot;
         this.availableSkills = builder.availableSkills == null ? List.of() : List.copyOf(builder.availableSkills);
     }
 
@@ -174,12 +178,23 @@ public class AgentRunContext {
         this.reviewFeedback = blank(reviewFeedback);
     }
 
+    public AgentMemorySnapshot memorySnapshot() {
+        return memorySnapshot;
+    }
+
+    public void memorySnapshot(AgentMemorySnapshot memorySnapshot) {
+        this.memorySnapshot = memorySnapshot == null
+                ? AgentMemorySnapshot.empty(tenantId, userId, sessionId)
+                : memorySnapshot;
+    }
+
     public AgentRoleContext plannerContext() {
         return AgentRoleContext.builder(AgentRoleContext.Role.PLANNER)
                 .put("identity", identity())
                 .put("goal", state == null ? "" : state.getQuestion())
                 .put("mode", mode)
                 .put("taskType", taskType)
+                .put("memory", memorySnapshot.evidence())
                 .put("skillCount", availableSkills.size())
                 .put("availableSkillNames", availableSkills.stream().map(SkillRuntimeDescriptor::name).toList())
                 .build();
@@ -189,6 +204,7 @@ public class AgentRunContext {
         return AgentRoleContext.builder(AgentRoleContext.Role.WORKER)
                 .put("identity", identity())
                 .put("currentPlan", currentPlan.stream().map(PlanTask::instruction).toList())
+                .put("shortTermMemoryCount", memorySnapshot.shortTerm().size())
                 .put("skillCount", availableSkills.size())
                 .put("skills", availableSkills.stream()
                         .map(skill -> skill.toAuditMap(registeredTools == null ? java.util.Set.of() : java.util.Set.copyOf(registeredTools)))
@@ -202,6 +218,7 @@ public class AgentRunContext {
                 .put("identity", identity())
                 .put("planCount", currentPlan.size())
                 .put("resultCount", currentResults.size())
+                .put("taskMemoryCount", memorySnapshot.taskMemory().size())
                 .put("failedTasks", currentResults.values().stream()
                         .filter(result -> result != null && !result.success())
                         .map(TaskResult::taskId)
@@ -247,6 +264,7 @@ public class AgentRunContext {
         private Sinks.Many<String> sink;
         private AtomicBoolean finished;
         private StringBuilder thinkingBuffer;
+        private AgentMemorySnapshot memorySnapshot;
         private List<SkillRuntimeDescriptor> availableSkills = List.of();
 
         public Builder tenantId(String tenantId) {
@@ -311,6 +329,11 @@ public class AgentRunContext {
 
         public Builder thinkingBuffer(StringBuilder thinkingBuffer) {
             this.thinkingBuffer = thinkingBuffer;
+            return this;
+        }
+
+        public Builder memorySnapshot(AgentMemorySnapshot memorySnapshot) {
+            this.memorySnapshot = memorySnapshot;
             return this;
         }
 

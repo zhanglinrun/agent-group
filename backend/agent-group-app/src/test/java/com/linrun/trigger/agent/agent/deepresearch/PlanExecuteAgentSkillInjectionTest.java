@@ -2,6 +2,7 @@ package com.linrun.trigger.agent.agent.deepresearch;
 
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeDescriptor;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRunContext;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemorySnapshot;
 import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.linrun.trigger.agent.entity.OverAllState;
@@ -93,5 +94,24 @@ class PlanExecuteAgentSkillInjectionTest {
         assertTrue(event.path("roles").path("worker").toString().contains("registeredTools"));
         assertTrue(event.path("subAgents").toString().contains("file_reader_agent"));
         assertTrue(event.path("subAgents").toString().contains("report_reviewer_agent"));
+    }
+
+    @Test
+    void memoryLoadedEventCarriesLayeredMemoryEvidenceOnly() {
+        AgentMemorySnapshot memory = new AgentMemorySnapshot(
+                "tenant-a",
+                "U1001",
+                "S1001",
+                List.of("short"),
+                List.of("task"),
+                List.of("style"),
+                true);
+
+        JsonNode event = JsonUtils.parse(PlanExecuteAgent.createMemoryLoadedEvent(memory));
+
+        assertTrue(event.path("memory").path("shortTermCount").asInt() == 1);
+        assertTrue(event.path("memory").path("taskMemoryCount").asInt() == 1);
+        assertTrue(event.path("memory").path("longTermCount").asInt() == 1);
+        assertFalse(event.toString().contains("style"));
     }
 }
