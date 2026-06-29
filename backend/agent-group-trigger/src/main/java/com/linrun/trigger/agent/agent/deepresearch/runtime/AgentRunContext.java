@@ -2,6 +2,7 @@ package com.linrun.trigger.agent.agent.deepresearch.runtime;
 
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
 import com.linrun.domain.support.trace.TraceContext;
+import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeDescriptor;
 import com.linrun.trigger.agent.entity.OverAllState;
 import com.linrun.trigger.agent.entity.record.PlanTask;
 import com.linrun.trigger.agent.entity.record.TaskResult;
@@ -27,10 +28,12 @@ public class AgentRunContext {
     private final String traceId;
     private final String spanId;
     private final String mode;
+    private final String taskType;
     private final OverAllState state;
     private final Sinks.Many<String> sink;
     private final AtomicBoolean finished;
     private final StringBuilder thinkingBuffer;
+    private List<SkillRuntimeDescriptor> availableSkills = List.of();
     private List<PlanTask> currentPlan = List.of();
     private Map<String, TaskResult> currentResults = new LinkedHashMap<>();
     private boolean reviewPassed;
@@ -45,10 +48,12 @@ public class AgentRunContext {
         this.traceId = blank(builder.traceId);
         this.spanId = blank(builder.spanId);
         this.mode = StringUtils.hasText(builder.mode) ? builder.mode.trim() : "deep";
+        this.taskType = StringUtils.hasText(builder.taskType) ? builder.taskType.trim() : this.mode;
         this.state = builder.state;
         this.sink = builder.sink;
         this.finished = builder.finished;
         this.thinkingBuffer = builder.thinkingBuffer;
+        this.availableSkills = builder.availableSkills == null ? List.of() : List.copyOf(builder.availableSkills);
     }
 
     public static Builder builder() {
@@ -68,7 +73,8 @@ public class AgentRunContext {
                 .requestId(ledger == null ? "" : ledger.requestId())
                 .traceId(trace == null ? "" : trace.getTraceId())
                 .spanId(trace == null ? "" : trace.getSpanId())
-                .mode(ledger == null ? "deep" : ledger.taskType())
+                .mode("deep")
+                .taskType(ledger == null ? "deep" : ledger.taskType())
                 .state(state)
                 .sink(sink)
                 .finished(finished)
@@ -108,6 +114,10 @@ public class AgentRunContext {
         return mode;
     }
 
+    public String taskType() {
+        return taskType;
+    }
+
     public OverAllState state() {
         return state;
     }
@@ -122,6 +132,14 @@ public class AgentRunContext {
 
     public StringBuilder thinkingBuffer() {
         return thinkingBuffer;
+    }
+
+    public List<SkillRuntimeDescriptor> availableSkills() {
+        return availableSkills;
+    }
+
+    public void availableSkills(List<SkillRuntimeDescriptor> availableSkills) {
+        this.availableSkills = availableSkills == null ? List.of() : List.copyOf(availableSkills);
     }
 
     public List<PlanTask> currentPlan() {
@@ -169,10 +187,12 @@ public class AgentRunContext {
         private String traceId;
         private String spanId;
         private String mode;
+        private String taskType;
         private OverAllState state;
         private Sinks.Many<String> sink;
         private AtomicBoolean finished;
         private StringBuilder thinkingBuffer;
+        private List<SkillRuntimeDescriptor> availableSkills = List.of();
 
         public Builder tenantId(String tenantId) {
             this.tenantId = tenantId;
@@ -214,6 +234,11 @@ public class AgentRunContext {
             return this;
         }
 
+        public Builder taskType(String taskType) {
+            this.taskType = taskType;
+            return this;
+        }
+
         public Builder state(OverAllState state) {
             this.state = state;
             return this;
@@ -231,6 +256,11 @@ public class AgentRunContext {
 
         public Builder thinkingBuffer(StringBuilder thinkingBuffer) {
             this.thinkingBuffer = thinkingBuffer;
+            return this;
+        }
+
+        public Builder availableSkills(List<SkillRuntimeDescriptor> availableSkills) {
+            this.availableSkills = availableSkills == null ? List.of() : List.copyOf(availableSkills);
             return this;
         }
 

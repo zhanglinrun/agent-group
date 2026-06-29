@@ -12,6 +12,7 @@ import com.linrun.trigger.agent.agent.file.FileReactAgent;
 import com.linrun.trigger.agent.agent.pptx.PPTBuilderAgent;
 import com.linrun.trigger.agent.agent.skills.SkillsReactAgent;
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeTools;
+import com.linrun.trigger.agent.agent.skills.runtime.ManualSkillRegistry;
 import com.linrun.trigger.agent.agent.skills.manual.SkillManager;
 import com.linrun.trigger.agent.agent.skills.manual.model.SkillMetadata;
 import com.linrun.trigger.agent.agent.websearch.WebSearchReactAgent;
@@ -400,18 +401,25 @@ public class AcademicAgentNativeService {
                                                   ToolCallback[] searchTools,
                                                   boolean webSearchEnabled,
                                                   String executionMemoryPrompt) {
+        String outputDirectory = skillsRuntimeResolver.sessionSkillsOutputDirectory(conversationId);
+        SkillManager skillManager = skillsRuntimeResolver.manualSkillManager();
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 searchTools,
-                academicToolCallbacks("deep", userId, conversationId, webSearchEnabled)
+                academicToolCallbacks("deep", userId, conversationId, webSearchEnabled),
+                skillsRuntimeResolver.manualSkillToolCallbacks(skillManager),
+                SkillRuntimeTools.create(skillsRuntimeResolver.resolvedSkillsDirectory(),
+                        skillsRuntimeResolver.projectRoot().toString(), outputDirectory)
         );
         return PlanExecuteAgent.builder()
                 .chatModel(chatModel)
                 .tools(tools)
-                .systemPrompt(executionMemoryPrompt)
+                .systemPrompt(joinPrompts(skillsRuntimeResolver.skillRuntimePrompt(outputDirectory, webSearchEnabled),
+                        executionMemoryPrompt))
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .maxRounds(3)
                 .graphRuntimeEnabled(deepGraphRuntimeEnabled)
+                .skillRegistry(skillManager == null ? null : new ManualSkillRegistry(skillManager))
                 .build();
     }
 

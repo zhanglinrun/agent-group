@@ -4,6 +4,8 @@ import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReflectionServi
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRunContext;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.GraphExecutionAdapter;
+import com.linrun.trigger.agent.agent.skills.runtime.SkillRegistry;
+import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeDescriptor;
 import com.linrun.trigger.agent.entity.AiSession;
 import com.linrun.trigger.agent.entity.OverAllState;
 import com.linrun.trigger.agent.entity.record.*;
@@ -72,6 +74,7 @@ public class PlanExecuteAgent extends BaseAgent {
     private final PlanExecuteDomainBridge domainBridge = new PlanExecuteDomainBridge();
     private final boolean graphRuntimeEnabled;
     private final GraphExecutionAdapter graphExecutionAdapter;
+    private final SkillRegistry skillRegistry;
 
     public PlanExecuteAgent(ChatModel chatModel,
                             List<ToolCallback> tools,
@@ -95,7 +98,7 @@ public class PlanExecuteAgent extends BaseAgent {
                             AiSessionService sessionService,
                             AgentTaskManager taskManager) {
         this(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries, systemPrompt,
-                chatMemory, sessionService, taskManager, true);
+                chatMemory, sessionService, taskManager, true, null);
     }
 
     public PlanExecuteAgent(ChatModel chatModel,
@@ -108,6 +111,21 @@ public class PlanExecuteAgent extends BaseAgent {
                             AiSessionService sessionService,
                             AgentTaskManager taskManager,
                             boolean graphRuntimeEnabled) {
+        this(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries, systemPrompt,
+                chatMemory, sessionService, taskManager, graphRuntimeEnabled, null);
+    }
+
+    public PlanExecuteAgent(ChatModel chatModel,
+                            List<ToolCallback> tools,
+                            int maxRounds,
+                            int contextCharLimit,
+                            int maxToolRetries,
+                            String systemPrompt,
+                            ChatMemory chatMemory,
+                            AiSessionService sessionService,
+                            AgentTaskManager taskManager,
+                            boolean graphRuntimeEnabled,
+                            SkillRegistry skillRegistry) {
         super("PlanExecuteAgent", chatModel, "plan-execute");
         this.chatClient = ChatClient.builder(chatModel).build();
         this.tools = tools;
@@ -119,6 +137,7 @@ public class PlanExecuteAgent extends BaseAgent {
         this.chatMemory = chatMemory;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
+        this.skillRegistry = skillRegistry;
         GraphExecutionAdapter adapter = null;
         boolean graphEnabled = graphRuntimeEnabled;
         if (graphRuntimeEnabled) {
@@ -163,6 +182,8 @@ public class PlanExecuteAgent extends BaseAgent {
         private String systemPrompt = "";
 
         private boolean graphRuntimeEnabled = true;
+
+        private SkillRegistry skillRegistry;
 
         public Builder sessionService(AiSessionService sessionService) {
             this.sessionService = sessionService;
@@ -219,10 +240,15 @@ public class PlanExecuteAgent extends BaseAgent {
             return this;
         }
 
+        public Builder skillRegistry(SkillRegistry skillRegistry) {
+            this.skillRegistry = skillRegistry;
+            return this;
+        }
+
         public PlanExecuteAgent build() {
             Objects.requireNonNull(chatModel, "chatModel must not be null");
             return new PlanExecuteAgent(chatModel, tools, maxRounds, contextCharLimit, maxToolRetries,
-                    systemPrompt, chatMemory, sessionService, taskManager, graphRuntimeEnabled);
+                    systemPrompt, chatMemory, sessionService, taskManager, graphRuntimeEnabled, skillRegistry);
         }
     }
 
@@ -745,6 +771,7 @@ public class PlanExecuteAgent extends BaseAgent {
                             "thinking", thinkingBuffer);
 
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
+                    runContext.availableSkills(loadSkillsFor(runContext));
                     graphExecutionAdapter.execute(runContext);
                     if (finished.get() || compositeDisposable.isDisposed()) {
                         return;
@@ -798,11 +825,14 @@ public class PlanExecuteAgent extends BaseAgent {
                     if (plan.isEmpty() || plan.stream().allMatch(t -> t.id() == null)) {
                         break;
                     }
+                    AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
+                    List<SkillRuntimeDescriptor> availableSkills = loadSkillsFor(runContext);
 
                     // 执行计划前的分隔
                     emit(sink, finished, "\n--- 开始执行任务 ---\n\n", "thinking", thinkingBuffer);
 
-                    Map<String, TaskResult> results = executePlan(plan, state, sink, finished, thinkingBuffer);
+                    Map<String, TaskResult> results = executePlan(plan, state, sink, finished,
+                            thinkingBuffer, availableSkills);
                     if (finished.get() || compositeDisposable.isDisposed()) {
                         return;
                     }
@@ -815,7 +845,7 @@ public class PlanExecuteAgent extends BaseAgent {
                             emit(sink, finished, "\n--- 步骤失败，触发智能重规划 ---\n\n", "thinking", thinkingBuffer);
                             sink.tryEmitNext(createPlanUpdateEvent(state.getRound(), retryTasks.get()));
                             Map<String, TaskResult> retryResults = executePlan(
-                                    retryTasks.get(), state, sink, finished, thinkingBuffer);
+                                    retryTasks.get(), state, sink, finished, thinkingBuffer, availableSkills);
                             results.putAll(retryResults);
                         }
                     }
@@ -877,7 +907,7 @@ public class PlanExecuteAgent extends BaseAgent {
         emit(context.sink(), context.finished(), "\n--- 开始执行任务 ---\n\n",
                 "thinking", context.thinkingBuffer());
         Map<String, TaskResult> results = executePlan(context.currentPlan(), context.state(),
-                context.sink(), context.finished(), context.thinkingBuffer());
+                context.sink(), context.finished(), context.thinkingBuffer(), context.availableSkills());
         int stepReplanCount = 0;
         if (domainBridge.hasFailures(context.currentPlan(), results)) {
             Optional<List<PlanTask>> retryTasks = domainBridge.buildRetryTasks(
@@ -887,11 +917,23 @@ public class PlanExecuteAgent extends BaseAgent {
                         "thinking", context.thinkingBuffer());
                 context.sink().tryEmitNext(createPlanUpdateEvent(context.state().getRound(), retryTasks.get()));
                 Map<String, TaskResult> retryResults = executePlan(retryTasks.get(), context.state(),
-                        context.sink(), context.finished(), context.thinkingBuffer());
+                        context.sink(), context.finished(), context.thinkingBuffer(), context.availableSkills());
                 results.putAll(retryResults);
             }
         }
         context.currentResults(results);
+    }
+
+    private List<SkillRuntimeDescriptor> loadSkillsFor(AgentRunContext context) {
+        if (skillRegistry == null || context == null) {
+            return List.of();
+        }
+        try {
+            return skillRegistry.availableSkills(context.tenantId(), context.mode(), context.taskType());
+        } catch (Exception e) {
+            log.warn("deep Graph skill 加载失败，忽略本轮 skills，reason={}", e.getClass().getSimpleName());
+            return List.of();
+        }
     }
 
     private void graphReview(AgentRunContext context) {
@@ -1047,6 +1089,12 @@ public class PlanExecuteAgent extends BaseAgent {
 
     private Map<String, TaskResult> executePlan(List<PlanTask> plan, OverAllState state, Sinks.Many<String> sink,
                                                 AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer) {
+        return executePlan(plan, state, sink, hasSentFinal, thinkingBuffer, List.of());
+    }
+
+    private Map<String, TaskResult> executePlan(List<PlanTask> plan, OverAllState state, Sinks.Many<String> sink,
+                                                AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer,
+                                                List<SkillRuntimeDescriptor> availableSkills) {
 
         Map<String, TaskResult> results = new ConcurrentHashMap<>();
 
@@ -1092,7 +1140,8 @@ public class PlanExecuteAgent extends BaseAgent {
                                     return;
                                 }
 
-                                TaskResult result = executeWithRetry(task, dependencyContext, sink, hasSentFinal, thinkingBuffer);
+                                TaskResult result = executeWithRetry(task, dependencyContext, sink, hasSentFinal,
+                                        thinkingBuffer, availableSkills);
                                 results.put(task.id(), result);
 
                                 if (result.success() && result.output() != null) {
@@ -1189,6 +1238,13 @@ public class PlanExecuteAgent extends BaseAgent {
      */
     private TaskResult executeWithRetry(PlanTask task, String dependencyContext,
                                         Sinks.Many<String> sink, AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer) {
+        return executeWithRetry(task, dependencyContext, sink, hasSentFinal, thinkingBuffer, List.of());
+    }
+
+    private TaskResult executeWithRetry(PlanTask task, String dependencyContext,
+                                        Sinks.Many<String> sink, AtomicBoolean hasSentFinal,
+                                        StringBuilder thinkingBuffer,
+                                        List<SkillRuntimeDescriptor> availableSkills) {
 
         Throwable lastError = null;
         long startedAt = System.currentTimeMillis();
@@ -1205,12 +1261,16 @@ public class PlanExecuteAgent extends BaseAgent {
         try {
             // 构建完整任务上下文（依赖 + 当前任务指令）
             String fullContext = """
+                                【Available Skills】
+                                %s
+
                                 【Available Results】
                                 %s
-                                
+
                                 【Current Task】
                                 %s
                     """.formatted(
+                    renderWorkerSkills(availableSkills),
                     dependencyContext,
                     task.instruction()
             );
@@ -1614,6 +1674,29 @@ public class PlanExecuteAgent extends BaseAgent {
         return sb.toString();
     }
 
+    String renderWorkerSkills(List<SkillRuntimeDescriptor> skills) {
+        if (skills == null || skills.isEmpty()) {
+            return "（当前无匹配技能）";
+        }
+        Set<String> registeredTools = registeredToolNames();
+        return "技能按当前模式和任务动态注入；需要完整指令时先调用 read_skill。真实执行只能调用本轮已注册工具。\n" + skills.stream()
+                .map(skill -> skill.toWorkerSummary(registeredTools))
+                .collect(Collectors.joining("\n"));
+    }
+
+    private Set<String> registeredToolNames() {
+        if (tools == null || tools.isEmpty()) {
+            return Set.of();
+        }
+        return tools.stream()
+                .filter(Objects::nonNull)
+                .map(ToolCallback::getToolDefinition)
+                .filter(Objects::nonNull)
+                .map(definition -> definition.name())
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
     private String joinPrompts(String... prompts) {
         if (prompts == null || prompts.length == 0) {
             return "";
@@ -1631,14 +1714,6 @@ public class PlanExecuteAgent extends BaseAgent {
         return builder.toString();
     }
 }
-
-
-
-
-
-
-
-
 
 
 
