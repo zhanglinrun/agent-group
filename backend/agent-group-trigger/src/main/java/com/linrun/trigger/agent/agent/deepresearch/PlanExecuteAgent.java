@@ -772,6 +772,7 @@ public class PlanExecuteAgent extends BaseAgent {
 
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
                     runContext.availableSkills(loadSkillsFor(runContext));
+                    emitJson(sink, finished, createContextLoadedEvent(runContext, registeredToolNames()));
                     emitJson(sink, finished, createSkillLoadedEvent(runContext.availableSkills(), registeredToolNames()));
                     graphExecutionAdapter.execute(runContext);
                     if (finished.get() || compositeDisposable.isDisposed()) {
@@ -828,6 +829,8 @@ public class PlanExecuteAgent extends BaseAgent {
                     }
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
                     List<SkillRuntimeDescriptor> availableSkills = loadSkillsFor(runContext);
+                    runContext.availableSkills(availableSkills);
+                    emitJson(sink, finished, createContextLoadedEvent(runContext, registeredToolNames()));
                     emitJson(sink, finished, createSkillLoadedEvent(availableSkills, registeredToolNames()));
 
                     // 执行计划前的分隔
@@ -1400,6 +1403,18 @@ public class PlanExecuteAgent extends BaseAgent {
         return JsonUtils.toJson(payload);
     }
 
+    static String createContextLoadedEvent(AgentRunContext context, Set<String> registeredTools) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "context_loaded");
+        payload.put("mode", context == null ? "" : context.mode());
+        payload.put("taskType", context == null ? "" : context.taskType());
+        payload.put("traceId", context == null ? "" : context.traceId());
+        payload.put("spanId", context == null ? "" : context.spanId());
+        payload.put("roles", context == null ? Map.of() : context.contextEvidence(
+                registeredTools == null ? List.of() : registeredTools.stream().sorted().toList()));
+        return JsonUtils.toJson(payload);
+    }
+
     private static List<Map<String, Object>> referencePayload(List<SearchResult> references) {
         if (references == null || references.isEmpty()) {
             return List.of();
@@ -1729,6 +1744,5 @@ public class PlanExecuteAgent extends BaseAgent {
         return builder.toString();
     }
 }
-
 
 

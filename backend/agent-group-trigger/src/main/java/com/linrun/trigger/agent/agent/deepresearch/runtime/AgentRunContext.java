@@ -174,6 +174,61 @@ public class AgentRunContext {
         this.reviewFeedback = blank(reviewFeedback);
     }
 
+    public AgentRoleContext plannerContext() {
+        return AgentRoleContext.builder(AgentRoleContext.Role.PLANNER)
+                .put("identity", identity())
+                .put("goal", state == null ? "" : state.getQuestion())
+                .put("mode", mode)
+                .put("taskType", taskType)
+                .put("skillCount", availableSkills.size())
+                .put("availableSkillNames", availableSkills.stream().map(SkillRuntimeDescriptor::name).toList())
+                .build();
+    }
+
+    public AgentRoleContext workerContext(List<String> registeredTools) {
+        return AgentRoleContext.builder(AgentRoleContext.Role.WORKER)
+                .put("identity", identity())
+                .put("currentPlan", currentPlan.stream().map(PlanTask::instruction).toList())
+                .put("skillCount", availableSkills.size())
+                .put("skills", availableSkills.stream()
+                        .map(skill -> skill.toAuditMap(registeredTools == null ? java.util.Set.of() : java.util.Set.copyOf(registeredTools)))
+                        .toList())
+                .put("registeredTools", registeredTools == null ? List.of() : List.copyOf(registeredTools))
+                .build();
+    }
+
+    public AgentRoleContext reviewerContext() {
+        return AgentRoleContext.builder(AgentRoleContext.Role.REVIEWER)
+                .put("identity", identity())
+                .put("planCount", currentPlan.size())
+                .put("resultCount", currentResults.size())
+                .put("failedTasks", currentResults.values().stream()
+                        .filter(result -> result != null && !result.success())
+                        .map(TaskResult::taskId)
+                        .toList())
+                .build();
+    }
+
+    public Map<String, Object> contextEvidence(List<String> registeredTools) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("planner", plannerContext().includedSections());
+        data.put("worker", workerContext(registeredTools).includedSections());
+        data.put("reviewer", reviewerContext().includedSections());
+        return data;
+    }
+
+    private Map<String, Object> identity() {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("tenantId", tenantId);
+        data.put("userId", userId);
+        data.put("sessionId", sessionId);
+        data.put("runId", runId);
+        data.put("requestId", requestId);
+        data.put("traceId", traceId);
+        data.put("spanId", spanId);
+        return data;
+    }
+
     private static String blank(String value) {
         return value == null ? "" : value.trim();
     }

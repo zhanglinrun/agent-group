@@ -1,12 +1,16 @@
 package com.linrun.trigger.agent.agent.deepresearch;
 
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeDescriptor;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRunContext;
 import com.linrun.trigger.agent.common.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.linrun.trigger.agent.entity.OverAllState;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Sinks;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,5 +68,28 @@ class PlanExecuteAgentSkillInjectionTest {
         assertTrue(firstSkill.path("usableTools").toString().contains("read_skill"));
         assertTrue(firstSkill.path("unavailableTools").toString().contains("missing_tool"));
         assertTrue(firstSkill.path("permissions").toString().contains("workspace-read"));
+    }
+
+    @Test
+    void contextLoadedEventCarriesRoleScopedEvidence() {
+        AgentRunContext context = AgentRunContext.builder()
+                .mode("deep")
+                .taskType("research")
+                .traceId("T1001")
+                .spanId("SP1001")
+                .state(new OverAllState("S1001", "研究动态技能"))
+                .sink(Sinks.many().unicast().onBackpressureBuffer())
+                .finished(new AtomicBoolean(false))
+                .thinkingBuffer(new StringBuilder())
+                .build();
+
+        JsonNode event = JsonUtils.parse(PlanExecuteAgent.createContextLoadedEvent(
+                context, Set.of("read_skill")));
+
+        assertTrue(event.path("roles").has("planner"));
+        assertTrue(event.path("roles").has("worker"));
+        assertTrue(event.path("roles").has("reviewer"));
+        assertTrue(event.path("roles").path("planner").toString().contains("goal"));
+        assertTrue(event.path("roles").path("worker").toString().contains("registeredTools"));
     }
 }
