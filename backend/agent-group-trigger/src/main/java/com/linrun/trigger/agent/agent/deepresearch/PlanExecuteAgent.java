@@ -1412,6 +1412,10 @@ public class PlanExecuteAgent extends BaseAgent {
         payload.put("spanId", context == null ? "" : context.spanId());
         payload.put("roles", context == null ? Map.of() : context.contextEvidence(
                 registeredTools == null ? List.of() : registeredTools.stream().sorted().toList()));
+        payload.put("subAgents", registeredTools == null ? List.of() : registeredTools.stream()
+                .filter(tool -> tool.endsWith("_agent"))
+                .sorted()
+                .toList());
         return JsonUtils.toJson(payload);
     }
 
@@ -1744,5 +1748,4 @@ public class PlanExecuteAgent extends BaseAgent {
         return builder.toString();
     }
 }
-
 

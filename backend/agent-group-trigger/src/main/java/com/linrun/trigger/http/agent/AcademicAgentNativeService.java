@@ -8,6 +8,7 @@ import com.linrun.trigger.http.agent.support.AcademicWebSearchMcpClient;
 import com.linrun.trigger.http.agent.support.SkillsRuntimeResolver;
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.agent.deepresearch.PlanExecuteAgent;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.LocalSubAgentToolFactory;
 import com.linrun.trigger.agent.agent.file.FileReactAgent;
 import com.linrun.trigger.agent.agent.pptx.PPTBuilderAgent;
 import com.linrun.trigger.agent.agent.skills.SkillsReactAgent;
@@ -406,6 +407,7 @@ public class AcademicAgentNativeService {
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 searchTools,
                 academicToolCallbacks("deep", userId, conversationId, webSearchEnabled),
+                LocalSubAgentToolFactory.create(),
                 skillsRuntimeResolver.manualSkillToolCallbacks(skillManager),
                 SkillRuntimeTools.create(skillsRuntimeResolver.resolvedSkillsDirectory(),
                         skillsRuntimeResolver.projectRoot().toString(), outputDirectory)

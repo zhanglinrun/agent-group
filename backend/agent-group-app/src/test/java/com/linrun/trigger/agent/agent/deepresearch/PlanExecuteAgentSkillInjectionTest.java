@@ -84,12 +84,14 @@ class PlanExecuteAgentSkillInjectionTest {
                 .build();
 
         JsonNode event = JsonUtils.parse(PlanExecuteAgent.createContextLoadedEvent(
-                context, Set.of("read_skill")));
+                context, Set.of("read_skill", "file_reader_agent", "report_reviewer_agent")));
 
         assertTrue(event.path("roles").has("planner"));
         assertTrue(event.path("roles").has("worker"));
         assertTrue(event.path("roles").has("reviewer"));
         assertTrue(event.path("roles").path("planner").toString().contains("goal"));
         assertTrue(event.path("roles").path("worker").toString().contains("registeredTools"));
+        assertTrue(event.path("subAgents").toString().contains("file_reader_agent"));
+        assertTrue(event.path("subAgents").toString().contains("report_reviewer_agent"));
     }
 }
