@@ -27,7 +27,7 @@ public class RabbitTradeEventListener {
     public void consume(TradeEventMessageEntity message) {
         // 设计说明：当前 consume 只负责消费记录的幂等与状态流转（INIT→PROCESSING→CONSUMED），
         // 不按 eventType 分发到额度发放/退款回滚等业务。额度发放的权威链路是
-        // PaymentCompletionService.complete 的同步 webhook 事务 + TradeTimeoutCompensationJob 主动查单补偿，
+        // PaymentCompletionService.complete 的同步 webhook 事务 + XXL-JOB 主动查单补偿，
         // 不依赖本 listener。若后续需要事件异步触发发额度或退款回滚，应在此处按
         // message.getEventType() 补充分发逻辑（例如 TEAM_SUCCESS → grantQuotaForOrderIds，
         // REFUND_SUCCESS → rollbackQuotaForRefundedOrder），并复用下方幂等与重试/死信状态机。

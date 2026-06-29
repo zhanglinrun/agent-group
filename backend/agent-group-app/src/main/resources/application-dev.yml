@@ -107,6 +107,16 @@ agent:
       mock-delay-millis: 350
     rabbit:
       enabled: ${AGENT_GROUP_RABBIT_ENABLED:true}
+    xxl-job:
+      enabled: ${AGENT_GROUP_XXL_JOB_ENABLED:true}
+      admin-addresses: ${AGENT_GROUP_XXL_JOB_ADMIN_ADDRESSES:http://127.0.0.1:18081/xxl-job-admin}
+      app-name: ${AGENT_GROUP_XXL_JOB_APP_NAME:agent-group-trade-job}
+      address: ${AGENT_GROUP_XXL_JOB_ADDRESS:}
+      ip: ${AGENT_GROUP_XXL_JOB_IP:}
+      port: ${AGENT_GROUP_XXL_JOB_PORT:9999}
+      access-token: ${AGENT_GROUP_XXL_JOB_ACCESS_TOKEN:}
+      log-path: ${AGENT_GROUP_XXL_JOB_LOG_PATH:logs/xxl-job}
+      log-retention-days: ${AGENT_GROUP_XXL_JOB_LOG_RETENTION_DAYS:30}
     redis:
       key-prefix: ${AGENT_GROUP_REDIS_KEY_PREFIX:agent-group}
     vector:

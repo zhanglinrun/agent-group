@@ -11,6 +11,7 @@
 | PostgreSQL + pgvector | 保存会话附件向量（`vector_file_info`），用于文件模式 RAG。 |
 | MinIO | 保存用户上传的附件和生成物。 |
 | RabbitMQ | 承接支付成功、成团、退款等交易事件。 |
+| XXL-JOB | 调度交易补偿任务，接管 Outbox 投递、业务通知重试、超时退款和支付查单补偿。 |
 | Prometheus | 采集后端 `Actuator`（应用监控端点）指标。 |
 | Grafana | 展示 `Prometheus`（指标采集工具）里的运行指标。 |
 
@@ -63,7 +64,40 @@ npm run dev
 2. 分别点击直接购买和拼团购买，观察锁单、支付回调、成团状态、额度到账和退款边界。
 3. 在工作台切换 chat / deep / ppt 等模式，或上传附件做文件问答，观察 SSE 流式输出和额度消耗。
 4. 进入运营端查看拼团活动、交易订单与一致性核查。
-5. 打开 Grafana 看板，观察工具调用速率、模型耗时和错误率。
+5. 打开 XXL-JOB Admin 查看交易补偿任务，必要时手动触发指定订单或通知任务。
+6. 打开 Grafana 看板，观察工具调用速率、模型耗时和错误率。
+
+## 交易补偿调度
+
+本项目的交易补偿类任务由 `XXL-JOB`（分布式任务调度平台）接管，不再保留本地 `@Scheduled`（本地定时任务）入口。调度中心使用独立数据库 `xxl_job`，复用本地 MySQL 容器。
+
+访问地址：
+
+- `http://localhost:18081/xxl-job-admin`
+- 默认账号：`admin`
+- 默认密码：`123456`
+
+后端执行器默认配置：
+
+- `agent.group.xxl-job.enabled=true`
+- `agent.group.xxl-job.admin-addresses=http://127.0.0.1:18081/xxl-job-admin`
+- `agent.group.xxl-job.app-name=agent-group-trade-job`
+- `agent.group.xxl-job.port=9999`
+
+已初始化的任务：
+
+| 任务 | Handler | 参数 |
+| --- | --- | --- |
+| 交易事件 Outbox 投递 | `tradeEventOutboxDispatchJobHandler` | 默认批量执行 |
+| 拼团业务通知重试 | `groupBuyNotifyTaskJobHandler` | 可传 `uuid=N10001` 或 `teamId=T10001` |
+| 超时未成团退款补偿 | `timeoutGroupRefundJobHandler` | 默认批量执行 |
+| 支付查单与未支付关单补偿 | `paymentQueryCompensationJobHandler` | 可传 `orderId=O10001` |
+
+概念口径：
+
+- 支付回调：支付宝/微信等支付网关调用本项目，带验签、防重放和主动查单补偿。
+- 业务通知：本项目在成团或退款后通知下游订阅方，走 `MQ`（消息队列）或 `HTTP`（超文本传输协议）派发，失败后由补偿任务重试。
+- 额度履约：直接购买支付成功发额；拼团购买必须成团或交易完成后发额；退款后按额度流水回滚。
 
 ## 压测与故障演练
 
@@ -73,6 +107,7 @@ npm run dev
 docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/00-schema-upgrade.sql
 docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/01-agent-group.sql
 docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev agent_group < docs/dev-ops/mysql/sql/02-demo-data.sql
+docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -pagent_group_dev < docs/dev-ops/mysql/sql/03-xxl-job.sql
 ```
 
 ## 默认端口
@@ -86,6 +121,7 @@ docker exec -i agent-group-mysql mysql --default-character-set=utf8mb4 -uroot -p
 | MinIO Console | 9001 |
 | RabbitMQ | 5672 |
 | RabbitMQ Console | 15672 |
+| XXL-JOB Admin | 18081 |
 | phpMyAdmin | 8899 |
 | Redis Admin | 8081 |
 | Prometheus | 19090 |
@@ -112,4 +148,4 @@ $env:AGENT_GROUP_MYSQL_URL="jdbc:mysql://127.0.0.1:13316/agent_group?useUnicode=
 
 当前用户端已经接入登录注册、额度中心、Agent（智能体）流式对话、文件上传、直接购买、拼团购买和支付宝支付。购买入口直接基于额度包创建订单，额度是否到账以后端支付状态和拼团成团状态为准。
 
-交易侧已经拆出关闭未支付订单、超时退款、通知补偿三类任务；通知配置由 `NotifyConfig`（通知配置值对象）承载，再通过 `TradeNotifyPort`（外部交易通知端口）派发。会话附件经解析、切片后写入 pgvector，供 file 模式语义检索。
+交易侧已经拆出关闭未支付订单、超时退款、业务通知补偿和 Outbox 投递四类任务，并由 `XXL-JOB`（分布式任务调度平台）统一调度；通知配置由 `NotifyConfig`（通知配置值对象）承载，再通过 `TradeNotifyPort`（外部交易通知端口）派发。会话附件经解析、切片后写入 pgvector，供 file 模式语义检索。

@@ -102,6 +102,17 @@ public class TradeCompensationService {
         return completedCount;
     }
 
+    public boolean reconcilePayWaitOrder(String orderId) {
+        if (!StringUtils.hasText(orderId)) {
+            throw new AppException("TRADE_0015", "订单编号不能为空");
+        }
+        if (paymentService == null) {
+            return false;
+        }
+        PaymentWebhookResponse response = paymentService.queryGatewayAndCompleteIfPaid(orderId);
+        return response != null && PayStatusEnumVO.SUCCESS.name().equals(response.getPayStatus());
+    }
+
     public int refundTimeoutUnsettledGroupOrders(LocalDateTime deadline, int limit) {
         List<String> orderIds = groupBuyOrderLockRepository.queryTimeoutUnsettledPaidOrderIds(deadline, limit);
         int refundCount = 0;
@@ -110,7 +121,7 @@ public class TradeCompensationService {
                 RefundPaymentRequest request = new RefundPaymentRequest();
                 request.setOrderId(orderId);
                 request.setRefundReason("拼团超时未成团");
-                // 定时补偿属于系统发起的退款，固定走系统退款入口，退款原因会带系统标记
+                // 补偿任务属于系统发起的退款，固定走系统退款入口，退款原因会带系统标记
                 tradeRefundService.refundFromSystem(request);
                 refundCount++;
             } catch (Exception e) {

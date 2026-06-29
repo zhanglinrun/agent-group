@@ -28,7 +28,7 @@ import java.util.Map;
  * （默认投递到 MQ 的 notify 路由，由 {@code RabbitTradeEventConfiguration} 声明的队列承接；
  * 也可配置为 HTTP 推送到外部系统）。它和支付网关的支付回调是两回事——支付回调
  * 在 {@code PaymentService#handleWebhook} 里，带验签和防重放，方向是网关调我们；
- * 这里方向是我们通知别人，失败靠 {@code GroupBuyNotifyTaskJob} 定时重试。
+ * 这里方向是我们通知别人，失败靠交易补偿任务重试。
  */
 @Service
 public class NotifyTaskService {
