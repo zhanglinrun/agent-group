@@ -28,6 +28,7 @@ class ManualSkillRegistryTest {
                 taskTypes: [deep]
                 inputParameters: [topic]
                 outputConstraints: markdown report
+                permissions: [workspace-read]
                 allowedTools: [report_writer]
                 version: 1.0
                 enabled: true
@@ -73,9 +74,11 @@ class ManualSkillRegistryTest {
         assertEquals("deep-report", skills.get(0).name());
         assertEquals(List.of("topic"), skills.get(0).inputParameters());
         assertEquals("markdown report", skills.get(0).outputConstraints());
+        assertEquals(List.of("workspace-read"), skills.get(0).permissions());
         assertEquals(List.of("report_writer"), skills.get(0).boundTools());
         assertTrue(skills.get(0).resources().stream().anyMatch(resource -> resource.endsWith("SKILL.md")));
         assertTrue(skills.get(0).toWorkerSummary(Set.of("report_writer")).contains("tools: report_writer"));
+        assertTrue(skills.get(0).toWorkerSummary(Set.of("report_writer")).contains("status: ready"));
     }
 
     private void skill(String name, String content) throws Exception {

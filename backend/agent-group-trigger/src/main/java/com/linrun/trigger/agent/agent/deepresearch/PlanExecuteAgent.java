@@ -772,6 +772,7 @@ public class PlanExecuteAgent extends BaseAgent {
 
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
                     runContext.availableSkills(loadSkillsFor(runContext));
+                    emitJson(sink, finished, createSkillLoadedEvent(runContext.availableSkills(), registeredToolNames()));
                     graphExecutionAdapter.execute(runContext);
                     if (finished.get() || compositeDisposable.isDisposed()) {
                         return;
@@ -827,6 +828,7 @@ public class PlanExecuteAgent extends BaseAgent {
                     }
                     AgentRunContext runContext = AgentRunContext.fromCurrent(state, sink, finished, thinkingBuffer);
                     List<SkillRuntimeDescriptor> availableSkills = loadSkillsFor(runContext);
+                    emitJson(sink, finished, createSkillLoadedEvent(availableSkills, registeredToolNames()));
 
                     // 执行计划前的分隔
                     emit(sink, finished, "\n--- 开始执行任务 ---\n\n", "thinking", thinkingBuffer);
@@ -1385,6 +1387,19 @@ public class PlanExecuteAgent extends BaseAgent {
         return JsonUtils.toJson(payload);
     }
 
+    static String createSkillLoadedEvent(List<SkillRuntimeDescriptor> skills, Set<String> registeredTools) {
+        List<SkillRuntimeDescriptor> safeSkills = skills == null ? List.of() : skills;
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "skill_loaded");
+        payload.put("source", "dynamic_runtime");
+        payload.put("skillCount", safeSkills.size());
+        payload.put("registeredTools", registeredTools == null ? List.of() : registeredTools.stream().sorted().toList());
+        payload.put("skills", safeSkills.stream()
+                .map(skill -> skill.toAuditMap(registeredTools))
+                .toList());
+        return JsonUtils.toJson(payload);
+    }
+
     private static List<Map<String, Object>> referencePayload(List<SearchResult> references) {
         if (references == null || references.isEmpty()) {
             return List.of();
@@ -1714,7 +1729,6 @@ public class PlanExecuteAgent extends BaseAgent {
         return builder.toString();
     }
 }
-
 
 
 

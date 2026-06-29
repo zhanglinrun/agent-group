@@ -44,22 +44,24 @@ public record SkillRuntimeDescriptor(
     }
 
     public String toWorkerSummary(java.util.Set<String> registeredTools) {
+        SkillRuntimeAssessment assessment = assess(registeredTools);
         StringBuilder builder = new StringBuilder("- ")
                 .append(name)
                 .append(": ")
                 .append(description);
+        builder.append("\n  status: ").append(assessment.status());
+        if (!version.isBlank()) {
+            builder.append("\n  version: ").append(version);
+        }
+        if (!permissions.isEmpty()) {
+            builder.append("\n  permissions: ").append(String.join(", ", permissions));
+        }
         if (!boundTools.isEmpty()) {
-            List<String> usableTools = registeredTools == null
-                    ? boundTools
-                    : boundTools.stream().filter(registeredTools::contains).toList();
-            if (!usableTools.isEmpty()) {
-                builder.append("\n  tools: ").append(String.join(", ", usableTools));
+            if (!assessment.usableTools().isEmpty()) {
+                builder.append("\n  tools: ").append(String.join(", ", assessment.usableTools()));
             }
-            List<String> missingTools = registeredTools == null
-                    ? List.of()
-                    : boundTools.stream().filter(tool -> !registeredTools.contains(tool)).toList();
-            if (!missingTools.isEmpty()) {
-                builder.append("\n  unavailableTools: ").append(String.join(", ", missingTools));
+            if (!assessment.unavailableTools().isEmpty()) {
+                builder.append("\n  unavailableTools: ").append(String.join(", ", assessment.unavailableTools()));
             }
         }
         if (!inputParameters.isEmpty()) {
@@ -72,6 +74,24 @@ public record SkillRuntimeDescriptor(
             builder.append("\n  resources: ").append(String.join(", ", resources));
         }
         return builder.toString();
+    }
+
+    public SkillRuntimeAssessment assess(java.util.Set<String> registeredTools) {
+        List<String> usableTools = registeredTools == null
+                ? boundTools
+                : boundTools.stream().filter(registeredTools::contains).toList();
+        List<String> missingTools = registeredTools == null
+                ? List.of()
+                : boundTools.stream().filter(tool -> !registeredTools.contains(tool)).toList();
+        String status;
+        if (!enabled) {
+            status = "disabled";
+        } else if (!missingTools.isEmpty()) {
+            status = usableTools.isEmpty() ? "blocked" : "degraded";
+        } else {
+            status = "ready";
+        }
+        return new SkillRuntimeAssessment(name, status, usableTools, missingTools, permissions, version, resources);
     }
 
     public Map<String, Object> toMap() {
@@ -88,6 +108,35 @@ public record SkillRuntimeDescriptor(
         data.put("boundTools", boundTools);
         data.put("resources", resources);
         return data;
+    }
+
+    public Map<String, Object> toAuditMap(java.util.Set<String> registeredTools) {
+        SkillRuntimeAssessment assessment = assess(registeredTools);
+        Map<String, Object> data = toMap();
+        data.put("status", assessment.status());
+        data.put("usableTools", assessment.usableTools());
+        data.put("unavailableTools", assessment.unavailableTools());
+        return data;
+    }
+
+    public record SkillRuntimeAssessment(
+            String name,
+            String status,
+            List<String> usableTools,
+            List<String> unavailableTools,
+            List<String> permissions,
+            String version,
+            List<String> resources
+    ) {
+        public SkillRuntimeAssessment {
+            name = safe(name);
+            status = safe(status);
+            usableTools = copy(usableTools);
+            unavailableTools = copy(unavailableTools);
+            permissions = copy(permissions);
+            version = StringUtils.hasText(version) ? version.trim() : "manual";
+            resources = copy(resources);
+        }
     }
 
     private static boolean matchesScope(List<String> configured, String value) {
