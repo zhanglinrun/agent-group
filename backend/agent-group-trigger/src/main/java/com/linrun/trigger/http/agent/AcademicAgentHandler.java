@@ -415,6 +415,19 @@ public class AcademicAgentHandler {
         String type = text(node, "type");
         Map<String, Object> data = parseObject(node.toString());
         data.put("runId", runState.run.getRunId());
+        if ("memory_loaded".equals(type)) {
+            Map<String, Object> memory = objectValue(data.get("memory"));
+            runState.memoryLoaded = true;
+            runState.shortTermMemoryCount = intValue(memory.get("shortTermCount"), runState.shortTermMemoryCount);
+            runState.taskMemoryCount = intValue(memory.get("taskMemoryCount"), runState.taskMemoryCount);
+            runState.longTermMemoryCount = intValue(memory.get("longTermCount"), runState.longTermMemoryCount);
+        } else if ("skill_loaded".equals(type)) {
+            runState.skillLoaded = true;
+            runState.skillCount = intValue(data.get("skillCount"), runState.skillCount);
+        } else if ("capability_loaded".equals(type)) {
+            Map<String, Object> capability = objectValue(data.get("capability"));
+            runState.capabilityCount = intValue(capability.get("capabilityCount"), runState.capabilityCount);
+        }
         return List.of(event(type, sessionId, requestId, sequence, data));
     }
 
@@ -426,6 +439,10 @@ public class AcademicAgentHandler {
         String capabilityName = firstText(node, "capabilityName", "name", "toolName");
         Map<String, Object> data = parseObject(node.toString());
         data.put("runId", runState.run.getRunId());
+        runState.capabilityCallCount++;
+        if (StringUtils.hasText(capabilityName)) {
+            runState.calledCapabilities.put(capabilityName, runState.calledCapabilities.getOrDefault(capabilityName, 0) + 1);
+        }
         return List.of(
                 event("task_status", sessionId, requestId, sequence,
                         status("CAPABILITY", "调用能力：" + nullToBlank(capabilityName))),
@@ -1004,6 +1021,15 @@ public class AcademicAgentHandler {
         metrics.put("failedToolCount", runState.failedToolCount);
         metrics.put("quotaConsumed", quotaConsumed);
         metrics.put("replanCount", runState.replanCount);
+        metrics.put("capabilityCallCount", runState.capabilityCallCount);
+        metrics.put("capabilityCount", runState.capabilityCount);
+        metrics.put("skillCount", runState.skillCount);
+        metrics.put("skillLoaded", runState.skillLoaded);
+        metrics.put("memoryLoaded", runState.memoryLoaded);
+        metrics.put("shortTermMemoryCount", runState.shortTermMemoryCount);
+        metrics.put("taskMemoryCount", runState.taskMemoryCount);
+        metrics.put("longTermMemoryCount", runState.longTermMemoryCount);
+        metrics.put("calledCapabilities", runState.calledCapabilities);
         metrics.put("toolSuccessRate", runState.toolCallCount == 0
                 ? 1.0d
                 : (double) (runState.toolCallCount - runState.failedToolCount) / runState.toolCallCount);
@@ -1585,6 +1611,26 @@ public class AcademicAgentHandler {
         return jsonCodec.firstText(values);
     }
 
+    private Map<String, Object> objectValue(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> result.put(Objects.toString(key, ""), item));
+        return result;
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return Math.max(0, number.intValue());
+        }
+        try {
+            return Math.max(0, Integer.parseInt(nullToBlank(Objects.toString(value, ""))));
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
     private String toolKey(String toolCallId, String toolName) {
         return StringUtils.hasText(toolCallId) ? toolCallId : nullToBlank(toolName);
     }
@@ -1615,9 +1661,18 @@ public class AcademicAgentHandler {
         private int toolCallCount;
         private int failedToolCount;
         private int replanCount;
+        private int capabilityCallCount;
+        private int capabilityCount;
+        private int skillCount;
+        private int shortTermMemoryCount;
+        private int taskMemoryCount;
+        private int longTermMemoryCount;
+        private boolean memoryLoaded;
+        private boolean skillLoaded;
         private BigDecimal consumedQuota = BigDecimal.ZERO;
         private String projectId = "";
         private Map<String, Object> projectContext = Map.of();
+        private final Map<String, Integer> calledCapabilities = new LinkedHashMap<>();
 
         private RunState(AcademicAgentRun run,
                          AcademicLedgerContext.Context ledgerContext,

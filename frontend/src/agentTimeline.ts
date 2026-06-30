@@ -263,6 +263,49 @@ export function streamEventToTimelineItem(
       steps: Array.isArray(data.steps) ? data.steps : []
     };
   }
+  if (eventName === "memory_loaded") {
+    const memory = asObject(data.memory);
+    const total = Number(memory.shortTermCount || 0)
+      + Number(memory.taskMemoryCount || 0)
+      + Number(memory.longTermCount || 0);
+    return {
+      type: "capability",
+      status: "completed",
+      title: "记忆加载",
+      detail: `短期 ${Number(memory.shortTermCount || 0)} 条 · 任务 ${Number(memory.taskMemoryCount || 0)} 条 · 长期 ${Number(memory.longTermCount || 0)} 条`,
+      count: total
+    };
+  }
+  if (eventName === "skill_loaded") {
+    const skills = Array.isArray(data.skills) ? data.skills : [];
+    return {
+      type: "capability",
+      status: "completed",
+      title: "技能加载",
+      detail: `${Number(data.skillCount || skills.length || 0)} 个技能可用`,
+      skills: skills.map((skill) => text(asObject(skill).name)).filter(Boolean)
+    };
+  }
+  if (eventName === "capability_loaded") {
+    const capability = asObject(data.capability);
+    return {
+      type: "capability",
+      status: "completed",
+      title: "能力装配",
+      detail: `${Number(capability.capabilityCount || 0)} 个能力 · ${Number(capability.toolCount || 0)} 个工具 · ${Number(capability.skillCount || 0)} 个技能`
+    };
+  }
+  if (eventName === "capability_called") {
+    const args = asObject(data.arguments);
+    return {
+      type: "capability",
+      status: "running",
+      title: "能力调用",
+      capabilityName: text(data.capabilityName) || "deep_research_step",
+      callId: text(data.callId),
+      detail: text(args.instruction) || text(data.action)
+    };
+  }
   if (eventName === "tool_call") {
     return {
       type: "tool",

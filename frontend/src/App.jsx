@@ -821,7 +821,7 @@ function AgentWorkspaceApp() {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
-    if (["task_analysis", "mode_selection", "agent_routing", "execution_applied", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
+    if (["task_analysis", "mode_selection", "agent_routing", "execution_applied", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "memory_loaded", "skill_loaded", "capability_loaded", "capability_called", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
       const artifacts = eventArtifacts(event);
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
@@ -3036,6 +3036,14 @@ function TimelineContent({ timeline = [] }) {
                   )}
                 </div>
               )}
+              {item.type === "capability" && (
+                <div className="timeline-tool">
+                  <span>⚙</span>
+                  <span className="timeline-tool-name">{item.title || item.capabilityName || "能力调用"}</span>
+                  <span className={`timeline-inline-status ${statusClass}`}>{statusLabel}</span>
+                  {item.detail && <small>{item.detail}</small>}
+                </div>
+              )}
               {item.type === "llm" && (
                 <div className="timeline-llm">
                   <span className="timeline-tool-name">{item.modelName}</span>
@@ -3051,6 +3059,9 @@ function TimelineContent({ timeline = [] }) {
                     <div>
                       <span>耗时 {item.metrics.elapsedMs || 0} ms</span>
                       <span>工具 {item.metrics.toolCallCount || 0} 次</span>
+                      <span>能力 {item.metrics.capabilityCallCount || 0} 次</span>
+                      <span>技能 {item.metrics.skillCount || 0} 个</span>
+                      <span>记忆 {(item.metrics.shortTermMemoryCount || 0) + (item.metrics.taskMemoryCount || 0) + (item.metrics.longTermMemoryCount || 0)} 条</span>
                       <span>失败 {item.metrics.failedToolCount || 0} 次</span>
                       <span>重规划 {item.metrics.replanCount || 0} 次</span>
                     </div>

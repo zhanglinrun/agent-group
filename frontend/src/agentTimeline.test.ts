@@ -238,6 +238,41 @@ describe("agent timeline projection", () => {
     });
   });
 
+  it("projects runtime memory, skill and capability events into timeline", () => {
+    expect(streamEventToTimelineItem({
+      event: "memory_loaded",
+      data: { memory: { shortTermCount: 2, taskMemoryCount: 1, longTermCount: 3 } }
+    })).toMatchObject({
+      type: "capability",
+      title: "记忆加载",
+      detail: "短期 2 条 · 任务 1 条 · 长期 3 条"
+    });
+
+    expect(streamEventToTimelineItem({
+      event: "skill_loaded",
+      data: { skillCount: 2, skills: [{ name: "report" }, { name: "chart" }] }
+    })).toMatchObject({
+      type: "capability",
+      title: "技能加载",
+      detail: "2 个技能可用",
+      skills: ["report", "chart"]
+    });
+
+    expect(streamEventToTimelineItem({
+      event: "capability_called",
+      data: {
+        capabilityName: "deep_research_step",
+        callId: "cap-1",
+        arguments: { instruction: "检索并整理资料" }
+      }
+    })).toMatchObject({
+      type: "capability",
+      status: "running",
+      capabilityName: "deep_research_step",
+      detail: "检索并整理资料"
+    });
+  });
+
   it("replays events through the same merge rules", () => {
     const timeline = replayEventsToTimeline([
       {
