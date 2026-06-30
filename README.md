@@ -10,7 +10,7 @@
 
 | 子系统 | 做什么 |
 | --- | --- |
-| **Agent 工作台** | 流式对话、多模式执行、会话文件 RAG（检索增强生成）、项目工作区、请求追踪与运行诊断 |
+| **Agent 工作台** | 流式对话、多模式执行、任务执行台、产物区、三层记忆、会话文件 RAG（检索增强生成）、请求追踪与运行诊断 |
 | **拼团交易平台** | 额度包、直接购买、拼团营销活动、优惠试算、锁单参团、支付回调、成团结算、业务通知、退款、状态事件投递与补偿 |
 
 **Maven 多模块 DDD 分层**：`agent-group-app` 单进程启动，依赖方向 `trigger → domain ← infrastructure`。
@@ -50,6 +50,12 @@ HTTP 入口在 `AcademicAgentController`，由 `AcademicAgentHandler` 调用 `Un
 | **智能重规划** | 主要 `deep` | `PlanExecuteDomainBridge` → domain 策略；步骤失败重试 + LLM 多轮 replan |
 | **反思评估** | 主要 `deep` | domain 规则反思（`source=domain_rule`）+ LLM critique；质量低触发继续重规划 |
 | **异常诊断** | 全模式 | `AgentDiagnosisService`；检测慢执行、工具失败、额度异常、频繁重规划、执行异常 |
+
+### deep 任务执行台、产物和记忆
+
+`deep`（深度任务）模式已从“只输出回答”升级为任务执行台：运行时会识别文件理解、联网搜索、报告生成、PPT（演示文稿）、图片生成等能力，推送 `capability_plan`、`capability_called`、`memory_loaded`、`memory_saved` 等 SSE（流式事件），并把报告、PPT、图片、文件分析结果沉淀为可预览、下载、重新执行的产物。
+
+记忆侧按三层表达：短期记忆服务当前会话，任务记忆记录计划、步骤、失败原因和产物摘要，长期记忆按 `userId`（用户编号）保存偏好、输出风格和业务背景。前端右上角“记忆”入口支持查看、刷新、启用、停用和删除长期记忆。
 
 ### Agent 引擎（domain 策略 + 线上执行体）
 
@@ -108,13 +114,12 @@ agent-group/
 │   ├── agent-group-trigger/      # HTTP、SSE、定时任务、线上 Agent 执行体
 │   └── agent-group-types/        # 通用响应与枚举
 ├── frontend/                     # 用户工作台 + /admin 运营端
-├── docs/                         # 运维、压测、复盘文档
-└── study/                        # 架构图与面试口述材料
+├── docs/                         # 运维、压测、简历材料
+├── skills/                       # 本地技能说明与资源
+└── tools/                        # 辅助工具
 ```
 
 会话文件的技术接入以端口形式定义在 `domain.agent.file`，由 `infrastructure` 实现，trigger 面向端口编程。
-
-更细的架构图见 `study/01-系统整体架构图.md`、`study/03-Agent执行引擎框架图.md`、`study/04-额度交易系统架构图.md`。
 
 ---
 
@@ -164,10 +169,11 @@ npm run dev
 2. **拼团交易** → 演示活动试算、锁单参团、支付回调、等待成团、成团到账、超时退款等边界，明确区分「支付成功，等待成团」与「额度已到账」。
 3. **直接购买** → 演示标准额度包购买，说明它与拼团购买在发额条件上的差异。
 4. **运行 Agent** → 默认智能调度，或切换对话助手、深度任务、PPT 生成、图像生成、Skill，观察 SSE 流式输出、模式选择与额度扣减。
-5. **文件问答** → 上传附件后提问，验证会话文件 RAG。
-6. **运营端** → 查看总览、拼团活动、渠道与库存、模型配置、Skills / MCP、订单核查和退款。
-7. **引擎单测**（可选）→ `mvn -pl agent-group-app -am test -Dtest=AgentEngineRoutingTest`，验证 auto 路由与 domain 重规划。
-8. **交易压测**（可选）→ `docs/dev-ops/loadtest/`，跑完再把 QPS、P99 记入结果表；未实测的数字不要写进对外材料。
+5. **deep 任务执行台** → 触发复杂任务，观察能力计划、能力调用事件、产物区、长期记忆读取和自动沉淀。
+6. **文件问答** → 上传附件后提问，验证会话文件 RAG。
+7. **运营端** → 查看总览、拼团活动、渠道与库存、模型配置、Skills / MCP、订单核查和退款。
+8. **引擎单测**（可选）→ `mvn -pl agent-group-app -am test -Dtest=AgentEngineRoutingTest`，验证 auto 路由与 domain 重规划。
+9. **交易压测**（可选）→ `docs/dev-ops/loadtest/`，跑完再把 QPS、P99 记入结果表；未实测的数字不要写进对外材料。
 
 ---
 
@@ -197,26 +203,16 @@ cd frontend && npm run test && npm run lint && npm run build
 
 ## 文档索引
 
-**开发与复盘**
-
-- `docs/dev-challenges-and-improvements.md` — 开发问题与改进记录
-- `docs/trade-high-concurrency.md` — 交易高并发设计
-- `docs/autumn-recruit-evidence.md` — 秋招项目证据材料
-
 **运维与环境**
 
 - `docs/dev-ops/README.md` — 本地 Docker 环境与演示说明
 - `docs/dev-ops/loadtest/README.md` — 交易压测脚本与结果记录约定
 - `docs/dev-ops/payment-sandbox.md` — 支付宝沙箱检查
 
-**学习与面试**
+**简历与表达**
 
-- `study/01-系统整体架构图.md` — 全局架构（30 秒口述版）
-- `study/02-后端DDD分层框架图.md`
-- `study/03-Agent执行引擎框架图.md`
-- `study/04-额度交易系统架构图.md`
-- `study/05-核心业务流程图.md`
-- `study/agent-group-interview-questions-200.md`
+- `docs/resume-trade-project.md` — 拼团式额度交易平台简历材料
+- `README.md` — 项目主线、演示路径和秋招表述
 
 ---
 
@@ -234,8 +230,10 @@ cd frontend && npm run test && npm run lint && npm run build
 
 **核心方案**
 
-- **Agent 执行引擎**：`auto` 智能调度根据任务类型选择 chat / deep / ppt / image / manual-skills 等模式；deep 模式使用 Plan-Execute 拆解任务，并接入失败重规划、反思评估和运行诊断。
+- **Agent 执行引擎**：`auto` 智能调度根据任务类型选择 chat / deep / ppt / image / manual-skills 等模式；deep 模式使用 Plan-Execute 拆解任务，并接入失败重规划、反思评估、能力调用事件和运行诊断。
 - **推理过程可视化**：通过 SSE 推送任务分析、模式选择、执行应用、步骤进度和诊断事件，让复杂任务从“只等结果”变成“可观察过程”。
+- **任务产物闭环**：复杂任务会沉淀报告、PPT、图片和文件分析结果，前端集中展示产物，支持预览、下载和重新执行。
+- **三层记忆体系**：短期记忆服务当前会话，任务记忆记录执行过程，长期记忆按用户保存偏好、风格和业务背景，并支持用户启用、停用和删除。
 - **会话文件 RAG**：附件解析后写入 pgvector，用户提问时按会话和文件检索相关片段，再交给大模型生成回答。
 - **拼团营销交易**：参考成熟拼团营销模型，将活动、试算、锁单、组队、结算流程改造成“优惠购买 Agent 额度”的业务链路，既能讲营销转化，也能讲交易一致性。
 - **额度交易闭环**：直接购买按支付成功发额；拼团购买必须等成团或交易完成后发额；通过订单流水、额度流水、支付幂等键、Outbox 状态事件和 XXL-JOB 补偿任务保证最终一致。
@@ -243,12 +241,12 @@ cd frontend && npm run test && npm run lint && npm run build
 
 **完整版（按实际做过的能力裁剪，数字须有评测或压测出处）**
 
-基于 Java 21、Spring Boot 3 与 Spring AI 实现多模式 Agent 工作台与拼团式额度交易平台。Agent 侧支持 `auto` 智能调度及 ReAct、Plan-Execute 等主执行范式，PPT Workflow、Skill Orchestration 等业务编排；deep 模式接入 domain 重规划与反思；全模式 run 结束自动诊断；会话文件 RAG 写入 pgvector；请求级 `requestId` 与运行诊断辅助排障。拼团交易侧围绕额度包购买设计活动试算、锁单参团、支付回调、组队成团、额度到账、退款和状态事件补偿：直接购买在支付成功后发额，拼团购买在成团或交易完成后发额，避免“支付成功但未成团”导致额度提前到账。并通过下单幂等、Redis 分布式锁、库存与队伍名额占位、支付回调防重放、支付单状态幂等、订单流水、额度流水、TradeEventOutbox、RabbitMQ 和 XXL-JOB 补偿任务保证交易状态与额度余额最终一致。引擎路由单测 `AgentEngineRoutingTest` 可复现；交易性能以 `docs/dev-ops/loadtest` 实测为准，未实测的 QPS / P99 不写入简历。
+基于 Java 21、Spring Boot 3、Spring AI 与 Spring AI Alibaba 实现多模式 Agent 工作台与拼团式额度交易平台。Agent 侧支持 `auto` 智能调度及 ReAct、Plan-Execute 等主执行范式，PPT Workflow、Skill Orchestration 等业务编排；deep 模式接入 Graph 最小运行时、domain 重规划与反思、能力计划 / 能力调用事件、任务产物区和三层记忆；会话文件 RAG 写入 pgvector；请求级 `requestId` 与运行诊断辅助排障。拼团交易侧围绕额度包购买设计活动试算、锁单参团、支付回调、组队成团、额度到账、退款和状态事件补偿：直接购买在支付成功后发额，拼团购买在成团或交易完成后发额，避免“支付成功但未成团”导致额度提前到账。并通过下单幂等、Redis 分布式锁、库存与队伍名额占位、支付回调防重放、支付单状态幂等、订单流水、额度流水、TradeEventOutbox、RabbitMQ 和 XXL-JOB 补偿任务保证交易状态与额度余额最终一致。引擎路由单测 `AgentEngineRoutingTest` 可复现；交易性能以 `docs/dev-ops/loadtest` 实测为准，未实测的 QPS / P99 不写入简历。
 
 **简洁版**
 
-多模式 Agent 工作台 + 拼团式额度交易平台，覆盖 Agent 智能执行、拼团营销购买、支付、成团结算、退款、额度发放、Outbox 状态事件投递与补偿，适合后端 / AI 应用方向秋招项目表达。
+多模式 Agent 工作台 + 拼团式额度交易平台，覆盖 Agent 智能执行、任务产物、三层记忆、拼团营销购买、支付、成团结算、退款、额度发放、Outbox 状态事件投递与补偿，适合后端 / AI 应用方向秋招项目表达。
 
 ---
 
-**更新时间**：2026-06-27
+**更新时间**：2026-06-30

@@ -56,6 +56,9 @@ logs/
 data/
 docs/performance/jmeter/results/
 docs/performance/jmeter/reports/
+docs/dev-ops/loadtest/result*.jtl
+docs/dev-ops/loadtest/report/
+docs/dev-ops/loadtest/reports/
 outputs/*
 
 ### Runtime tools ###
