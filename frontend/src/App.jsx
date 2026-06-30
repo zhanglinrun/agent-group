@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ArrowLeft,
   BarChart3,
+  Brain,
   Check,
   Copy,
   CreditCard,
@@ -36,6 +37,7 @@ import { DataWorkspacePanel } from "./components/DataWorkspacePanel";
 import { TradeWorkspacePanel } from "./components/TradeWorkspacePanel";
 import { AcademicProjectPanel } from "./components/AcademicProjectPanel";
 import { SessionMemoryPanel } from "./components/SessionMemoryPanel";
+import { UserMemoryPanel } from "./components/UserMemoryPanel";
 import { WorkspaceEmptyState } from "./components/WorkspaceEmptyState";
 
 const AdminDashboard = lazy(() => import("./components/AdminDashboard"));
@@ -125,6 +127,7 @@ import {
   queryAgentCapabilities,
   queryAcademicReplay,
   queryAcademicRunDetail,
+  queryUserAgentMemories,
   queryAcademicProjects,
   queryAcademicTaskStatus,
   queryAcademicSessionDetail,
@@ -141,6 +144,9 @@ import {
   requestAcademicResumeStream,
   requestAcademicStream,
   runWorkspaceData,
+  deleteUserAgentMemory,
+  disableUserAgentMemory,
+  saveUserAgentMemory,
   saveModelConfig,
   stopAcademicStream,
   uploadAcademicFile
@@ -306,6 +312,7 @@ function AgentWorkspaceApp() {
   const [groupTeamsLoading, setGroupTeamsLoading] = useState(false);
   const [paymentDialog, setPaymentDialog] = useState(null);
   const [modelConfigOpen, setModelConfigOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const [modelConfig, setModelConfig] = useState(() => getModelConfig());
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState({ username: "", password: "", nickname: "", email: "" });
@@ -359,6 +366,9 @@ function AgentWorkspaceApp() {
   const [packages, setPackages] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [userMemories, setUserMemories] = useState([]);
+  const [userMemoriesLoading, setUserMemoriesLoading] = useState(false);
+  const [userMemoriesError, setUserMemoriesError] = useState("");
   const [taskStatusByChat, setTaskStatusByChat] = useState({});
   const [checkpointByChat, setCheckpointByChat] = useState({});
   const [buyingKey, setBuyingKey] = useState("");
@@ -629,6 +639,28 @@ function AgentWorkspaceApp() {
     setAgentCapabilitiesError(normalizeUserMessage(res.message || res.info, "能力状态读取失败"));
   }, []);
 
+  const loadUserMemories = useCallback(async () => {
+    if (!getUserAuth()?.token) {
+      setUserMemories([]);
+      setUserMemoriesError("");
+      setUserMemoriesLoading(false);
+      return;
+    }
+    setUserMemoriesLoading(true);
+    setUserMemoriesError("");
+    try {
+      const res = await queryUserAgentMemories();
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "长期记忆读取失败"));
+      }
+      setUserMemories(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      setUserMemoriesError(normalizeUserMessage(error.message, "长期记忆读取失败"));
+    } finally {
+      setUserMemoriesLoading(false);
+    }
+  }, []);
+
   const loadOrders = useCallback(async () => {
     if (!getUserAuth()?.token) return;
     setOrdersLoading(true);
@@ -821,7 +853,7 @@ function AgentWorkspaceApp() {
       appendAssistantTextInChat(chatId, messageId, data.content || "");
       return;
     }
-    if (["task_analysis", "mode_selection", "agent_routing", "execution_applied", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "memory_loaded", "skill_loaded", "capability_loaded", "capability_called", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
+    if (["task_analysis", "mode_selection", "agent_routing", "execution_applied", "run_start", "project_context", "plan_delta", "replan_delta", "flow_delta", "memory_loaded", "memory_saved", "skill_loaded", "capability_loaded", "capability_plan", "capability_called", "tool_call", "tool_result", "llm_delta", "diagnosis_delta", "run_done", "run_error", "quota_delta", "usage_metric"].includes(event.event)) {
       const timelineItem = streamEventToTimelineItem(event, normalizeUserMessage);
       const artifacts = eventArtifacts(event);
       const resultPanels = event.event === "tool_result" ? toolResultPanels(event) : [];
@@ -834,6 +866,9 @@ function AgentWorkspaceApp() {
       }));
       if (event.event === "quota_delta") {
         setQuota(data);
+      }
+      if (event.event === "memory_saved") {
+        loadUserMemories().catch(() => {});
       }
       return;
     }
@@ -877,7 +912,7 @@ function AgentWorkspaceApp() {
       }));
       appendAssistantTextInChat(chatId, messageId, `\n\n${errorMessage}`);
     }
-  }, [appendAssistantTextInChat, updateAssistantInChat]);
+  }, [appendAssistantTextInChat, loadUserMemories, updateAssistantInChat]);
 
   const refreshTaskStatus = useCallback(async (sessionId) => {
     if (!getUserAuth()?.token || !sessionId) return null;
@@ -1027,6 +1062,18 @@ function AgentWorkspaceApp() {
       setAgentCapabilitiesError("能力状态读取失败");
     });
   }, [auth?.token, loadAgentCapabilities]);
+
+  useEffect(() => {
+    if (!auth?.token) {
+      setUserMemories([]);
+      setUserMemoriesError("");
+      return;
+    }
+    loadUserMemories().catch((error) => {
+      console.warn("长期记忆读取失败", error);
+      setUserMemoriesError("长期记忆读取失败");
+    });
+  }, [auth?.token, loadUserMemories]);
 
   useEffect(() => {
     if (!auth?.token) return;
@@ -1257,6 +1304,8 @@ function AgentWorkspaceApp() {
     setQuotaFlows([]);
     setAcademicProjects([]);
     setActiveAcademicProjectId("");
+    setUserMemories([]);
+    setUserMemoriesError("");
     setLoginOpen(true);
     setToast("已退出登录");
   };
@@ -1760,6 +1809,111 @@ function AgentWorkspaceApp() {
     });
   };
 
+  const handleDisableUserMemory = async (memory) => {
+    if (!memory?.memoryType || userMemoriesLoading) return;
+    setUserMemoriesLoading(true);
+    setUserMemoriesError("");
+    try {
+      const res = await disableUserAgentMemory(memory.memoryType);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "长期记忆停用失败"));
+      }
+      setUserMemories((prev) => prev.map((item) => (
+        item.memoryType === memory.memoryType ? { ...item, enabled: false } : item
+      )));
+      setToast("长期记忆已停用");
+    } catch (error) {
+      setUserMemoriesError(normalizeUserMessage(error.message, "长期记忆停用失败"));
+    } finally {
+      setUserMemoriesLoading(false);
+    }
+  };
+
+  const handleEnableUserMemory = async (memory) => {
+    if (!memory?.memoryType || !memory?.content || userMemoriesLoading) return;
+    setUserMemoriesLoading(true);
+    setUserMemoriesError("");
+    try {
+      const res = await saveUserAgentMemory({
+        memoryType: memory.memoryType,
+        content: memory.content,
+        enabled: true
+      });
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "长期记忆启用失败"));
+      }
+      setUserMemories((prev) => prev.map((item) => (
+        item.memoryType === memory.memoryType ? { ...item, enabled: true } : item
+      )));
+      setToast("长期记忆已启用");
+    } catch (error) {
+      setUserMemoriesError(normalizeUserMessage(error.message, "长期记忆启用失败"));
+    } finally {
+      setUserMemoriesLoading(false);
+    }
+  };
+
+  const handleToggleUserMemory = async (enabled) => {
+    if (!auth?.token || userMemoriesLoading) {
+      if (!auth?.token) setLoginOpen(true);
+      return;
+    }
+    const candidates = userMemories.filter((memory) => (
+      enabled ? memory?.enabled === false : memory?.enabled !== false
+    ));
+    if (candidates.length === 0) {
+      setToast(enabled ? "暂无可启用的长期记忆" : "暂无可关闭的长期记忆");
+      return;
+    }
+    setUserMemoriesLoading(true);
+    setUserMemoriesError("");
+    try {
+      for (const memory of candidates) {
+        if (enabled) {
+          const res = await saveUserAgentMemory({
+            memoryType: memory.memoryType,
+            content: memory.content,
+            enabled: true
+          });
+          if (!apiSucceeded(res)) throw new Error(res.info || res.message || "长期记忆启用失败");
+        } else {
+          const res = await disableUserAgentMemory(memory.memoryType);
+          if (!apiSucceeded(res)) throw new Error(res.info || res.message || "长期记忆关闭失败");
+        }
+      }
+      setUserMemories((prev) => prev.map((memory) => (
+        candidates.some((item) => item.memoryType === memory.memoryType)
+          ? { ...memory, enabled }
+          : memory
+      )));
+      setToast(enabled ? "长期记忆已启用" : "长期记忆已关闭");
+    } catch (error) {
+      setUserMemoriesError(normalizeUserMessage(error.message, enabled ? "长期记忆启用失败" : "长期记忆关闭失败"));
+      await loadUserMemories().catch(() => {});
+    } finally {
+      setUserMemoriesLoading(false);
+    }
+  };
+
+  const handleDeleteUserMemory = async (memory) => {
+    if (!memory?.memoryType || userMemoriesLoading) return;
+    if (!window.confirm(`确认删除长期记忆「${memory.content || memory.memoryType}」？`)) return;
+    setUserMemoriesLoading(true);
+    setUserMemoriesError("");
+    try {
+      const res = await deleteUserAgentMemory(memory.memoryType);
+      if (!apiSucceeded(res)) {
+        throw new Error(normalizeUserMessage(res.info || res.message, "长期记忆删除失败"));
+      }
+      setUserMemories((prev) => prev.filter((item) => item.memoryType !== memory.memoryType));
+      setToast("长期记忆已删除");
+    } catch (error) {
+      setUserMemoriesError(normalizeUserMessage(error.message, "长期记忆删除失败"));
+    } finally {
+      setUserMemoriesLoading(false);
+    }
+  };
+
   const handleArtifactDownload = async (artifact) => {
     try {
       await downloadAcademicArtifact(artifact.downloadUrl, artifact.fileName || artifact.title || "artifact");
@@ -1960,9 +2114,19 @@ function AgentWorkspaceApp() {
             <div className="decoration-line" />
             <div className="top-actions">
               <ThemeToggle theme={theme} onToggle={toggleTheme} />
-              <button className="account-btn" onClick={() => setModelConfigOpen(true)}>
+              <button type="button" className="account-btn" onClick={() => setModelConfigOpen(true)}>
                 <Settings size={15} />
                 <span>模型</span>
+              </button>
+              <button
+                type="button"
+                className="account-btn"
+                aria-haspopup="dialog"
+                aria-expanded={memoryOpen}
+                onClick={() => setMemoryOpen(true)}
+              >
+                <Brain size={15} />
+                <span>记忆</span>
               </button>
               <button className="quota-chip" onClick={openRecharge}>
                 <Wallet size={15} />
@@ -2337,6 +2501,25 @@ function AgentWorkspaceApp() {
           config={modelConfig}
           onSave={handleSaveModelConfig}
           onClose={() => setModelConfigOpen(false)}
+        />
+      )}
+
+      {memoryOpen && (
+        <MemoryDialog
+          authenticated={Boolean(auth?.token)}
+          memories={userMemories}
+          loading={userMemoriesLoading}
+          error={userMemoriesError}
+          onRefresh={loadUserMemories}
+          onToggle={handleToggleUserMemory}
+          onEnable={handleEnableUserMemory}
+          onDisable={handleDisableUserMemory}
+          onDelete={handleDeleteUserMemory}
+          onLogin={() => {
+            setMemoryOpen(false);
+            setLoginOpen(true);
+          }}
+          onClose={() => setMemoryOpen(false)}
         />
       )}
 
@@ -3306,6 +3489,15 @@ function MessageItem({
                             <span>下载 {artifact.type || "文件"}</span>
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="artifact-rerun"
+                          disabled={isSending}
+                          onClick={() => onRetryAssistant?.(msg)}
+                        >
+                          <RotateCcw size={15} />
+                          <span>重新执行</span>
+                        </button>
                       </div>
                       {isPreviewOpen && <ArtifactInlinePreview preview={preview} />}
                       {!isPreviewOpen && <pre>{artifact.fileName || artifact.content}</pre>}
@@ -3509,6 +3701,45 @@ function ModelConfigDialog({ config, onSave, onClose }) {
           <button type="submit" className="primary">保存</button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function MemoryDialog({
+  authenticated,
+  memories,
+  loading,
+  error,
+  onRefresh,
+  onToggle,
+  onEnable,
+  onDisable,
+  onDelete,
+  onLogin,
+  onClose
+}) {
+  return (
+    <div className="modal-overlay memory-dialog-overlay">
+      <div className="memory-dialog" role="dialog" aria-modal="true" aria-labelledby="memory-dialog-title">
+        <button type="button" className="modal-close" onClick={onClose} aria-label="关闭长期记忆"><X size={18} /></button>
+        <div className="model-config-head">
+          <Brain size={20} />
+          <h3 id="memory-dialog-title">长期记忆</h3>
+        </div>
+        <UserMemoryPanel
+          title="记忆状态"
+          authenticated={authenticated}
+          memories={memories}
+          loading={loading}
+          error={error}
+          onRefresh={onRefresh}
+          onToggle={onToggle}
+          onEnable={onEnable}
+          onDisable={onDisable}
+          onDelete={onDelete}
+          onLogin={onLogin}
+        />
+      </div>
     </div>
   );
 }

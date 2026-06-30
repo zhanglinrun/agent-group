@@ -33,10 +33,34 @@ class UserAgentMemoryServiceTest {
     }
 
     @Test
+    void deletesUserScopedMemory() {
+        FakeRepository repository = new FakeRepository();
+        UserAgentMemoryService service = new UserAgentMemoryService(repository);
+
+        service.save("U1001", "business_context", "多模式 Agent 工作台", true);
+
+        assertTrue(service.delete("U1001", "business_context"));
+        assertTrue(service.query("U1001", 10).isEmpty());
+    }
+
+    @Test
     void rejectsBlankMemoryContent() {
         UserAgentMemoryService service = new UserAgentMemoryService(new FakeRepository());
 
         assertThrows(AppException.class, () -> service.save("U1001", "preference", " ", true));
+    }
+
+    @Test
+    void autoSaveDoesNotReEnableDisabledMemory() {
+        FakeRepository repository = new FakeRepository();
+        UserAgentMemoryService service = new UserAgentMemoryService(repository);
+
+        service.save("U1001", "output_style", "先结论后证据", true);
+        assertTrue(service.disable("U1001", "output_style"));
+        UserAgentMemory saved = service.saveAuto("U1001", "output_style", "使用报告格式");
+
+        assertEquals("先结论后证据", saved.getContent());
+        assertTrue(service.queryEnabled("U1001", 10).isEmpty());
     }
 
     private static class FakeRepository implements UserAgentMemoryRepository {
@@ -69,6 +93,11 @@ class UserAgentMemoryServiceTest {
             }
             memory.setEnabled(false);
             return 1;
+        }
+
+        @Override
+        public int delete(String userId, String memoryType) {
+            return memories.remove(key(userId, memoryType)) == null ? 0 : 1;
         }
 
         private String key(String userId, String memoryType) {

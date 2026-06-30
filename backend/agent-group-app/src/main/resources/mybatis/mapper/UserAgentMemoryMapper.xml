@@ -52,4 +52,10 @@
         where user_id = #{userId}
           and memory_type = #{memoryType}
     </update>
+
+    <delete id="delete">
+        delete from user_agent_memory
+        where user_id = #{userId}
+          and memory_type = #{memoryType}
+    </delete>
 </mapper>

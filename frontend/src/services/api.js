@@ -503,6 +503,36 @@ export async function queryAcademicRunDiagnosis(runId) {
   });
 }
 
+export async function queryUserAgentMemories() {
+  return request("/api/v1/academic/memories", {
+    userAuth: true,
+    method: "GET"
+  });
+}
+
+export async function saveUserAgentMemory(memory) {
+  return request("/api/v1/academic/memories", {
+    userAuth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(memory || {})
+  });
+}
+
+export async function disableUserAgentMemory(memoryType) {
+  return request(`/api/v1/academic/memories/${encodeURIComponent(memoryType)}`, {
+    userAuth: true,
+    method: "DELETE"
+  });
+}
+
+export async function deleteUserAgentMemory(memoryType) {
+  return request(`/api/v1/academic/memories/${encodeURIComponent(memoryType)}/remove`, {
+    userAuth: true,
+    method: "DELETE"
+  });
+}
+
 function decodeQuotedPrintable(text) {
   return text.replace(/=([0-9A-F]{2})/gi, (_, hex) =>
     String.fromCharCode(parseInt(hex, 16))

@@ -273,6 +273,39 @@ describe("agent timeline projection", () => {
     });
   });
 
+  it("projects capability plan and memory saved events into timeline", () => {
+    expect(streamEventToTimelineItem({
+      event: "capability_plan",
+      data: {
+        capabilities: [
+          { name: "file_understanding", title: "文件理解" },
+          { name: "report_generation", title: "报告生成" }
+        ]
+      }
+    })).toMatchObject({
+      type: "capability",
+      status: "planned",
+      title: "能力计划",
+      detail: "文件理解 · 报告生成"
+    });
+
+    expect(streamEventToTimelineItem({
+      event: "memory_saved",
+      data: {
+        memoryCount: 2,
+        memories: [
+          { memoryType: "output_style" },
+          { memoryType: "business_context" }
+        ]
+      }
+    })).toMatchObject({
+      type: "capability",
+      status: "completed",
+      title: "记忆沉淀",
+      detail: "已沉淀 output_style、business_context"
+    });
+  });
+
   it("replays events through the same merge rules", () => {
     const timeline = replayEventsToTimeline([
       {

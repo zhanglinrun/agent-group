@@ -11,6 +11,8 @@ import {
   createPayment,
   createAcademicProject,
   deleteAgentAdminConfig,
+  deleteUserAgentMemory,
+  disableUserAgentMemory,
   discoverMcpTools,
   enableAgentAdminConfig,
   enableMcpServer,
@@ -34,6 +36,7 @@ import {
   queryAcademicRunDetail,
   queryAcademicSessionDetail,
   queryAcademicSessions,
+  queryUserAgentMemories,
   queryMcpServers,
   queryMcpTools,
   queryWorkspaceDataCatalog,
@@ -627,6 +630,9 @@ describe("mcp admin api client", () => {
     await queryAcademicSessions(12);
     await queryAcademicSessionDetail("AS 1001");
     await queryAcademicRunDetail("RUN 1001");
+    await queryUserAgentMemories();
+    await disableUserAgentMemory("output style");
+    await deleteUserAgentMemory("output style");
 
     expect(fetch).toHaveBeenNthCalledWith(
       1,
@@ -653,6 +659,36 @@ describe("mcp admin api client", () => {
       "/api/v1/academic/runs/RUN%201001",
       expect.objectContaining({
         method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token"
+        })
+      })
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      4,
+      "/api/v1/academic/memories",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token"
+        })
+      })
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      5,
+      "/api/v1/academic/memories/output%20style",
+      expect.objectContaining({
+        method: "DELETE",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token"
+        })
+      })
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      6,
+      "/api/v1/academic/memories/output%20style/remove",
+      expect.objectContaining({
+        method: "DELETE",
         headers: expect.objectContaining({
           Authorization: "Bearer user-token"
         })

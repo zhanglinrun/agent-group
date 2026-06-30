@@ -276,6 +276,19 @@ export function streamEventToTimelineItem(
       count: total
     };
   }
+  if (eventName === "memory_saved") {
+    const memories = Array.isArray(data.memories) ? data.memories : [];
+    const types = memories
+      .map((memory) => text(asObject(memory).memoryType))
+      .filter(Boolean);
+    return {
+      type: "capability",
+      status: "completed",
+      title: "记忆沉淀",
+      detail: types.length ? `已沉淀 ${types.join("、")}` : `${Number(data.memoryCount || 0)} 条记忆已保存`,
+      memoryTypes: types
+    };
+  }
   if (eventName === "skill_loaded") {
     const skills = Array.isArray(data.skills) ? data.skills : [];
     return {
@@ -293,6 +306,19 @@ export function streamEventToTimelineItem(
       status: "completed",
       title: "能力装配",
       detail: `${Number(capability.capabilityCount || 0)} 个能力 · ${Number(capability.toolCount || 0)} 个工具 · ${Number(capability.skillCount || 0)} 个技能`
+    };
+  }
+  if (eventName === "capability_plan") {
+    const capabilities = Array.isArray(data.capabilities) ? data.capabilities : [];
+    const names = capabilities
+      .map((capability) => text(asObject(capability).title || asObject(capability).name))
+      .filter(Boolean);
+    return {
+      type: "capability",
+      status: "planned",
+      title: "能力计划",
+      detail: names.length ? names.join(" · ") : text(data.summary),
+      capabilities
     };
   }
   if (eventName === "capability_called") {

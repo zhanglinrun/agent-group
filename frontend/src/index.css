@@ -4503,6 +4503,40 @@ body {
   color: var(--text-secondary);
 }
 
+.bear-doctor-app .user-memory-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.bear-doctor-app .memory-dialog {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
+  padding: 26px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  border-radius: 14px;
+  background: #111827;
+  color: var(--text-primary);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+  display: grid;
+  gap: 16px;
+  animation: bearDoctorDialogSlideIn 0.25s ease-out;
+}
+
+.bear-doctor-app .memory-dialog .user-memory-panel {
+  padding-top: 2px;
+}
+
+.bear-doctor-app .memory-dialog .user-memory-head {
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
 .bear-doctor-app .session-memory-head {
   display: flex;
   align-items: center;
@@ -4510,15 +4544,92 @@ body {
   gap: 12px;
 }
 
-.bear-doctor-app .session-memory-head strong {
+.bear-doctor-app .user-memory-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bear-doctor-app .user-memory-head > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.bear-doctor-app .session-memory-head strong,
+.bear-doctor-app .user-memory-head strong {
   color: var(--text-primary);
   font-size: 14px;
 }
 
 .bear-doctor-app .session-memory-head span,
-.bear-doctor-app .session-memory-artifact {
+.bear-doctor-app .session-memory-artifact,
+.bear-doctor-app .user-memory-head span {
   font-size: 12px;
   line-height: 1.5;
+}
+
+.bear-doctor-app .user-memory-head-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bear-doctor-app .user-memory-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: default;
+}
+
+.bear-doctor-app .user-memory-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bear-doctor-app .user-memory-switch span {
+  width: 30px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.3);
+  position: relative;
+}
+
+.bear-doctor-app .user-memory-switch span::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.16s ease;
+}
+
+.bear-doctor-app .user-memory-switch input:checked + span {
+  background: rgba(34, 197, 94, 0.75);
+}
+
+.bear-doctor-app .user-memory-switch input:checked + span::after {
+  transform: translateX(12px);
+}
+
+.bear-doctor-app .user-memory-head button {
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.bear-doctor-app .user-memory-head button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .bear-doctor-app .session-memory-stats {
@@ -4547,6 +4658,104 @@ body {
   margin-top: 10px;
   color: var(--text-primary);
   word-break: break-word;
+}
+
+.bear-doctor-app .user-memory-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.bear-doctor-app .user-memory-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.bear-doctor-app .user-memory-item.disabled {
+  opacity: 0.62;
+}
+
+.bear-doctor-app .user-memory-item strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.bear-doctor-app .user-memory-item p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.bear-doctor-app .user-memory-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.bear-doctor-app .user-memory-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.bear-doctor-app .user-memory-actions button.danger {
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+}
+
+.bear-doctor-app .user-memory-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bear-doctor-app .user-memory-empty,
+.bear-doctor-app .user-memory-error {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.bear-doctor-app .user-memory-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.bear-doctor-app .user-memory-empty button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 8px;
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--accent-light);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.bear-doctor-app .user-memory-error {
+  color: #fca5a5;
 }
 
 .bear-doctor-app .timeline-section,
@@ -6086,7 +6295,8 @@ body {
 }
 
 .bear-doctor-app .artifact-preview-toggle,
-.bear-doctor-app .artifact-download {
+.bear-doctor-app .artifact-download,
+.bear-doctor-app .artifact-rerun {
   width: fit-content;
   min-height: 34px;
   display: inline-flex;
@@ -6104,6 +6314,17 @@ body {
   font-family: inherit;
 }
 
+.bear-doctor-app .artifact-rerun {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+}
+
+.bear-doctor-app .artifact-rerun:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .bear-doctor-app .artifact-preview-toggle {
   border-color: rgba(148, 163, 184, 0.28);
   background: rgba(148, 163, 184, 0.1);
@@ -6117,7 +6338,8 @@ body {
 }
 
 .bear-doctor-app .artifact-preview-toggle:hover,
-.bear-doctor-app .artifact-download:hover {
+.bear-doctor-app .artifact-download:hover,
+.bear-doctor-app .artifact-rerun:hover:not(:disabled) {
   background: rgba(6, 182, 212, 0.2);
   border-color: rgba(6, 182, 212, 0.5);
 }
@@ -10211,6 +10433,7 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .auth-dialog,
 .bear-doctor-app[data-theme] .recharge-dialog,
 .bear-doctor-app[data-theme] .model-config-dialog,
+.bear-doctor-app[data-theme] .memory-dialog,
 .bear-doctor-app[data-theme] .payment-confirm-dialog {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
@@ -10222,6 +10445,30 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme] .group-detail-dialog .modal-close {
   background: var(--app-surface-2);
   border: 1px solid var(--app-border);
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .memory-dialog .user-memory-head,
+.bear-doctor-app[data-theme] .user-memory-item {
+  background: var(--app-surface-2);
+  border-color: var(--app-border);
+}
+
+.bear-doctor-app[data-theme] .user-memory-head button {
+  background: var(--app-surface);
+  border-color: var(--app-border);
+  color: var(--app-muted);
+}
+
+.bear-doctor-app[data-theme] .user-memory-head strong,
+.bear-doctor-app[data-theme] .user-memory-item strong {
+  color: var(--app-text);
+}
+
+.bear-doctor-app[data-theme] .user-memory-panel,
+.bear-doctor-app[data-theme] .user-memory-head span,
+.bear-doctor-app[data-theme] .user-memory-item p,
+.bear-doctor-app[data-theme] .user-memory-empty {
   color: var(--app-muted);
 }
 
@@ -10473,6 +10720,7 @@ body[data-theme="light"] {
 .bear-doctor-app[data-theme="light"] .auth-dialog,
 .bear-doctor-app[data-theme="light"] .recharge-dialog,
 .bear-doctor-app[data-theme="light"] .model-config-dialog,
+.bear-doctor-app[data-theme="light"] .memory-dialog,
 .bear-doctor-app[data-theme="light"] .payment-confirm-dialog {
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
 }

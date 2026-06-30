@@ -72,7 +72,7 @@ public class AcademicArtifactService {
         List<AcademicSessionDetailResponse.Artifact> artifacts = scanArtifacts(userId, sessionId, sinceMillis);
         if (!artifacts.isEmpty()) {
             applyMetadata(artifacts, runId, toolInvocationId, sourceType, sourceName);
-            saveManifest(userId, sessionId, artifacts);
+            saveManifest(userId, sessionId, mergeArtifacts(loadManifest(userId, sessionId), artifacts));
             saveArtifactRecords(userId, sessionId, artifacts);
         }
         return artifacts;
@@ -81,6 +81,16 @@ public class AcademicArtifactService {
     public List<AcademicSessionDetailResponse.Artifact> collectFromAnswerAndSave(String userId,
                                                                                  String sessionId,
                                                                                  String answer) {
+        return collectFromAnswerAndSave(userId, sessionId, answer, "", "", "AGENT", "");
+    }
+
+    public List<AcademicSessionDetailResponse.Artifact> collectFromAnswerAndSave(String userId,
+                                                                                 String sessionId,
+                                                                                 String answer,
+                                                                                 String runId,
+                                                                                 String toolInvocationId,
+                                                                                 String sourceType,
+                                                                                 String sourceName) {
         if (!StringUtils.hasText(answer)) {
             return List.of();
         }
@@ -114,10 +124,44 @@ public class AcademicArtifactService {
         }
         collectMentionedFileNames(userId, sessionId, answer, artifacts);
         if (!artifacts.isEmpty()) {
-            saveManifest(userId, sessionId, artifacts);
+            applyMetadata(artifacts, runId, toolInvocationId, sourceType, sourceName);
+            saveManifest(userId, sessionId, mergeArtifacts(loadManifest(userId, sessionId), artifacts));
             saveArtifactRecords(userId, sessionId, artifacts);
         }
         return artifacts;
+    }
+
+    public AcademicSessionDetailResponse.Artifact saveAnswerReport(String userId,
+                                                                   String sessionId,
+                                                                   String runId,
+                                                                   String title,
+                                                                   String answer) {
+        if (!StringUtils.hasText(answer)) {
+            return null;
+        }
+        try {
+            Path sessionDir = sessionDir(userId, sessionId);
+            Files.createDirectories(sessionDir);
+            String fileName = "deep-report-" + safeFilePart(runId, String.valueOf(System.currentTimeMillis())) + ".md";
+            Path file = sessionDir.resolve(fileName).normalize();
+            if (!file.startsWith(sessionDir)) {
+                return null;
+            }
+            String report = "# " + (StringUtils.hasText(title) ? title.trim() : "Agent 任务报告")
+                    + "\n\n" + answer.trim() + "\n";
+            Files.writeString(file, report, StandardCharsets.UTF_8);
+            AcademicSessionDetailResponse.Artifact artifact =
+                    toArtifact(sessionId, root().relativize(file), lastModified(file));
+            artifact.setTitle(StringUtils.hasText(title) ? title.trim() : "Agent 任务报告");
+            artifact.setRunId(nullToBlank(runId));
+            artifact.setSourceType("AGENT");
+            artifact.setSourceName("report_generation");
+            saveManifest(userId, sessionId, mergeArtifacts(loadManifest(userId, sessionId), List.of(artifact)));
+            saveArtifactRecord(userId, sessionId, artifact);
+            return artifact;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private void collectMentionedFileNames(String userId,
@@ -375,6 +419,23 @@ public class AcademicArtifactService {
         }
     }
 
+    private List<AcademicSessionDetailResponse.Artifact> mergeArtifacts(
+            List<AcademicSessionDetailResponse.Artifact> current,
+            List<AcademicSessionDetailResponse.Artifact> incoming) {
+        Map<String, AcademicSessionDetailResponse.Artifact> result = new LinkedHashMap<>();
+        for (AcademicSessionDetailResponse.Artifact artifact : current == null ? List.<AcademicSessionDetailResponse.Artifact>of() : current) {
+            if (artifact != null && StringUtils.hasText(artifact.getArtifactId())) {
+                result.put(artifact.getArtifactId(), artifact);
+            }
+        }
+        for (AcademicSessionDetailResponse.Artifact artifact : incoming == null ? List.<AcademicSessionDetailResponse.Artifact>of() : incoming) {
+            if (artifact != null && StringUtils.hasText(artifact.getArtifactId())) {
+                result.put(artifact.getArtifactId(), artifact);
+            }
+        }
+        return new ArrayList<>(result.values());
+    }
+
     private Path manifestPath(String userId, String sessionId) {
         return root().resolve(".agent-artifacts").resolve(encode(userId + ":" + sessionId) + ".json");
     }
@@ -492,6 +553,13 @@ public class AcademicArtifactService {
 
     private String fileName(Path path) {
         return path.getFileName() == null ? "" : path.getFileName().toString();
+    }
+
+    private String safeFilePart(String value, String fallback) {
+        String text = StringUtils.hasText(value) ? value.trim() : fallback;
+        text = text.replaceAll("[^a-zA-Z0-9_-]+", "-")
+                .replaceAll("^-+|-+$", "");
+        return StringUtils.hasText(text) ? text : fallback;
     }
 
     private String encode(String value) {

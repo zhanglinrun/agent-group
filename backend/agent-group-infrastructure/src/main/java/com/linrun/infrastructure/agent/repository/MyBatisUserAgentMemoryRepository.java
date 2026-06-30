@@ -40,6 +40,11 @@ public class MyBatisUserAgentMemoryRepository implements UserAgentMemoryReposito
         return memoryDao.disable(userId, memoryType);
     }
 
+    @Override
+    public int delete(String userId, String memoryType) {
+        return memoryDao.delete(userId, memoryType);
+    }
+
     private UserAgentMemoryPO toPO(UserAgentMemory entity) {
         if (entity == null) {
             return null;

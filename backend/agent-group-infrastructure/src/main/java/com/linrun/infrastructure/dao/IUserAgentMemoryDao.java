@@ -20,4 +20,7 @@ public interface IUserAgentMemoryDao {
 
     int disable(@Param("userId") String userId,
                 @Param("memoryType") String memoryType);
+
+    int delete(@Param("userId") String userId,
+               @Param("memoryType") String memoryType);
 }

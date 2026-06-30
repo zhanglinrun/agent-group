@@ -20,6 +20,8 @@ import com.linrun.api.dto.QuotaAccountResponse;
 import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
 import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
+import com.linrun.domain.academic.memory.model.UserAgentMemory;
+import com.linrun.domain.academic.memory.service.UserAgentMemoryService;
 import com.linrun.domain.academic.project.service.AcademicProjectService;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowProjector;
 import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowStage;
@@ -64,6 +66,7 @@ public class AcademicAgentHandler {
     private final AcademicArtifactService academicArtifactService;
     private final AcademicExecutionLedgerService academicExecutionLedgerService;
     private final AcademicProjectService academicProjectService;
+    private final UserAgentMemoryService userAgentMemoryService;
     private final ObjectMapper objectMapper;
     private final AcademicAgentJsonCodec jsonCodec;
     private final AgentDiagnosisService diagnosisService;
@@ -82,6 +85,7 @@ public class AcademicAgentHandler {
                                     AcademicArtifactService academicArtifactService,
                                     AcademicExecutionLedgerService academicExecutionLedgerService,
                                     AcademicProjectService academicProjectService,
+                                    UserAgentMemoryService userAgentMemoryService,
                                     ObjectMapper objectMapper,
                                     AcademicAgentJsonCodec jsonCodec,
                                     AgentDiagnosisService diagnosisService) {
@@ -94,6 +98,7 @@ public class AcademicAgentHandler {
         this.academicArtifactService = academicArtifactService;
         this.academicExecutionLedgerService = academicExecutionLedgerService;
         this.academicProjectService = academicProjectService;
+        this.userAgentMemoryService = userAgentMemoryService;
         this.objectMapper = objectMapper;
         this.jsonCodec = jsonCodec;
         this.diagnosisService = diagnosisService;
@@ -156,6 +161,7 @@ public class AcademicAgentHandler {
             RunState runState = new RunState(run, ledgerContext, query, modelName, startedAt,
                     webSearchEnabled, executionPlan, orchestrationPlan, requestedTaskType, executionAgentType);
             runState.projectId = projectId;
+            runState.fileId = fileId;
             runState.projectContext = projectContext(user.getUserId(), projectId);
 
             boolean identityQuestion = isModelIdentityQuestion(query);
@@ -397,6 +403,7 @@ public class AcademicAgentHandler {
                             runState.orchestrationPlan)));
         }
         events.add(event("run_start", sessionId, requestId, sequence, runStart(runState)));
+        events.add(event("capability_plan", sessionId, requestId, sequence, capabilityPlan(runState)));
         if (!runState.projectContext.isEmpty()) {
             events.add(event("project_context", sessionId, requestId, sequence, runState.projectContext));
         }
@@ -690,6 +697,7 @@ public class AcademicAgentHandler {
                         academicArtifactService.toEventPayload(artifact)));
             }
         }
+        events.addAll(artifactCompletionEvents(user, sessionId, requestId, sequence, taskType, startedAt, runState));
         AcademicAgentFlowProgressResult progress = flowProgressProjector.completeRemaining(
                 runState.executionPlan, runState.currentFlowStageIndex);
         runState.currentFlowStageIndex = progress.getCurrentStageIndex();
@@ -709,6 +717,7 @@ public class AcademicAgentHandler {
                 false, "", durationMillis);
         academicExecutionLedgerService.finishRun(runState.run, AcademicAgentRun.STATUS_SUCCESS,
                 runState.answer.toString(), "", "", durationMillis);
+        events.addAll(memoryCompletionEvents(user, sessionId, requestId, sequence, runState));
         events.add(event("diagnosis_delta", sessionId, requestId, sequence, diagnosis(runState, durationMillis)));
         events.add(event("run_done", sessionId, requestId, sequence, runDone(runState.run)));
         events.add(event("done", sessionId, requestId, sequence, "done"));
@@ -763,6 +772,169 @@ public class AcademicAgentHandler {
         return output;
     }
 
+    private List<QuotaStreamEvent<?>> artifactCompletionEvents(UserAccount user,
+                                                               String sessionId,
+                                                               String requestId,
+                                                               AtomicInteger sequence,
+                                                               String taskType,
+                                                               long startedAt,
+                                                               RunState runState) {
+        if (!shouldCollectArtifacts(taskType, runState)) {
+            return List.of();
+        }
+        Map<String, AcademicSessionDetailResponse.Artifact> artifacts = new LinkedHashMap<>();
+        try {
+            for (AcademicSessionDetailResponse.Artifact artifact : academicArtifactService.collectAndSave(
+                    user.getUserId(), sessionId, startedAt, runState.run.getRunId(), "", "AGENT", taskType)) {
+                putArtifact(artifacts, artifact);
+            }
+            for (AcademicSessionDetailResponse.Artifact artifact : academicArtifactService.collectFromAnswerAndSave(
+                    user.getUserId(), sessionId, runState.answer.toString(),
+                    runState.run.getRunId(), "", "AGENT", taskType)) {
+                putArtifact(artifacts, artifact);
+            }
+            if (shouldSaveAnswerReport(taskType, runState)) {
+                AcademicSessionDetailResponse.Artifact report = academicArtifactService.saveAnswerReport(
+                        user.getUserId(), sessionId, runState.run.getRunId(),
+                        reportTitle(runState), runState.answer.toString());
+                putArtifact(artifacts, report);
+            }
+        } catch (Exception ignored) {
+            return List.of();
+        }
+        List<QuotaStreamEvent<?>> events = new ArrayList<>();
+        for (AcademicSessionDetailResponse.Artifact artifact : artifacts.values()) {
+            events.add(event("artifact_delta", sessionId, requestId, sequence,
+                    academicArtifactService.toEventPayload(artifact)));
+        }
+        return events;
+    }
+
+    private boolean shouldCollectArtifacts(String taskType, RunState runState) {
+        String type = normalizeTaskType(taskType);
+        return "deep".equals(type)
+                || "file".equals(type)
+                || "data".equals(type)
+                || "image".equals(type)
+                || "ppt".equals(type)
+                || (runState != null && hasAny(nullToBlank(runState.question).toLowerCase(),
+                "报告", "ppt", "演示文稿", "图片", "文件", "分析"));
+    }
+
+    private boolean shouldSaveAnswerReport(String taskType, RunState runState) {
+        String type = normalizeTaskType(taskType);
+        return StringUtils.hasText(runState.answer.toString())
+                && ("deep".equals(type)
+                || "file".equals(type)
+                || "data".equals(type)
+                || hasAny(nullToBlank(runState.question).toLowerCase(), "报告", "方案", "分析", "总结"));
+    }
+
+    private void putArtifact(Map<String, AcademicSessionDetailResponse.Artifact> artifacts,
+                             AcademicSessionDetailResponse.Artifact artifact) {
+        if (artifact != null && StringUtils.hasText(artifact.getArtifactId())) {
+            artifacts.put(artifact.getArtifactId(), artifact);
+        }
+    }
+
+    private String reportTitle(RunState runState) {
+        return limit(firstText(runState.question, "Agent 任务报告").replaceAll("\\s+", " ").trim(), 36);
+    }
+
+    private List<QuotaStreamEvent<?>> memoryCompletionEvents(UserAccount user,
+                                                            String sessionId,
+                                                            String requestId,
+                                                            AtomicInteger sequence,
+                                                            RunState runState) {
+        List<Map<String, Object>> saved = new ArrayList<>();
+        for (MemoryCandidate candidate : memoryCandidates(runState)) {
+            try {
+                UserAgentMemory memory = userAgentMemoryService.saveAuto(
+                        user.getUserId(), candidate.memoryType(), candidate.content());
+                if (memory != null && Boolean.TRUE.equals(memory.getEnabled())) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("memoryType", memory.getMemoryType());
+                    item.put("enabled", Boolean.TRUE.equals(memory.getEnabled()));
+                    item.put("content", memory.getContent());
+                    saved.add(item);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        if (saved.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", runState.run.getRunId());
+        data.put("sessionId", sessionId);
+        data.put("source", "run_completion");
+        data.put("memoryCount", saved.size());
+        data.put("memories", saved);
+        return List.of(event("memory_saved", sessionId, requestId, sequence, data));
+    }
+
+    private List<MemoryCandidate> memoryCandidates(RunState runState) {
+        if (runState == null) {
+            return List.of();
+        }
+        String question = nullToBlank(runState.question);
+        String answer = nullToBlank(runState.answer.toString());
+        List<MemoryCandidate> candidates = new ArrayList<>();
+        String style = inferOutputStyle(question, answer);
+        if (StringUtils.hasText(style)) {
+            candidates.add(new MemoryCandidate("output_style", style));
+        }
+        String background = inferBusinessContext(question, answer);
+        if (StringUtils.hasText(background)) {
+            candidates.add(new MemoryCandidate("business_context", background));
+        }
+        String preference = inferPreference(question);
+        if (StringUtils.hasText(preference)) {
+            candidates.add(new MemoryCandidate("preference", preference));
+        }
+        return candidates;
+    }
+
+    private String inferOutputStyle(String question, String answer) {
+        String text = (question + "\n" + answer).toLowerCase();
+        if (hasAny(text, "秋招", "面试", "简历", "项目亮点")) {
+            return "偏好秋招面试表达：先讲项目价值，再讲架构、取舍、异常处理和可观测证据。";
+        }
+        if (hasAny(text, "报告", "方案", "总结", "分析")) {
+            return "偏好结构化报告输出：先结论，再分点说明依据、风险和下一步。";
+        }
+        if (hasAny(text, "ppt", "演示文稿", "幻灯片")) {
+            return "偏好演示文稿输出：标题清晰、页面结构紧凑、适合技术项目汇报。";
+        }
+        return "";
+    }
+
+    private String inferBusinessContext(String question, String answer) {
+        String text = question + "\n" + answer;
+        if (hasAny(text.toLowerCase(), "agent", "智能体", "多模式", "deep", "a2a")) {
+            return "业务背景：用户正在建设多模式 Agent 工作台，关注 deep 任务执行、能力调用、产物沉淀和记忆成长。";
+        }
+        if (hasAny(text.toLowerCase(), "拼团", "交易", "额度", "支付", "订单")) {
+            return "业务背景：用户项目包含拼团式额度交易平台，关注订单、支付、额度和状态一致性。";
+        }
+        return "";
+    }
+
+    private String inferPreference(String question) {
+        String text = nullToBlank(question);
+        String lower = text.toLowerCase();
+        if (hasAny(lower, "完整", "补齐", "不要最小闭环", "别每次都是最小闭环")) {
+            return "偏好完整交付：实现时尽量补齐可运行、可展示、可维护的闭环，避免只交占位骨架。";
+        }
+        if (hasAny(lower, "简历", "含金量", "秋招")) {
+            return "偏好简历含金量优先：做少而硬、能讲清架构和取舍的能力。";
+        }
+        return "";
+    }
+
+    private record MemoryCandidate(String memoryType, String content) {
+    }
+
     private Map<String, Object> runStart(RunState runState) {
         AcademicAgentRun run = runState.run;
         Map<String, Object> data = new LinkedHashMap<>();
@@ -776,6 +948,63 @@ public class AcademicAgentHandler {
         data.put("status", run.getStatus());
         data.put("startedAt", run.getStartedAt());
         return data;
+    }
+
+    private Map<String, Object> capabilityPlan(RunState runState) {
+        List<Map<String, Object>> capabilities = plannedCapabilities(runState);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", runState.run.getRunId());
+        data.put("executionAgentType", runState.executionAgentType);
+        data.put("taskType", runState.executionAgentType);
+        data.put("capabilityCount", capabilities.size());
+        data.put("capabilities", capabilities);
+        data.put("summary", capabilities.isEmpty()
+                ? "本轮按普通对话执行"
+                : "已规划 " + capabilities.size() + " 个能力调用");
+        return data;
+    }
+
+    private List<Map<String, Object>> plannedCapabilities(RunState runState) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        String taskType = normalizeTaskType(runState.executionAgentType);
+        String question = nullToBlank(runState.question).toLowerCase();
+        if ("file".equals(taskType) || StringUtils.hasText(runState.fileId) || hasAny(question, "文件", "论文", "材料", "附件", "pdf", "excel", "csv")) {
+            result.add(capability("file_understanding", "文件理解", "读取并归纳用户上传或会话中的文件材料"));
+        }
+        if (runState.webSearchEnabled || "search".equals(taskType) || hasAny(question, "联网", "搜索", "最新", "资料", "调研", "检索")) {
+            result.add(capability("web_search", "联网搜索", "检索外部资料并整理参考来源"));
+        }
+        if ("ppt".equals(taskType) || hasAny(question, "ppt", "演示文稿", "幻灯片")) {
+            result.add(capability("ppt_generation", "PPT 生成", "生成可下载的演示文稿"));
+        }
+        if ("image".equals(taskType) || hasAny(question, "图片", "海报", "配图", "插画", "生成图")) {
+            result.add(capability("image_generation", "图片生成", "生成图片或视觉素材"));
+        }
+        if ("deep".equals(taskType) || "data".equals(taskType) || hasAny(question, "报告", "总结", "方案", "分析", "输出", "整理")) {
+            result.add(capability("report_generation", "报告生成", "沉淀结构化报告和可下载文本产物"));
+        }
+        return result;
+    }
+
+    private Map<String, Object> capability(String name, String title, String description) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("name", name);
+        data.put("title", title);
+        data.put("description", description);
+        data.put("status", "planned");
+        return data;
+    }
+
+    private boolean hasAny(String text, String... keywords) {
+        if (!StringUtils.hasText(text) || keywords == null) {
+            return false;
+        }
+        for (String keyword : keywords) {
+            if (StringUtils.hasText(keyword) && text.contains(keyword.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Map<String, Object> projectContext(String userId, String projectId) {
@@ -1671,6 +1900,7 @@ public class AcademicAgentHandler {
         private boolean skillLoaded;
         private BigDecimal consumedQuota = BigDecimal.ZERO;
         private String projectId = "";
+        private String fileId = "";
         private Map<String, Object> projectContext = Map.of();
         private final Map<String, Integer> calledCapabilities = new LinkedHashMap<>();
 

@@ -77,5 +77,10 @@ class LedgerAgentMemoryServiceTest {
         public int disable(String userId, String memoryType) {
             return 0;
         }
+
+        @Override
+        public int delete(String userId, String memoryType) {
+            return 0;
+        }
     }
 }

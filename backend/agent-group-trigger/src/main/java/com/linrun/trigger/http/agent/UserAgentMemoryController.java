@@ -64,6 +64,15 @@ public class UserAgentMemoryController {
                 RequestTraceContext.getRequestId());
     }
 
+    @DeleteMapping("/{memoryType}/remove")
+    public Response<Boolean> delete(
+            @RequestHeader(value = "Authorization", required = false) String token,
+            @PathVariable String memoryType) {
+        UserAccount user = userAccountService.requireUserByToken(token);
+        return Response.success(memoryService.delete(user.getUserId(), memoryType),
+                RequestTraceContext.getRequestId());
+    }
+
     private UserAgentMemoryResponse toResponse(UserAgentMemory memory) {
         UserAgentMemoryResponse response = new UserAgentMemoryResponse();
         response.setMemoryType(memory.getMemoryType());

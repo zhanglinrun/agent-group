@@ -52,9 +52,26 @@ public class UserAgentMemoryService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    public UserAgentMemory saveAuto(String userId, String memoryType, String content) {
+        requireUser(userId);
+        String normalizedType = memoryType(memoryType);
+        UserAgentMemory existing = memoryRepository.queryByType(userId.trim(), normalizedType).orElse(null);
+        if (existing != null && Boolean.FALSE.equals(existing.getEnabled())) {
+            return existing;
+        }
+        return save(userId, normalizedType, content, true);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public boolean disable(String userId, String memoryType) {
         requireUser(userId);
         return memoryRepository.disable(userId.trim(), memoryType(memoryType)) > 0;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public boolean delete(String userId, String memoryType) {
+        requireUser(userId);
+        return memoryRepository.delete(userId.trim(), memoryType(memoryType)) > 0;
     }
 
     private void requireUser(String userId) {

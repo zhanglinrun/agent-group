@@ -14,4 +14,6 @@ public interface UserAgentMemoryRepository {
     void upsert(UserAgentMemory memory);
 
     int disable(String userId, String memoryType);
+
+    int delete(String userId, String memoryType);
 }
