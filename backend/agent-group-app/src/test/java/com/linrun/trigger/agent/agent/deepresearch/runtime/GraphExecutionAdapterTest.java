@@ -82,7 +82,6 @@ class GraphExecutionAdapterTest {
     @Test
     void agentRunContextBuildsRoleScopedViews() {
         AgentRunContext context = AgentRunContext.builder()
-                .tenantId("tenant-a")
                 .userId("U1001")
                 .sessionId("S1001")
                 .runId("R1001")

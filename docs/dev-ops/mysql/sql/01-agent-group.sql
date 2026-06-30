@@ -411,6 +411,19 @@ create table if not exists user_model_config (
   primary key (user_id)
 ) engine=InnoDB default charset=utf8mb4 comment='用户自定义模型配置表';
 
+create table if not exists user_agent_memory (
+  id bigint unsigned not null auto_increment comment '自增主键',
+  user_id varchar(64) not null comment '用户编号',
+  memory_type varchar(32) not null comment '记忆类型',
+  content varchar(2048) not null comment '记忆内容',
+  enabled tinyint not null default 1 comment '是否启用',
+  create_time datetime not null default current_timestamp comment '创建时间',
+  update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+  primary key (id),
+  unique key uk_user_memory_type (user_id, memory_type),
+  key idx_user_enabled_time (user_id, enabled, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='用户 Agent 长期记忆表';
+
 create table if not exists academic_agent_session (
   id bigint unsigned not null auto_increment comment '自增主键',
   session_id varchar(64) not null comment '会话编号',

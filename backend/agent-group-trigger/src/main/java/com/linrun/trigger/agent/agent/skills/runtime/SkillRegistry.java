@@ -4,5 +4,5 @@ import java.util.List;
 
 public interface SkillRegistry {
 
-    List<SkillRuntimeDescriptor> availableSkills(String tenantId, String mode, String taskType);
+    List<SkillRuntimeDescriptor> availableSkills(String mode, String taskType);
 }

@@ -21,7 +21,7 @@ public class ManualSkillRegistry implements SkillRegistry {
     }
 
     @Override
-    public List<SkillRuntimeDescriptor> availableSkills(String tenantId, String mode, String taskType) {
+    public List<SkillRuntimeDescriptor> availableSkills(String mode, String taskType) {
         if (skillManager == null) {
             return List.of();
         }

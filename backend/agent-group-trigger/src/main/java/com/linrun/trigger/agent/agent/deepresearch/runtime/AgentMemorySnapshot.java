@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 public record AgentMemorySnapshot(
-        String tenantId,
         String userId,
         String sessionId,
         List<String> shortTerm,
@@ -15,7 +14,6 @@ public record AgentMemorySnapshot(
 ) {
 
     public AgentMemorySnapshot {
-        tenantId = safe(tenantId);
         userId = safe(userId);
         sessionId = safe(sessionId);
         shortTerm = copy(shortTerm);
@@ -23,13 +21,12 @@ public record AgentMemorySnapshot(
         longTerm = longTermEnabled ? copy(longTerm) : List.of();
     }
 
-    public static AgentMemorySnapshot empty(String tenantId, String userId, String sessionId) {
-        return new AgentMemorySnapshot(tenantId, userId, sessionId, List.of(), List.of(), List.of(), false);
+    public static AgentMemorySnapshot empty(String userId, String sessionId) {
+        return new AgentMemorySnapshot(userId, sessionId, List.of(), List.of(), List.of(), false);
     }
 
     public Map<String, Object> evidence() {
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("tenantId", tenantId);
         data.put("userId", userId);
         data.put("sessionId", sessionId);
         data.put("shortTermCount", shortTerm.size());

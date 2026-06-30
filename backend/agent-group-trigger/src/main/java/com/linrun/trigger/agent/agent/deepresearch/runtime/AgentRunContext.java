@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class AgentRunContext {
 
-    private final String tenantId;
     private final String userId;
     private final String sessionId;
     private final String runId;
@@ -41,7 +40,6 @@ public class AgentRunContext {
     private String reviewFeedback = "";
 
     private AgentRunContext(Builder builder) {
-        this.tenantId = blank(builder.tenantId);
         this.userId = blank(builder.userId);
         this.sessionId = blank(builder.sessionId);
         this.runId = blank(builder.runId);
@@ -55,7 +53,7 @@ public class AgentRunContext {
         this.finished = builder.finished;
         this.thinkingBuffer = builder.thinkingBuffer;
         this.memorySnapshot = builder.memorySnapshot == null
-                ? AgentMemorySnapshot.empty(this.tenantId, this.userId, this.sessionId)
+                ? AgentMemorySnapshot.empty(this.userId, this.sessionId)
                 : builder.memorySnapshot;
         this.availableSkills = builder.availableSkills == null ? List.of() : List.copyOf(builder.availableSkills);
     }
@@ -84,10 +82,6 @@ public class AgentRunContext {
                 .finished(finished)
                 .thinkingBuffer(thinkingBuffer)
                 .build();
-    }
-
-    public String tenantId() {
-        return tenantId;
     }
 
     public String userId() {
@@ -184,7 +178,7 @@ public class AgentRunContext {
 
     public void memorySnapshot(AgentMemorySnapshot memorySnapshot) {
         this.memorySnapshot = memorySnapshot == null
-                ? AgentMemorySnapshot.empty(tenantId, userId, sessionId)
+                ? AgentMemorySnapshot.empty(userId, sessionId)
                 : memorySnapshot;
     }
 
@@ -195,6 +189,9 @@ public class AgentRunContext {
                 .put("mode", mode)
                 .put("taskType", taskType)
                 .put("memory", memorySnapshot.evidence())
+                .put("shortTermMemory", memorySnapshot.shortTerm())
+                .put("taskMemory", memorySnapshot.taskMemory())
+                .put("userPreferenceMemory", memorySnapshot.longTerm())
                 .put("skillCount", availableSkills.size())
                 .put("availableSkillNames", availableSkills.stream().map(SkillRuntimeDescriptor::name).toList())
                 .build();
@@ -204,7 +201,9 @@ public class AgentRunContext {
         return AgentRoleContext.builder(AgentRoleContext.Role.WORKER)
                 .put("identity", identity())
                 .put("currentPlan", currentPlan.stream().map(PlanTask::instruction).toList())
-                .put("shortTermMemoryCount", memorySnapshot.shortTerm().size())
+                .put("shortTermMemory", memorySnapshot.shortTerm())
+                .put("taskMemory", memorySnapshot.taskMemory())
+                .put("userPreferenceMemory", memorySnapshot.longTerm())
                 .put("skillCount", availableSkills.size())
                 .put("skills", availableSkills.stream()
                         .map(skill -> skill.toAuditMap(registeredTools == null ? java.util.Set.of() : java.util.Set.copyOf(registeredTools)))
@@ -218,7 +217,8 @@ public class AgentRunContext {
                 .put("identity", identity())
                 .put("planCount", currentPlan.size())
                 .put("resultCount", currentResults.size())
-                .put("taskMemoryCount", memorySnapshot.taskMemory().size())
+                .put("taskMemory", memorySnapshot.taskMemory())
+                .put("userPreferenceMemory", memorySnapshot.longTerm())
                 .put("failedTasks", currentResults.values().stream()
                         .filter(result -> result != null && !result.success())
                         .map(TaskResult::taskId)
@@ -236,7 +236,6 @@ public class AgentRunContext {
 
     private Map<String, Object> identity() {
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("tenantId", tenantId);
         data.put("userId", userId);
         data.put("sessionId", sessionId);
         data.put("runId", runId);
@@ -251,7 +250,6 @@ public class AgentRunContext {
     }
 
     public static class Builder {
-        private String tenantId;
         private String userId;
         private String sessionId;
         private String runId;
@@ -266,11 +264,6 @@ public class AgentRunContext {
         private StringBuilder thinkingBuffer;
         private AgentMemorySnapshot memorySnapshot;
         private List<SkillRuntimeDescriptor> availableSkills = List.of();
-
-        public Builder tenantId(String tenantId) {
-            this.tenantId = tenantId;
-            return this;
-        }
 
         public Builder userId(String userId) {
             this.userId = userId;

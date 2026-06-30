@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linrun.infrastructure.dao.IUserAgentMemoryDao">
+
+    <resultMap id="UserAgentMemoryMap" type="com.linrun.infrastructure.po.UserAgentMemoryPO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="memory_type" property="memoryType"/>
+        <result column="content" property="content"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="queryByUser" resultMap="UserAgentMemoryMap">
+        select id, user_id, memory_type, content, enabled, create_time, update_time
+        from user_agent_memory
+        where user_id = #{userId}
+        <if test="enabledOnly">
+          and enabled = 1
+        </if>
+        order by update_time desc, id desc
+        limit #{limit}
+    </select>
+
+    <select id="queryByType" resultMap="UserAgentMemoryMap">
+        select id, user_id, memory_type, content, enabled, create_time, update_time
+        from user_agent_memory
+        where user_id = #{userId}
+          and memory_type = #{memoryType}
+        limit 1
+    </select>
+
+    <insert id="upsert" parameterType="com.linrun.infrastructure.po.UserAgentMemoryPO">
+        insert into user_agent_memory (
+          user_id, memory_type, content, enabled, create_time, update_time
+        ) values (
+          #{userId}, #{memoryType}, #{content}, #{enabled}, now(), now()
+        )
+        on duplicate key update
+          content = values(content),
+          enabled = values(enabled),
+          update_time = now()
+    </insert>
+
+    <update id="disable">
+        update user_agent_memory
+        set enabled = 0,
+            update_time = now()
+        where user_id = #{userId}
+          and memory_type = #{memoryType}
+    </update>
+</mapper>

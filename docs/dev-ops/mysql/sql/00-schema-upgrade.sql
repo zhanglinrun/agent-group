@@ -35,6 +35,19 @@ create table if not exists user_model_config (
   primary key (user_id)
 ) engine=InnoDB default charset=utf8mb4 comment='user model config';
 
+create table if not exists user_agent_memory (
+  id bigint unsigned not null auto_increment comment 'auto id',
+  user_id varchar(64) not null comment 'user id',
+  memory_type varchar(32) not null comment 'memory type',
+  content varchar(2048) not null comment 'memory content',
+  enabled tinyint not null default 1 comment 'enabled',
+  create_time datetime not null default current_timestamp comment 'create time',
+  update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
+  primary key (id),
+  unique key uk_user_memory_type (user_id, memory_type),
+  key idx_user_enabled_time (user_id, enabled, update_time)
+) engine=InnoDB default charset=utf8mb4 comment='user agent long memory';
+
 set @sql = (
   select if(count(*) = 0,
     'alter table user_model_config add column text_model varchar(128) not null default '''' comment ''text model name'' after model',

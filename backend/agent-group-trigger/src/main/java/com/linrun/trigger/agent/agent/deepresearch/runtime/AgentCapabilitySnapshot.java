@@ -9,7 +9,7 @@ public record AgentCapabilitySnapshot(
         String mode,
         int skillCount,
         int toolCount,
-        int subAgentCount,
+        int capabilityCount,
         Map<String, Object> memory,
         Map<String, Object> roleContext
 ) {
@@ -27,15 +27,15 @@ public record AgentCapabilitySnapshot(
         data.put("mode", mode);
         data.put("skillCount", skillCount);
         data.put("toolCount", toolCount);
-        data.put("subAgentCount", subAgentCount);
+        data.put("capabilityCount", capabilityCount);
         data.put("memory", memory);
         data.put("roleContext", roleContext);
-        data.put("interviewProof", List.of(
+        data.put("runtimeEvidence", List.of(
                 "mode_routes_execution",
                 "context_is_role_scoped",
                 "skills_are_runtime_checked",
-                "sub_agents_are_tools",
-                "memory_is_layered_and_private"));
+                "tools_are_runtime_registered",
+                "memory_is_user_scoped"));
         return data;
     }
 }

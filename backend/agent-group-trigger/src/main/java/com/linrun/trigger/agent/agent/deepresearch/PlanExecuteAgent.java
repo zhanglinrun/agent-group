@@ -5,6 +5,7 @@ import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentCapabilitySnapshot;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemoryService;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemorySnapshot;
+import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRoleContext;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentRunContext;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.GraphExecutionAdapter;
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRegistry;
@@ -872,7 +873,8 @@ public class PlanExecuteAgent extends BaseAgent {
                     emit(sink, finished, "\n--- 开始执行任务 ---\n\n", "thinking", thinkingBuffer);
 
                     Map<String, TaskResult> results = executePlan(plan, state, sink, finished,
-                            thinkingBuffer, availableSkills);
+                            thinkingBuffer, availableSkills,
+                            renderRoleContext(runContext.workerContext(registeredToolNames().stream().sorted().toList())));
                     if (finished.get() || compositeDisposable.isDisposed()) {
                         return;
                     }
@@ -885,7 +887,8 @@ public class PlanExecuteAgent extends BaseAgent {
                             emit(sink, finished, "\n--- 步骤失败，触发智能重规划 ---\n\n", "thinking", thinkingBuffer);
                             sink.tryEmitNext(createPlanUpdateEvent(state.getRound(), retryTasks.get()));
                             Map<String, TaskResult> retryResults = executePlan(
-                                    retryTasks.get(), state, sink, finished, thinkingBuffer, availableSkills);
+                                    retryTasks.get(), state, sink, finished, thinkingBuffer, availableSkills,
+                                    renderRoleContext(runContext.workerContext(registeredToolNames().stream().sorted().toList())));
                             results.putAll(retryResults);
                         }
                     }
@@ -936,7 +939,7 @@ public class PlanExecuteAgent extends BaseAgent {
             return;
         }
         List<PlanTask> plan = generatePlan(context.state(), context.sink(),
-                context.finished(), context.thinkingBuffer());
+                context.finished(), context.thinkingBuffer(), renderRoleContext(context.plannerContext()));
         context.currentPlan(plan);
     }
 
@@ -947,7 +950,8 @@ public class PlanExecuteAgent extends BaseAgent {
         emit(context.sink(), context.finished(), "\n--- 开始执行任务 ---\n\n",
                 "thinking", context.thinkingBuffer());
         Map<String, TaskResult> results = executePlan(context.currentPlan(), context.state(),
-                context.sink(), context.finished(), context.thinkingBuffer(), context.availableSkills());
+                context.sink(), context.finished(), context.thinkingBuffer(), context.availableSkills(),
+                renderRoleContext(context.workerContext(registeredToolNames().stream().sorted().toList())));
         int stepReplanCount = 0;
         if (domainBridge.hasFailures(context.currentPlan(), results)) {
             Optional<List<PlanTask>> retryTasks = domainBridge.buildRetryTasks(
@@ -957,7 +961,8 @@ public class PlanExecuteAgent extends BaseAgent {
                         "thinking", context.thinkingBuffer());
                 context.sink().tryEmitNext(createPlanUpdateEvent(context.state().getRound(), retryTasks.get()));
                 Map<String, TaskResult> retryResults = executePlan(retryTasks.get(), context.state(),
-                        context.sink(), context.finished(), context.thinkingBuffer(), context.availableSkills());
+                        context.sink(), context.finished(), context.thinkingBuffer(), context.availableSkills(),
+                        renderRoleContext(context.workerContext(registeredToolNames().stream().sorted().toList())));
                 results.putAll(retryResults);
             }
         }
@@ -969,7 +974,7 @@ public class PlanExecuteAgent extends BaseAgent {
             return List.of();
         }
         try {
-            return skillRegistry.availableSkills(context.tenantId(), context.mode(), context.taskType());
+            return skillRegistry.availableSkills(context.mode(), context.taskType());
         } catch (Exception e) {
             log.warn("deep Graph skill 加载失败，忽略本轮 skills，reason={}", e.getClass().getSimpleName());
             return List.of();
@@ -979,16 +984,15 @@ public class PlanExecuteAgent extends BaseAgent {
     private AgentMemorySnapshot loadMemoryFor(AgentRunContext context) {
         if (memoryService == null || context == null) {
             return AgentMemorySnapshot.empty(
-                    context == null ? "" : context.tenantId(),
                     context == null ? "" : context.userId(),
                     context == null ? "" : context.sessionId());
         }
         try {
-            return memoryService.load(context.tenantId(), context.userId(), context.sessionId(),
-                    context.runId(), context.requestId(), true);
+            return memoryService.load(context.userId(), context.sessionId(),
+                    context.runId(), context.requestId());
         } catch (Exception e) {
             log.warn("deep memory 加载失败，忽略本轮记忆，reason={}", e.getClass().getSimpleName());
-            return AgentMemorySnapshot.empty(context.tenantId(), context.userId(), context.sessionId());
+            return AgentMemorySnapshot.empty(context.userId(), context.sessionId());
         }
     }
 
@@ -1004,7 +1008,7 @@ public class PlanExecuteAgent extends BaseAgent {
         emit(context.sink(), context.finished(), "\n--- 任务执行完成 ---\n\n",
                 "thinking", context.thinkingBuffer());
         CritiqueResult critique = critique(context.state(), context.currentPlan(), context.currentResults(),
-                context.sink(), context.finished(), context.thinkingBuffer());
+                context.sink(), context.finished(), context.thinkingBuffer(), renderRoleContext(context.reviewerContext()));
         context.reviewPassed(critique.passed());
         context.reviewFeedback(critique.feedback());
     }
@@ -1039,6 +1043,14 @@ public class PlanExecuteAgent extends BaseAgent {
     }
 
     private List<PlanTask> generatePlan(OverAllState state, Sinks.Many<String> sink, AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer) {
+        return generatePlan(state, sink, hasSentFinal, thinkingBuffer, "");
+    }
+
+    private List<PlanTask> generatePlan(OverAllState state,
+                                        Sinks.Many<String> sink,
+                                        AtomicBoolean hasSentFinal,
+                                        StringBuilder thinkingBuffer,
+                                        String plannerContext) {
         String toolDesc = renderToolDescriptions();
         BeanOutputConverter<List<PlanTask>> converter = new BeanOutputConverter<>(new ParameterizedTypeReference<>() {
         });
@@ -1048,12 +1060,14 @@ public class PlanExecuteAgent extends BaseAgent {
                                                 ## 当前上下文
                                                 当前轮次: %s
 
+                                                %s
+
                                                 ## 可用工具说明（仅用于规划参考）
                                                 %s
 
                                                 ## 输出格式
                                                 %s
-                        """.formatted(state.getRound(), toolDesc, converter.getFormat())),
+                        """.formatted(state.getRound(), roleContextBlock("Planner", plannerContext), toolDesc, converter.getFormat())),
                 new UserMessage("""
                         【研究主题】
                         %s
@@ -1151,6 +1165,13 @@ public class PlanExecuteAgent extends BaseAgent {
     private Map<String, TaskResult> executePlan(List<PlanTask> plan, OverAllState state, Sinks.Many<String> sink,
                                                 AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer,
                                                 List<SkillRuntimeDescriptor> availableSkills) {
+        return executePlan(plan, state, sink, hasSentFinal, thinkingBuffer, availableSkills, "");
+    }
+
+    private Map<String, TaskResult> executePlan(List<PlanTask> plan, OverAllState state, Sinks.Many<String> sink,
+                                                AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer,
+                                                List<SkillRuntimeDescriptor> availableSkills,
+                                                String workerContext) {
 
         Map<String, TaskResult> results = new ConcurrentHashMap<>();
 
@@ -1196,8 +1217,8 @@ public class PlanExecuteAgent extends BaseAgent {
                                     return;
                                 }
 
-                                TaskResult result = executeWithRetry(task, dependencyContext, sink, hasSentFinal,
-                                        thinkingBuffer, availableSkills);
+                                TaskResult result = executeTask(task, dependencyContext, sink, hasSentFinal,
+                                        thinkingBuffer, availableSkills, workerContext);
                                 results.put(task.id(), result);
 
                                 if (result.success() && result.output() != null) {
@@ -1292,21 +1313,31 @@ public class PlanExecuteAgent extends BaseAgent {
      * @param thinkingBuffer    思考过程缓冲区
      * @return 任务执行结果
      */
-    private TaskResult executeWithRetry(PlanTask task, String dependencyContext,
-                                        Sinks.Many<String> sink, AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer) {
-        return executeWithRetry(task, dependencyContext, sink, hasSentFinal, thinkingBuffer, List.of());
+    private TaskResult executeTask(PlanTask task, String dependencyContext,
+                                   Sinks.Many<String> sink, AtomicBoolean hasSentFinal, StringBuilder thinkingBuffer) {
+        return executeTask(task, dependencyContext, sink, hasSentFinal, thinkingBuffer, List.of());
     }
 
-    private TaskResult executeWithRetry(PlanTask task, String dependencyContext,
-                                        Sinks.Many<String> sink, AtomicBoolean hasSentFinal,
-                                        StringBuilder thinkingBuffer,
-                                        List<SkillRuntimeDescriptor> availableSkills) {
+    private TaskResult executeTask(PlanTask task, String dependencyContext,
+                                   Sinks.Many<String> sink, AtomicBoolean hasSentFinal,
+                                   StringBuilder thinkingBuffer,
+                                   List<SkillRuntimeDescriptor> availableSkills) {
+        return executeTask(task, dependencyContext, sink, hasSentFinal, thinkingBuffer, availableSkills, "");
+    }
+
+    private TaskResult executeTask(PlanTask task, String dependencyContext,
+                                   Sinks.Many<String> sink, AtomicBoolean hasSentFinal,
+                                   StringBuilder thinkingBuffer,
+                                   List<SkillRuntimeDescriptor> availableSkills,
+                                   String workerContext) {
 
         Throwable lastError = null;
         long startedAt = System.currentTimeMillis();
         String toolCallId = deepResearchToolCallId(task);
         emit(sink, hasSentFinal, "⚙️ 正在执行任务 " + task.id() + " : " + task.instruction() + "\n", "thinking", thinkingBuffer);
         emitJson(sink, hasSentFinal, createDeepResearchToolStartEvent(toolCallId, task, dependencyContext));
+        emitJson(sink, hasSentFinal, createCapabilityCalledEvent(toolCallId, "deep_research_step",
+                "execute_step", task, registeredToolNames(), availableSkills));
 
         // 检查是否已被停止
         if (hasSentFinal.get() || compositeDisposable.isDisposed()) {
@@ -1317,6 +1348,8 @@ public class PlanExecuteAgent extends BaseAgent {
         try {
             // 构建完整任务上下文（依赖 + 当前任务指令）
             String fullContext = """
+                                %s
+
                                 【Available Skills】
                                 %s
 
@@ -1326,6 +1359,7 @@ public class PlanExecuteAgent extends BaseAgent {
                                 【Current Task】
                                 %s
                     """.formatted(
+                    roleContextBlock("Worker", workerContext),
                     renderWorkerSkills(availableSkills),
                     dependencyContext,
                     task.instruction()
@@ -1441,6 +1475,30 @@ public class PlanExecuteAgent extends BaseAgent {
         return JsonUtils.toJson(payload);
     }
 
+    static String createCapabilityCalledEvent(String callId,
+                                              String capabilityName,
+                                              String action,
+                                              PlanTask task,
+                                              Set<String> registeredTools,
+                                              List<SkillRuntimeDescriptor> availableSkills) {
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        arguments.put("taskId", task == null ? "" : Objects.toString(task.id(), ""));
+        arguments.put("instruction", task == null ? "" : limitText(task.instruction(), 500));
+        arguments.put("order", task == null ? 1 : Math.max(1, task.order()));
+        arguments.put("registeredTools", registeredTools == null ? List.of() : registeredTools.stream().sorted().toList());
+        arguments.put("skills", availableSkills == null ? List.of() : availableSkills.stream()
+                .map(SkillRuntimeDescriptor::name)
+                .toList());
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "capability_called");
+        payload.put("capabilityName", StringUtils.hasText(capabilityName) ? capabilityName : "deep_research_step");
+        payload.put("callId", StringUtils.hasText(callId) ? callId : deepResearchToolCallId(task));
+        payload.put("action", StringUtils.hasText(action) ? action : "execute");
+        payload.put("arguments", arguments);
+        return JsonUtils.toJson(payload);
+    }
+
     static String createSkillLoadedEvent(List<SkillRuntimeDescriptor> skills, Set<String> registeredTools) {
         List<SkillRuntimeDescriptor> safeSkills = skills == null ? List.of() : skills;
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -1463,10 +1521,7 @@ public class PlanExecuteAgent extends BaseAgent {
         payload.put("spanId", context == null ? "" : context.spanId());
         payload.put("roles", context == null ? Map.of() : context.contextEvidence(
                 registeredTools == null ? List.of() : registeredTools.stream().sorted().toList()));
-        payload.put("subAgents", registeredTools == null ? List.of() : registeredTools.stream()
-                .filter(tool -> tool.endsWith("_agent"))
-                .sorted()
-                .toList());
+        payload.put("capabilities", registeredTools == null ? List.of() : registeredTools.stream().sorted().toList());
         return JsonUtils.toJson(payload);
     }
 
@@ -1487,7 +1542,7 @@ public class PlanExecuteAgent extends BaseAgent {
                 context == null ? "" : context.mode(),
                 context == null ? 0 : context.availableSkills().size(),
                 safeTools.size(),
-                (int) safeTools.stream().filter(tool -> tool.endsWith("_agent")).count(),
+                safeTools.size() + (context == null ? 0 : context.availableSkills().size()),
                 context == null || context.memorySnapshot() == null ? Map.of() : context.memorySnapshot().evidence(),
                 context == null ? Map.of() : context.contextEvidence(safeTools.stream().sorted().toList()));
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -1523,7 +1578,7 @@ public class PlanExecuteAgent extends BaseAgent {
     /**
      * 构建任务执行的依赖上下文
      * 规则：同 order 的任务不传依赖（并行），不同 order 的任务只传递上一组 order 的结果
-     * 注意：此方法只返回【Available Results】部分，【Current Task】由 executeWithRetry 拼接
+     * 注意：此方法只返回【Available Results】部分，【Current Task】由 executeTask 拼接
      *
      * @param results      所有已完成任务的结果
      * @param plan         当前轮次的执行计划（用于获取任务 order）
@@ -1584,6 +1639,16 @@ public class PlanExecuteAgent extends BaseAgent {
                                     Map<String, TaskResult> currentResults,
                                     Sinks.Many<String> sink, AtomicBoolean hasSentFinal,
                                     StringBuilder thinkingBuffer) {
+        return critique(state, currentPlan, currentResults, sink, hasSentFinal, thinkingBuffer, "");
+    }
+
+    private CritiqueResult critique(OverAllState state,
+                                    List<PlanTask> currentPlan,
+                                    Map<String, TaskResult> currentResults,
+                                    Sinks.Many<String> sink,
+                                    AtomicBoolean hasSentFinal,
+                                    StringBuilder thinkingBuffer,
+                                    String reviewerContext) {
         BeanOutputConverter<CritiqueResult> converter = new BeanOutputConverter<>(new ParameterizedTypeReference<>() {
         });
 
@@ -1629,7 +1694,8 @@ public class PlanExecuteAgent extends BaseAgent {
 
         String prom = PlanExecutePrompts.CRITIQUE + "\n" + converter.getFormat();
         Prompt prompt = new Prompt(List.of(
-                new SystemMessage(PlanExecutePrompts.getCurrentTime() + "\n\n" + prom),
+                new SystemMessage(PlanExecutePrompts.getCurrentTime() + "\n\n"
+                        + roleContextBlock("Reviewer", reviewerContext) + "\n\n" + prom),
                 new UserMessage(userMessage.toString())
         ));
 
@@ -1793,6 +1859,20 @@ public class PlanExecuteAgent extends BaseAgent {
         return "技能按当前模式和任务动态注入；需要完整指令时先调用 read_skill。真实执行只能调用本轮已注册工具。\n" + skills.stream()
                 .map(skill -> skill.toWorkerSummary(registeredTools))
                 .collect(Collectors.joining("\n"));
+    }
+
+    private String renderRoleContext(AgentRoleContext context) {
+        if (context == null || context.data().isEmpty()) {
+            return "";
+        }
+        return JsonUtils.toJson(context.data());
+    }
+
+    private String roleContextBlock(String role, String context) {
+        if (!StringUtils.hasText(context)) {
+            return "";
+        }
+        return "## " + role + " 角色上下文\n" + context;
     }
 
     private Set<String> registeredToolNames() {

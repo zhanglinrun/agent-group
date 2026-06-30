@@ -68,7 +68,7 @@ class ManualSkillRegistryTest {
                 .build());
 
         List<SkillRuntimeDescriptor> skills = new ManualSkillRegistry(manager)
-                .availableSkills("tenant-a", "deep", "deep");
+                .availableSkills("deep", "deep");
 
         assertEquals(1, skills.size());
         assertEquals("deep-report", skills.get(0).name());

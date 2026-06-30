@@ -13,7 +13,6 @@ class AgentMemorySnapshotTest {
     @Test
     void longTermMemoryRespectsPrivacySwitch() {
         AgentMemorySnapshot memory = new AgentMemorySnapshot(
-                "tenant-a",
                 "U1001",
                 "S1001",
                 List.of("short"),
@@ -27,5 +26,21 @@ class AgentMemorySnapshotTest {
         assertEquals(1, evidence.get("taskMemoryCount"));
         assertEquals(0, evidence.get("longTermCount"));
         assertTrue(memory.longTerm().isEmpty());
+    }
+
+    @Test
+    void longTermMemoryCanBeInjectedWhenEnabled() {
+        AgentMemorySnapshot memory = new AgentMemorySnapshot(
+                "U1001",
+                "S1001",
+                List.of("short"),
+                List.of("task"),
+                List.of("preference: 喜欢报告式回答"),
+                true);
+
+        Map<String, Object> evidence = memory.evidence();
+
+        assertEquals(1, evidence.get("longTermCount"));
+        assertEquals("preference: 喜欢报告式回答", memory.longTerm().get(0));
     }
 }

@@ -356,6 +356,9 @@ public class AcademicAgentHandler {
                 case "reasoning" -> List.of(event("task_status", sessionId, requestId, sequence,
                         status("REASONING", content(node))));
                 case "reflection" -> reflectionEvents(node, sessionId, requestId, sequence, runState);
+                case "memory_loaded", "context_loaded", "skill_loaded", "capability_loaded" ->
+                        capabilityRuntimeEvents(node, sessionId, requestId, sequence, runState);
+                case "capability_called" -> capabilityCalledEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_start" -> toolStartEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_end" -> toolEndEvents(node, sessionId, requestId, sequence, runState);
                 case "ppt_status" -> pptStatusEvents(node, sessionId, requestId, sequence, runState);
@@ -402,6 +405,32 @@ public class AcademicAgentHandler {
         runState.currentFlowStageIndex = progress.getCurrentStageIndex();
         events.addAll(flowProgressEvents(progress, sessionId, requestId, sequence, runState));
         return events;
+    }
+
+    private List<QuotaStreamEvent<?>> capabilityRuntimeEvents(JsonNode node,
+                                                              String sessionId,
+                                                              String requestId,
+                                                              AtomicInteger sequence,
+                                                              RunState runState) {
+        String type = text(node, "type");
+        Map<String, Object> data = parseObject(node.toString());
+        data.put("runId", runState.run.getRunId());
+        return List.of(event(type, sessionId, requestId, sequence, data));
+    }
+
+    private List<QuotaStreamEvent<?>> capabilityCalledEvents(JsonNode node,
+                                                             String sessionId,
+                                                             String requestId,
+                                                             AtomicInteger sequence,
+                                                             RunState runState) {
+        String capabilityName = firstText(node, "capabilityName", "name", "toolName");
+        Map<String, Object> data = parseObject(node.toString());
+        data.put("runId", runState.run.getRunId());
+        return List.of(
+                event("task_status", sessionId, requestId, sequence,
+                        status("CAPABILITY", "调用能力：" + nullToBlank(capabilityName))),
+                event("capability_called", sessionId, requestId, sequence, data)
+        );
     }
 
     private List<QuotaStreamEvent<?>> reflectionEvents(JsonNode node,

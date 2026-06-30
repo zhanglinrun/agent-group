@@ -9,7 +9,6 @@ import com.linrun.trigger.http.agent.support.SkillsRuntimeResolver;
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.agent.deepresearch.PlanExecuteAgent;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.LedgerAgentMemoryService;
-import com.linrun.trigger.agent.agent.deepresearch.runtime.LocalSubAgentToolFactory;
 import com.linrun.trigger.agent.agent.file.FileReactAgent;
 import com.linrun.trigger.agent.agent.pptx.PPTBuilderAgent;
 import com.linrun.trigger.agent.agent.skills.SkillsReactAgent;
@@ -46,6 +45,7 @@ import com.linrun.domain.account.model.UserModelConfig;
 import com.linrun.domain.account.service.UserAccountService;
 import com.linrun.domain.account.service.UserQuotaService;
 import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
+import com.linrun.domain.academic.memory.service.UserAgentMemoryService;
 import com.linrun.domain.academic.runtime.tool.output.AcademicToolOutputNames;
 import com.linrun.domain.agent.conversation.model.TokenUsageMetrics;
 import com.linrun.types.exception.AppException;
@@ -123,6 +123,7 @@ public class AcademicAgentNativeService {
     private final ObjectProvider<ImageGenerationService> imageGenerationServiceProvider;
     private final ObjectProvider<FileStoragePort> fileStoragePortProvider;
     private final ObjectProvider<AcademicExecutionLedgerService> academicExecutionLedgerServiceProvider;
+    private final ObjectProvider<UserAgentMemoryService> userAgentMemoryServiceProvider;
 
     @Value("${spring.ai.openai.chat.options.model:qwen3.7-plus}")
     private String defaultChatModel;
@@ -157,7 +158,8 @@ public class AcademicAgentNativeService {
                                   ObjectProvider<PptPythonRenderService> pptPythonRenderServiceProvider,
                                   ObjectProvider<ImageGenerationService> imageGenerationServiceProvider,
                                   ObjectProvider<FileStoragePort> fileStoragePortProvider,
-                                  ObjectProvider<AcademicExecutionLedgerService> academicExecutionLedgerServiceProvider) {
+                                  ObjectProvider<AcademicExecutionLedgerService> academicExecutionLedgerServiceProvider,
+                                  ObjectProvider<UserAgentMemoryService> userAgentMemoryServiceProvider) {
         this.chatModelProvider = chatModelProvider;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
@@ -184,6 +186,7 @@ public class AcademicAgentNativeService {
         this.imageGenerationServiceProvider = imageGenerationServiceProvider;
         this.fileStoragePortProvider = fileStoragePortProvider;
         this.academicExecutionLedgerServiceProvider = academicExecutionLedgerServiceProvider;
+        this.userAgentMemoryServiceProvider = userAgentMemoryServiceProvider;
     }
 
     public Flux<String> stream(String token,
@@ -412,7 +415,6 @@ public class AcademicAgentNativeService {
         ToolCallback[] tools = ToolMergeUtils.mergeTools(
                 searchTools,
                 academicToolCallbacks("deep", userId, conversationId, webSearchEnabled),
-                LocalSubAgentToolFactory.create(),
                 skillsRuntimeResolver.manualSkillToolCallbacks(skillManager),
                 SkillRuntimeTools.create(skillsRuntimeResolver.resolvedSkillsDirectory(),
                         skillsRuntimeResolver.projectRoot().toString(), outputDirectory)
@@ -435,7 +437,12 @@ public class AcademicAgentNativeService {
         AcademicExecutionLedgerService ledgerService = academicExecutionLedgerServiceProvider == null
                 ? null
                 : academicExecutionLedgerServiceProvider.getIfAvailable();
-        return ledgerService == null ? null : new LedgerAgentMemoryService(ledgerService);
+        UserAgentMemoryService userMemoryService = userAgentMemoryServiceProvider == null
+                ? null
+                : userAgentMemoryServiceProvider.getIfAvailable();
+        return ledgerService == null && userMemoryService == null
+                ? null
+                : new LedgerAgentMemoryService(ledgerService, userMemoryService);
     }
 
     private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel,
