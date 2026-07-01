@@ -17,9 +17,17 @@
 
 ## 启动命令
 
+先确认 `Docker Desktop`（容器桌面程序）已启动，再启动本地依赖：
+
 ```bash
 cd docs/dev-ops
 docker compose -f docker-compose-environment.yml up -d
+```
+
+如果只做后端最小运行检查，可以只启动必要依赖：
+
+```powershell
+docker compose -f docs/dev-ops/docker-compose-environment.yml up -d mysql redis pgvector minio rabbitmq xxl-job-admin
 ```
 
 如果需要按完整应用方式启动，可以先打包后端并启动应用容器：
@@ -42,6 +50,7 @@ docker compose -f docker-compose-environment.yml up -d
 
 ```powershell
 cd backend
+$env:SPRING_PROFILES_ACTIVE="dev"
 mvn -pl agent-group-app -am spring-boot:run
 ```
 
@@ -57,6 +66,12 @@ npm run dev
 
 - `http://localhost:5173/`（用户端 `Agent`（智能体）工作台）
 - `http://localhost:5173/admin`（运营端：模型配置、拼团、交易监控）
+
+运行检查：
+
+- 后端健康检查：`http://localhost:8080/actuator/health`，正常返回 `UP`。
+- 前端首页：`http://localhost:5173/`，正常返回页面。
+- 如果后端提示无法连接 `127.0.0.1:16379`，说明 Redis 依赖未启动或端口不通，先检查上面的容器环境。
 
 建议按这个顺序演示：
 

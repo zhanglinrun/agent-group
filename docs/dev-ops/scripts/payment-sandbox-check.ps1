@@ -14,7 +14,7 @@ $headers = New-BasicAuthHeader -User $AdminUser -Password $AdminPassword
 
 $response = Invoke-RestMethod `
     -Method Get `
-    -Uri "$BackendUrl/api/v1/payment/gateway/status" `
+    -Uri "$BackendUrl/api/v1/trade/payment/gateway/status" `
     -Headers $headers `
     -TimeoutSec 20
 

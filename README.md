@@ -134,13 +134,13 @@ cd docs/dev-ops
 docker compose -f docker-compose-environment.yml up -d
 ```
 
+后端 `dev`（开发环境）启动依赖本地 MySQL、Redis、pgvector、MinIO 和 RabbitMQ。若后端日志出现 `Unable to connect to Redis server: 127.0.0.1:16379`，先确认 `Docker Desktop`（容器桌面程序）已启动，并重新执行上面的依赖启动命令。
+
 ### 2. 启动后端
 
-```bash
+```powershell
 cd backend
-# Windows PowerShell:
-# $env:SPRING_PROFILES_ACTIVE="dev"
-export SPRING_PROFILES_ACTIVE=dev   # Linux / macOS
+$env:SPRING_PROFILES_ACTIVE="dev"
 mvn -pl agent-group-app -am spring-boot:run
 ```
 
@@ -162,6 +162,21 @@ npm run dev
 | http://localhost:5173/admin | 运营端（总览、拼团活动、渠道与库存、模型配置、Skills、MCP、订单核查、退款） |
 | http://localhost:8080 | 后端 API（dev 默认） |
 | Grafana | 见 `docs/dev-ops` 中 docker-compose 端口映射 |
+
+### 5. 关键接口边界
+
+| 能力 | 接口 |
+| --- | --- |
+| Agent 流式执行 | `/api/v1/agent/stream` |
+| Agent 工作区 | `/api/v1/agent/workspaces` |
+| 图像工作区 | `/api/v1/agent/workspaces/image/*` |
+| 数据工作区 | `/api/v1/agent/workspaces/data/*` |
+| 营销交易 | `/api/v1/market/trade/*` |
+| 支付 | `/api/v1/trade/payment/*` |
+
+### 6. 当前运行自检
+
+2026-07-01 已按 `dev`（开发环境）验证：依赖容器启动后，后端 `/actuator/health` 返回 `UP`；前端 `http://127.0.0.1:5173/` 返回 `HTTP 200`。若只启动前端，也可以先验证页面编译和首页响应，再启动后端依赖。
 
 ---
 
@@ -249,4 +264,4 @@ Java 21、Spring Boot、Spring AI、MySQL、Redis、RabbitMQ、MyBatis、Postgre
 
 ---
 
-**更新时间**：2026-06-30
+**更新时间**：2026-07-01
