@@ -1,6 +1,6 @@
 # 支付沙箱检查
 
-项目提供 `/api/v1/payment/gateway/status`（支付网关状态接口），用于确认 `ALIPAY`（支付宝沙箱）是否已经具备验收条件。当前演示和验收只接受真实支付宝沙箱；`MOCK_PAY`（模拟支付）已不再作为支付渠道支持，旧请求会按不支持的支付渠道拒绝。
+项目提供 `/api/v1/trade/payment/gateway/status`（支付网关状态接口），用于确认 `ALIPAY`（支付宝沙箱）是否已经具备验收条件。当前演示和验收只接受真实支付宝沙箱；`MOCK_PAY`（模拟支付）已不再作为支付渠道支持，旧请求会按不支持的支付渠道拒绝。
 
 ## 检查命令
 
@@ -27,7 +27,7 @@ docs\dev-ops\reports
 - `AGENT_GROUP_ALIPAY_PUBLIC_KEY`（支付宝公钥）已配置。
 - `AGENT_GROUP_ALIPAY_NOTIFY_URL`（异步回调地址）已配置，且是公网可访问地址。
 
-本地 `localhost`（本机地址）、`127.0.0.1`（本机回环地址）和内网地址不会被判定为公网回调。联调时可以使用内网穿透或公网域名承载 `/api/v1/payment/alipay/notify`（支付宝回调）。
+本地 `localhost`（本机地址）、`127.0.0.1`（本机回环地址）和内网地址不会被判定为公网回调。联调时可以使用内网穿透或公网域名承载 `/api/v1/trade/payment/alipay/notify`（支付宝回调）。
 
 ## 环境变量示例
 
@@ -36,7 +36,7 @@ $env:AGENT_GROUP_ALIPAY_GATEWAY_URL="https://openapi-sandbox.dl.alipaydev.com/ga
 $env:AGENT_GROUP_ALIPAY_APP_ID="你的沙箱应用编号"
 $env:AGENT_GROUP_ALIPAY_PRIVATE_KEY="你的应用私钥"
 $env:AGENT_GROUP_ALIPAY_PUBLIC_KEY="支付宝沙箱公钥"
-$env:AGENT_GROUP_ALIPAY_NOTIFY_URL="https://你的公网域名/api/v1/payment/alipay/notify"
+$env:AGENT_GROUP_ALIPAY_NOTIFY_URL="https://你的公网域名/api/v1/trade/payment/alipay/notify"
 ```
 
 密钥只放本地环境变量或 `.env`（环境变量文件），不要提交到 `Git`（版本控制工具）。

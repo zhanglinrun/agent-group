@@ -15,6 +15,8 @@
 
 **Maven 多模块 DDD 分层**：`agent-group-app` 单进程启动，依赖方向 `trigger → domain ← infrastructure`。
 
+**来源融合**：`dodo-agent` 贡献多模式 Agent 执行、重规划、工具和记忆主线；`s-pay-mall-ddd-market` 贡献拼团营销、支付、成团结算和状态补偿主线；`group` 贡献原综合工程的页面、账号、额度和演示整合能力。本项目当前不是微服务，而是按这些边界整理后的模块化单体。
+
 **简历口径**：项目名称优先写成 **多模式 Agent 工作台与拼团式额度交易平台**。对外表达时明确两条主线：Agent 工作台负责智能执行，拼团交易平台负责营销转化和额度资金闭环。当前工程是 Maven 多模块单体启动，可以讲 DDD 分层、事件补偿、锁单幂等和可拆分服务边界，不要直接写成已经落地的微服务集群。
 
 ---
@@ -23,7 +25,7 @@
 
 ### 线上 Agent（用户对话主链路）
 
-HTTP 入口在 `AcademicAgentController`，由 `AcademicAgentHandler` 调用 `UnifiedAgentOrchestrator` 选择模式，再进入 `AcademicAgentNativeService` 和 `trigger/agent/agent/` 下的执行体，经 SSE（流式输出）推送到前端工作台。
+HTTP 入口在 `AgentController`，由 `AgentHandler` 调用 `UnifiedAgentOrchestrator` 选择模式，再进入 `AgentNativeService` 和 `trigger/agent/agent/` 下的执行体，经 SSE（流式输出）推送到前端工作台。
 
 用户端主工作台可选模式（`/` 工作台，默认 `auto` 智能调度）：
 
@@ -59,7 +61,7 @@ HTTP 入口在 `AcademicAgentController`，由 `AcademicAgentHandler` 调用 `Un
 
 ### Agent 引擎（domain 策略 + 线上执行体）
 
-`domain/academic/runtime` 提供模式选择、计划编排、智能重规划、反思评估、异常诊断等**策略能力**，经 `UnifiedAgentOrchestrator`、`PlanExecuteDomainBridge` 接入 `trigger/agent/agent/` 执行体（不再维护独立离线 harness）。
+`domain/agent/runtime` 提供模式选择、计划编排、智能重规划、反思评估、异常诊断等**策略能力**，经 `UnifiedAgentOrchestrator`、`PlanExecuteDomainBridge` 接入 `trigger/agent/agent/` 执行体（不再维护独立离线 harness）。
 
 路由与重规划单测：`AgentEngineRoutingTest`（23 条 auto 路由用例，断言准确率 ≥ 90% + domain 重规划桥接）。
 
@@ -104,11 +106,11 @@ agent-group/
 │   ├── agent-group-api/          # HTTP 契约与 DTO
 │   ├── agent-group-app/          # 启动入口、配置、全部单测
 │   ├── agent-group-domain/       # 领域逻辑
-│   │   ├── academic/             # 账本、项目工作区、runtime 策略层（代码包名 legacy）
-│   │   ├── account/              # 账号、额度
-│   │   ├── agent/                # 会话、文件 RAG 端口
-│   │   ├── groupbuy/             # 拼团
-│   │   ├── trade/                # 交易、支付、Outbox
+│   │   ├── account/              # 账号、登录会话、模型配置
+│   │   ├── agent/                # 会话、智能体工作区、账本、runtime 策略层、文件 RAG 端口
+│   │   ├── market/               # 营销活动、拼团试算、锁单参团、成团结算、人群标签
+│   │   ├── quota/                # 额度账户、额度包、额度流水、额度发放和扣减规则
+│   │   ├── trade/                # 订单、支付、退款、Outbox
 │   │   └── support/              # 追踪、锁、动态配置
 │   ├── agent-group-infrastructure/  # DB、缓存、MQ、Spring AI 适配
 │   ├── agent-group-trigger/      # HTTP、SSE、定时任务、线上 Agent 执行体
