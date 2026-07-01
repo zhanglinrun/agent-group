@@ -1,8 +1,8 @@
 package com.linrun.trigger.support.tool;
 
-import com.linrun.domain.academic.ledger.model.AcademicAgentRun;
-import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
-import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
+import com.linrun.domain.agent.ledger.model.AgentRun;
+import com.linrun.domain.agent.ledger.service.AgentExecutionLedgerService;
+import com.linrun.domain.agent.ledger.service.AgentLedgerContext;
 import com.linrun.domain.support.metrics.AgentObservabilityMetrics;
 import com.linrun.types.exception.AppException;
 import org.slf4j.Logger;
@@ -20,29 +20,29 @@ public class ToolExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolExecutor.class);
     private final AgentObservabilityMetrics metrics;
-    private final AcademicExecutionLedgerService ledgerService;
+    private final AgentExecutionLedgerService ledgerService;
     private final ToolInvocationGuard invocationGuard;
 
     public ToolExecutor() {
-        this(AgentObservabilityMetrics.noop(), (AcademicExecutionLedgerService) null, null);
+        this(AgentObservabilityMetrics.noop(), (AgentExecutionLedgerService) null, null);
     }
 
     public ToolExecutor(AgentObservabilityMetrics metrics) {
-        this(metrics, (AcademicExecutionLedgerService) null, null);
+        this(metrics, (AgentExecutionLedgerService) null, null);
     }
 
     public ToolExecutor(AgentObservabilityMetrics metrics, ToolInvocationGuard invocationGuard) {
-        this(metrics, (AcademicExecutionLedgerService) null, invocationGuard);
+        this(metrics, (AgentExecutionLedgerService) null, invocationGuard);
     }
 
     public ToolExecutor(AgentObservabilityMetrics metrics,
-                        ObjectProvider<AcademicExecutionLedgerService> ledgerServiceProvider) {
+                        ObjectProvider<AgentExecutionLedgerService> ledgerServiceProvider) {
         this(metrics, ledgerServiceProvider == null ? null : ledgerServiceProvider.getIfAvailable(), null);
     }
 
     @Autowired
     public ToolExecutor(AgentObservabilityMetrics metrics,
-                        ObjectProvider<AcademicExecutionLedgerService> ledgerServiceProvider,
+                        ObjectProvider<AgentExecutionLedgerService> ledgerServiceProvider,
                         ObjectProvider<ToolInvocationGuard> invocationGuardProvider) {
         this(metrics,
                 ledgerServiceProvider == null ? null : ledgerServiceProvider.getIfAvailable(),
@@ -50,7 +50,7 @@ public class ToolExecutor {
     }
 
     private ToolExecutor(AgentObservabilityMetrics metrics,
-                         AcademicExecutionLedgerService ledgerService,
+                         AgentExecutionLedgerService ledgerService,
                          ToolInvocationGuard invocationGuard) {
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
         this.ledgerService = ledgerService;
@@ -79,7 +79,7 @@ public class ToolExecutor {
                     toolName, action, rejectReason);
             metrics.recordToolExecution(toolName, action, false, 0L);
             String blockedInvocationId = recordToolStart(toolCallId, toolName, action);
-            recordToolFinish(blockedInvocationId, AcademicAgentRun.STATUS_FAILED,
+            recordToolFinish(blockedInvocationId, AgentRun.STATUS_FAILED,
                     "tool blocked by policy", "", 0, rejectReason, 0L);
             return ToolExecution.failure(toolName, action, "tool blocked by policy: " + rejectReason,
                     0L, new AppException("TOOL_0403", rejectReason), toolCallId, 0, "");
@@ -92,7 +92,7 @@ public class ToolExecutor {
                 T result = supplier.get();
                 long latencyMillis = elapsedMillis(startNanos);
                 metrics.recordToolExecution(toolName, action, true, latencyMillis);
-                recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_SUCCESS,
+                recordToolFinish(ledgerInvocationId, AgentRun.STATUS_SUCCESS,
                         successMessage, digest(result), attempt - 1, "", latencyMillis);
                 return ToolExecution.success(toolName, action, successMessage, latencyMillis, result,
                         toolCallId, attempt - 1, digest(result));
@@ -107,7 +107,7 @@ public class ToolExecutor {
                 metrics.recordToolExecution(toolName, action, false, latencyMillis);
                 LOGGER.warn("tool execute failed, toolName={}, action={}, reason={}",
                         toolName, action, e.getClass().getSimpleName());
-                recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
+                recordToolFinish(ledgerInvocationId, AgentRun.STATUS_FAILED,
                         "tool execution failed", digest(e), attempt - 1, e.getMessage(), latencyMillis);
                 return ToolExecution.failure(toolName, action,
                         "tool execution failed: " + e.getMessage(), latencyMillis, e,
@@ -116,7 +116,7 @@ public class ToolExecutor {
         }
         long latencyMillis = elapsedMillis(startNanos);
         metrics.recordToolExecution(toolName, action, false, latencyMillis);
-        recordToolFinish(ledgerInvocationId, AcademicAgentRun.STATUS_FAILED,
+        recordToolFinish(ledgerInvocationId, AgentRun.STATUS_FAILED,
                 "tool execution failed", digest(lastException), attempts - 1,
                 lastException == null ? "" : lastException.getMessage(), latencyMillis);
         return ToolExecution.failure(toolName, action, "tool execution failed", latencyMillis, lastException,
@@ -127,7 +127,7 @@ public class ToolExecutor {
         if (ledgerService == null) {
             return "";
         }
-        return ledgerService.recordToolStart(AcademicLedgerContext.current(),
+        return ledgerService.recordToolStart(AgentLedgerContext.current(),
                 toolCallId, toolName, action, "{}");
     }
 

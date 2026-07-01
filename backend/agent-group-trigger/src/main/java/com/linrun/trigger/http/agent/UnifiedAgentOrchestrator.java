@@ -1,8 +1,8 @@
 package com.linrun.trigger.http.agent;
 
-import com.linrun.api.dto.AcademicAgentStreamRequest;
-import com.linrun.domain.academic.runtime.mode.AgentModeSelector;
-import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningService;
+import com.linrun.api.dto.AgentStreamRequest;
+import com.linrun.domain.agent.runtime.mode.AgentModeSelector;
+import com.linrun.domain.agent.runtime.reasoning.AgentReasoningService;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
@@ -29,7 +29,7 @@ public class UnifiedAgentOrchestrator {
                                   String requestedTaskType,
                                   String fileIds,
                                   boolean webSearchEnabled,
-                                  AcademicAgentStreamRequest request) {
+                                  AgentStreamRequest request) {
         AgentModeSelector.ModeSelectionContext context = selectionContext(requestedTaskType, fileIds, request);
         AgentModeSelector.ModeSelectionResult selection = modeSelector.selectMode(question, context);
         AgentRouter.RoutingResult routing = agentRouter.route(requestedTaskType, selection,
@@ -39,7 +39,7 @@ public class UnifiedAgentOrchestrator {
 
     private AgentModeSelector.ModeSelectionContext selectionContext(String requestedTaskType,
                                                                     String fileIds,
-                                                                    AcademicAgentStreamRequest request) {
+                                                                    AgentStreamRequest request) {
         boolean hasFile = StringUtils.hasText(fileIds);
         String imageUrl = request == null ? "" : request.getImageUrl();
         String attachmentType = hasFile ? (StringUtils.hasText(imageUrl) ? "image" : "file") : "";
@@ -114,7 +114,7 @@ public class UnifiedAgentOrchestrator {
                                     AgentRouter.RoutingResult routing) {
 
         public Map<String, Object> taskAnalysisData(String runId) {
-            AcademicAgentReasoningService.TaskAnalysisResult analysis = modeSelection.getTaskAnalysis();
+            AgentReasoningService.TaskAnalysisResult analysis = modeSelection.getTaskAnalysis();
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("runId", safe(runId));
             data.put("taskType", analysis.getTaskType());

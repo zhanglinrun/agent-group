@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.agent.repository;
 
-import com.linrun.domain.academic.memory.adapter.UserAgentMemoryRepository;
-import com.linrun.domain.academic.memory.model.UserAgentMemory;
+import com.linrun.domain.agent.memory.adapter.UserAgentMemoryRepository;
+import com.linrun.domain.agent.memory.model.UserAgentMemory;
 import com.linrun.infrastructure.dao.IUserAgentMemoryDao;
 import com.linrun.infrastructure.po.UserAgentMemoryPO;
 import org.springframework.beans.BeanUtils;

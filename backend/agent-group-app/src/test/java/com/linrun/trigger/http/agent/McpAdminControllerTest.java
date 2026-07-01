@@ -1,6 +1,6 @@
 package com.linrun.trigger.http.agent;
 
-import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor;
+import com.linrun.domain.agent.runtime.tool.mcp.AgentMcpToolDescriptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -73,7 +73,7 @@ class McpAdminControllerTest {
     @Test
     void shouldDiscoverToolsFromRegisteredServer() throws Exception {
         McpAdminHandler handler = new McpAdminHandler((server, request) -> List.of(
-                AcademicMcpToolDescriptor.builder(server.getServerId(), "data_analysis")
+                AgentMcpToolDescriptor.builder(server.getServerId(), "data_analysis")
                         .description("analyze data")
                         .inputSchema(Map.of("type", "object"))
                         .build()));

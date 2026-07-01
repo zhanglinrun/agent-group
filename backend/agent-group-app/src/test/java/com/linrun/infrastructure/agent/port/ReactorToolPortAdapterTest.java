@@ -1,13 +1,13 @@
 package com.linrun.infrastructure.agent.port;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.domain.academic.runtime.tool.port.AcademicCodeInterpreterPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicDeepSearchPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicFileToolPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicImageGenerationPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicMultimodalAnalysisPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentCodeInterpreterPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentDeepSearchPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentFileToolPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentImageGenerationPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentMultimodalAnalysisPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentNl2SqlPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentWebFetchPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -47,8 +47,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.APPLICATION_JSON));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicImageGenerationPort.AcademicImageGenerationResult result = adapter.generate(
-                new AcademicImageGenerationPort.AcademicImageGenerationRequest(
+        AgentImageGenerationPort.AgentImageGenerationResult result = adapter.generate(
+                new AgentImageGenerationPort.AgentImageGenerationRequest(
                         "生成活动主图", "generate", "1024x1024", 1, List.of(), List.of()));
 
         assertTrue(result.success());
@@ -78,8 +78,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.APPLICATION_JSON));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicCodeInterpreterPort.AcademicCodeExecutionResult result = adapter.execute(
-                new AcademicCodeInterpreterPort.AcademicCodeExecutionRequest(
+        AgentCodeInterpreterPort.AgentCodeExecutionResult result = adapter.execute(
+                new AgentCodeInterpreterPort.AgentCodeExecutionRequest(
                         "计算均值", "python", "print(20)", List.of("sales.csv"), "workspace"));
 
         assertTrue(result.success());
@@ -103,8 +103,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.TEXT_EVENT_STREAM));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicMultimodalAnalysisPort.AcademicMultimodalAnalysisResult result = adapter.analyze(
-                new AcademicMultimodalAnalysisPort.AcademicMultimodalAnalysisRequest(
+        AgentMultimodalAnalysisPort.AgentMultimodalAnalysisResult result = adapter.analyze(
+                new AgentMultimodalAnalysisPort.AgentMultimodalAnalysisRequest(
                         "分析图片", "", List.of("https://img.example.com/a.png"), List.of()));
 
         assertTrue(result.success());
@@ -128,8 +128,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.TEXT_EVENT_STREAM));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicDeepSearchPort.AcademicDeepSearchResult result = adapter.search(
-                new AcademicDeepSearchPort.AcademicDeepSearchRequest(
+        AgentDeepSearchPort.AgentDeepSearchResult result = adapter.search(
+                new AgentDeepSearchPort.AgentDeepSearchRequest(
                         "Agent 项目", 2, true, List.of("ddg"), Map.of()));
 
         assertTrue(result.success());
@@ -153,8 +153,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.APPLICATION_JSON));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicFileToolPort.AcademicFileToolResult result = adapter.upload(
-                new AcademicFileToolPort.AcademicFileUploadRequest(
+        AgentFileToolPort.AgentFileToolResult result = adapter.upload(
+                new AgentFileToolPort.AgentFileUploadRequest(
                         "req-file", "report.md", "报告", "# report", "text/markdown", false));
 
         assertTrue(result.success());
@@ -184,8 +184,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.APPLICATION_JSON));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicNl2SqlPort.AcademicNl2SqlResult result = adapter.convert(
-                new AcademicNl2SqlPort.AcademicNl2SqlRequest(
+        AgentNl2SqlPort.AgentNl2SqlResult result = adapter.convert(
+                new AgentNl2SqlPort.AgentNl2SqlRequest(
                         "req-sql", "查询实验准确率", List.of("experiment_result"), List.of(),
                         "2026-06-05", "mysql", false, true, false));
 
@@ -222,8 +222,8 @@ class ReactorToolPortAdapterTest {
                         """, MediaType.APPLICATION_JSON));
         ReactorToolPortAdapter adapter = adapter(restTemplate);
 
-        AcademicWebFetchPort.AcademicWebFetchResult result = adapter.fetch(
-                new AcademicWebFetchPort.AcademicWebFetchRequest("req-web", "https://example.com/agent", 30, 4000));
+        AgentWebFetchPort.AgentWebFetchResult result = adapter.fetch(
+                new AgentWebFetchPort.AgentWebFetchRequest("req-web", "https://example.com/agent", 30, 4000));
 
         assertTrue(result.success());
         assertEquals("Agent 项目说明", result.title());

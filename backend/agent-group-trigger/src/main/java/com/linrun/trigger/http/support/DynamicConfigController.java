@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @CrossOrigin(origins = "*")
-@RequestMapping("/api/v1/gbm/dcc")
+@RequestMapping("/api/v1/market/dcc")
 public class DynamicConfigController {
 
     private final DynamicConfigService dynamicConfigService;

@@ -56,8 +56,8 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
         List<Path> tempFiles = new ArrayList<>();
         String outputFilePath = "";
         try {
-            String pythonScriptPath = copyClasspathResource("academic-agent/python/render_ppt.py",
-                    "academic_agent_render_", ".py", tempFiles);
+            String pythonScriptPath = copyClasspathResource("agent-runtime/python/render_ppt.py",
+                    "agent_agent_render_", ".py", tempFiles);
             String templateFilePath = resolveTemplateFilePath(template.getFilePath(), tempFiles);
             String outputDir = getOutputDir();
 
@@ -169,12 +169,12 @@ public class PptPythonRenderServiceImpl implements PptPythonRenderService {
     private String resolveTemplateFilePath(String configuredPath, List<Path> tempFiles) {
         if (configuredPath != null && configuredPath.startsWith("classpath:")) {
             return copyClasspathResource(configuredPath.substring("classpath:".length()),
-                    "academic_agent_template_", ".pptx", tempFiles);
+                    "agent_agent_template_", ".pptx", tempFiles);
         }
         if (configuredPath != null && new File(configuredPath).exists()) {
             return configuredPath;
         }
-        return copyClasspathResource("academic-agent/templates/ai.pptx", "academic_agent_template_", ".pptx", tempFiles);
+        return copyClasspathResource("agent-runtime/templates/ai.pptx", "agent_agent_template_", ".pptx", tempFiles);
     }
 
     private String copyClasspathResource(String resourcePath, String prefix, String suffix, List<Path> tempFiles) {

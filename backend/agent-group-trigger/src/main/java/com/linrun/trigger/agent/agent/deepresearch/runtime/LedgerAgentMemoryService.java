@@ -1,23 +1,23 @@
 package com.linrun.trigger.agent.agent.deepresearch.runtime;
 
-import com.linrun.api.dto.AcademicSessionDetailResponse;
-import com.linrun.domain.academic.ledger.service.AcademicExecutionLedgerService;
-import com.linrun.domain.academic.memory.model.UserAgentMemory;
-import com.linrun.domain.academic.memory.service.UserAgentMemoryService;
+import com.linrun.api.dto.AgentSessionDetailResponse;
+import com.linrun.domain.agent.ledger.service.AgentExecutionLedgerService;
+import com.linrun.domain.agent.memory.model.UserAgentMemory;
+import com.linrun.domain.agent.memory.service.UserAgentMemoryService;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 
 public class LedgerAgentMemoryService implements AgentMemoryService {
 
-    private final AcademicExecutionLedgerService ledgerService;
+    private final AgentExecutionLedgerService ledgerService;
     private final UserAgentMemoryService userMemoryService;
 
-    public LedgerAgentMemoryService(AcademicExecutionLedgerService ledgerService) {
+    public LedgerAgentMemoryService(AgentExecutionLedgerService ledgerService) {
         this(ledgerService, null);
     }
 
-    public LedgerAgentMemoryService(AcademicExecutionLedgerService ledgerService,
+    public LedgerAgentMemoryService(AgentExecutionLedgerService ledgerService,
                                     UserAgentMemoryService userMemoryService) {
         this.ledgerService = ledgerService;
         this.userMemoryService = userMemoryService;
@@ -32,7 +32,7 @@ public class LedgerAgentMemoryService implements AgentMemoryService {
         if (ledgerService == null || !StringUtils.hasText(userId) || !StringUtils.hasText(sessionId)) {
             return new AgentMemorySnapshot(userId, sessionId, List.of(), List.of(), longTerm, !longTerm.isEmpty());
         }
-        AcademicSessionDetailResponse.MemorySnapshot memory =
+        AgentSessionDetailResponse.MemorySnapshot memory =
                 ledgerService.querySessionMemory(userId, sessionId, currentRequestId, 6);
         List<String> shortTerm = List.of(limit(memory.getSummary(), 600), limit(memory.getHistoryDialogue(), 1200));
         List<String> taskMemory = memory.getRuns().stream()

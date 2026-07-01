@@ -2,8 +2,8 @@ package com.linrun.trigger.http.agent;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.api.dto.AcademicAgentStreamRequest;
-import com.linrun.domain.academic.runtime.mode.AgentModeSelector;
+import com.linrun.api.dto.AgentStreamRequest;
+import com.linrun.domain.agent.runtime.mode.AgentModeSelector;
 import com.linrun.trigger.agent.agent.deepresearch.PlanExecuteDomainBridge;
 import com.linrun.trigger.agent.entity.record.PlanTask;
 import com.linrun.trigger.agent.entity.record.TaskResult;
@@ -29,7 +29,7 @@ class AgentEngineRoutingTest {
 
         long correct = 0;
         for (RoutingCase routingCase : cases) {
-            AcademicAgentStreamRequest request = buildRequest(routingCase);
+            AgentStreamRequest request = buildRequest(routingCase);
             String fileIds = routingCase.hasAttachment() ? "F10001" : "";
             UnifiedAgentOrchestrator.OrchestrationPlan plan = orchestrator.plan(
                     routingCase.question(),
@@ -64,11 +64,11 @@ class AgentEngineRoutingTest {
         assertTrue(bridge.reflect(plan, results).needReplan());
     }
 
-    private AcademicAgentStreamRequest buildRequest(RoutingCase routingCase) {
+    private AgentStreamRequest buildRequest(RoutingCase routingCase) {
         if (!routingCase.hasAttachment() || !"image".equals(routingCase.attachmentType())) {
             return null;
         }
-        AcademicAgentStreamRequest request = new AcademicAgentStreamRequest();
+        AgentStreamRequest request = new AgentStreamRequest();
         request.setImageUrl("https://example.com/demo.png");
         return request;
     }

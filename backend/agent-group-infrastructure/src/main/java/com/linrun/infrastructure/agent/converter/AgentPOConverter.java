@@ -1,7 +1,7 @@
 package com.linrun.infrastructure.agent.converter;
 
-import com.linrun.domain.agent.conversation.model.QuotaOrderSnapshot;
-import com.linrun.domain.agent.conversation.model.QuotaProduct;
+import com.linrun.domain.quota.model.QuotaOrderSnapshot;
+import com.linrun.domain.quota.model.QuotaProduct;
 import com.linrun.infrastructure.po.QuotaOrderSnapshotPO;
 import com.linrun.infrastructure.po.QuotaProductPO;
 import org.springframework.beans.BeanUtils;

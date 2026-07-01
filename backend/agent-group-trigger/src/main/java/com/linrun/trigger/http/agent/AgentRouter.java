@@ -1,6 +1,6 @@
 package com.linrun.trigger.http.agent;
 
-import com.linrun.domain.academic.runtime.mode.AgentModeSelector;
+import com.linrun.domain.agent.runtime.mode.AgentModeSelector;
 import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;

@@ -27,13 +27,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimiterAccessFilter extends OncePerRequestFilter {
 
     private static final List<String> PROTECTED_PATHS = List.of(
-            "/api/v1/academic/stream",
-            "/api/v1/group/trade/lock",
-            "/api/v1/group/trade/refund",
-            "/api/v1/payment/webhook/**",
-            "/api/v1/payment/refund",
-            "/api/v1/gbm/trade/lock_market_pay_order",
-            "/api/v1/gbm/trade/refund_market_pay_order"
+            "/api/v1/agent/stream",
+            "/api/v1/market/trade/lock",
+            "/api/v1/market/trade/refund",
+            "/api/v1/trade/payment/webhook/**",
+            "/api/v1/trade/payment/refund",
+            "/api/v1/market/trade/lock_market_pay_order",
+            "/api/v1/market/trade/refund_market_pay_order"
     );
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();

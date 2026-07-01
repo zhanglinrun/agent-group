@@ -2,8 +2,8 @@ package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.TradeConsistencyCheckRequest;
 import com.linrun.api.dto.TradeConsistencyCheckResponse;
-import com.linrun.domain.account.adapter.UserQuotaRepository;
-import com.linrun.domain.account.service.UserQuotaService;
+import com.linrun.domain.quota.adapter.UserQuotaRepository;
+import com.linrun.domain.quota.service.UserQuotaService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;

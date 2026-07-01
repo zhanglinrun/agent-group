@@ -1,10 +1,10 @@
 package com.linrun.trigger.http.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpRegistry;
-import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpRegistrySummary;
-import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpServerDescriptor;
-import com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor;
+import com.linrun.domain.agent.runtime.tool.mcp.AgentMcpRegistry;
+import com.linrun.domain.agent.runtime.tool.mcp.AgentMcpRegistrySummary;
+import com.linrun.domain.agent.runtime.tool.mcp.AgentMcpServerDescriptor;
+import com.linrun.domain.agent.runtime.tool.mcp.AgentMcpToolDescriptor;
 import com.linrun.trigger.config.McpAdminProperties;
 import com.linrun.types.exception.AppException;
 import io.modelcontextprotocol.client.McpClient;
@@ -44,36 +44,36 @@ public class McpAdminHandler {
 
     private static final Logger log = LoggerFactory.getLogger(McpAdminHandler.class);
 
-    private final AcademicMcpRegistry registry;
+    private final AgentMcpRegistry registry;
     private final McpToolDiscoverer toolDiscoverer;
     private final McpToolInvoker toolInvoker;
     private final ObjectMapper objectMapper;
     private final Path stateFile;
 
     public McpAdminHandler() {
-        this(new AcademicMcpRegistry(), new SdkMcpToolDiscoverer(), new SdkMcpToolInvoker(),
+        this(new AgentMcpRegistry(), new SdkMcpToolDiscoverer(), new SdkMcpToolInvoker(),
                 new ObjectMapper().findAndRegisterModules(), "", false);
     }
 
     @Autowired
     public McpAdminHandler(ObjectMapper objectMapper, McpAdminProperties properties) {
-        this(new AcademicMcpRegistry(), new SdkMcpToolDiscoverer(), new SdkMcpToolInvoker(),
+        this(new AgentMcpRegistry(), new SdkMcpToolDiscoverer(), new SdkMcpToolInvoker(),
                 objectMapper, properties == null ? "" : properties.getAdminStateFile(), true);
         importConfiguredState(properties);
     }
 
     McpAdminHandler(McpToolDiscoverer toolDiscoverer) {
-        this(new AcademicMcpRegistry(), toolDiscoverer, new SdkMcpToolInvoker(),
+        this(new AgentMcpRegistry(), toolDiscoverer, new SdkMcpToolInvoker(),
                 new ObjectMapper().findAndRegisterModules(), "", false);
     }
 
     McpAdminHandler(McpToolDiscoverer toolDiscoverer, McpToolInvoker toolInvoker) {
-        this(new AcademicMcpRegistry(), toolDiscoverer, toolInvoker,
+        this(new AgentMcpRegistry(), toolDiscoverer, toolInvoker,
                 new ObjectMapper().findAndRegisterModules(), "", false);
     }
 
     McpAdminHandler(McpToolDiscoverer toolDiscoverer, Path stateFile) {
-        this(new AcademicMcpRegistry(), toolDiscoverer, new SdkMcpToolInvoker(), new ObjectMapper().findAndRegisterModules(),
+        this(new AgentMcpRegistry(), toolDiscoverer, new SdkMcpToolInvoker(), new ObjectMapper().findAndRegisterModules(),
                 stateFile == null ? "" : stateFile.toString(), false);
     }
 
@@ -81,18 +81,18 @@ public class McpAdminHandler {
                     McpToolInvoker toolInvoker,
                     Path stateFile,
                     McpAdminProperties properties) {
-        this(new AcademicMcpRegistry(), toolDiscoverer, toolInvoker, new ObjectMapper().findAndRegisterModules(),
+        this(new AgentMcpRegistry(), toolDiscoverer, toolInvoker, new ObjectMapper().findAndRegisterModules(),
                 stateFile == null ? "" : stateFile.toString(), false);
         importConfiguredState(properties);
     }
 
-    private McpAdminHandler(AcademicMcpRegistry registry,
+    private McpAdminHandler(AgentMcpRegistry registry,
                             McpToolDiscoverer toolDiscoverer,
                             McpToolInvoker toolInvoker,
                             ObjectMapper objectMapper,
                             String stateFile,
                             boolean useDefaultStateFile) {
-        this.registry = registry == null ? new AcademicMcpRegistry() : registry;
+        this.registry = registry == null ? new AgentMcpRegistry() : registry;
         this.toolDiscoverer = toolDiscoverer == null ? new SdkMcpToolDiscoverer() : toolDiscoverer;
         this.toolInvoker = toolInvoker == null ? new SdkMcpToolInvoker() : toolInvoker;
         this.objectMapper = objectMapper == null ? new ObjectMapper().findAndRegisterModules() : objectMapper;
@@ -108,7 +108,7 @@ public class McpAdminHandler {
         if (!StringUtils.hasText(endpoint) && isStdioTransport(transport)) {
             endpoint = "stdio://" + serverId;
         }
-        AcademicMcpServerDescriptor server = AcademicMcpServerDescriptor.builder(serverId)
+        AgentMcpServerDescriptor server = AgentMcpServerDescriptor.builder(serverId)
                 .name(text(body.get("name")))
                 .endpoint(endpoint)
                 .transport(transport)
@@ -134,8 +134,8 @@ public class McpAdminHandler {
 
     public Map<String, Object> discoverTools(String serverId, Map<String, Object> request) {
         Map<String, Object> body = request == null ? Map.of() : request;
-        AcademicMcpServerDescriptor server = requireServer(serverId);
-        List<AcademicMcpToolDescriptor> tools = toolDiscoverer.discover(server, body);
+        AgentMcpServerDescriptor server = requireServer(serverId);
+        List<AgentMcpToolDescriptor> tools = toolDiscoverer.discover(server, body);
         boolean cache = bool(body.get("cache"), true);
         if (cache) {
             registry.cacheDiscoveredTools(serverId, tools);
@@ -152,7 +152,7 @@ public class McpAdminHandler {
 
     public Map<String, Object> cacheTools(String serverId, Map<String, Object> request) {
         Map<String, Object> body = request == null ? Map.of() : request;
-        List<AcademicMcpToolDescriptor> tools = list(body.get("tools")).stream()
+        List<AgentMcpToolDescriptor> tools = list(body.get("tools")).stream()
                 .filter(Map.class::isInstance)
                 .map(item -> tool(serverId, map(item)))
                 .toList();
@@ -171,7 +171,7 @@ public class McpAdminHandler {
     }
 
     public List<Map<String, Object>> listTools(String serverId, boolean enabledOnly) {
-        List<AcademicMcpToolDescriptor> tools = enabledOnly
+        List<AgentMcpToolDescriptor> tools = enabledOnly
                 ? registry.listEnabledTools()
                 : registry.listTools(serverId);
         return tools.stream().map(this::tool).toList();
@@ -184,7 +184,7 @@ public class McpAdminHandler {
     }
 
     public Map<String, Object> exportState() {
-        AcademicMcpRegistry.Snapshot snapshot = registry.snapshot();
+        AgentMcpRegistry.Snapshot snapshot = registry.snapshot();
         List<Map<String, Object>> servers = listServers();
         List<Map<String, Object>> tools = listTools("", false);
         Map<String, Object> result = new LinkedHashMap<>();
@@ -202,8 +202,8 @@ public class McpAdminHandler {
     public Map<String, Object> importState(Map<String, Object> request) {
         Map<String, Object> body = request == null ? Map.of() : request;
         boolean replace = bool(body.get("replace"), false);
-        AcademicMcpRegistry.Snapshot imported = snapshot(body);
-        AcademicMcpRegistry.Snapshot next = replace ? imported : mergeSnapshots(registry.snapshot(), imported);
+        AgentMcpRegistry.Snapshot imported = snapshot(body);
+        AgentMcpRegistry.Snapshot next = replace ? imported : mergeSnapshots(registry.snapshot(), imported);
         registry.restore(next);
         safeServers(next).forEach(server -> toolInvoker.invalidate(server.serverId()));
         persistState();
@@ -215,7 +215,7 @@ public class McpAdminHandler {
     }
 
     public Map<String, Object> health() {
-        AcademicMcpRegistrySummary summary = registry.summary();
+        AgentMcpRegistrySummary summary = registry.summary();
         List<Map<String, Object>> serverChecks = registry.listServers().stream()
                 .map(this::serverHealth)
                 .toList();
@@ -247,8 +247,8 @@ public class McpAdminHandler {
     }
 
     public Map<String, Object> callAgentTool(String agentToolName, Map<String, Object> arguments) {
-        AcademicMcpToolDescriptor tool = resolveAgentTool(agentToolName);
-        AcademicMcpServerDescriptor server = requireServer(tool.getServerId());
+        AgentMcpToolDescriptor tool = resolveAgentTool(agentToolName);
+        AgentMcpServerDescriptor server = requireServer(tool.getServerId());
         ensureToolCallable(server, tool);
         return toolInvoker.invoke(server, tool, arguments == null ? Map.of() : arguments);
     }
@@ -257,14 +257,14 @@ public class McpAdminHandler {
         Map<String, Object> body = request == null ? Map.of() : request;
         Map<String, Object> arguments = body.containsKey("arguments") ? map(body.get("arguments")) : body;
         String name = text(toolName);
-        AcademicMcpToolDescriptor tool = registry.findTool(name)
+        AgentMcpToolDescriptor tool = registry.findTool(name)
                 .orElseGet(() -> resolveAgentTool(name));
-        AcademicMcpServerDescriptor server = requireServer(tool.getServerId());
+        AgentMcpServerDescriptor server = requireServer(tool.getServerId());
         ensureToolCallable(server, tool);
         return toolInvoker.invoke(server, tool, arguments);
     }
 
-    private Map<String, Object> registrySummary(AcademicMcpRegistrySummary summary) {
+    private Map<String, Object> registrySummary(AgentMcpRegistrySummary summary) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("serverCount", summary.serverCount());
         result.put("enabledServerCount", summary.enabledServerCount());
@@ -282,8 +282,8 @@ public class McpAdminHandler {
         return result;
     }
 
-    private Map<String, Object> serverHealth(AcademicMcpServerDescriptor server) {
-        List<AcademicMcpToolDescriptor> tools = registry.listTools(server.getServerId());
+    private Map<String, Object> serverHealth(AgentMcpServerDescriptor server) {
+        List<AgentMcpToolDescriptor> tools = registry.listTools(server.getServerId());
         String lastDiscoveredAt = registry.lastDiscoveredAt(server.getServerId())
                 .map(LocalDateTime::toString)
                 .orElse("");
@@ -311,27 +311,27 @@ public class McpAdminHandler {
         result.put("status", status);
         result.put("message", message);
         result.put("toolCount", tools.size());
-        result.put("enabledToolCount", tools.stream().filter(AcademicMcpToolDescriptor::isEnabled).count());
+        result.put("enabledToolCount", tools.stream().filter(AgentMcpToolDescriptor::isEnabled).count());
         result.put("lastDiscoveredAt", lastDiscoveredAt);
         result.putAll(cacheState(server));
         return result;
     }
 
-    private AcademicMcpRegistry.Snapshot snapshot(Map<String, Object> body) {
+    private AgentMcpRegistry.Snapshot snapshot(Map<String, Object> body) {
         Object candidate = body.get("snapshot");
         if (candidate == null) {
             candidate = body;
         }
         try {
-            return objectMapper.convertValue(candidate, AcademicMcpRegistry.Snapshot.class);
+            return objectMapper.convertValue(candidate, AgentMcpRegistry.Snapshot.class);
         } catch (IllegalArgumentException e) {
             throw new AppException("MCP_0303", "mcp admin state import failed: " + e.getMessage(), e);
         }
     }
 
-    private AcademicMcpRegistry.Snapshot mergeSnapshots(AcademicMcpRegistry.Snapshot current,
-                                                        AcademicMcpRegistry.Snapshot imported) {
-        Map<String, AcademicMcpRegistry.ServerState> servers = new LinkedHashMap<>();
+    private AgentMcpRegistry.Snapshot mergeSnapshots(AgentMcpRegistry.Snapshot current,
+                                                        AgentMcpRegistry.Snapshot imported) {
+        Map<String, AgentMcpRegistry.ServerState> servers = new LinkedHashMap<>();
         safeServers(current).forEach(server -> servers.put(server.serverId(), server));
         safeServers(imported).forEach(server -> {
             if (StringUtils.hasText(server.serverId())) {
@@ -339,20 +339,20 @@ public class McpAdminHandler {
             }
         });
 
-        Map<String, List<AcademicMcpRegistry.ToolState>> toolsByServer = new LinkedHashMap<>();
+        Map<String, List<AgentMcpRegistry.ToolState>> toolsByServer = new LinkedHashMap<>();
         mergeToolStates(toolsByServer, current);
         mergeToolStates(toolsByServer, imported);
 
         Map<String, String> discoveredAt = new LinkedHashMap<>();
         discoveredAt.putAll(safeDiscovered(current));
         discoveredAt.putAll(safeDiscovered(imported));
-        return new AcademicMcpRegistry.Snapshot(new ArrayList<>(servers.values()), toolsByServer, discoveredAt);
+        return new AgentMcpRegistry.Snapshot(new ArrayList<>(servers.values()), toolsByServer, discoveredAt);
     }
 
-    private void mergeToolStates(Map<String, List<AcademicMcpRegistry.ToolState>> result,
-                                 AcademicMcpRegistry.Snapshot snapshot) {
+    private void mergeToolStates(Map<String, List<AgentMcpRegistry.ToolState>> result,
+                                 AgentMcpRegistry.Snapshot snapshot) {
         safeTools(snapshot).forEach((serverId, tools) -> {
-            Map<String, AcademicMcpRegistry.ToolState> byName = new LinkedHashMap<>();
+            Map<String, AgentMcpRegistry.ToolState> byName = new LinkedHashMap<>();
             result.getOrDefault(serverId, List.of()).forEach(tool -> byName.put(tool.toolName(), tool));
             if (tools != null) {
                 tools.stream()
@@ -363,15 +363,15 @@ public class McpAdminHandler {
         });
     }
 
-    private List<AcademicMcpRegistry.ServerState> safeServers(AcademicMcpRegistry.Snapshot snapshot) {
+    private List<AgentMcpRegistry.ServerState> safeServers(AgentMcpRegistry.Snapshot snapshot) {
         return snapshot == null || snapshot.servers() == null ? List.of() : snapshot.servers();
     }
 
-    private Map<String, List<AcademicMcpRegistry.ToolState>> safeTools(AcademicMcpRegistry.Snapshot snapshot) {
+    private Map<String, List<AgentMcpRegistry.ToolState>> safeTools(AgentMcpRegistry.Snapshot snapshot) {
         return snapshot == null || snapshot.toolsByServer() == null ? Map.of() : snapshot.toolsByServer();
     }
 
-    private Map<String, String> safeDiscovered(AcademicMcpRegistry.Snapshot snapshot) {
+    private Map<String, String> safeDiscovered(AgentMcpRegistry.Snapshot snapshot) {
         return snapshot == null || snapshot.discoveredAtByServer() == null ? Map.of() : snapshot.discoveredAtByServer();
     }
 
@@ -385,12 +385,12 @@ public class McpAdminHandler {
                 continue;
             }
             try {
-                AcademicMcpServerDescriptor server = server(configuredServer);
+                AgentMcpServerDescriptor server = server(configuredServer);
                 registry.registerServer(server);
                 toolInvoker.invalidate(server.getServerId());
                 changed = true;
 
-                List<AcademicMcpToolDescriptor> tools = configuredTools(server.getServerId(), configuredServer.getTools());
+                List<AgentMcpToolDescriptor> tools = configuredTools(server.getServerId(), configuredServer.getTools());
                 if (!tools.isEmpty()) {
                     registry.cacheDiscoveredTools(server.getServerId(), tools);
                     changed = true;
@@ -409,12 +409,12 @@ public class McpAdminHandler {
         }
     }
 
-    private boolean discoverConfiguredTools(AcademicMcpServerDescriptor server,
+    private boolean discoverConfiguredTools(AgentMcpServerDescriptor server,
                                             McpAdminProperties.Server configuredServer) {
         Map<String, Object> request = new LinkedHashMap<>(configuredServer.getDiscoveryRequest());
         request.putIfAbsent("cache", configuredServer.isCacheDiscoveredTools());
         try {
-            List<AcademicMcpToolDescriptor> tools = toolDiscoverer.discover(server, request);
+            List<AgentMcpToolDescriptor> tools = toolDiscoverer.discover(server, request);
             if (configuredServer.isCacheDiscoveredTools()) {
                 registry.cacheDiscoveredTools(server.getServerId(), tools);
                 return true;
@@ -425,14 +425,14 @@ public class McpAdminHandler {
         return false;
     }
 
-    private AcademicMcpServerDescriptor server(McpAdminProperties.Server configuredServer) {
+    private AgentMcpServerDescriptor server(McpAdminProperties.Server configuredServer) {
         String serverId = text(configuredServer.getServerId());
         String transport = defaultText(configuredServer.getTransport(), "streamable_http");
         String endpoint = text(configuredServer.getEndpoint());
         if (!StringUtils.hasText(endpoint) && isStdioTransport(transport)) {
             endpoint = "stdio://" + serverId;
         }
-        return AcademicMcpServerDescriptor.builder(serverId)
+        return AgentMcpServerDescriptor.builder(serverId)
                 .name(configuredServer.getName())
                 .endpoint(endpoint)
                 .transport(transport)
@@ -441,7 +441,7 @@ public class McpAdminHandler {
                 .build();
     }
 
-    private List<AcademicMcpToolDescriptor> configuredTools(String serverId,
+    private List<AgentMcpToolDescriptor> configuredTools(String serverId,
                                                             List<McpAdminProperties.Tool> configuredTools) {
         if (configuredTools == null || configuredTools.isEmpty()) {
             return List.of();
@@ -449,7 +449,7 @@ public class McpAdminHandler {
         return configuredTools.stream()
                 .filter(Objects::nonNull)
                 .filter(tool -> StringUtils.hasText(defaultText(tool.getToolName(), tool.getName())))
-                .map(tool -> AcademicMcpToolDescriptor.builder(serverId, defaultText(tool.getToolName(), tool.getName()))
+                .map(tool -> AgentMcpToolDescriptor.builder(serverId, defaultText(tool.getToolName(), tool.getName()))
                         .description(tool.getDescription())
                         .inputSchema(tool.getInputSchema())
                         .enabled(tool.isEnabled())
@@ -457,27 +457,27 @@ public class McpAdminHandler {
                 .toList();
     }
 
-    private AcademicMcpServerDescriptor requireServer(String serverId) {
+    private AgentMcpServerDescriptor requireServer(String serverId) {
         return registry.listServers().stream()
                 .filter(server -> server.getServerId().equals(serverId))
                 .findFirst()
                 .orElseThrow(() -> new AppException("MCP_0102", "unknown mcp server: " + serverId));
     }
 
-    private AcademicMcpToolDescriptor resolveAgentTool(String agentToolName) {
+    private AgentMcpToolDescriptor resolveAgentTool(String agentToolName) {
         return registry.listEnabledTools().stream()
                 .filter(tool -> agentToolName(tool).equals(agentToolName))
                 .findFirst()
                 .orElseThrow(() -> new AppException("MCP_0400", "unknown agent mcp tool: " + agentToolName));
     }
 
-    private List<AcademicMcpToolDescriptor> listAgentReadyTools() {
+    private List<AgentMcpToolDescriptor> listAgentReadyTools() {
         return registry.listEnabledTools().stream()
                 .filter(tool -> !cacheExpired(requireServer(tool.getServerId())))
                 .toList();
     }
 
-    private void ensureToolCallable(AcademicMcpServerDescriptor server, AcademicMcpToolDescriptor tool) {
+    private void ensureToolCallable(AgentMcpServerDescriptor server, AgentMcpToolDescriptor tool) {
         if (!server.isEnabled() || !tool.isEnabled()) {
             throw new AppException("MCP_0401", "mcp tool disabled: " + tool.qualifiedName());
         }
@@ -487,19 +487,19 @@ public class McpAdminHandler {
         }
     }
 
-    private AcademicMcpToolDescriptor tool(String serverId, Map<String, Object> body) {
+    private AgentMcpToolDescriptor tool(String serverId, Map<String, Object> body) {
         String toolName = defaultText(body.get("toolName"), text(body.get("name")));
         if (!StringUtils.hasText(toolName)) {
             throw new AppException("MCP_0202", "mcp tool name cannot be blank");
         }
-        return AcademicMcpToolDescriptor.builder(serverId, toolName)
+        return AgentMcpToolDescriptor.builder(serverId, toolName)
                 .description(text(body.get("description")))
                 .inputSchema(map(body.get("inputSchema")))
                 .enabled(bool(body.get("enabled"), true))
                 .build();
     }
 
-    private Map<String, Object> server(AcademicMcpServerDescriptor server) {
+    private Map<String, Object> server(AgentMcpServerDescriptor server) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("serverId", server.getServerId());
         result.put("name", server.getName());
@@ -513,7 +513,7 @@ public class McpAdminHandler {
         return result;
     }
 
-    private Map<String, Object> tool(AcademicMcpToolDescriptor tool) {
+    private Map<String, Object> tool(AgentMcpToolDescriptor tool) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("serverId", tool.getServerId());
         result.put("toolName", tool.getToolName());
@@ -525,7 +525,7 @@ public class McpAdminHandler {
         return result;
     }
 
-    private Map<String, Object> agentTool(AcademicMcpToolDescriptor tool) {
+    private Map<String, Object> agentTool(AgentMcpToolDescriptor tool) {
         Map<String, Object> result = tool(tool);
         result.put("name", agentToolName(tool));
         result.put("category", "mcp");
@@ -535,7 +535,7 @@ public class McpAdminHandler {
         return result;
     }
 
-    private String agentToolName(AcademicMcpToolDescriptor tool) {
+    private String agentToolName(AgentMcpToolDescriptor tool) {
         return "mcp_" + safeToolName(tool.getServerId()) + "__" + safeToolName(tool.getToolName());
     }
 
@@ -548,12 +548,12 @@ public class McpAdminHandler {
         return "stdio".equals(Objects.toString(transport, "").trim().toLowerCase(Locale.ROOT));
     }
 
-    private boolean cacheExpired(AcademicMcpServerDescriptor server) {
+    private boolean cacheExpired(AgentMcpServerDescriptor server) {
         Object expired = cacheState(server).get("cacheExpired");
         return expired instanceof Boolean value && value;
     }
 
-    private Map<String, Object> cacheState(AcademicMcpServerDescriptor server) {
+    private Map<String, Object> cacheState(AgentMcpServerDescriptor server) {
         LocalDateTime discoveredAt = registry.lastDiscoveredAt(server.getServerId()).orElse(null);
         long ttlSeconds = cacheTtlSeconds(server.getMetadata());
         long ageSeconds = discoveredAt == null
@@ -628,7 +628,7 @@ public class McpAdminHandler {
             return;
         }
         try {
-            AcademicMcpRegistry.Snapshot snapshot = objectMapper.readValue(stateFile.toFile(), AcademicMcpRegistry.Snapshot.class);
+            AgentMcpRegistry.Snapshot snapshot = objectMapper.readValue(stateFile.toFile(), AgentMcpRegistry.Snapshot.class);
             registry.restore(snapshot);
         } catch (IOException | RuntimeException e) {
             throw new AppException("MCP_0301", "mcp admin state load failed: " + e.getMessage(), e);
@@ -662,12 +662,12 @@ public class McpAdminHandler {
     }
 
     interface McpToolDiscoverer {
-        List<AcademicMcpToolDescriptor> discover(AcademicMcpServerDescriptor server, Map<String, Object> request);
+        List<AgentMcpToolDescriptor> discover(AgentMcpServerDescriptor server, Map<String, Object> request);
     }
 
     interface McpToolInvoker {
-        Map<String, Object> invoke(AcademicMcpServerDescriptor server,
-                                   AcademicMcpToolDescriptor tool,
+        Map<String, Object> invoke(AgentMcpServerDescriptor server,
+                                   AgentMcpToolDescriptor tool,
                                    Map<String, Object> arguments);
 
         default void invalidate(String serverId) {
@@ -679,7 +679,7 @@ public class McpAdminHandler {
         private static final int MAX_TOOL_PAGES = 50;
 
         @Override
-        public List<AcademicMcpToolDescriptor> discover(AcademicMcpServerDescriptor server, Map<String, Object> request) {
+        public List<AgentMcpToolDescriptor> discover(AgentMcpServerDescriptor server, Map<String, Object> request) {
             if (server == null) {
                 throw new AppException("MCP_0203", "mcp server cannot be null");
             }
@@ -703,7 +703,7 @@ public class McpAdminHandler {
             }
         }
 
-        private McpClientTransport transport(AcademicMcpServerDescriptor server, Map<String, Object> body) {
+        private McpClientTransport transport(AgentMcpServerDescriptor server, Map<String, Object> body) {
             String transport = text(server.getTransport()).toLowerCase(Locale.ROOT).replace("-", "_");
             Map<String, String> headers = headers(server, body);
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
@@ -727,7 +727,7 @@ public class McpAdminHandler {
             throw new AppException("MCP_0205", "unsupported mcp transport for discovery: " + server.getTransport());
         }
 
-        private McpClientTransport stdioTransport(AcademicMcpServerDescriptor server, Map<String, Object> body) {
+        private McpClientTransport stdioTransport(AgentMcpServerDescriptor server, Map<String, Object> body) {
             Map<String, Object> metadata = server.getMetadata();
             String command = defaultText(text(body.get("command")), text(metadata.get("command")));
             if (!StringUtils.hasText(command)) {
@@ -744,8 +744,8 @@ public class McpAdminHandler {
             return new StdioClientTransport(serverParameters, McpJsonMapper.createDefault());
         }
 
-        private List<AcademicMcpToolDescriptor> readTools(String serverId, McpSyncClient client) {
-            List<AcademicMcpToolDescriptor> tools = new ArrayList<>();
+        private List<AgentMcpToolDescriptor> readTools(String serverId, McpSyncClient client) {
+            List<AgentMcpToolDescriptor> tools = new ArrayList<>();
             String cursor = "";
             for (int page = 0; page < MAX_TOOL_PAGES; page++) {
                 McpSchema.ListToolsResult result = StringUtils.hasText(cursor)
@@ -765,8 +765,8 @@ public class McpAdminHandler {
             return tools;
         }
 
-        private AcademicMcpToolDescriptor toTool(String serverId, McpSchema.Tool tool) {
-            return AcademicMcpToolDescriptor.builder(serverId, tool.name())
+        private AgentMcpToolDescriptor toTool(String serverId, McpSchema.Tool tool) {
+            return AgentMcpToolDescriptor.builder(serverId, tool.name())
                     .description(defaultText(tool.description(), tool.title()))
                     .inputSchema(jsonSchema(tool.inputSchema()))
                     .enabled(true)
@@ -794,7 +794,7 @@ public class McpAdminHandler {
         }
 
         @SuppressWarnings("unchecked")
-        private Map<String, String> headers(AcademicMcpServerDescriptor server, Map<String, Object> body) {
+        private Map<String, String> headers(AgentMcpServerDescriptor server, Map<String, Object> body) {
             Map<String, String> result = new LinkedHashMap<>();
             Object metadataHeaders = server.getMetadata().get("headers");
             if (metadataHeaders instanceof Map<?, ?> headers) {
@@ -902,8 +902,8 @@ public class McpAdminHandler {
         private final ConcurrentMap<String, RuntimeHandle> runtimes = new ConcurrentHashMap<>();
 
         @Override
-        public Map<String, Object> invoke(AcademicMcpServerDescriptor server,
-                                          AcademicMcpToolDescriptor tool,
+        public Map<String, Object> invoke(AgentMcpServerDescriptor server,
+                                          AgentMcpToolDescriptor tool,
                                           Map<String, Object> arguments) {
             if (server == null || tool == null) {
                 throw new AppException("MCP_0403", "mcp server and tool cannot be null");
@@ -931,8 +931,8 @@ public class McpAdminHandler {
             }
         }
 
-        private Map<String, Object> invokeWithTransientClient(AcademicMcpServerDescriptor server,
-                                                              AcademicMcpToolDescriptor tool,
+        private Map<String, Object> invokeWithTransientClient(AgentMcpServerDescriptor server,
+                                                              AgentMcpToolDescriptor tool,
                                                               Map<String, Object> arguments) {
             McpSyncClient client = null;
             try {
@@ -965,7 +965,7 @@ public class McpAdminHandler {
             closeQuietly(runtimes.remove(key));
         }
 
-        private RuntimeHandle runtime(AcademicMcpServerDescriptor server) {
+        private RuntimeHandle runtime(AgentMcpServerDescriptor server) {
             String runtimeKey = runtimeKey(server);
             return runtimes.compute(server.getServerId(), (serverId, current) -> {
                 if (current != null && current.runtimeKey().equals(runtimeKey)) {
@@ -977,7 +977,7 @@ public class McpAdminHandler {
             });
         }
 
-        private McpSyncClient client(AcademicMcpServerDescriptor server) {
+        private McpSyncClient client(AgentMcpServerDescriptor server) {
             McpSyncClient client = McpClient.sync(transport(server))
                     .requestTimeout(Duration.ofSeconds(number(server.getMetadata().get("timeoutSeconds"), 120)))
                     .build();
@@ -985,7 +985,7 @@ public class McpAdminHandler {
             return client;
         }
 
-        private String runtimeKey(AcademicMcpServerDescriptor server) {
+        private String runtimeKey(AgentMcpServerDescriptor server) {
             return String.join("|",
                     text(server.getServerId()),
                     text(server.getEndpoint()),
@@ -1004,7 +1004,7 @@ public class McpAdminHandler {
             }
         }
 
-        private McpClientTransport transport(AcademicMcpServerDescriptor server) {
+        private McpClientTransport transport(AgentMcpServerDescriptor server) {
             String transport = text(server.getTransport()).toLowerCase(Locale.ROOT).replace("-", "_");
             Map<String, String> headers = headers(server);
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder();
@@ -1028,7 +1028,7 @@ public class McpAdminHandler {
             throw new AppException("MCP_0205", "unsupported mcp transport for call: " + server.getTransport());
         }
 
-        private McpClientTransport stdioTransport(AcademicMcpServerDescriptor server) {
+        private McpClientTransport stdioTransport(AgentMcpServerDescriptor server) {
             Map<String, Object> metadata = server.getMetadata();
             String command = text(metadata.get("command"));
             if (!StringUtils.hasText(command)) {
@@ -1045,7 +1045,7 @@ public class McpAdminHandler {
             return new StdioClientTransport(serverParameters, McpJsonMapper.createDefault());
         }
 
-        private Map<String, Object> result(AcademicMcpToolDescriptor tool, McpSchema.CallToolResult result) {
+        private Map<String, Object> result(AgentMcpToolDescriptor tool, McpSchema.CallToolResult result) {
             if (result == null) {
                 return Map.of("qualifiedName", tool.qualifiedName(), "isError", true, "text", "");
             }
@@ -1077,7 +1077,7 @@ public class McpAdminHandler {
         }
 
         @SuppressWarnings("unchecked")
-        private Map<String, String> headers(AcademicMcpServerDescriptor server) {
+        private Map<String, String> headers(AgentMcpServerDescriptor server) {
             Map<String, String> result = new LinkedHashMap<>();
             Object metadataHeaders = server.getMetadata().get("headers");
             if (metadataHeaders instanceof Map<?, ?> headers) {

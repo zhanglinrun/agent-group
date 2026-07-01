@@ -2,7 +2,7 @@ package com.linrun.trigger.http.agent;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.domain.academic.runtime.tool.port.AcademicCodeInterpreterPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentCodeInterpreterPort;
 import com.linrun.trigger.config.AgentAdminConfigProperties;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -538,8 +538,8 @@ public class AgentAdminConfigHandler {
     private Map<String, Object> runtimePolicies() {
         Map<String, Object> codeInterpreter = new LinkedHashMap<>();
         codeInterpreter.put("toolName", "code_interpreter");
-        codeInterpreter.put("defaultPermissionProfile", AcademicCodeInterpreterPort.PERMISSION_PROFILE_ANALYSIS);
-        codeInterpreter.put("allowedPermissionProfiles", AcademicCodeInterpreterPort.allowedPermissionProfiles());
+        codeInterpreter.put("defaultPermissionProfile", AgentCodeInterpreterPort.PERMISSION_PROFILE_ANALYSIS);
+        codeInterpreter.put("allowedPermissionProfiles", AgentCodeInterpreterPort.allowedPermissionProfiles());
         codeInterpreter.put("analysis", "read input files and write generated artifacts only through output helpers");
         codeInterpreter.put("workspace", "allow workspace scoped reads and writes when explicitly requested");
 

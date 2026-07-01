@@ -41,7 +41,7 @@ public class UsageRecordingChatModel implements ChatModel {
 
     @Override
     public ChatResponse call(Prompt prompt) {
-        AcademicAgentTokenUsageRecorder.beginCall(conversationId);
+        AgentTokenUsageRecorder.beginCall(conversationId);
         Supplier<ChatResponse> call = () -> delegate.call(prompt);
         if (retry != null) {
             call = Retry.decorateSupplier(retry, call);
@@ -50,15 +50,15 @@ public class UsageRecordingChatModel implements ChatModel {
             call = CircuitBreaker.decorateSupplier(circuitBreaker, call);
         }
         ChatResponse response = call.get();
-        AcademicAgentTokenUsageRecorder.record(conversationId, response);
+        AgentTokenUsageRecorder.record(conversationId, response);
         return response;
     }
 
     @Override
     public Flux<ChatResponse> stream(Prompt prompt) {
         Flux<ChatResponse> source = Flux.defer(() -> delegate.stream(prompt))
-                .doOnSubscribe(ignored -> AcademicAgentTokenUsageRecorder.beginCall(conversationId))
-                .doOnNext(response -> AcademicAgentTokenUsageRecorder.record(conversationId, response));
+                .doOnSubscribe(ignored -> AgentTokenUsageRecorder.beginCall(conversationId))
+                .doOnNext(response -> AgentTokenUsageRecorder.record(conversationId, response));
         if (circuitBreaker != null) {
             source = source.transform(CircuitBreakerOperator.of(circuitBreaker));
         }

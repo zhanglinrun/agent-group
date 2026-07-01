@@ -1,15 +1,15 @@
 package com.linrun.trigger.http.ops;
 
 import com.linrun.api.dto.OpsDashboardResponse;
-import com.linrun.domain.groupbuy.adapter.repository.GroupBuyActivityRepository;
-import com.linrun.domain.groupbuy.adapter.repository.GroupBuyMarketRepository;
-import com.linrun.domain.groupbuy.adapter.repository.GroupBuyStockRepository;
-import com.linrun.domain.groupbuy.model.GroupBuyActivity;
-import com.linrun.domain.groupbuy.model.GroupBuyMarketSku;
-import com.linrun.domain.groupbuy.model.GroupBuyStock;
-import com.linrun.domain.groupbuy.model.SourceChannelSkuActivity;
-import com.linrun.domain.groupbuy.tag.adapter.CrowdTagRepository;
-import com.linrun.domain.groupbuy.tag.model.CrowdTag;
+import com.linrun.domain.market.adapter.repository.GroupBuyActivityRepository;
+import com.linrun.domain.market.adapter.repository.GroupBuyMarketRepository;
+import com.linrun.domain.market.adapter.repository.GroupBuyStockRepository;
+import com.linrun.domain.market.model.GroupBuyActivity;
+import com.linrun.domain.market.model.GroupBuyMarketSku;
+import com.linrun.domain.market.model.GroupBuyStock;
+import com.linrun.domain.market.model.SourceChannelSkuActivity;
+import com.linrun.domain.market.tag.adapter.CrowdTagRepository;
+import com.linrun.domain.market.tag.model.CrowdTag;
 import com.linrun.domain.trade.adapter.repository.NotifyTaskRepository;
 import com.linrun.domain.trade.model.notify.NotifyTask;
 import com.linrun.trigger.config.RequestTraceContext;

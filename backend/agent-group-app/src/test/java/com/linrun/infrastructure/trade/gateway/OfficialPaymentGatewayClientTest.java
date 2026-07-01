@@ -11,7 +11,7 @@ class OfficialPaymentGatewayClientTest {
 
     @Test
     void shouldExposeMissingAlipaySandboxItemsWhenKeysAreAbsent() {
-        OfficialPaymentGatewayClient client = client("", "", "http://localhost:8080/api/v1/payment/alipay/notify");
+        OfficialPaymentGatewayClient client = client("", "", "http://localhost:8080/api/v1/trade/payment/alipay/notify");
 
         PaymentGatewayStatusResponse status = client.gatewayStatus();
 
@@ -26,7 +26,7 @@ class OfficialPaymentGatewayClientTest {
         PaymentGatewayStatusResponse.ChannelStatus alipay = alipay(status);
         assertTrue(alipay.isSandboxMode());
         assertFalse(alipay.isConfigured());
-        assertEquals("http://localhost:8080/api/v1/payment/alipay/notify", alipay.getNotifyUrl());
+        assertEquals("http://localhost:8080/api/v1/trade/payment/alipay/notify", alipay.getNotifyUrl());
         assertTrue(alipay.getMissingItems().contains("publicNotifyUrl"));
         assertTrue(alipay.getLastError().contains("publicNotifyUrl"));
     }

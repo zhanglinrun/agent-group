@@ -1,6 +1,6 @@
 package com.linrun.trigger.http.agent;
 
-import com.linrun.api.dto.AcademicAgentStreamRequest;
+import com.linrun.api.dto.AgentStreamRequest;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,7 +12,7 @@ class UnifiedAgentOrchestratorTest {
     @Test
     void shouldKeepExplicitPptModeWhenFileIsAttached() {
         UnifiedAgentOrchestrator orchestrator = new UnifiedAgentOrchestrator();
-        AcademicAgentStreamRequest request = new AcademicAgentStreamRequest();
+        AgentStreamRequest request = new AgentStreamRequest();
         request.setTaskType("ppt");
         request.setFileId("F10001");
 
@@ -40,7 +40,7 @@ class UnifiedAgentOrchestratorTest {
                 UnifiedAgentOrchestrator.AUTO_TASK_TYPE,
                 "",
                 false,
-                new AcademicAgentStreamRequest());
+                new AgentStreamRequest());
 
         assertEquals("deep", plan.routing().agentType());
         assertEquals("deep", UnifiedAgentOrchestrator.resolveExecutionAgentType(
@@ -57,7 +57,7 @@ class UnifiedAgentOrchestratorTest {
                 "chat",
                 "",
                 false,
-                new AcademicAgentStreamRequest());
+                new AgentStreamRequest());
 
         assertEquals("deep", plan.modeSelection().getAgentType());
         assertEquals("chat", UnifiedAgentOrchestrator.resolveExecutionAgentType("chat", plan));
@@ -71,7 +71,7 @@ class UnifiedAgentOrchestratorTest {
                 UnifiedAgentOrchestrator.AUTO_TASK_TYPE,
                 "",
                 false,
-                new AcademicAgentStreamRequest());
+                new AgentStreamRequest());
 
         var data = UnifiedAgentOrchestrator.executionAppliedData(
                 "RUN-1",
@@ -93,7 +93,7 @@ class UnifiedAgentOrchestratorTest {
                 "deep",
                 "",
                 false,
-                new AcademicAgentStreamRequest());
+                new AgentStreamRequest());
 
         var data = UnifiedAgentOrchestrator.executionAppliedData(
                 "RUN-2",

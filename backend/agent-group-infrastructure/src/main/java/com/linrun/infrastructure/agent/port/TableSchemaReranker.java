@@ -1,6 +1,6 @@
 package com.linrun.infrastructure.agent.port;
 
-import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort.AcademicTableSchemaMatch;
+import com.linrun.domain.agent.runtime.tool.port.AgentTableRagPort.AgentTableSchemaMatch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,7 @@ final class TableSchemaReranker {
      * @param topN    精排后保留的表数
      * @return 按 rerank 分降序、score 更新为 rerank 分的表列表；scores 不匹配时原样返回（降级）
      */
-    static List<AcademicTableSchemaMatch> rerank(List<AcademicTableSchemaMatch> matches,
+    static List<AgentTableSchemaMatch> rerank(List<AgentTableSchemaMatch> matches,
                                                  List<Double> scores, int topN) {
         if (matches == null || matches.isEmpty()) {
             return matches == null ? List.of() : matches;
@@ -34,11 +34,11 @@ final class TableSchemaReranker {
         }
         order.sort((a, b) -> Double.compare(scores.get(b), scores.get(a)));
         int limit = Math.min(Math.max(topN, 1), matches.size());
-        List<AcademicTableSchemaMatch> reranked = new ArrayList<>(limit);
+        List<AgentTableSchemaMatch> reranked = new ArrayList<>(limit);
         for (int k = 0; k < limit; k++) {
             int i = order.get(k);
-            AcademicTableSchemaMatch m = matches.get(i);
-            reranked.add(new AcademicTableSchemaMatch(m.modelCode(), scores.get(i), m.schemaList()));
+            AgentTableSchemaMatch m = matches.get(i);
+            reranked.add(new AgentTableSchemaMatch(m.modelCode(), scores.get(i), m.schemaList()));
         }
         return reranked;
     }

@@ -4,8 +4,8 @@ import com.linrun.api.dto.UserAgentMemoryRequest;
 import com.linrun.api.dto.UserAgentMemoryResponse;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.service.UserAccountService;
-import com.linrun.domain.academic.memory.model.UserAgentMemory;
-import com.linrun.domain.academic.memory.service.UserAgentMemoryService;
+import com.linrun.domain.agent.memory.model.UserAgentMemory;
+import com.linrun.domain.agent.memory.service.UserAgentMemoryService;
 import com.linrun.trigger.config.RequestTraceContext;
 import com.linrun.types.common.Response;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -22,7 +22,7 @@ import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
-@RequestMapping("/api/v1/academic/memories")
+@RequestMapping("/api/v1/agent/memories")
 public class UserAgentMemoryController {
 
     private final UserAccountService userAccountService;

@@ -4,14 +4,14 @@ import com.linrun.api.dto.LoginRequest;
 import com.linrun.api.dto.LoginResponse;
 import com.linrun.api.dto.RegisterRequest;
 import com.linrun.domain.account.adapter.UserAccountRepository;
-import com.linrun.domain.account.adapter.UserQuotaRepository;
+import com.linrun.domain.quota.adapter.UserQuotaRepository;
 import com.linrun.domain.account.model.ModelUsageRecord;
 import com.linrun.domain.account.model.UserAccount;
 import com.linrun.domain.account.model.UserLoginSession;
 import com.linrun.domain.account.model.UserMembershipAccount;
 import com.linrun.domain.account.model.UserModelConfig;
-import com.linrun.domain.account.model.UserQuotaAccount;
-import com.linrun.domain.account.model.UserQuotaFlow;
+import com.linrun.domain.quota.model.UserQuotaAccount;
+import com.linrun.domain.quota.model.UserQuotaFlow;
 import com.linrun.types.exception.AppException;
 import org.junit.jupiter.api.Test;
 

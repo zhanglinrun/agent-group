@@ -1,7 +1,7 @@
 package com.linrun.domain.trade.service.payment;
 
-import com.linrun.domain.account.service.UserQuotaService;
-import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
+import com.linrun.domain.quota.service.UserQuotaService;
+import com.linrun.domain.market.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;

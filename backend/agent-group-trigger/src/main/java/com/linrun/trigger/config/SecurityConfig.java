@@ -52,9 +52,9 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/health", "/actuator/health", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/webhook", "/api/v1/payment/webhook/**",
-                                "/api/v1/payment/alipay/notify",
-                                "/api/v1/payment/refund/webhook/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/trade/payment/webhook", "/api/v1/trade/payment/webhook/**",
+                                "/api/v1/trade/payment/alipay/notify",
+                                "/api/v1/trade/payment/refund/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/quota/packages").permitAll()
                         .requestMatchers("/api/v1/weixin/portal", "/api/v1/weixin/login/**").permitAll()
@@ -62,10 +62,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/profile").hasRole("USER")
                         .requestMatchers("/agent/**", "/file/**", "/session/**").hasRole("USER")
                         .requestMatchers("/api/v1/quota/admin/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/quota/**", "/api/v1/academic/**").hasRole("USER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/group/trade/lock").hasRole("USER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/payment/create").hasRole("USER")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/gbm/index/query_group_buy_market_config", "/api/v1/gbm/trade/lock_market_pay_order").hasRole("USER")
+                        .requestMatchers("/api/v1/quota/**", "/api/v1/agent/**").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/market/trade/lock").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/trade/payment/create").hasRole("USER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/market/index/query_group_buy_market_config", "/api/v1/market/trade/lock_market_pay_order").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/trade/order/my").hasRole("USER")
                         .requestMatchers("/api/v1/weixin/template/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/mcp", "/api/v1/mcp/**").hasAnyRole("OPERATOR", "ADMIN")
@@ -74,12 +74,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/ops/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/status-flow").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/admin", "/api/v1/trade/order/admin/refunds").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/gbm/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/group/trade/close-unpaid", "/api/v1/group/trade/refund").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/payment/refund", "/api/v1/payment/reconcile",
-                                "/api/v1/payment/bill/download", "/api/v1/payment/refund/query",
-                                "/api/v1/payment/certificate/refresh",
-                                "/api/v1/payment/error-map", "/api/v1/payment/gateway/status").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/market/**").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/market/trade/close-unpaid", "/api/v1/market/trade/refund").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/trade/payment/refund", "/api/v1/trade/payment/reconcile",
+                                "/api/v1/trade/payment/bill/download", "/api/v1/trade/payment/refund/query",
+                                "/api/v1/trade/payment/certificate/refresh",
+                                "/api/v1/trade/payment/error-map", "/api/v1/trade/payment/gateway/status").hasRole("ADMIN")
                         .anyRequest().authenticated());
         return http.build();
     }
@@ -98,14 +98,14 @@ public class SecurityConfig {
                 || path.startsWith("/api/v1/weixin/template/")
                 || path.startsWith("/api/v1/trade/order/admin")
                 || path.startsWith("/api/v1/trade/order/status-flow")
-                || path.startsWith("/api/v1/group/trade/close-unpaid")
-                || path.startsWith("/api/v1/group/trade/refund")
-                || path.startsWith("/api/v1/payment/refund")
-                || path.startsWith("/api/v1/payment/reconcile")
-                || path.startsWith("/api/v1/payment/bill/download")
-                || path.startsWith("/api/v1/payment/certificate/refresh")
-                || path.startsWith("/api/v1/payment/error-map")
-                || path.startsWith("/api/v1/payment/gateway/status");
+                || path.startsWith("/api/v1/market/trade/close-unpaid")
+                || path.startsWith("/api/v1/market/trade/refund")
+                || path.startsWith("/api/v1/trade/payment/refund")
+                || path.startsWith("/api/v1/trade/payment/reconcile")
+                || path.startsWith("/api/v1/trade/payment/bill/download")
+                || path.startsWith("/api/v1/trade/payment/certificate/refresh")
+                || path.startsWith("/api/v1/trade/payment/error-map")
+                || path.startsWith("/api/v1/trade/payment/gateway/status");
     }
 
     @Bean

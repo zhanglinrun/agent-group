@@ -9,8 +9,8 @@ class SecurityConfigTest {
     @Test
     void shouldUseUserLoginMessageForUserEndpoints() {
         assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/quota/summary"));
-        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/academic/stream"));
-        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/academic/capabilities"));
+        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/agent/stream"));
+        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/agent/capabilities"));
     }
 
     @Test

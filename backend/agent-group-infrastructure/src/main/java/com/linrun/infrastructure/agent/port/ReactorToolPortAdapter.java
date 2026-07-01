@@ -2,18 +2,18 @@ package com.linrun.infrastructure.agent.port;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.domain.academic.runtime.tool.output.AcademicToolFileRef;
-import com.linrun.domain.academic.runtime.tool.port.AcademicCodeInterpreterPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicDataAnalysisPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicDeepSearchPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicFileToolPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicImageGenerationPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicMultimodalAnalysisPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicNl2SqlPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicReportPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicScriptRunnerPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicTableRagPort;
-import com.linrun.domain.academic.runtime.tool.port.AcademicWebFetchPort;
+import com.linrun.domain.agent.runtime.tool.output.AgentToolFileRef;
+import com.linrun.domain.agent.runtime.tool.port.AgentCodeInterpreterPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentDataAnalysisPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentDeepSearchPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentFileToolPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentImageGenerationPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentMultimodalAnalysisPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentNl2SqlPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentReportPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentScriptRunnerPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentTableRagPort;
+import com.linrun.domain.agent.runtime.tool.port.AgentWebFetchPort;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,17 +38,17 @@ import java.util.UUID;
 
 @Component
 @ConditionalOnProperty(prefix = "agent.group.reactor-tool", name = "enabled", havingValue = "true")
-public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
-        AcademicWebFetchPort,
-        AcademicDataAnalysisPort,
-        AcademicReportPort,
-        AcademicImageGenerationPort,
-        AcademicMultimodalAnalysisPort,
-        AcademicDeepSearchPort,
-        AcademicFileToolPort,
-        AcademicScriptRunnerPort,
-        AcademicTableRagPort,
-        AcademicNl2SqlPort {
+public class ReactorToolPortAdapter implements AgentCodeInterpreterPort,
+        AgentWebFetchPort,
+        AgentDataAnalysisPort,
+        AgentReportPort,
+        AgentImageGenerationPort,
+        AgentMultimodalAnalysisPort,
+        AgentDeepSearchPort,
+        AgentFileToolPort,
+        AgentScriptRunnerPort,
+        AgentTableRagPort,
+        AgentNl2SqlPort {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
@@ -83,13 +83,13 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicCodeExecutionResult execute(AcademicCodeExecutionRequest request) {
+    public AgentCodeExecutionResult execute(AgentCodeExecutionRequest request) {
         String requestId = nextRequestId("code");
         String task = request == null ? "" : text(request.task());
         String code = request == null ? "" : text(request.code());
         String permissionProfile = request == null
-                ? AcademicCodeInterpreterPort.PERMISSION_PROFILE_ANALYSIS
-                : AcademicCodeInterpreterPort.normalizePermissionProfile(request.permissionProfile());
+                ? AgentCodeInterpreterPort.PERMISSION_PROFILE_ANALYSIS
+                : AgentCodeInterpreterPort.normalizePermissionProfile(request.permissionProfile());
         ReactorToolResponse response = post("/v1/tool/code_interpreter", mapOf(
                 "requestId", requestId,
                 "task", StringUtils.hasText(code) ? task + "\n\n```" + text(request.language()) + "\n" + code + "\n```" : task,
@@ -98,16 +98,16 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "permissionProfile", permissionProfile
         ));
         if (!response.success()) {
-            return new AcademicCodeExecutionResult(false, -1, "", response.errorMessage(), "",
+            return new AgentCodeExecutionResult(false, -1, "", response.errorMessage(), "",
                     code, "", List.of());
         }
         String content = text(response.body().get("data"));
-        return new AcademicCodeExecutionResult(ok(response.body()), ok(response.body()) ? 0 : -1,
+        return new AgentCodeExecutionResult(ok(response.body()), ok(response.body()) ? 0 : -1,
                 content, errorMessage(response.body()), content, code, content, fileRefs(response.body().get("fileInfo")));
     }
 
     @Override
-    public AcademicDataAnalysisResult analyze(AcademicDataAnalysisRequest request) {
+    public AgentDataAnalysisResult analyze(AgentDataAnalysisRequest request) {
         String requestId = request == null || !StringUtils.hasText(request.requestId())
                 ? nextRequestId("data")
                 : text(request.requestId());
@@ -120,11 +120,11 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "stream", false
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicDataAnalysisResult(false, "", "", List.of(), response.body(),
+            return new AgentDataAnalysisResult(false, "", "", List.of(), response.body(),
                     firstText(response.errorMessage(), errorMessage(response.body())));
         }
         String content = firstText(response.body().get("data"), response.body().get("message"));
-        return new AcademicDataAnalysisResult(true,
+        return new AgentDataAnalysisResult(true,
                 content,
                 limit(content, 240),
                 fileRefs(response.body().get("fileInfo")),
@@ -133,7 +133,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicReportResult generate(AcademicReportRequest request) {
+    public AgentReportResult generate(AgentReportRequest request) {
         String requestId = request == null || !StringUtils.hasText(request.requestId())
                 ? nextRequestId("report")
                 : text(request.requestId());
@@ -148,11 +148,11 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "stream", false
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicReportResult(false, "", "", List.of(), response.body(),
+            return new AgentReportResult(false, "", "", List.of(), response.body(),
                     firstText(response.errorMessage(), errorMessage(response.body())));
         }
         String content = firstText(response.body().get("data"), response.body().get("message"));
-        return new AcademicReportResult(true,
+        return new AgentReportResult(true,
                 content,
                 limit(content, 240),
                 fileRefs(response.body().get("fileInfo"), request == null ? "" : text(request.fileName())),
@@ -161,7 +161,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicWebFetchResult fetch(AcademicWebFetchRequest request) {
+    public AgentWebFetchResult fetch(AgentWebFetchRequest request) {
         String requestId = request == null || !StringUtils.hasText(request.requestId())
                 ? nextRequestId("web")
                 : text(request.requestId());
@@ -171,7 +171,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "timeoutSeconds", request == null ? 30 : Math.max(5, request.timeoutSeconds())
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicWebFetchResult(false, "", "", "", "", List.of(), response.body(),
+            return new AgentWebFetchResult(false, "", "", "", "", List.of(), response.body(),
                     firstText(response.errorMessage(), errorMessage(response.body())));
         }
         Map<String, Object> data = objectMap(response.body().get("data"));
@@ -180,7 +180,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
         Map<String, Object> metadata = new LinkedHashMap<>(response.body());
         metadata.put("provider", "reactor-tool");
         metadata.put("data", data);
-        return new AcademicWebFetchResult(true,
+        return new AgentWebFetchResult(true,
                 text(data.get("title")),
                 firstText(data.get("finalUrl"), request == null ? "" : request.url()),
                 limit(content, maxContentChars),
@@ -191,17 +191,17 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicImageGenerationResult generate(AcademicImageGenerationRequest request) {
+    public AgentImageGenerationResult generate(AgentImageGenerationRequest request) {
         String requestId = nextRequestId("image");
         ReactorToolResponse response = post("/v1/tool/image_generation", mapOf(
                 "requestId", requestId,
                 "prompt", request == null ? "" : text(request.prompt()),
                 "mode", imageMode(request == null ? "" : request.mode()),
-                "model", request == null ? AcademicImageGenerationPort.DEFAULT_MODEL : firstText(request.model(), AcademicImageGenerationPort.DEFAULT_MODEL),
+                "model", request == null ? AgentImageGenerationPort.DEFAULT_MODEL : firstText(request.model(), AgentImageGenerationPort.DEFAULT_MODEL),
                 "baseUrl", request == null ? "" : text(request.baseUrl()),
                 "apiKey", request == null ? "" : text(request.apiKey()),
-                "quality", request == null ? AcademicImageGenerationPort.DEFAULT_QUALITY : firstText(request.quality(), AcademicImageGenerationPort.DEFAULT_QUALITY),
-                "aspectRatio", request == null ? AcademicImageGenerationPort.DEFAULT_ASPECT_RATIO : firstText(request.aspectRatio(), AcademicImageGenerationPort.DEFAULT_ASPECT_RATIO),
+                "quality", request == null ? AgentImageGenerationPort.DEFAULT_QUALITY : firstText(request.quality(), AgentImageGenerationPort.DEFAULT_QUALITY),
+                "aspectRatio", request == null ? AgentImageGenerationPort.DEFAULT_ASPECT_RATIO : firstText(request.aspectRatio(), AgentImageGenerationPort.DEFAULT_ASPECT_RATIO),
                 "size", request == null ? "1024x1024" : firstText(request.size(), "1024x1024"),
                 "n", request == null ? 1 : Math.max(1, Math.min(10, request.batchCount())),
                 "fileNames", request == null ? List.of() : safeList(request.sourceImageUrls()),
@@ -209,9 +209,9 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "stream", false
         ));
         if (!response.success()) {
-            return new AcademicImageGenerationResult(false, "reactor-tool", "", false, List.of(), response.errorMessage());
+            return new AgentImageGenerationResult(false, "reactor-tool", "", false, List.of(), response.errorMessage());
         }
-        return new AcademicImageGenerationResult(ok(response.body()), "reactor-tool",
+        return new AgentImageGenerationResult(ok(response.body()), "reactor-tool",
                 firstText(response.body().get("data"), response.body().get("message")),
                 false,
                 fileRefs(response.body().get("fileInfo")),
@@ -219,22 +219,22 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicMultimodalAnalysisResult analyze(AcademicMultimodalAnalysisRequest request) {
+    public AgentMultimodalAnalysisResult analyze(AgentMultimodalAnalysisRequest request) {
         ReactorToolResponse response = post("/v1/tool/mragQuery", mapOf(
                 "question", firstText(request == null ? "" : request.task(), request == null ? "" : request.text()),
                 "image_urls", request == null ? List.of() : safeList(request.imageUrls())
         ));
         if (!response.success()) {
-            return new AcademicMultimodalAnalysisResult(false, "", "", Map.of(), List.of(), response.errorMessage());
+            return new AgentMultimodalAnalysisResult(false, "", "", Map.of(), List.of(), response.errorMessage());
         }
         String content = streamContent(response);
-        return new AcademicMultimodalAnalysisResult(true, limit(content, 240), content,
+        return new AgentMultimodalAnalysisResult(true, limit(content, 240), content,
                 Map.of("provider", "reactor-tool", "fileUrls", request == null ? List.of() : safeList(request.fileUrls())),
                 List.of(), "");
     }
 
     @Override
-    public AcademicDeepSearchResult search(AcademicDeepSearchRequest request) {
+    public AgentDeepSearchResult search(AgentDeepSearchRequest request) {
         String requestId = nextRequestId("deep");
         ReactorToolResponse response = post("/v1/tool/deepsearch", mapOf(
                 "request_id", requestId,
@@ -244,13 +244,13 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "stream", true
         ));
         if (!response.success()) {
-            return new AcademicDeepSearchResult(false, request == null ? "" : request.query(), "",
+            return new AgentDeepSearchResult(false, request == null ? "" : request.query(), "",
                     "", List.of(), List.of(), List.of(), Map.of(), response.errorMessage());
         }
         String answer = streamContent(response);
         Map<String, Object> metadata = new LinkedHashMap<>(response.body());
         metadata.put("provider", "reactor-tool");
-        return new AcademicDeepSearchResult(true,
+        return new AgentDeepSearchResult(true,
                 request == null ? "" : request.query(),
                 answer,
                 limit(answer, 240),
@@ -262,7 +262,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicFileToolResult upload(AcademicFileUploadRequest request) {
+    public AgentFileToolResult upload(AgentFileUploadRequest request) {
         ReactorToolResponse response = post("/v1/file_tool/upload_file", mapOf(
                 "requestId", request == null ? nextRequestId("file") : text(request.requestId()),
                 "fileName", request == null ? "" : text(request.fileName()),
@@ -270,31 +270,31 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "content", request == null ? "" : text(request.content())
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicFileToolResult(false, "upload", request == null ? "" : request.fileName(), "",
+            return new AgentFileToolResult(false, "upload", request == null ? "" : request.fileName(), "",
                     "", List.of(), response.body(), firstText(response.errorMessage(), errorMessage(response.body())));
         }
-        return new AcademicFileToolResult(true, "upload", request == null ? "" : request.fileName(), "",
+        return new AgentFileToolResult(true, "upload", request == null ? "" : request.fileName(), "",
                 "file uploaded", fileRefs(List.of(response.body()), request == null ? "" : text(request.fileName())),
                 response.body(), "");
     }
 
     @Override
-    public AcademicFileToolResult get(AcademicFileGetRequest request) {
+    public AgentFileToolResult get(AgentFileGetRequest request) {
         ReactorToolResponse response = post("/v1/file_tool/get_file", mapOf(
                 "requestId", request == null ? "" : text(request.requestId()),
                 "fileName", request == null ? "" : text(request.fileName())
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicFileToolResult(false, "get", request == null ? "" : request.fileName(), "",
+            return new AgentFileToolResult(false, "get", request == null ? "" : request.fileName(), "",
                     "", List.of(), response.body(), firstText(response.errorMessage(), errorMessage(response.body())));
         }
-        return new AcademicFileToolResult(true, "get", request == null ? "" : request.fileName(), "",
+        return new AgentFileToolResult(true, "get", request == null ? "" : request.fileName(), "",
                 "file loaded", fileRefs(List.of(response.body()), request == null ? "" : text(request.fileName())),
                 response.body(), "");
     }
 
     @Override
-    public AcademicScriptRunResult run(AcademicScriptRunRequest request) {
+    public AgentScriptRunResult run(AgentScriptRunRequest request) {
         ReactorToolResponse response = post("/v1/tool/script_runner", mapOf(
                 "requestId", request == null ? nextRequestId("script") : text(request.requestId()),
                 "skillName", request == null ? "" : text(request.skillName()),
@@ -307,10 +307,10 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "timeoutSeconds", request == null ? 120 : request.timeoutSeconds()
         ));
         if (!response.success()) {
-            return new AcademicScriptRunResult(false, -1, "", response.errorMessage(), "", List.of(), Map.of(), response.errorMessage());
+            return new AgentScriptRunResult(false, -1, "", response.errorMessage(), "", List.of(), Map.of(), response.errorMessage());
         }
         boolean success = bool(response.body().get("success"), ok(response.body()));
-        return new AcademicScriptRunResult(success,
+        return new AgentScriptRunResult(success,
                 integer(response.body().get("exitCode"), success ? 0 : -1),
                 text(response.body().get("stdout")),
                 text(response.body().get("stderr")),
@@ -321,7 +321,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicTableRagResult recall(AcademicTableRagRequest request) {
+    public AgentTableRagResult recall(AgentTableRagRequest request) {
         String requestId = request == null ? nextRequestId("table") : text(request.requestId());
         ReactorToolResponse response = post("/v1/tool/table_rag", mapOf(
                 "requestId", requestId,
@@ -335,10 +335,10 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "useElastic", request != null && request.useElastic()
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicTableRagResult(false, requestId, List.of(), response.body(),
+            return new AgentTableRagResult(false, requestId, List.of(), response.body(),
                     firstText(response.errorMessage(), errorMessage(response.body())));
         }
-        return new AcademicTableRagResult(true, requestId,
+        return new AgentTableRagResult(true, requestId,
                 rerankIfNeeded(request == null ? "" : text(request.query()), tableMatches(response.body().get("data"))),
                 response.body(), "");
     }
@@ -347,8 +347,8 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
      * table_rag 精排：对外部召回的多张表用 DashScope rerank 二次精排，选出与查询最相关的表。
      * 客户端不可用、召回不足或精排失败时原样返回，保证向后兼容。
      */
-    private List<AcademicTableRagPort.AcademicTableSchemaMatch> rerankIfNeeded(
-            String query, List<AcademicTableRagPort.AcademicTableSchemaMatch> matches) {
+    private List<AgentTableRagPort.AgentTableSchemaMatch> rerankIfNeeded(
+            String query, List<AgentTableRagPort.AgentTableSchemaMatch> matches) {
         if (rerankClientProvider == null) {
             return matches;
         }
@@ -368,7 +368,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
         }
     }
 
-    private String matchText(AcademicTableRagPort.AcademicTableSchemaMatch match) {
+    private String matchText(AgentTableRagPort.AgentTableSchemaMatch match) {
         StringBuilder sb = new StringBuilder(text(match.modelCode()));
         List<Map<String, Object>> schemaList = match.schemaList();
         if (schemaList != null) {
@@ -380,7 +380,7 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @Override
-    public AcademicNl2SqlResult convert(AcademicNl2SqlRequest request) {
+    public AgentNl2SqlResult convert(AgentNl2SqlRequest request) {
         String requestId = request == null ? nextRequestId("sql") : text(request.requestId());
         ReactorToolResponse response = post("/v1/tool/nl2sql", mapOf(
                 "requestId", requestId,
@@ -392,10 +392,10 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
                 "stream", false
         ));
         if (!response.success() || !ok(response.body())) {
-            return new AcademicNl2SqlResult(false, requestId, request == null ? "" : request.query(), "",
+            return new AgentNl2SqlResult(false, requestId, request == null ? "" : request.query(), "",
                     "error", List.of(), response.body(), firstText(response.errorMessage(), errorMessage(response.body())));
         }
-        return new AcademicNl2SqlResult(true, requestId, request == null ? "" : request.query(),
+        return new AgentNl2SqlResult(true, requestId, request == null ? "" : request.query(),
                 firstText(response.body().get("think"), nested(response.body().get("data"), "think")),
                 firstText(response.body().get("status"), "data"),
                 sqlCandidates(response.body()),
@@ -565,20 +565,20 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @SuppressWarnings("unchecked")
-    private List<AcademicToolFileRef> fileRefs(Object value) {
+    private List<AgentToolFileRef> fileRefs(Object value) {
         return fileRefs(value, "");
     }
 
     @SuppressWarnings("unchecked")
-    private List<AcademicToolFileRef> fileRefs(Object value, String fallbackFileName) {
+    private List<AgentToolFileRef> fileRefs(Object value, String fallbackFileName) {
         if (!(value instanceof List<?> list)) {
             return List.of();
         }
-        List<AcademicToolFileRef> refs = new ArrayList<>();
+        List<AgentToolFileRef> refs = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 Map<String, Object> fileInfo = (Map<String, Object>) map;
-                refs.add(AcademicToolFileRef.builder()
+                refs.add(AgentToolFileRef.builder()
                         .artifactId(firstText(fileInfo.get("artifactId"), fileInfo.get("fileId")))
                         .fileName(firstText(fileInfo.get("fileName"), fileInfo.get("filename"), fallbackFileName))
                         .downloadUrl(firstText(fileInfo.get("downloadUrl"), fileInfo.get("ossUrl")))
@@ -592,17 +592,17 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @SuppressWarnings("unchecked")
-    private List<AcademicDeepSearchDocument> documents(Map<String, Object> body) {
+    private List<AgentDeepSearchDocument> documents(Map<String, Object> body) {
         Object data = body.get("data");
         Object docs = data instanceof Map<?, ?> dataMap ? ((Map<String, Object>) dataMap).get("documents") : body.get("documents");
         if (!(docs instanceof List<?> list)) {
             return List.of();
         }
-        List<AcademicDeepSearchDocument> documents = new ArrayList<>();
+        List<AgentDeepSearchDocument> documents = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 Map<String, Object> doc = (Map<String, Object>) map;
-                documents.add(new AcademicDeepSearchDocument(
+                documents.add(new AgentDeepSearchDocument(
                         text(doc.get("title")),
                         firstText(doc.get("url"), doc.get("link")),
                         text(doc.get("content")),
@@ -613,20 +613,20 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
     }
 
     @SuppressWarnings("unchecked")
-    private List<AcademicTableSchemaMatch> tableMatches(Object value) {
+    private List<AgentTableSchemaMatch> tableMatches(Object value) {
         if (value instanceof Map<?, ?> map) {
             List<Map<String, Object>> schemaList = new ArrayList<>();
             ((Map<String, Object>) map).forEach((key, item) -> schemaList.add(mapOf("name", key, "value", item)));
-            return List.of(new AcademicTableSchemaMatch("", 1.0d, schemaList));
+            return List.of(new AgentTableSchemaMatch("", 1.0d, schemaList));
         }
         if (!(value instanceof List<?> list)) {
             return List.of();
         }
-        List<AcademicTableSchemaMatch> matches = new ArrayList<>();
+        List<AgentTableSchemaMatch> matches = new ArrayList<>();
         for (Object item : list) {
             if (item instanceof Map<?, ?> map) {
                 Map<String, Object> match = (Map<String, Object>) map;
-                matches.add(new AcademicTableSchemaMatch(
+                matches.add(new AgentTableSchemaMatch(
                         firstText(match.get("modelCode"), match.get("model_code")),
                         doubleValue(match.get("score")),
                         listOfMap(match.get("schemaList"))));
@@ -635,9 +635,9 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
         return matches;
     }
 
-    private List<AcademicSqlCandidate> sqlCandidates(Map<String, Object> body) {
+    private List<AgentSqlCandidate> sqlCandidates(Map<String, Object> body) {
         Object data = body.get("data");
-        List<AcademicSqlCandidate> candidates = new ArrayList<>();
+        List<AgentSqlCandidate> candidates = new ArrayList<>();
         collectSqlCandidate(candidates, body);
         if (data instanceof Map<?, ?> map) {
             collectSqlCandidate(candidates, objectMap(map));
@@ -651,10 +651,10 @@ public class ReactorToolPortAdapter implements AcademicCodeInterpreterPort,
         return candidates;
     }
 
-    private void collectSqlCandidate(List<AcademicSqlCandidate> candidates, Map<String, Object> map) {
+    private void collectSqlCandidate(List<AgentSqlCandidate> candidates, Map<String, Object> map) {
         String sql = firstText(map.get("sql"), map.get("SQL"), map.get("querySql"), map.get("nl2sql"));
         if (StringUtils.hasText(sql)) {
-            candidates.add(new AcademicSqlCandidate(firstText(map.get("query"), map.get("rootQuery")), sql));
+            candidates.add(new AgentSqlCandidate(firstText(map.get("query"), map.get("rootQuery")), sql));
         }
     }
 

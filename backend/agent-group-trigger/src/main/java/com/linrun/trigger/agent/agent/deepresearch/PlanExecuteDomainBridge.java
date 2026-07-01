@@ -1,12 +1,12 @@
 package com.linrun.trigger.agent.agent.deepresearch;
 
-import com.linrun.domain.academic.runtime.agent.AcademicAgentFlowReplanRequest;
-import com.linrun.domain.academic.runtime.agent.AcademicAgentPlan;
-import com.linrun.domain.academic.runtime.agent.AcademicAgentStepExecutionResult;
-import com.linrun.domain.academic.runtime.agent.AcademicPlanLifecycleService;
-import com.linrun.domain.academic.runtime.agent.AcademicPlanStep;
-import com.linrun.domain.academic.runtime.reasoning.AcademicAgentIntelligentReplanStrategy;
-import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReflectionService;
+import com.linrun.domain.agent.runtime.agent.AgentFlowReplanRequest;
+import com.linrun.domain.agent.runtime.agent.AgentPlan;
+import com.linrun.domain.agent.runtime.agent.AgentStepExecutionResult;
+import com.linrun.domain.agent.runtime.agent.AgentPlanLifecycleService;
+import com.linrun.domain.agent.runtime.agent.AgentPlanStep;
+import com.linrun.domain.agent.runtime.reasoning.AgentIntelligentReplanStrategy;
+import com.linrun.domain.agent.runtime.reasoning.AgentReflectionService;
 import com.linrun.trigger.agent.entity.record.PlanTask;
 import com.linrun.trigger.agent.entity.record.TaskResult;
 import org.springframework.util.StringUtils;
@@ -22,8 +22,8 @@ import java.util.Optional;
  */
 public class PlanExecuteDomainBridge {
 
-    private final AcademicAgentIntelligentReplanStrategy replanStrategy = new AcademicAgentIntelligentReplanStrategy();
-    private final AcademicAgentReflectionService reflectionService = new AcademicAgentReflectionService();
+    private final AgentIntelligentReplanStrategy replanStrategy = new AgentIntelligentReplanStrategy();
+    private final AgentReflectionService reflectionService = new AgentReflectionService();
 
     public boolean hasFailures(List<PlanTask> plan, Map<String, TaskResult> results) {
         if (plan == null || plan.isEmpty()) {
@@ -64,17 +64,17 @@ public class PlanExecuteDomainBridge {
             return Optional.empty();
         }
 
-        AcademicAgentPlan agentPlan = toAgentPlan(plan, results);
-        AcademicPlanStep failedStep = toFailedStep(failedTask, failedResult);
-        List<AcademicPlanStep> completedSteps = completedSteps(plan, results, failedTask.id());
+        AgentPlan agentPlan = toAgentPlan(plan, results);
+        AgentPlanStep failedStep = toFailedStep(failedTask, failedResult);
+        List<AgentPlanStep> completedSteps = completedSteps(plan, results, failedTask.id());
         String failureNote = failedResult == null
                 ? "unknown error"
                 : StringUtils.hasText(failedResult.error()) ? failedResult.error() : "step failed";
 
-        List<AcademicPlanStep> replanned = replanStrategy.replan(new AcademicAgentFlowReplanRequest(
+        List<AgentPlanStep> replanned = replanStrategy.replan(new AgentFlowReplanRequest(
                 agentPlan,
                 failedStep,
-                AcademicAgentStepExecutionResult.failed(failureNote),
+                AgentStepExecutionResult.failed(failureNote),
                 completedSteps,
                 replanCount));
         if (replanned == null || replanned.isEmpty()) {
@@ -83,15 +83,15 @@ public class PlanExecuteDomainBridge {
         return Optional.of(toPlanTasks(replanned));
     }
 
-    public AcademicAgentReflectionService.ReflectionResult reflect(List<PlanTask> plan,
+    public AgentReflectionService.ReflectionResult reflect(List<PlanTask> plan,
                                                                    Map<String, TaskResult> results) {
-        AcademicAgentPlan agentPlan = toAgentPlan(plan, results);
-        List<AcademicPlanStep> observed = observedSteps(agentPlan, results);
+        AgentPlan agentPlan = toAgentPlan(plan, results);
+        List<AgentPlanStep> observed = observedSteps(agentPlan, results);
         return reflectionService.reflect(agentPlan, observed);
     }
 
     public Map<String, Object> reflectionPayload(int round,
-                                                 AcademicAgentReflectionService.ReflectionResult reflection) {
+                                                 AgentReflectionService.ReflectionResult reflection) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "reflection");
         payload.put("source", "domain_rule");
@@ -104,36 +104,36 @@ public class PlanExecuteDomainBridge {
         return payload;
     }
 
-    private AcademicAgentPlan toAgentPlan(List<PlanTask> plan, Map<String, TaskResult> results) {
-        List<AcademicPlanStep> steps = new ArrayList<>();
+    private AgentPlan toAgentPlan(List<PlanTask> plan, Map<String, TaskResult> results) {
+        List<AgentPlanStep> steps = new ArrayList<>();
         for (PlanTask task : plan) {
             if (task == null || !StringUtils.hasText(task.id())) {
                 continue;
             }
             TaskResult result = results == null ? null : results.get(task.id());
-            AcademicPlanStep.Builder builder = AcademicPlanStep.builder(task.id(), task.instruction())
+            AgentPlanStep.Builder builder = AgentPlanStep.builder(task.id(), task.instruction())
                     .order(Math.max(1, task.order()))
                     .assignedAgent("executor");
             if (result != null && result.success()) {
-                builder.status(AcademicPlanLifecycleService.STATUS_COMPLETED)
+                builder.status(AgentPlanLifecycleService.STATUS_COMPLETED)
                         .note(result.output());
             } else if (result != null) {
-                builder.status(AcademicPlanLifecycleService.STATUS_BLOCKED)
+                builder.status(AgentPlanLifecycleService.STATUS_BLOCKED)
                         .note(result.error());
             } else {
-                builder.status(AcademicPlanLifecycleService.STATUS_NOT_STARTED);
+                builder.status(AgentPlanLifecycleService.STATUS_NOT_STARTED);
             }
             steps.add(builder.build());
         }
-        return new AcademicAgentPlan("plan-execute", steps);
+        return new AgentPlan("plan-execute", steps);
     }
 
-    private List<AcademicPlanStep> observedSteps(AcademicAgentPlan plan, Map<String, TaskResult> results) {
-        List<AcademicPlanStep> observed = new ArrayList<>();
+    private List<AgentPlanStep> observedSteps(AgentPlan plan, Map<String, TaskResult> results) {
+        List<AgentPlanStep> observed = new ArrayList<>();
         if (plan == null) {
             return observed;
         }
-        for (AcademicPlanStep step : plan.getSteps()) {
+        for (AgentPlanStep step : plan.getSteps()) {
             if (step == null) {
                 continue;
             }
@@ -141,12 +141,12 @@ public class PlanExecuteDomainBridge {
             if (result == null) {
                 continue;
             }
-            AcademicPlanStep copy = step.copy();
+            AgentPlanStep copy = step.copy();
             if (result.success()) {
-                copy.setStatus(AcademicPlanLifecycleService.STATUS_COMPLETED);
+                copy.setStatus(AgentPlanLifecycleService.STATUS_COMPLETED);
                 copy.setNote(result.output());
             } else {
-                copy.setStatus(AcademicPlanLifecycleService.STATUS_BLOCKED);
+                copy.setStatus(AgentPlanLifecycleService.STATUS_BLOCKED);
                 copy.setNote(result.error());
             }
             observed.add(copy);
@@ -154,28 +154,28 @@ public class PlanExecuteDomainBridge {
         return observed;
     }
 
-    private AcademicPlanStep toFailedStep(PlanTask task, TaskResult result) {
-        return AcademicPlanStep.builder(task.id(), task.instruction())
+    private AgentPlanStep toFailedStep(PlanTask task, TaskResult result) {
+        return AgentPlanStep.builder(task.id(), task.instruction())
                 .order(Math.max(1, task.order()))
                 .assignedAgent("executor")
-                .status(AcademicPlanLifecycleService.STATUS_BLOCKED)
+                .status(AgentPlanLifecycleService.STATUS_BLOCKED)
                 .note(result == null ? "unknown error" : result.error())
                 .build();
     }
 
-    private List<AcademicPlanStep> completedSteps(List<PlanTask> plan,
+    private List<AgentPlanStep> completedSteps(List<PlanTask> plan,
                                                   Map<String, TaskResult> results,
                                                   String failedTaskId) {
-        List<AcademicPlanStep> completed = new ArrayList<>();
+        List<AgentPlanStep> completed = new ArrayList<>();
         for (PlanTask task : plan) {
             if (task == null || !StringUtils.hasText(task.id()) || task.id().equals(failedTaskId)) {
                 continue;
             }
             TaskResult result = results == null ? null : results.get(task.id());
             if (result != null && result.success()) {
-                completed.add(AcademicPlanStep.builder(task.id(), task.instruction())
+                completed.add(AgentPlanStep.builder(task.id(), task.instruction())
                         .order(Math.max(1, task.order()))
-                        .status(AcademicPlanLifecycleService.STATUS_COMPLETED)
+                        .status(AgentPlanLifecycleService.STATUS_COMPLETED)
                         .note(result.output())
                         .build());
             }
@@ -183,9 +183,9 @@ public class PlanExecuteDomainBridge {
         return completed;
     }
 
-    private List<PlanTask> toPlanTasks(List<AcademicPlanStep> steps) {
+    private List<PlanTask> toPlanTasks(List<AgentPlanStep> steps) {
         List<PlanTask> tasks = new ArrayList<>();
-        for (AcademicPlanStep step : steps) {
+        for (AgentPlanStep step : steps) {
             if (step == null || !StringUtils.hasText(step.getStepId())) {
                 continue;
             }

@@ -2,8 +2,8 @@ package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.CloseUnpaidGroupBuyOrderRequest;
 import com.linrun.api.dto.RefundPaymentRequest;
-import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
-import com.linrun.domain.groupbuy.service.GroupBuyCompensationService;
+import com.linrun.domain.market.adapter.repository.GroupBuyOrderLockRepository;
+import com.linrun.domain.market.service.GroupBuyCompensationService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;

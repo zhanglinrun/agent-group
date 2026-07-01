@@ -69,7 +69,7 @@ class McpAdminHandlerTest {
     @Test
     void shouldDiscoverToolsAndCacheByDefault() {
         McpAdminHandler handler = new McpAdminHandler((server, request) -> List.of(
-                com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor.builder(
+                com.linrun.domain.agent.runtime.tool.mcp.AgentMcpToolDescriptor.builder(
                                 server.getServerId(), "chart")
                         .description("render chart")
                         .inputSchema(Map.of(
@@ -90,7 +90,7 @@ class McpAdminHandlerTest {
     @Test
     void shouldDiscoverToolsWithoutCacheWhenRequested() {
         McpAdminHandler handler = new McpAdminHandler((server, request) -> List.of(
-                com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor.builder(
+                com.linrun.domain.agent.runtime.tool.mcp.AgentMcpToolDescriptor.builder(
                                 server.getServerId(), "preview")
                         .description("preview only")
                         .build()));
@@ -293,7 +293,7 @@ class McpAdminHandlerTest {
         properties.setServers(List.of(server));
 
         McpAdminHandler handler = new McpAdminHandler((registeredServer, request) -> List.of(
-                com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor.builder(
+                com.linrun.domain.agent.runtime.tool.mcp.AgentMcpToolDescriptor.builder(
                                 registeredServer.getServerId(), "search")
                         .description("search from startup config")
                         .build()), new RecordingMcpToolInvoker(), null, properties);
@@ -360,8 +360,8 @@ class McpAdminHandlerTest {
         private final List<String> invalidated = new ArrayList<>();
 
         @Override
-        public Map<String, Object> invoke(com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpServerDescriptor server,
-                                          com.linrun.domain.academic.runtime.tool.mcp.AcademicMcpToolDescriptor tool,
+        public Map<String, Object> invoke(com.linrun.domain.agent.runtime.tool.mcp.AgentMcpServerDescriptor server,
+                                          com.linrun.domain.agent.runtime.tool.mcp.AgentMcpToolDescriptor tool,
                                           Map<String, Object> arguments) {
             return Map.of("qualifiedName", tool.qualifiedName(), "isError", false);
         }

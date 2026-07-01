@@ -25,7 +25,7 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * Agent 的技能运行时解析器，从 AcademicAgentNativeService 抽出。
+ * Agent 的技能运行时解析器，从 AgentNativeService 抽出。
  * 集中负责 skills 目录定位、会话产物目录准备、技能工具回调组装，以及技能/工作区运行时提示词拼装。
  * 这些逻辑同时被流式编排（初始化各类 Agent）和能力展示（capabilities）使用，所以独立成一个共享组件。
  */
@@ -81,7 +81,7 @@ public class SkillsRuntimeResolver {
         try {
             Files.createDirectories(outputPath);
         } catch (Exception e) {
-            LOGGER.warn("academic-agent skills output directory create failed, path={}, reason={}",
+            LOGGER.warn("agent-runtime skills output directory create failed, path={}, reason={}",
                     outputPath, e.getClass().getSimpleName());
         }
         return outputPath.toAbsolutePath().normalize().toString();
@@ -95,7 +95,7 @@ public class SkillsRuntimeResolver {
             Files.createDirectories(outputPath);
             SkillRuntimeTools.prepareSessionOutput(resolvedSkillsDirectory(), projectRoot().toString(), outputPath.toString());
         } catch (Exception e) {
-            LOGGER.warn("academic-agent session output directory prepare failed, path={}, reason={}",
+            LOGGER.warn("agent-runtime session output directory prepare failed, path={}, reason={}",
                     outputPath, e.getClass().getSimpleName());
         }
         return outputPath.toAbsolutePath().normalize().toString();
@@ -133,7 +133,7 @@ public class SkillsRuntimeResolver {
                     .excludeSkills(disabledSkillNames())
                     .build()};
         } catch (IllegalArgumentException e) {
-            LOGGER.warn("academic-agent skills tool init skipped, reason={}", e.getMessage());
+            LOGGER.warn("agent-runtime skills tool init skipped, reason={}", e.getMessage());
             return new ToolCallback[0];
         }
     }
@@ -150,7 +150,7 @@ public class SkillsRuntimeResolver {
                     .build();
             return SkillManager.create(skillConfig);
         } catch (Exception e) {
-            LOGGER.warn("academic-agent manual skills init skipped, reason={}", e.getClass().getSimpleName());
+            LOGGER.warn("agent-runtime manual skills init skipped, reason={}", e.getClass().getSimpleName());
             return null;
         }
     }

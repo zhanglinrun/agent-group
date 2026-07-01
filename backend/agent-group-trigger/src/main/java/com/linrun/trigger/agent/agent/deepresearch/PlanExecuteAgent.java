@@ -1,6 +1,6 @@
 package com.linrun.trigger.agent.agent.deepresearch;
 
-import com.linrun.domain.academic.runtime.reasoning.AcademicAgentReflectionService;
+import com.linrun.domain.agent.runtime.reasoning.AgentReflectionService;
 import com.linrun.trigger.agent.agent.BaseAgent;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentCapabilitySnapshot;
 import com.linrun.trigger.agent.agent.deepresearch.runtime.AgentMemoryService;
@@ -597,8 +597,8 @@ public class PlanExecuteAgent extends BaseAgent {
     private void analyzeTaskWithReasoning(OverAllState state, Sinks.Many<String> sink,
                                          AtomicBoolean finished, StringBuilder thinkingBuffer) {
         try {
-            com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningService reasoningService = 
-                new com.linrun.domain.academic.runtime.reasoning.AcademicAgentReasoningService();
+            com.linrun.domain.agent.runtime.reasoning.AgentReasoningService reasoningService = 
+                new com.linrun.domain.agent.runtime.reasoning.AgentReasoningService();
             
             emit(sink, finished, "🤔 正在分析任务...\n", "reasoning", thinkingBuffer);
             
@@ -896,7 +896,7 @@ public class PlanExecuteAgent extends BaseAgent {
                         return;
                     }
 
-                    AcademicAgentReflectionService.ReflectionResult ruleReflection =
+                    AgentReflectionService.ReflectionResult ruleReflection =
                             domainBridge.reflect(plan, results);
                     sink.tryEmitNext(JsonUtils.toJson(
                             domainBridge.reflectionPayload(state.getRound(), ruleReflection)));
@@ -1000,7 +1000,7 @@ public class PlanExecuteAgent extends BaseAgent {
         if (isStopped(context)) {
             return;
         }
-        AcademicAgentReflectionService.ReflectionResult ruleReflection =
+        AgentReflectionService.ReflectionResult ruleReflection =
                 domainBridge.reflect(context.currentPlan(), context.currentResults());
         context.sink().tryEmitNext(JsonUtils.toJson(
                 domainBridge.reflectionPayload(context.state().getRound(), ruleReflection)));

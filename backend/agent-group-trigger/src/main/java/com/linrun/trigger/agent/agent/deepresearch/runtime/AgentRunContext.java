@@ -1,6 +1,6 @@
 package com.linrun.trigger.agent.agent.deepresearch.runtime;
 
-import com.linrun.domain.academic.ledger.service.AcademicLedgerContext;
+import com.linrun.domain.agent.ledger.service.AgentLedgerContext;
 import com.linrun.domain.support.trace.TraceContext;
 import com.linrun.trigger.agent.agent.skills.runtime.SkillRuntimeDescriptor;
 import com.linrun.trigger.agent.entity.OverAllState;
@@ -66,7 +66,7 @@ public class AgentRunContext {
                                               Sinks.Many<String> sink,
                                               AtomicBoolean finished,
                                               StringBuilder thinkingBuffer) {
-        AcademicLedgerContext.Context ledger = AcademicLedgerContext.current();
+        AgentLedgerContext.Context ledger = AgentLedgerContext.current();
         TraceContext.TraceSnapshot trace = TraceContext.snapshot();
         return builder()
                 .userId(ledger == null ? "" : ledger.userId())

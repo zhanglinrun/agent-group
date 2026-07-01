@@ -1,14 +1,14 @@
 package com.linrun.domain.trade.service.payment;
 
-import com.linrun.domain.account.service.UserQuotaService;
-import com.linrun.domain.groupbuy.adapter.repository.GroupBuyOrderLockRepository;
-import com.linrun.domain.groupbuy.model.GroupBuyLockResult;
-import com.linrun.domain.groupbuy.model.GroupBuyOrderLock;
-import com.linrun.domain.groupbuy.model.GroupBuyLockStatus;
-import com.linrun.domain.groupbuy.model.GroupBuySettlementResult;
-import com.linrun.domain.groupbuy.model.GroupBuyTeam;
-import com.linrun.domain.groupbuy.model.GroupBuyTeamStatus;
-import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
+import com.linrun.domain.quota.service.UserQuotaService;
+import com.linrun.domain.market.adapter.repository.GroupBuyOrderLockRepository;
+import com.linrun.domain.market.model.GroupBuyLockResult;
+import com.linrun.domain.market.model.GroupBuyOrderLock;
+import com.linrun.domain.market.model.GroupBuyLockStatus;
+import com.linrun.domain.market.model.GroupBuySettlementResult;
+import com.linrun.domain.market.model.GroupBuyTeam;
+import com.linrun.domain.market.model.GroupBuyTeamStatus;
+import com.linrun.domain.market.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;

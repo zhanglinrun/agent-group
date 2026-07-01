@@ -1,8 +1,8 @@
 package com.linrun.infrastructure.support.converter;
 
 import com.linrun.domain.support.config.model.DynamicConfig;
-import com.linrun.domain.groupbuy.tag.model.CrowdTag;
-import com.linrun.domain.groupbuy.tag.model.CrowdTagJob;
+import com.linrun.domain.market.tag.model.CrowdTag;
+import com.linrun.domain.market.tag.model.CrowdTagJob;
 import com.linrun.infrastructure.po.CrowdTagPO;
 import com.linrun.infrastructure.po.CrowdTagJobPO;
 import com.linrun.infrastructure.po.DynamicConfigPO;

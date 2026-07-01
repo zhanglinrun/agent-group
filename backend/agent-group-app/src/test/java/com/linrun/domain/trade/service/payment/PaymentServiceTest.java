@@ -16,7 +16,7 @@ import com.linrun.api.dto.CreatePaymentResponse;
 import com.linrun.api.dto.PaymentWebhookResponse;
 import com.linrun.api.dto.ReconcilePaymentResponse;
 import com.linrun.api.dto.RefundPaymentResponse;
-import com.linrun.domain.groupbuy.service.GroupBuySettlementService;
+import com.linrun.domain.market.service.GroupBuySettlementService;
 import com.linrun.domain.trade.adapter.port.PaymentGatewayClient;
 import com.linrun.domain.trade.adapter.repository.PaymentWebhookReplayRepository;
 import com.linrun.domain.trade.model.payment.PaymentCompletionCommand;

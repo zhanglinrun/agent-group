@@ -1,0 +1,58 @@
+package com.linrun.domain.market.adapter.repository;
+
+import com.linrun.domain.market.model.GroupBuyDiscount;
+import com.linrun.domain.market.model.GroupBuyMarketSku;
+import com.linrun.domain.market.model.SourceChannelSkuActivity;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface GroupBuyMarketRepository {
+
+    Optional<GroupBuyMarketSku> querySkuByGoodsId(String goodsId);
+
+    Optional<SourceChannelSkuActivity> querySourceChannelSkuActivity(String source, String channel, String goodsId);
+
+    Optional<GroupBuyDiscount> queryDiscountByDiscountId(String discountId);
+
+    boolean isTagCrowdRange(String tagId, String userId);
+
+    default List<GroupBuyMarketSku> querySkuList(int limit) {
+        return List.of();
+    }
+
+    default List<SourceChannelSkuActivity> querySourceChannelList(int limit) {
+        return List.of();
+    }
+
+    default List<GroupBuyDiscount> queryDiscountList(int limit) {
+        return List.of();
+    }
+
+    default GroupBuyDiscount saveDiscount(GroupBuyDiscount discount) {
+        return null;
+    }
+
+    default boolean updateDiscountEnabled(String discountId, boolean enabled) {
+        return false;
+    }
+
+    default boolean deleteDiscount(String discountId) {
+        return false;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

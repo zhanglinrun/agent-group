@@ -1,8 +1,8 @@
 package com.linrun.trigger.agent.agent.deepresearch.runtime;
 
-import com.linrun.domain.academic.memory.adapter.UserAgentMemoryRepository;
-import com.linrun.domain.academic.memory.model.UserAgentMemory;
-import com.linrun.domain.academic.memory.service.UserAgentMemoryService;
+import com.linrun.domain.agent.memory.adapter.UserAgentMemoryRepository;
+import com.linrun.domain.agent.memory.model.UserAgentMemory;
+import com.linrun.domain.agent.memory.service.UserAgentMemoryService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

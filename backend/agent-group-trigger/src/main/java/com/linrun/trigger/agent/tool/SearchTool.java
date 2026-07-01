@@ -1,7 +1,7 @@
 package com.linrun.trigger.agent.tool;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linrun.trigger.http.agent.AcademicExternalSearchService;
+import com.linrun.trigger.http.agent.AgentExternalSearchService;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.annotation.Tool;
@@ -14,14 +14,14 @@ import java.util.Map;
 
 public class SearchTool {
 
-    private final AcademicExternalSearchService searchService;
+    private final AgentExternalSearchService searchService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SearchTool(AcademicExternalSearchService searchService) {
+    public SearchTool(AgentExternalSearchService searchService) {
         this.searchService = searchService;
     }
 
-    public static ToolCallback[] create(AcademicExternalSearchService searchService) {
+    public static ToolCallback[] create(AgentExternalSearchService searchService) {
         if (searchService == null || !searchService.available()) {
             return new ToolCallback[0];
         }
