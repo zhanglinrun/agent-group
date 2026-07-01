@@ -1,4 +1,4 @@
-import { isAcademicTerminalEvent, parseAcademicSseBlock, splitAcademicSseBlocks } from "../academicSse";
+import { isAgentTerminalEvent, parseAgentSseBlock, splitAgentSseBlocks } from "../agentSse";
 import { normalizeFileUrlForBrowser } from "../fileUrl";
 
 const ADMIN_AUTH_KEY = "agentGroupAdminAuth";
@@ -292,7 +292,7 @@ async function parseResponse(response) {
   return payload;
 }
 
-// 普通接口的默认超时；流式接口走 requestAcademicStreamInternal，自带 AbortController，不受这里影响
+// 普通接口的默认超时；流式接口走 requestAgentStreamInternal，自带 AbortController，不受这里影响
 const DEFAULT_REQUEST_TIMEOUT_MS = 30000;
 
 async function request(path, options = {}) {
@@ -402,19 +402,19 @@ export async function saveModelConfig(config) {
   return res;
 }
 
-export async function uploadAcademicFile(file, sessionId = getSessionId()) {
+export async function uploadAgentFile(file, sessionId = getSessionId()) {
   const formData = new FormData();
   formData.append("file", file);
   if (sessionId) formData.append("sessionId", sessionId);
-  return request("/api/v1/academic/file/upload", {
+  return request("/api/v1/agent/files/upload", {
     userAuth: true,
     method: "POST",
     body: formData
   });
 }
 
-export async function createAcademicProject(payload) {
-  return request("/api/v1/academic/projects", {
+export async function createAgentWorkspace(payload) {
+  return request("/api/v1/agent/workspaces", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -422,22 +422,22 @@ export async function createAcademicProject(payload) {
   });
 }
 
-export async function queryAcademicProjects(limit = 20) {
-  return request(`/api/v1/academic/projects?limit=${encodeURIComponent(limit)}`, {
+export async function queryAgentWorkspaces(limit = 20) {
+  return request(`/api/v1/agent/workspaces?limit=${encodeURIComponent(limit)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function queryAcademicProject(projectId) {
-  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}`, {
+export async function queryAgentWorkspace(projectId) {
+  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function bindAcademicProjectFile(projectId, payload) {
-  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}/files`, {
+export async function bindAgentWorkspaceFile(projectId, payload) {
+  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}/files`, {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -445,8 +445,8 @@ export async function bindAcademicProjectFile(projectId, payload) {
   });
 }
 
-export async function proposeAcademicProjectPatch(projectId, payload) {
-  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}/patches`, {
+export async function proposeAgentWorkspacePatch(projectId, payload) {
+  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}/patches`, {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -454,64 +454,64 @@ export async function proposeAcademicProjectPatch(projectId, payload) {
   });
 }
 
-export async function applyAcademicProjectPatch(projectId, patchId) {
-  return request(`/api/v1/academic/projects/${encodeURIComponent(projectId)}/patches/${encodeURIComponent(patchId)}/apply`, {
+export async function applyAgentWorkspacePatch(projectId, patchId) {
+  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}/patches/${encodeURIComponent(patchId)}/apply`, {
     userAuth: true,
     method: "POST"
   });
 }
 
-export async function queryAcademicSessions(limit = 20) {
-  return request(`/api/v1/academic/sessions?limit=${encodeURIComponent(limit)}`, {
+export async function queryAgentSessions(limit = 20) {
+  return request(`/api/v1/agent/sessions?limit=${encodeURIComponent(limit)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function queryAcademicSessionDetail(sessionId) {
-  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}`, {
+export async function queryAgentSessionDetail(sessionId) {
+  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function queryAcademicReplay(sessionId) {
-  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}/replay`, {
+export async function queryAgentReplay(sessionId) {
+  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}/replay`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function queryAcademicRuns(sessionId, limit = 20) {
-  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}/runs?limit=${encodeURIComponent(limit)}`, {
+export async function queryAgentRuns(sessionId, limit = 20) {
+  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}/runs?limit=${encodeURIComponent(limit)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function queryAcademicRunDetail(runId) {
-  return request(`/api/v1/academic/runs/${encodeURIComponent(runId)}`, {
+export async function queryAgentRunDetail(runId) {
+  return request(`/api/v1/agent/runs/${encodeURIComponent(runId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
-export async function queryAcademicRunDiagnosis(runId) {
-  return request(`/api/v1/academic/runs/${encodeURIComponent(runId)}/diagnosis`, {
+export async function queryAgentRunDiagnosis(runId) {
+  return request(`/api/v1/agent/runs/${encodeURIComponent(runId)}/diagnosis`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryUserAgentMemories() {
-  return request("/api/v1/academic/memories", {
+  return request("/api/v1/agent/memories", {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function saveUserAgentMemory(memory) {
-  return request("/api/v1/academic/memories", {
+  return request("/api/v1/agent/memories", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -520,14 +520,14 @@ export async function saveUserAgentMemory(memory) {
 }
 
 export async function disableUserAgentMemory(memoryType) {
-  return request(`/api/v1/academic/memories/${encodeURIComponent(memoryType)}`, {
+  return request(`/api/v1/agent/memories/${encodeURIComponent(memoryType)}`, {
     userAuth: true,
     method: "DELETE"
   });
 }
 
 export async function deleteUserAgentMemory(memoryType) {
-  return request(`/api/v1/academic/memories/${encodeURIComponent(memoryType)}/remove`, {
+  return request(`/api/v1/agent/memories/${encodeURIComponent(memoryType)}/remove`, {
     userAuth: true,
     method: "DELETE"
   });
@@ -567,7 +567,7 @@ function parseDownloadFileName(disposition, fallbackName) {
   return decodeMimeEncodedFilename(raw, fallback);
 }
 
-export async function downloadAcademicArtifact(downloadUrl, fallbackName = "artifact") {
+export async function downloadAgentArtifact(downloadUrl, fallbackName = "artifact") {
   const response = await fetch(normalizeFileUrlForBrowser(downloadUrl), {
     method: "GET",
     headers: {
@@ -591,15 +591,15 @@ export async function downloadAcademicArtifact(downloadUrl, fallbackName = "arti
   URL.revokeObjectURL(objectUrl);
 }
 
-export async function deleteAcademicSession(sessionId) {
-  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}`, {
+export async function deleteAgentSession(sessionId) {
+  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}`, {
     userAuth: true,
     method: "DELETE"
   });
 }
 
-export async function rollbackAcademicSession(sessionId, messageId) {
-  return request(`/api/v1/academic/sessions/${encodeURIComponent(sessionId)}/rollback`, {
+export async function rollbackAgentSession(sessionId, messageId) {
+  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}/rollback`, {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -607,8 +607,8 @@ export async function rollbackAcademicSession(sessionId, messageId) {
   });
 }
 
-export async function stopAcademicStream(sessionId = getSessionId()) {
-  return request("/api/v1/academic/stop", {
+export async function stopAgentStream(sessionId = getSessionId()) {
+  return request("/api/v1/agent/stop", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -618,15 +618,15 @@ export async function stopAcademicStream(sessionId = getSessionId()) {
   });
 }
 
-export async function queryAcademicTaskStatus(sessionId = getSessionId()) {
-  return request(`/api/v1/academic/task/status?sessionId=${encodeURIComponent(sessionId)}`, {
+export async function queryAgentTaskStatus(sessionId = getSessionId()) {
+  return request(`/api/v1/agent/task/status?sessionId=${encodeURIComponent(sessionId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function generateWorkspaceImage(payload = {}) {
-  return request("/api/v1/academic/workspace/image/generate", {
+  return request("/api/v1/agent/workspaces/image/generate", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -650,14 +650,14 @@ export async function queryWorkspaceImageHistory({ sessionId = "", limit = 20 } 
   const params = new URLSearchParams();
   if (sessionId) params.set("sessionId", sessionId);
   params.set("limit", String(limit));
-  return request(`/api/v1/academic/workspace/image/history?${params.toString()}`, {
+  return request(`/api/v1/agent/workspaces/image/history?${params.toString()}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function runWorkspaceData(payload = {}) {
-  return request("/api/v1/academic/workspace/data/run", {
+  return request("/api/v1/agent/workspaces/data/run", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -690,21 +690,21 @@ export async function queryWorkspaceDataHistory({ sessionId = "", limit = 20 } =
   const params = new URLSearchParams();
   if (sessionId) params.set("sessionId", sessionId);
   params.set("limit", String(limit));
-  return request(`/api/v1/academic/workspace/data/history?${params.toString()}`, {
+  return request(`/api/v1/agent/workspaces/data/history?${params.toString()}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryWorkspaceDataCatalog() {
-  return request("/api/v1/academic/workspace/data/catalog", {
+  return request("/api/v1/agent/workspaces/data/catalog", {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentCapabilities() {
-  return request("/api/v1/academic/capabilities", {
+  return request("/api/v1/agent/capabilities", {
     userAuth: true,
     method: "GET"
   });
@@ -892,7 +892,7 @@ export async function queryAgentAdminRuntimeSnapshot() {
   });
 }
 
-export function requestAcademicStream({
+export function requestAgentStream({
   question,
   taskType,
   taskMode = "",
@@ -906,7 +906,7 @@ export function requestAcademicStream({
   webSearchEnabled = false,
   continueTraceId = ""
 }, onEvent, onDone, onError) {
-  return requestAcademicStreamInternal("/api/v1/academic/stream", {
+  return requestAgentStreamInternal("/api/v1/agent/stream", {
     sessionId,
     projectId,
     threadId,
@@ -922,7 +922,7 @@ export function requestAcademicStream({
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicResumeStream(
+export function requestAgentResumeStream(
   sessionId = getSessionId(),
   modelConfig,
   webSearchEnabled = false,
@@ -937,20 +937,20 @@ export function requestAcademicResumeStream(
     onEvent = continueTraceId;
     continueTraceId = "";
   }
-  return requestAcademicStreamInternal("/api/v1/academic/resume", {
+  return requestAgentStreamInternal("/api/v1/agent/resume", {
     sessionId,
     webSearchEnabled: Boolean(webSearchEnabled),
     continueTraceId: continueTraceId || "",
   }, onEvent, onDone, onError);
 }
 
-export function requestAcademicAttachStream(sessionId = getSessionId(), onEvent, onDone, onError) {
-  return requestAcademicStreamInternal("/api/v1/academic/stream/attach", {
+export function requestAgentAttachStream(sessionId = getSessionId(), onEvent, onDone, onError) {
+  return requestAgentStreamInternal("/api/v1/agent/stream/attach", {
     sessionId
   }, onEvent, onDone, onError);
 }
 
-function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) {
+function requestAgentStreamInternal(path, payload, onEvent, onDone, onError) {
   const abortController = new AbortController();
 
   const run = async () => {
@@ -994,13 +994,13 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const { blocks, rest } = splitAcademicSseBlocks(buffer);
+        const { blocks, rest } = splitAgentSseBlocks(buffer);
         buffer = rest;
 
         for (const block of blocks) {
-          const event = parseAcademicSseBlock(block);
+          const event = parseAgentSseBlock(block);
           if (event) onEvent?.(event);
-          if (isAcademicTerminalEvent(event)) {
+          if (isAgentTerminalEvent(event)) {
             await reader.cancel().catch(() => {});
             finish();
             return;
@@ -1010,7 +1010,7 @@ function requestAcademicStreamInternal(path, payload, onEvent, onDone, onError) 
 
       buffer += decoder.decode();
       if (buffer.trim()) {
-        const event = parseAcademicSseBlock(buffer);
+        const event = parseAgentSseBlock(buffer);
         if (event) onEvent?.(event);
       }
       finish();
@@ -1051,7 +1051,7 @@ export async function createDirectOrder(product, userId) {
 }
 
 export async function queryGroupBuyMarketConfig(product, userId) {
-  return request("/api/v1/gbm/index/query_group_buy_market_config", {
+  return request("/api/v1/market/index/query_group_buy_market_config", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1066,7 +1066,7 @@ export async function queryGroupBuyMarketConfig(product, userId) {
 
 export async function lockMarketPayOrder(product, userId, options = {}) {
   const outTradeNo = options.outTradeNo || `GBM_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-  return request("/api/v1/gbm/trade/lock_market_pay_order", {
+  return request("/api/v1/market/trade/lock_market_pay_order", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1089,7 +1089,7 @@ export async function lockMarketPayOrder(product, userId, options = {}) {
 export async function createPayment(orderId, options = {}) {
   const origin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : "http://localhost:5174";
   const returnUrl = options.returnUrl || `${origin}/?paymentReturn=1&orderId=${encodeURIComponent(orderId || "")}`;
-  return request("/api/v1/payment/create", {
+  return request("/api/v1/trade/payment/create", {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1162,7 +1162,7 @@ export async function queryTradeConsistency(options = {}) {
 }
 
 export async function downloadPaymentBill(payload) {
-  return request("/api/v1/payment/bill/download", {
+  return request("/api/v1/trade/payment/bill/download", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1171,7 +1171,7 @@ export async function downloadPaymentBill(payload) {
 }
 
 export async function queryPaymentRefund(payload) {
-  return request("/api/v1/payment/refund/query", {
+  return request("/api/v1/trade/payment/refund/query", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1180,7 +1180,7 @@ export async function queryPaymentRefund(payload) {
 }
 
 export async function refreshPaymentCertificate(payChannel) {
-  return request("/api/v1/payment/certificate/refresh", {
+  return request("/api/v1/trade/payment/certificate/refresh", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1190,7 +1190,7 @@ export async function refreshPaymentCertificate(payChannel) {
 
 export async function queryPaymentErrorMap(payChannel, gatewayCode) {
   const params = new URLSearchParams({ payChannel, gatewayCode });
-  return request(`/api/v1/payment/error-map?${params.toString()}`, {
+  return request(`/api/v1/trade/payment/error-map?${params.toString()}`, {
     auth: true,
     method: "GET"
   });
@@ -1229,18 +1229,18 @@ export async function updateOperationalRule(ruleKey, ruleValue) {
 }
 
 export async function listGroupBuyActivities() {
-  return request("/api/v1/gbm/admin/activities", { auth: true, method: "GET" });
+  return request("/api/v1/market/admin/activities", { auth: true, method: "GET" });
 }
 
 export async function queryGroupBuyActivityDetail(activityId) {
-  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}`, {
+  return request(`/api/v1/market/admin/activities/${encodeURIComponent(activityId)}`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function createGroupBuyActivity(payload) {
-  return request("/api/v1/gbm/admin/activities", {
+  return request("/api/v1/market/admin/activities", {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1249,7 +1249,7 @@ export async function createGroupBuyActivity(payload) {
 }
 
 export async function updateGroupBuyActivity(activityId, payload) {
-  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}`, {
+  return request(`/api/v1/market/admin/activities/${encodeURIComponent(activityId)}`, {
     auth: true,
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -1258,14 +1258,14 @@ export async function updateGroupBuyActivity(activityId, payload) {
 }
 
 export async function updateGroupBuyActivityEnabled(activityId, enabled) {
-  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}/enabled?enabled=${Boolean(enabled)}`, {
+  return request(`/api/v1/market/admin/activities/${encodeURIComponent(activityId)}/enabled?enabled=${Boolean(enabled)}`, {
     auth: true,
     method: "PUT"
   });
 }
 
 export async function updateGroupBuyActivityStock(activityId, totalStock) {
-  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}/stock`, {
+  return request(`/api/v1/market/admin/activities/${encodeURIComponent(activityId)}/stock`, {
     auth: true,
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -1274,36 +1274,36 @@ export async function updateGroupBuyActivityStock(activityId, totalStock) {
 }
 
 export async function removeGroupBuyActivity(activityId) {
-  return request(`/api/v1/gbm/admin/activities/${encodeURIComponent(activityId)}`, {
+  return request(`/api/v1/market/admin/activities/${encodeURIComponent(activityId)}`, {
     auth: true,
     method: "DELETE"
   });
 }
 
 export async function queryGroupBuyGoodsOptions() {
-  return request("/api/v1/gbm/admin/goods-options", { auth: true, method: "GET" });
+  return request("/api/v1/market/admin/goods-options", { auth: true, method: "GET" });
 }
 
 export async function queryGroupBuyDiscountOptions() {
-  return request("/api/v1/gbm/admin/discount-options", { auth: true, method: "GET" });
+  return request("/api/v1/market/admin/discount-options", { auth: true, method: "GET" });
 }
 
 export async function listGroupBuyDiscounts() {
-  return request("/api/v1/gbm/admin/discounts", { auth: true, method: "GET" });
+  return request("/api/v1/market/admin/discounts", { auth: true, method: "GET" });
 }
 
 export async function saveGroupBuyDiscount(payload) {
-  return request("/api/v1/gbm/admin/discounts", {
+  return request("/api/v1/market/admin/discounts", {
     auth: true, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {})
   });
 }
 
 export async function setGroupBuyDiscountEnabled(discountId, enabled) {
-  return request(`/api/v1/gbm/admin/discounts/${discountId}/enabled`, {
+  return request(`/api/v1/market/admin/discounts/${discountId}/enabled`, {
     auth: true, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled })
   });
 }
 
 export async function removeGroupBuyDiscount(discountId) {
-  return request(`/api/v1/gbm/admin/discounts/${discountId}`, { auth: true, method: "DELETE" });
+  return request(`/api/v1/market/admin/discounts/${discountId}`, { auth: true, method: "DELETE" });
 }

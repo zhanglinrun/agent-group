@@ -1,9 +1,9 @@
-type AcademicSseEvent = {
+type AgentSseEvent = {
   event?: unknown;
   [key: string]: unknown;
 };
 
-export function splitAcademicSseBlocks(buffer: string): { blocks: string[]; rest: string } {
+export function splitAgentSseBlocks(buffer: string): { blocks: string[]; rest: string } {
   const parts = String(buffer || "").split(/\r?\n\r?\n/);
   return {
     blocks: parts.slice(0, -1).filter((block) => block.trim()),
@@ -11,7 +11,7 @@ export function splitAcademicSseBlocks(buffer: string): { blocks: string[]; rest
   };
 }
 
-export function academicSseData(block: string): string {
+export function agentSseData(block: string): string {
   const lines = String(block || "").split(/\r?\n/);
   const dataLines = lines.filter((line) => line.startsWith("data:"));
   return (dataLines.length ? dataLines : lines)
@@ -20,23 +20,23 @@ export function academicSseData(block: string): string {
     .join("");
 }
 
-export function parseAcademicSseBlock(block: string): AcademicSseEvent | null {
-  const data = academicSseData(block);
+export function parseAgentSseBlock(block: string): AgentSseEvent | null {
+  const data = agentSseData(block);
   if (!data || data === "[DONE]") {
     return null;
   }
   try {
     const parsed = JSON.parse(data);
-    return parsed && typeof parsed === "object" ? parsed as AcademicSseEvent : null;
+    return parsed && typeof parsed === "object" ? parsed as AgentSseEvent : null;
   } catch {
     return null;
   }
 }
 
-export function isAcademicTerminalEvent(event: unknown): boolean {
+export function isAgentTerminalEvent(event: unknown): boolean {
   if (!event || typeof event !== "object") {
     return false;
   }
-  const value = String((event as AcademicSseEvent).event || "").toLowerCase();
+  const value = String((event as AgentSseEvent).event || "").toLowerCase();
   return value === "done" || value === "error";
 }

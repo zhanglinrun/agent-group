@@ -10,8 +10,8 @@ describe("workspace page model", () => {
           id: "image",
           availableTools: ["image_generation", "multimodal_agent", "file_tool"],
           missingTools: [],
-          runEndpoint: "/api/v1/academic/workspace/image/generate",
-          historyEndpoint: "/api/v1/academic/workspace/image/history"
+          runEndpoint: "/api/v1/agent/workspaces/image/generate",
+          historyEndpoint: "/api/v1/agent/workspaces/image/history"
         }
       ]
     });
@@ -26,7 +26,7 @@ describe("workspace page model", () => {
     expect(model.actions.find((action) => action.key === "run")).toMatchObject({
       label: "生成图像",
       enabled: true,
-      endpoint: "/api/v1/academic/workspace/image/generate"
+      endpoint: "/api/v1/agent/workspaces/image/generate"
     });
   });
 
@@ -79,7 +79,7 @@ describe("workspace page model", () => {
         key: "run",
         label: "开始对话",
         enabled: true,
-        endpoint: "/api/v1/academic/stream"
+        endpoint: "/api/v1/agent/stream"
       }
     ]);
   });

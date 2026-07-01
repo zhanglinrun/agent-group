@@ -2,17 +2,17 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { AcademicProjectPanel } from "./AcademicProjectPanel";
+import { AgentWorkspacePanel } from "./AgentWorkspacePanel";
 
-describe("AcademicProjectPanel", () => {
+describe("AgentWorkspacePanel", () => {
   it("renders project metrics, files, references, and pending patches", () => {
-    const html = renderToStaticMarkup(createElement(AcademicProjectPanel, {
+    const html = renderToStaticMarkup(createElement(AgentWorkspacePanel, {
       projects: [
         { projectId: "project-1", title: "论文复现实验" }
       ],
       model: {
         title: "论文复现实验",
-        subtitle: "当前项目上下文",
+        subtitle: "当前工作区上下文",
         contextSummary: "",
         statusLabel: "进行中",
         fileCount: 2,
@@ -27,7 +27,7 @@ describe("AcademicProjectPanel", () => {
           { patchId: "patch-1", title: "补充实验结论", reason: "需要确认后写入报告" }
         ]
       },
-      activeProjectId: "project-1",
+      activeWorkspaceId: "project-1",
       loading: false,
       error: "",
       onRefresh: () => {},

@@ -245,7 +245,7 @@ export function streamEventToTimelineItem(
     return {
       type: "project",
       status: "completed",
-      title: text(data.title) || "项目上下文",
+      title: text(data.title) || "工作区上下文",
       content: [
         text(data.researchQuestion) ? `任务问题：${text(data.researchQuestion)}` : "",
         text(data.targetVenue) ? `目标：${text(data.targetVenue)}` : "",

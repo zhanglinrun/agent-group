@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
+import { buildAgentWorkspace } from "./agentWorkspace";
 
-describe("academic project workspace model", () => {
+describe("agent workspace model", () => {
   it("summarizes project context files and pending patches", () => {
-    const model = buildAcademicProjectWorkspace({
+    const model = buildAgentWorkspace({
       projectId: "AP1001",
       title: "AMR Paper",
       researchQuestion: "Open-set recognition",
@@ -30,9 +30,9 @@ describe("academic project workspace model", () => {
   });
 
   it("returns empty-state labels without selected project", () => {
-    const model = buildAcademicProjectWorkspace(null);
+    const model = buildAgentWorkspace(null);
 
-    expect(model.title).toBe("未选择项目");
-    expect(model.contextSummary).toBe("当前还没有项目上下文");
+    expect(model.title).toBe("未选择工作区");
+    expect(model.contextSummary).toBe("当前还没有工作区上下文");
   });
 });

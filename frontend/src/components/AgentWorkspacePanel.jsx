@@ -1,12 +1,12 @@
 import { AlertTriangle, BookOpen, FileText, Loader2, Plus, RotateCcw, ShieldCheck } from "lucide-react";
 
-import { buildAcademicProjectWorkspace } from "../academicProjectWorkspace";
+import { buildAgentWorkspace } from "../agentWorkspace";
 import { WorkspacePanelHeader } from "./WorkspacePanelHeader";
 
-export function AcademicProjectPanel({
+export function AgentWorkspacePanel({
   projects = [],
   model,
-  activeProjectId = "",
+  activeWorkspaceId = "",
   loading,
   error,
   onRefresh,
@@ -14,26 +14,26 @@ export function AcademicProjectPanel({
   onSelect,
   onApplyPatch
 }) {
-  const workspace = model || buildAcademicProjectWorkspace(null);
-  const hasProject = Boolean(activeProjectId);
+  const workspace = model || buildAgentWorkspace(null);
+  const hasWorkspace = Boolean(activeWorkspaceId);
   const visibleDrafts = workspace.draftFiles.slice(0, 3);
   const visibleReferences = workspace.referenceFiles.slice(0, 3);
   const visiblePatches = workspace.pendingPatches.slice(0, 3);
-  const hasProjectDetails = hasProject && (
+  const hasWorkspaceDetails = hasWorkspace && (
     visibleDrafts.length > 0 || visibleReferences.length > 0 || visiblePatches.length > 0
   );
   return (
-    <section className={`academic-project-panel ${hasProjectDetails ? "" : "compact"}`}>
+    <section className={`agent-workspace-panel ${hasWorkspaceDetails ? "" : "compact"}`}>
       <WorkspacePanelHeader
-        className="academic-project-head"
-        eyebrow={<span className="academic-project-kicker">工作上下文</span>}
+        className="agent-workspace-head"
+        eyebrow={<span className="agent-workspace-kicker">工作上下文</span>}
         title={workspace.title}
         subtitleElement={<em>{workspace.subtitle || workspace.contextSummary}</em>}
         trailing={(
-          <div className="academic-project-actions">
+          <div className="agent-workspace-actions">
           {projects.length > 0 && (
             <select
-              value={activeProjectId}
+              value={activeWorkspaceId}
               onChange={(event) => onSelect?.(event.target.value)}
               disabled={loading}
             >
@@ -54,63 +54,63 @@ export function AcademicProjectPanel({
         </div>
         )}
       />
-      {error && <div className="academic-project-error"><AlertTriangle size={14} /> <span>{error}</span></div>}
-      <div className="academic-project-metrics">
+      {error && <div className="agent-workspace-error"><AlertTriangle size={14} /> <span>{error}</span></div>}
+      <div className="agent-workspace-metrics">
         <span><b>{workspace.statusLabel}</b>状态</span>
         <span><b>{workspace.fileCount}</b>材料</span>
         <span><b>{workspace.pendingPatchCount}</b>待确认补丁</span>
       </div>
-      {hasProjectDetails ? (
-        <div className="academic-project-grid">
-          <ProjectFileColumn
+      {hasWorkspaceDetails ? (
+        <div className="agent-workspace-grid">
+          <WorkspaceFileColumn
             icon={<FileText size={14} />}
             title="工作材料"
             files={visibleDrafts}
             emptyText="暂无工作材料"
           />
-          <ProjectFileColumn
+          <WorkspaceFileColumn
             icon={<BookOpen size={14} />}
             title="参考资料"
             files={visibleReferences}
             emptyText="暂无参考资料"
           />
-          <ProjectPatchColumn
+          <WorkspacePatchColumn
             patches={visiblePatches}
             loading={loading}
             onApplyPatch={onApplyPatch}
           />
         </div>
-      ) : !hasProject ? (
-        <div className="academic-project-empty wide">创建项目后，上传文件会自动进入当前工作项目</div>
+      ) : !hasWorkspace ? (
+        <div className="agent-workspace-empty wide">新建工作区后，上传文件会自动进入当前工作区</div>
       ) : null}
     </section>
   );
 }
 
-function ProjectFileColumn({ icon, title, files = [], emptyText }) {
+function WorkspaceFileColumn({ icon, title, files = [], emptyText }) {
   return (
-    <div className="academic-project-column">
-      <div className="academic-project-column-head">
+    <div className="agent-workspace-column">
+      <div className="agent-workspace-column-head">
         {icon}
         <strong>{title}</strong>
       </div>
       {files.map((file) => (
-        <ProjectFileRow file={file} key={file.fileId || file.fileName} />
+        <WorkspaceFileRow file={file} key={file.fileId || file.fileName} />
       ))}
-      {files.length === 0 && <div className="academic-project-empty">{emptyText}</div>}
+      {files.length === 0 && <div className="agent-workspace-empty">{emptyText}</div>}
     </div>
   );
 }
 
-function ProjectPatchColumn({ patches = [], loading, onApplyPatch }) {
+function WorkspacePatchColumn({ patches = [], loading, onApplyPatch }) {
   return (
-    <div className="academic-project-column">
-      <div className="academic-project-column-head">
+    <div className="agent-workspace-column">
+      <div className="agent-workspace-column-head">
         <ShieldCheck size={14} />
         <strong>待确认补丁</strong>
       </div>
       {patches.map((patch) => (
-        <article className="academic-patch-row" key={patch.patchId || patch.title}>
+        <article className="agent-patch-row" key={patch.patchId || patch.title}>
           <div>
             <b>{patch.title || patch.patchId}</b>
             <span>{patch.reason || patch.fileId || "等待人工确认"}</span>
@@ -120,14 +120,14 @@ function ProjectPatchColumn({ patches = [], loading, onApplyPatch }) {
           </button>
         </article>
       ))}
-      {patches.length === 0 && <div className="academic-project-empty">暂无待确认补丁</div>}
+      {patches.length === 0 && <div className="agent-workspace-empty">暂无待确认补丁</div>}
     </div>
   );
 }
 
-function ProjectFileRow({ file = {} }) {
+function WorkspaceFileRow({ file = {} }) {
   return (
-    <article className="academic-project-file-row">
+    <article className="agent-workspace-file-row">
       <div>
         <b>{file.fileName || file.fileId || "未命名文件"}</b>
         <span>{file.summary || file.folderType || "暂无摘要"}</span>

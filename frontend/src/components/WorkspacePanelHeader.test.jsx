@@ -24,12 +24,12 @@ describe("WorkspacePanelHeader", () => {
   it("lets custom subtitle markup replace plain subtitle text", () => {
     const html = renderToStaticMarkup(createElement(WorkspacePanelHeader, {
       className: "workspace-head",
-      title: "项目上下文",
+      title: "工作区上下文",
       subtitle: "不会显示",
-      subtitleElement: createElement("em", null, "当前项目")
+      subtitleElement: createElement("em", null, "当前工作区")
     }));
 
-    expect(html).toContain("<em>当前项目</em>");
+    expect(html).toContain("<em>当前工作区</em>");
     expect(html).not.toContain("不会显示");
   });
 });

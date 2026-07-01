@@ -214,8 +214,8 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["answer", "reference", "artifact"],
-    runEndpoint: "/api/v1/academic/stream",
-    historyEndpoint: "/api/v1/academic/sessions"
+    runEndpoint: "/api/v1/agent/stream",
+    historyEndpoint: "/api/v1/agent/sessions"
   },
   image: {
     id: "image",
@@ -225,8 +225,8 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["image_generation", "multimodal_agent", "file_tool"],
     attachmentMode: "file-or-image",
     outputKinds: ["image", "prompt", "artifact"],
-    runEndpoint: "/api/v1/academic/workspace/image/generate",
-    historyEndpoint: "/api/v1/academic/workspace/image/history"
+    runEndpoint: "/api/v1/agent/workspaces/image/generate",
+    historyEndpoint: "/api/v1/agent/workspaces/image/history"
   },
   data: {
     id: "data",
@@ -236,8 +236,8 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["data_analysis", "table_rag", "nl2sql", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["table", "sql", "chart", "report"],
-    runEndpoint: "/api/v1/academic/workspace/data/run",
-    historyEndpoint: "/api/v1/academic/workspace/data/history"
+    runEndpoint: "/api/v1/agent/workspaces/data/run",
+    historyEndpoint: "/api/v1/agent/workspaces/data/history"
   },
   trade: {
     id: "trade",
@@ -247,7 +247,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["trade_order_list", "trade_diagnosis"],
     attachmentMode: "none",
     outputKinds: ["order", "quota", "status", "report"],
-    runEndpoint: "/api/v1/academic/stream",
+    runEndpoint: "/api/v1/agent/stream",
     historyEndpoint: "/api/v1/trade/order/my"
   }
 };
@@ -396,8 +396,8 @@ export function visibleToolRuntimeFamilyReadiness(
   }
   const readiness = visibleToolRuntimeReadiness(capabilities, 64);
   const byName = new Map(readiness.map((tool) => [tool.name, tool]));
-  const academicToolNames = new Set(
-    ((capabilities?.academicTools as Array<{ name?: string }> | undefined) || [])
+  const agentToolNames = new Set(
+    ((capabilities?.agentTools as Array<{ name?: string }> | undefined) || [])
       .map((tool) => String(tool.name || ""))
       .filter(Boolean)
   );
@@ -405,7 +405,7 @@ export function visibleToolRuntimeFamilyReadiness(
   return TOOL_RUNTIME_FAMILIES
     .map((family) => {
       const readyTools = family.tools.filter((toolName) => (
-        byName.get(toolName)?.status === "ready" || academicToolNames.has(toolName)
+        byName.get(toolName)?.status === "ready" || agentToolNames.has(toolName)
       ));
       const missingTools = family.tools.filter((toolName) => !readyTools.includes(toolName));
       const selectedTools = family.tools
@@ -686,7 +686,7 @@ export function workspaceCapabilityStatus(
   const profile = workspaceDisplayProfile(workspaceId, capabilities);
   const backendProfile = backendWorkspaceProfile(workspaceId, capabilities);
   const toolNames = new Set(
-    ((capabilities?.academicTools as Array<{ name?: string }> | undefined) || [])
+    ((capabilities?.agentTools as Array<{ name?: string }> | undefined) || [])
       .map((tool) => String(tool.name || ""))
       .filter(Boolean)
   );
@@ -725,15 +725,15 @@ export function workspaceToolReadiness(
   const backendProfile = backendWorkspaceProfile(workspaceId, capabilities);
   const readiness = visibleToolRuntimeReadiness(capabilities, 64);
   const byName = new Map(readiness.map((tool) => [tool.name, tool]));
-  const academicToolNames = new Set(
-    ((capabilities?.academicTools as Array<{ name?: string }> | undefined) || [])
+  const agentToolNames = new Set(
+    ((capabilities?.agentTools as Array<{ name?: string }> | undefined) || [])
       .map((tool) => String(tool.name || ""))
       .filter(Boolean)
   );
   const readyTools = backendProfile
     ? stringList(backendProfile.availableTools)
     : profile.primaryTools.filter((toolName) => (
-      byName.get(toolName)?.status === "ready" || academicToolNames.has(toolName)
+      byName.get(toolName)?.status === "ready" || agentToolNames.has(toolName)
     ));
   const missingTools = backendProfile
     ? stringList(backendProfile.missingTools)

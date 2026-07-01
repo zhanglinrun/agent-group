@@ -35,7 +35,7 @@ import { MarkdownRenderer } from "./components/MarkdownRenderer";
 import { ImageWorkspacePanel } from "./components/ImageWorkspacePanel";
 import { DataWorkspacePanel } from "./components/DataWorkspacePanel";
 import { TradeWorkspacePanel } from "./components/TradeWorkspacePanel";
-import { AcademicProjectPanel } from "./components/AcademicProjectPanel";
+import { AgentWorkspacePanel } from "./components/AgentWorkspacePanel";
 import { SessionMemoryPanel } from "./components/SessionMemoryPanel";
 import { UserMemoryPanel } from "./components/UserMemoryPanel";
 import { WorkspaceEmptyState } from "./components/WorkspaceEmptyState";
@@ -106,13 +106,13 @@ import {
   workspaceImageToolResultEvent
 } from "./appRuntime";
 import {
-  applyAcademicProjectPatch,
-  bindAcademicProjectFile,
+  applyAgentWorkspacePatch,
+  bindAgentWorkspaceFile,
   createPayment,
   createDirectOrder,
-  createAcademicProject,
-  deleteAcademicSession,
-  downloadAcademicArtifact,
+  createAgentWorkspace,
+  deleteAgentSession,
+  downloadAgentArtifact,
   generateWorkspaceImage,
   getModelConfig,
   getQuotaSummary,
@@ -125,13 +125,13 @@ import {
   modelConfigReady,
   normalizeApiMessage,
   queryAgentCapabilities,
-  queryAcademicReplay,
-  queryAcademicRunDetail,
+  queryAgentReplay,
+  queryAgentRunDetail,
   queryUserAgentMemories,
-  queryAcademicProjects,
-  queryAcademicTaskStatus,
-  queryAcademicSessionDetail,
-  queryAcademicSessions,
+  queryAgentWorkspaces,
+  queryAgentTaskStatus,
+  queryAgentSessionDetail,
+  queryAgentSessions,
   queryGroupBuyMarketConfig,
   queryQuotaPackages,
   queryWorkspaceDataCatalog,
@@ -139,24 +139,24 @@ import {
   queryWorkspaceImageHistory,
   queryUserOrderList,
   register,
-  rollbackAcademicSession,
-  requestAcademicAttachStream,
-  requestAcademicResumeStream,
-  requestAcademicStream,
+  rollbackAgentSession,
+  requestAgentAttachStream,
+  requestAgentResumeStream,
+  requestAgentStream,
   runWorkspaceData,
   deleteUserAgentMemory,
   disableUserAgentMemory,
   saveUserAgentMemory,
   saveModelConfig,
-  stopAcademicStream,
-  uploadAcademicFile
+  stopAgentStream,
+  uploadAgentFile
 } from "./services/api";
 import { applyTheme, getStoredTheme, nextTheme } from "./theme";
 import { APP_ROUTES } from "./routes";
 import { USER_AGENT_MODES } from "./agentModes";
 import { summarizeTradeWorkspace } from "./tradeWorkspace";
 import { buildWorkspacePageModel } from "./workspacePageModel";
-import { buildAcademicProjectWorkspace } from "./academicProjectWorkspace";
+import { buildAgentWorkspace } from "./agentWorkspace";
 import {
   artifactMetaLabel,
   artifactSourceLabel,
@@ -320,10 +320,10 @@ function AgentWorkspaceApp() {
   const [authLoading, setAuthLoading] = useState(false);
   const [chatList, setChatList] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(() => getSessionId());
-  const [academicProjects, setAcademicProjects] = useState([]);
-  const [activeAcademicProjectId, setActiveAcademicProjectId] = useState("");
-  const [academicProjectLoading, setAcademicProjectLoading] = useState(false);
-  const [academicProjectError, setAcademicProjectError] = useState("");
+  const [agentWorkspaces, setAgentWorkspaces] = useState([]);
+  const [activeAgentWorkspaceId, setActiveAgentWorkspaceId] = useState("");
+  const [agentWorkspaceLoading, setAgentWorkspaceLoading] = useState(false);
+  const [agentWorkspaceError, setAgentWorkspaceError] = useState("");
   const [inputMessage, setInputMessage] = useState("");
   const [activeWorkspace, setActiveWorkspace] = useState(() => routeWorkspace);
   const [workspaceHistory, setWorkspaceHistory] = useState(() => ({ workspaceId: routeWorkspace, items: [] }));
@@ -403,12 +403,12 @@ function AgentWorkspaceApp() {
   const visibleConnectionError = useMemo(() => (
     isOperatorAuthText(connectionError) ? "" : connectionError
   ), [connectionError]);
-  const activeAcademicProject = useMemo(() => (
-    academicProjects.find((project) => project.projectId === activeAcademicProjectId) || academicProjects[0] || null
-  ), [academicProjects, activeAcademicProjectId]);
-  const academicProjectWorkspace = useMemo(() => (
-    buildAcademicProjectWorkspace(activeAcademicProject)
-  ), [activeAcademicProject]);
+  const activeAgentWorkspace = useMemo(() => (
+    agentWorkspaces.find((project) => project.projectId === activeAgentWorkspaceId) || agentWorkspaces[0] || null
+  ), [agentWorkspaces, activeAgentWorkspaceId]);
+  const agentWorkspace = useMemo(() => (
+    buildAgentWorkspace(activeAgentWorkspace)
+  ), [activeAgentWorkspace]);
   const currentWorkspace = useMemo(() => (
     WORKSPACES.find((workspace) => workspace.id === activeWorkspace) || WORKSPACES[0]
   ), [activeWorkspace]);
@@ -422,9 +422,9 @@ function AgentWorkspaceApp() {
   const isSending = Boolean(runningChatIds[currentChatId]);
   const canResumeCurrentChat = Boolean((currentTaskStatus.stopped || currentChat?.stopped) && !isSending);
   const canUseFile = workspaceAcceptsFile(currentWorkspace.id, selectedAgent);
-  const academicProjectContextEnabled = currentWorkspace.id === "agent" && ["deep", "file"].includes(selectedAgent);
-  const activeAcademicProjectForRequest = academicProjectContextEnabled ? activeAcademicProject : null;
-  const showAcademicProjectPanel = academicProjectContextEnabled && (academicProjects.length > 0 || activeAcademicProject);
+  const agentWorkspaceContextEnabled = currentWorkspace.id === "agent" && ["deep", "file"].includes(selectedAgent);
+  const activeAgentWorkspaceForRequest = agentWorkspaceContextEnabled ? activeAgentWorkspace : null;
+  const showAgentWorkspacePanel = agentWorkspaceContextEnabled && (agentWorkspaces.length > 0 || activeAgentWorkspace);
   const manualSkills = useMemo(() => (
     Array.isArray(agentCapabilities?.manualSkills) ? agentCapabilities.manualSkills : []
   ), [agentCapabilities]);
@@ -526,7 +526,7 @@ function AgentWorkspaceApp() {
 
   const loadSessions = useCallback(async () => {
     if (!getUserAuth()?.token) return;
-    const res = await queryAcademicSessions(30);
+    const res = await queryAgentSessions(30);
     if (res.code !== "0000") return;
     setChatList((prev) => {
       const previousById = new Map(prev.map((item) => [item.id, item]));
@@ -550,36 +550,36 @@ function AgentWorkspaceApp() {
     });
   }, [currentChatId]);
 
-  const loadAcademicProjects = useCallback(async () => {
+  const loadAgentWorkspaces = useCallback(async () => {
     if (!getUserAuth()?.token) return;
-    setAcademicProjectLoading(true);
-    setAcademicProjectError("");
+    setAgentWorkspaceLoading(true);
+    setAgentWorkspaceError("");
     try {
-      const res = await queryAcademicProjects(20);
+      const res = await queryAgentWorkspaces(20);
       if (!apiSucceeded(res)) {
         throw new Error(normalizeUserMessage(res.info || res.message, "任务项目读取失败"));
       }
       const projects = res.data || [];
-      setAcademicProjects(projects);
-      setActiveAcademicProjectId((prev) => (
+      setAgentWorkspaces(projects);
+      setActiveAgentWorkspaceId((prev) => (
         projects.some((project) => project.projectId === prev) ? prev : projects[0]?.projectId || ""
       ));
     } catch (error) {
-      setAcademicProjectError(normalizeUserMessage(error.message, "任务项目读取失败"));
+      setAgentWorkspaceError(normalizeUserMessage(error.message, "任务项目读取失败"));
     } finally {
-      setAcademicProjectLoading(false);
+      setAgentWorkspaceLoading(false);
     }
   }, []);
 
-  const createDefaultAcademicProject = async () => {
+  const createDefaultAgentWorkspace = async () => {
     if (!auth?.token) {
       setLoginOpen(true);
       return null;
     }
-    setAcademicProjectLoading(true);
-    setAcademicProjectError("");
+    setAgentWorkspaceLoading(true);
+    setAgentWorkspaceError("");
     try {
-      const res = await createAcademicProject({
+      const res = await createAgentWorkspace({
         title: "熊博士Agent 项目",
         researchQuestion: "请描述任务目标",
         targetVenue: "待定",
@@ -590,35 +590,35 @@ function AgentWorkspaceApp() {
         throw new Error(normalizeUserMessage(res.info || res.message, "任务项目创建失败"));
       }
       const project = res.data;
-      setAcademicProjects((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
-      setActiveAcademicProjectId(project.projectId);
+      setAgentWorkspaces((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
+      setActiveAgentWorkspaceId(project.projectId);
       setToast("任务项目已创建");
       return project;
     } catch (error) {
-      setAcademicProjectError(normalizeUserMessage(error.message, "任务项目创建失败"));
+      setAgentWorkspaceError(normalizeUserMessage(error.message, "任务项目创建失败"));
       return null;
     } finally {
-      setAcademicProjectLoading(false);
+      setAgentWorkspaceLoading(false);
     }
   };
 
-  const applyPendingAcademicPatch = async (patch) => {
-    if (!activeAcademicProject?.projectId || !patch?.patchId) return;
-    setAcademicProjectLoading(true);
-    setAcademicProjectError("");
+  const applyPendingAgentPatch = async (patch) => {
+    if (!activeAgentWorkspace?.projectId || !patch?.patchId) return;
+    setAgentWorkspaceLoading(true);
+    setAgentWorkspaceError("");
     try {
-      const res = await applyAcademicProjectPatch(activeAcademicProject.projectId, patch.patchId);
+      const res = await applyAgentWorkspacePatch(activeAgentWorkspace.projectId, patch.patchId);
       if (!apiSucceeded(res)) {
         throw new Error(normalizeUserMessage(res.info || res.message, "补丁确认失败"));
       }
       const project = res.data;
-      setAcademicProjects((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
-      setActiveAcademicProjectId(project.projectId);
+      setAgentWorkspaces((prev) => [project, ...prev.filter((item) => item.projectId !== project.projectId)]);
+      setActiveAgentWorkspaceId(project.projectId);
       setToast("补丁已确认并应用");
     } catch (error) {
-      setAcademicProjectError(normalizeUserMessage(error.message, "补丁确认失败"));
+      setAgentWorkspaceError(normalizeUserMessage(error.message, "补丁确认失败"));
     } finally {
-      setAcademicProjectLoading(false);
+      setAgentWorkspaceLoading(false);
     }
   };
 
@@ -774,11 +774,11 @@ function AgentWorkspaceApp() {
 
   const refreshSessionDetail = useCallback(async (sessionId, keepMessageId = "") => {
     if (!getUserAuth()?.token || !sessionId) return;
-    const res = await queryAcademicSessionDetail(sessionId);
+    const res = await queryAgentSessionDetail(sessionId);
     if (res.code !== "0000") return;
     let replays = res.data?.replays || [];
     if (!replays.length) {
-      const replayRes = await queryAcademicReplay(sessionId).catch(() => null);
+      const replayRes = await queryAgentReplay(sessionId).catch(() => null);
       if (replayRes?.code === "0000") {
         replays = replayRes.data || [];
       }
@@ -916,7 +916,7 @@ function AgentWorkspaceApp() {
 
   const refreshTaskStatus = useCallback(async (sessionId) => {
     if (!getUserAuth()?.token || !sessionId) return null;
-    const res = await queryAcademicTaskStatus(sessionId);
+    const res = await queryAgentTaskStatus(sessionId);
     if (res.code !== "0000") return null;
     const status = res.data || {};
     setTaskStatusByChat((prev) => ({ ...prev, [sessionId]: status }));
@@ -947,7 +947,7 @@ function AgentWorkspaceApp() {
     }));
     refreshSessionDetail(sessionId, assistantId).catch(() => {});
     setChatRunning(sessionId, true, { stopped: false });
-    streamControllersRef.current[sessionId] = requestAcademicAttachStream(
+    streamControllersRef.current[sessionId] = requestAgentAttachStream(
       sessionId,
       (event) => processStreamEvent(sessionId, assistantId, event),
       () => {
@@ -1018,7 +1018,7 @@ function AgentWorkspaceApp() {
     if (item?.runId) {
       setWorkspaceRunDetailLoading(true);
       try {
-        const res = await queryAcademicRunDetail(item.runId);
+        const res = await queryAgentRunDetail(item.runId);
         if (!apiSucceeded(res)) {
           throw new Error(normalizeUserMessage(res?.info || res?.message, "运行详情读取失败"));
         }
@@ -1080,9 +1080,9 @@ function AgentWorkspaceApp() {
     loadQuota().catch((error) => setConnectionError(normalizeUserMessage(error.message, "额度读取失败")));
     loadModelConfig().catch(() => {});
     loadSessions().catch(() => {});
-    loadAcademicProjects().catch(() => {});
+    loadAgentWorkspaces().catch(() => {});
     loadOrders().catch(() => {});
-  }, [auth, loadAcademicProjects, loadModelConfig, loadOrders, loadQuota, loadSessions]);
+  }, [auth, loadAgentWorkspaces, loadModelConfig, loadOrders, loadQuota, loadSessions]);
 
   useEffect(() => {
     loadWorkspaceHistory(activeWorkspace).catch(() => {});
@@ -1120,9 +1120,9 @@ function AgentWorkspaceApp() {
         if (runningChatIds[chatId] || taskStatusByChat[chatId]?.running) {
           streamControllersRef.current[chatId]?.abort();
           delete streamControllersRef.current[chatId];
-          await stopAcademicStream(chatId);
+          await stopAgentStream(chatId);
         }
-        const res = await deleteAcademicSession(chatId);
+        const res = await deleteAgentSession(chatId);
         if (res.code !== "0000") throw new Error(normalizeUserMessage(res.info, "会话删除失败"));
       }
     } catch (error) {
@@ -1302,8 +1302,8 @@ function AgentWorkspaceApp() {
     setAuth(null);
     setQuota(null);
     setQuotaFlows([]);
-    setAcademicProjects([]);
-    setActiveAcademicProjectId("");
+    setAgentWorkspaces([]);
+    setActiveAgentWorkspaceId("");
     setUserMemories([]);
     setUserMemoriesError("");
     setLoginOpen(true);
@@ -1332,7 +1332,7 @@ function AgentWorkspaceApp() {
     });
     setIsUploading(true);
     try {
-      const res = await uploadAcademicFile(file, currentChatId);
+      const res = await uploadAgentFile(file, currentChatId);
       if (res.code === "0000") {
         const parsedFile = {
           fileId: res.data.fileId,
@@ -1350,9 +1350,9 @@ function AgentWorkspaceApp() {
         if (imageFile) {
           setInputMessage((prev) => (prev.trim() ? prev : "这个图上是什么内容呢"));
         }
-        const project = academicProjectContextEnabled ? (activeAcademicProject || await createDefaultAcademicProject()) : null;
+        const project = agentWorkspaceContextEnabled ? (activeAgentWorkspace || await createDefaultAgentWorkspace()) : null;
         if (project?.projectId) {
-          const bindRes = await bindAcademicProjectFile(project.projectId, {
+          const bindRes = await bindAgentWorkspaceFile(project.projectId, {
             fileId: parsedFile.fileId,
             fileName: parsedFile.name,
             fileType: parsedFile.fileType,
@@ -1361,8 +1361,8 @@ function AgentWorkspaceApp() {
             contentPreview: parsedFile.summary
           });
           if (apiSucceeded(bindRes)) {
-            setAcademicProjects((prev) => [bindRes.data, ...prev.filter((item) => item.projectId !== bindRes.data.projectId)]);
-            setActiveAcademicProjectId(bindRes.data.projectId);
+            setAgentWorkspaces((prev) => [bindRes.data, ...prev.filter((item) => item.projectId !== bindRes.data.projectId)]);
+            setActiveAgentWorkspaceId(bindRes.data.projectId);
           }
         }
         setToast("文件解析完成");
@@ -1449,7 +1449,7 @@ function AgentWorkspaceApp() {
       const anchorMessage = chat?.messages?.find((message) => message.id === options.rollbackToMessageId);
       if (anchorMessage?.recordId) {
         try {
-          const rollbackRes = await rollbackAcademicSession(sessionId, anchorMessage.recordId);
+          const rollbackRes = await rollbackAgentSession(sessionId, anchorMessage.recordId);
           if (!apiSucceeded(rollbackRes)) {
             throw new Error(normalizeUserMessage(rollbackRes?.info || rollbackRes?.message, "回溯失败"));
           }
@@ -1656,10 +1656,10 @@ function AgentWorkspaceApp() {
       return;
     }
 
-    streamControllersRef.current[sessionId] = requestAcademicStream(
+    streamControllersRef.current[sessionId] = requestAgentStream(
       {
         sessionId,
-        projectId: activeAcademicProjectForRequest?.projectId || "",
+        projectId: activeAgentWorkspaceForRequest?.projectId || "",
         threadId: sessionId,
         question: streamDraft.question,
         taskType: streamDraft.taskType,
@@ -1697,7 +1697,7 @@ function AgentWorkspaceApp() {
     const sessionId = currentChatId;
     streamControllersRef.current[sessionId]?.abort();
     delete streamControllersRef.current[sessionId];
-    await stopAcademicStream(sessionId);
+    await stopAgentStream(sessionId);
     updateChat(sessionId, (chat) => ({ ...chat, stopped: true }));
     setChatRunning(sessionId, false, { stopped: true, resumable: true });
   };
@@ -1731,7 +1731,7 @@ function AgentWorkspaceApp() {
     }));
     setChatRunning(sessionId, true, { stopped: false });
     setConnectionError("");
-    streamControllersRef.current[sessionId] = requestAcademicResumeStream(
+    streamControllersRef.current[sessionId] = requestAgentResumeStream(
       sessionId,
       modelConfig,
       webSearchEnabled,
@@ -1916,7 +1916,7 @@ function AgentWorkspaceApp() {
 
   const handleArtifactDownload = async (artifact) => {
     try {
-      await downloadAcademicArtifact(artifact.downloadUrl, artifact.fileName || artifact.title || "artifact");
+      await downloadAgentArtifact(artifact.downloadUrl, artifact.fileName || artifact.title || "artifact");
       setToast("文件已下载");
     } catch (error) {
       setConnectionError(normalizeUserMessage(error.message, "文件下载失败"));
@@ -2147,17 +2147,17 @@ function AgentWorkspaceApp() {
           </div>
 
           <div className="messages-container" ref={messagesContainer}>
-            {showAcademicProjectPanel && (
-              <AcademicProjectPanel
-                projects={academicProjects}
-                model={academicProjectWorkspace}
-                activeProjectId={activeAcademicProject?.projectId || ""}
-                loading={academicProjectLoading}
-                error={academicProjectError}
-                onRefresh={loadAcademicProjects}
-                onCreate={createDefaultAcademicProject}
-                onSelect={setActiveAcademicProjectId}
-                onApplyPatch={applyPendingAcademicPatch}
+            {showAgentWorkspacePanel && (
+              <AgentWorkspacePanel
+                projects={agentWorkspaces}
+                model={agentWorkspace}
+                activeWorkspaceId={activeAgentWorkspace?.projectId || ""}
+                loading={agentWorkspaceLoading}
+                error={agentWorkspaceError}
+                onRefresh={loadAgentWorkspaces}
+                onCreate={createDefaultAgentWorkspace}
+                onSelect={setActiveAgentWorkspaceId}
+                onApplyPatch={applyPendingAgentPatch}
               />
             )}
             {currentWorkspacePage.supportsHistory && !showComposerWorkspaceSettings && (

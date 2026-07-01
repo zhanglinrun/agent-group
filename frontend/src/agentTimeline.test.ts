@@ -196,7 +196,7 @@ describe("agent timeline projection", () => {
     });
   });
 
-  it("projects academic project context into timeline", () => {
+  it("projects agent workspace context into timeline", () => {
     const item = streamEventToTimelineItem({
       event: "project_context",
       data: {

@@ -25,12 +25,12 @@ describe("workspace service profiles", () => {
   it("maps product workspaces to stable task types and tools", () => {
     expect(workspaceServiceProfile("agent").primaryTools).toContain("code_interpreter");
     expect(workspaceServiceProfile("image").taskType).toBe("image");
-    expect(workspaceServiceProfile("image").runEndpoint).toBe("/api/v1/academic/workspace/image/generate");
+    expect(workspaceServiceProfile("image").runEndpoint).toBe("/api/v1/agent/workspaces/image/generate");
     expect(workspaceServiceProfile("data").primaryTools).toContain("nl2sql");
-    expect(workspaceServiceProfile("data").runEndpoint).toBe("/api/v1/academic/workspace/data/run");
+    expect(workspaceServiceProfile("data").runEndpoint).toBe("/api/v1/agent/workspaces/data/run");
     expect(workspaceServiceProfile("trade").taskType).toBe("trade-diagnosis");
     expect(workspaceServiceProfile("trade").primaryTools).toEqual(["trade_order_list", "trade_diagnosis"]);
-    expect(workspaceServiceProfile("trade").runEndpoint).toBe("/api/v1/academic/stream");
+    expect(workspaceServiceProfile("trade").runEndpoint).toBe("/api/v1/agent/stream");
     expect(workspaceServiceProfile("missing").id).toBe("agent");
   });
 
@@ -44,7 +44,7 @@ describe("workspace service profiles", () => {
     const status = workspaceCapabilityStatus("data", {
       reactorToolEnabled: true,
       manualSkillCount: 14,
-      academicTools: [
+      agentTools: [
         { name: "data_analysis" },
         { name: "table_rag" },
         { name: "nl2sql" }
@@ -127,9 +127,9 @@ describe("workspace service profiles", () => {
     });
   });
 
-  it("falls back to academic tool list when detailed readiness is not available", () => {
+  it("falls back to agent tool list when detailed readiness is not available", () => {
     const readiness = workspaceToolReadiness("image", {
-      academicTools: [
+      agentTools: [
         { name: "image_generation" },
         { name: "file_tool" }
       ]
@@ -277,8 +277,8 @@ describe("workspace service profiles", () => {
           {
             workspace: "data",
             status: "degraded",
-            runEndpoint: "/api/v1/academic/workspace/data/run",
-            historyEndpoint: "/api/v1/academic/workspace/data/history",
+            runEndpoint: "/api/v1/agent/workspaces/data/run",
+            historyEndpoint: "/api/v1/agent/workspaces/data/history",
             availableTools: ["data_analysis", "table_rag"],
             missingTools: ["nl2sql"]
           }

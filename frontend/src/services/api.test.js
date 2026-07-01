@@ -4,12 +4,12 @@ import { Buffer } from "node:buffer";
 import {
   cacheMcpTools,
   callMcpTool,
-  applyAcademicProjectPatch,
-  bindAcademicProjectFile,
+  applyAgentWorkspacePatch,
+  bindAgentWorkspaceFile,
   clearUserAuth,
   clearAdminAuth,
   createPayment,
-  createAcademicProject,
+  createAgentWorkspace,
   deleteAgentAdminConfig,
   deleteUserAgentMemory,
   disableUserAgentMemory,
@@ -31,11 +31,11 @@ import {
   queryAgentAdminConfigs,
   queryAgentAdminRuntimeSnapshot,
   queryAgentAdminStatistics,
-  queryAcademicProject,
-  queryAcademicProjects,
-  queryAcademicRunDetail,
-  queryAcademicSessionDetail,
-  queryAcademicSessions,
+  queryAgentWorkspace,
+  queryAgentWorkspaces,
+  queryAgentRunDetail,
+  queryAgentSessionDetail,
+  queryAgentSessions,
   queryUserAgentMemories,
   queryMcpServers,
   queryMcpTools,
@@ -44,9 +44,9 @@ import {
   queryWorkspaceImageHistory,
   register,
   registerMcpServer,
-  proposeAcademicProjectPatch,
-  requestAcademicResumeStream,
-  requestAcademicStream,
+  proposeAgentWorkspacePatch,
+  requestAgentResumeStream,
+  requestAgentStream,
   runWorkspaceData,
   saveAdminAuth,
   saveModelConfig,
@@ -168,7 +168,7 @@ describe("auth api client", () => {
     saveUserAuth({ token: "expired-token", userId: "U1", username: "demo" });
     globalThis.fetch = vi.fn(async () => errorJsonResponse(401, { info: "登录已失效，请重新登录" }));
 
-    await expect(queryAcademicSessions()).rejects.toThrow("登录已失效");
+    await expect(queryAgentSessions()).rejects.toThrow("登录已失效");
 
     expect(getUserAuth()).toBeNull();
   });
@@ -221,7 +221,7 @@ describe("mcp admin api client", () => {
 
     await queryAgentCapabilities();
 
-    expect(fetch).toHaveBeenCalledWith("/api/v1/academic/capabilities", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/api/v1/agent/capabilities", expect.objectContaining({
       method: "GET",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token"
@@ -229,18 +229,18 @@ describe("mcp admin api client", () => {
     }));
   });
 
-  it("wires academic project APIs with user auth", async () => {
+  it("wires agent workspace APIs with user auth", async () => {
     saveUserAuth({ token: "user-token" });
 
-    await createAcademicProject({ title: "AMR Paper" });
-    await queryAcademicProjects(10);
-    await queryAcademicProject("AP1001");
-    await bindAcademicProjectFile("AP1001", { fileId: "FILE1001", folderType: "draftManuscripts" });
-    await proposeAcademicProjectPatch("AP1001", { fileId: "FILE1001", afterText: "new intro" });
-    await applyAcademicProjectPatch("AP1001", "PATCH1001");
+    await createAgentWorkspace({ title: "AMR Paper" });
+    await queryAgentWorkspaces(10);
+    await queryAgentWorkspace("AP1001");
+    await bindAgentWorkspaceFile("AP1001", { fileId: "FILE1001", folderType: "draftManuscripts" });
+    await proposeAgentWorkspacePatch("AP1001", { fileId: "FILE1001", afterText: "new intro" });
+    await applyAgentWorkspacePatch("AP1001", "PATCH1001");
 
     const userAuthMatcher = expect.objectContaining({ Authorization: "Bearer user-token" });
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/projects", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/workspaces", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
@@ -248,29 +248,29 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({ title: "AMR Paper" })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/academic/projects?limit=10", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/agent/workspaces?limit=10", expect.objectContaining({
       method: "GET",
       headers: userAuthMatcher
     }));
-    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/academic/projects/AP1001", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/agent/workspaces/AP1001", expect.objectContaining({
       method: "GET",
       headers: userAuthMatcher
     }));
-    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/academic/projects/AP1001/files", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/agent/workspaces/AP1001/files", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
         "Content-Type": "application/json"
       })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/academic/projects/AP1001/patches", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/agent/workspaces/AP1001/patches", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
         "Content-Type": "application/json"
       })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(6, "/api/v1/academic/projects/AP1001/patches/PATCH1001/apply", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(6, "/api/v1/agent/workspaces/AP1001/patches/PATCH1001/apply", expect.objectContaining({
       method: "POST",
       headers: userAuthMatcher
     }));
@@ -413,20 +413,20 @@ describe("mcp admin api client", () => {
     }));
   });
 
-  it("sends web search flag with academic stream requests", async () => {
+  it("sends web search flag with agent stream requests", async () => {
     saveUserAuth({ token: "user-token" });
     fetch.mockResolvedValue(streamResponse());
 
-    requestAcademicStream({
+    requestAgentStream({
       sessionId: "S1001",
       question: "讲一下项目亮点",
       taskType: "deep",
       webSearchEnabled: true,
       continueTraceId: "TRACE-1"
     });
-    requestAcademicResumeStream("S1001", {}, true, "TRACE-1");
+    requestAgentResumeStream("S1001", {}, true, "TRACE-1");
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/stream", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/stream", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
@@ -447,7 +447,7 @@ describe("mcp admin api client", () => {
         continueTraceId: "TRACE-1"
       })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/academic/resume", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/agent/resume", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({
         sessionId: "S1001",
@@ -457,11 +457,11 @@ describe("mcp admin api client", () => {
     }));
   });
 
-  it("keeps custom model api key out of academic stream requests", async () => {
+  it("keeps custom model api key out of agent stream requests", async () => {
     saveUserAuth({ token: "user-token" });
     fetch.mockResolvedValue(streamResponse());
 
-    requestAcademicStream({
+    requestAgentStream({
       sessionId: "S1002",
       question: "hello",
       taskType: "chat",
@@ -553,7 +553,7 @@ describe("mcp admin api client", () => {
     });
     await queryWorkspaceImageHistory({ sessionId: "S1001", limit: 8 });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/workspace/image/generate", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/workspaces/image/generate", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
@@ -575,7 +575,7 @@ describe("mcp admin api client", () => {
     }));
     expect(fetch).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/academic/workspace/image/history?sessionId=S1001&limit=8",
+      "/api/v1/agent/workspaces/image/history?sessionId=S1001&limit=8",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -624,19 +624,19 @@ describe("mcp admin api client", () => {
     expect(JSON.parse(fetch.mock.calls[1][1].body).model).toBe("custom-image-model");
   });
 
-  it("wires academic session and run detail APIs with user token", async () => {
+  it("wires agent session and run detail APIs with user token", async () => {
     saveUserAuth({ token: "user-token" });
 
-    await queryAcademicSessions(12);
-    await queryAcademicSessionDetail("AS 1001");
-    await queryAcademicRunDetail("RUN 1001");
+    await queryAgentSessions(12);
+    await queryAgentSessionDetail("AS 1001");
+    await queryAgentRunDetail("RUN 1001");
     await queryUserAgentMemories();
     await disableUserAgentMemory("output style");
     await deleteUserAgentMemory("output style");
 
     expect(fetch).toHaveBeenNthCalledWith(
       1,
-      "/api/v1/academic/sessions?limit=12",
+      "/api/v1/agent/sessions?limit=12",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -646,7 +646,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/academic/sessions/AS%201001",
+      "/api/v1/agent/sessions/AS%201001",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -656,7 +656,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       3,
-      "/api/v1/academic/runs/RUN%201001",
+      "/api/v1/agent/runs/RUN%201001",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -666,7 +666,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       4,
-      "/api/v1/academic/memories",
+      "/api/v1/agent/memories",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -676,7 +676,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       5,
-      "/api/v1/academic/memories/output%20style",
+      "/api/v1/agent/memories/output%20style",
       expect.objectContaining({
         method: "DELETE",
         headers: expect.objectContaining({
@@ -686,7 +686,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       6,
-      "/api/v1/academic/memories/output%20style/remove",
+      "/api/v1/agent/memories/output%20style/remove",
       expect.objectContaining({
         method: "DELETE",
         headers: expect.objectContaining({
@@ -709,7 +709,7 @@ describe("mcp admin api client", () => {
     await queryWorkspaceDataCatalog();
     await queryWorkspaceDataHistory({ sessionId: "D1001", limit: 5 });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/academic/workspace/data/run", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/workspaces/data/run", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
@@ -740,7 +740,7 @@ describe("mcp admin api client", () => {
     }));
     expect(fetch).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/academic/workspace/data/catalog",
+      "/api/v1/agent/workspaces/data/catalog",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -750,7 +750,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       3,
-      "/api/v1/academic/workspace/data/history?sessionId=D1001&limit=5",
+      "/api/v1/agent/workspaces/data/history?sessionId=D1001&limit=5",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -767,7 +767,7 @@ describe("mcp admin api client", () => {
       returnUrl: "http://localhost:5174/?paymentReturn=1&orderId=O10001"
     });
 
-    expect(fetch).toHaveBeenCalledWith("/api/v1/payment/create", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/api/v1/trade/payment/create", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
