@@ -3,6 +3,7 @@ package com.linrun.trigger.agent.agent.deepresearch.runtime;
 import com.linrun.domain.agent.memory.adapter.UserAgentMemoryRepository;
 import com.linrun.domain.agent.memory.model.UserAgentMemory;
 import com.linrun.domain.agent.memory.service.UserAgentMemoryService;
+import com.linrun.trigger.config.AgentDeepRuntimeProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -20,6 +21,7 @@ class LedgerAgentMemoryServiceTest {
         memory.setMemoryType("preference");
         memory.setContent("喜欢报告式回答，先结论后证据");
         memory.setEnabled(true);
+        memory.setSource("manual");
         LedgerAgentMemoryService service = new LedgerAgentMemoryService(null,
                 new UserAgentMemoryService(new SingleMemoryRepository(memory)));
 
@@ -28,6 +30,25 @@ class LedgerAgentMemoryServiceTest {
         assertTrue(snapshot.longTermEnabled());
         assertEquals(1, snapshot.longTerm().size());
         assertTrue(snapshot.longTerm().get(0).contains("preference: 喜欢报告式回答"));
+    }
+
+    @Test
+    void skipsStyleMemoryForResearchQuestion() {
+        UserAgentMemory style = new UserAgentMemory();
+        style.setUserId("U1001");
+        style.setMemoryType("output_style");
+        style.setContent("偏好结构化报告");
+        style.setEnabled(true);
+        style.setSource("manual");
+
+        AgentDeepRuntimeProperties properties = new AgentDeepRuntimeProperties();
+        LedgerAgentMemoryService service = new LedgerAgentMemoryService(null,
+                new UserAgentMemoryService(new SingleMemoryRepository(style)), properties);
+
+        AgentMemorySnapshot snapshot = service.load(
+                "U1001", "S1001", "R1001", "REQ1001", "半监督 AMC 论文综述 2024");
+
+        assertTrue(snapshot.longTerm().isEmpty());
     }
 
     @Test

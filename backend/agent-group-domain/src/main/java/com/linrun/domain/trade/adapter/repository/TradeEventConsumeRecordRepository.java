@@ -10,6 +10,10 @@ public interface TradeEventConsumeRecordRepository {
 
     Optional<TradeEventConsumeRecordEntity> queryByEventId(String eventId);
 
+    java.util.List<TradeEventConsumeRecordEntity> queryByStatus(int consumeStatus, int limit);
+
+    int resetStatusForReplay(String eventId);
+
     int updateStatusProcessing(TradeEventConsumeRecordEntity record);
 
     int updateStatusConsumed(TradeEventConsumeRecordEntity record);

@@ -1,0 +1,62 @@
+[
+  {
+    "caseId": "drift-01",
+    "document": "支付成功后拼团订单需等待队伍满员并完成 GROUP_SETTLED 结算，系统才会把购买的调用次数写入用户账户。",
+    "question": "团购单付完款后，什么时候才能真正用上买的对话额度？",
+    "expectedSnippets": ["GROUP_SETTLED", "调用次数"]
+  },
+  {
+    "caseId": "drift-02",
+    "document": "RefundOrder 先进入 PROCESSING，本地事务提交后再请求支付宝退款接口，失败由 XXL-JOB 查单补偿。",
+    "question": "用户申请退钱时，为什么网关调用要放在数据库事务外面？",
+    "expectedSnippets": ["事务", "网关"]
+  },
+  {
+    "caseId": "drift-03",
+    "document": "TagTrialNode 通过 Redis RBitSet 判断用户是否命中活动人群，位图不可用时降级查 MySQL 明细。",
+    "question": "活动试算怎样快速判断某个账号属不属于圈选人群？",
+    "expectedSnippets": ["RBitSet", "人群"]
+  },
+  {
+    "caseId": "drift-04",
+    "document": "PlanExecuteAgent 在步骤失败时经 PlanExecuteDomainBridge 触发 domain 规则重规划，上限 MAX_STEP_REPLAN=3。",
+    "question": "深度任务某一步工具报错后，系统最多自动改几次执行计划？",
+    "expectedSnippets": ["重规划", "3"]
+  },
+  {
+    "caseId": "drift-05",
+    "document": "trade_order 列表按 user_id 与 create_time 建组合索引 idx_user_time，避免 filesort 全表排序。",
+    "question": "用户查历史订单很慢，组合索引应该怎么覆盖筛选和排序字段？",
+    "expectedSnippets": ["idx_user_time", "filesort"]
+  },
+  {
+    "caseId": "drift-06",
+    "document": "RabbitMQ 消费侧用 trade_event_consume_record 记录 eventId 幂等，重复投递直接 ack，死信进 DLQ 并打 ALERT。",
+    "question": "消息重复到达时怎样保证不会二次处理同一笔交易事件？",
+    "expectedSnippets": ["幂等", "DLQ"]
+  },
+  {
+    "caseId": "drift-07",
+    "document": "ContextCompactor 在上下文超过 token 预算时压缩历史消息，保留 system 与最近若干轮 user/assistant。",
+    "question": "对话太长塞不进模型窗口时，Agent 会丢掉哪些内容？",
+    "expectedSnippets": ["压缩", "保留"]
+  },
+  {
+    "caseId": "drift-08",
+    "document": "DistributedLockAspect 标注 @Order(HIGHEST_PRECEDENCE)，保证 @Transactional 之前获取 Redisson 锁。",
+    "question": "为什么分布式锁切面要比事务切面更早执行？",
+    "expectedSnippets": ["HIGHEST_PRECEDENCE", "Transactional"]
+  },
+  {
+    "caseId": "drift-09",
+    "document": "SpringAiEmbeddingAdapter 在向量召回后可选合并 RagKeywordRetriever 关键词命中，开关 agent.group.rag.keyword-hybrid.enabled。",
+    "question": "文件问答除了语义相似度，还怎样捞专有名词和配置项？",
+    "expectedSnippets": ["关键词", "hybrid"]
+  },
+  {
+    "caseId": "drift-10",
+    "document": "PaymentCompletionService 在支付回调事务里更新订单状态，grantQuotaForPaidOrder 注册 afterCommit 异步发额。",
+    "question": "为什么额度到账不能和更新支付状态放在同一个数据库事务里？",
+    "expectedSnippets": ["afterCommit", "发额"]
+  }
+]

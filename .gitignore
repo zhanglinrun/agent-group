@@ -87,3 +87,14 @@ study
 jmeter.log
 
 docs/dev-ops/reports
+
+reference/
+
+### Markdown 文档（本地留存，不提交 Git） ###
+*.md
+
+### docs 评测/压测产物（本地留存，不提交 Git） ###
+docs/agent-eval-llm-report.json
+docs/rag-vector-eval-report.json
+docs/dev-ops/loadtest/observations.json
+docs/dev-ops/eval/*.log

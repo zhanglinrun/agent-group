@@ -144,10 +144,10 @@ class PlanExecuteAgentSkillInjectionTest {
                 .build();
 
         JsonNode event = JsonUtils.parse(PlanExecuteAgent.createCapabilityLoadedEvent(
-                context, Set.of("read_skill"), "spring-ai-alibaba-graph"));
+                context, Set.of("read_skill"), "legacy-plan-execute"));
 
         JsonNode capability = event.path("capability");
-        assertTrue(capability.path("runtime").asText().equals("spring-ai-alibaba-graph"));
+        assertTrue(capability.path("runtime").asText().equals("legacy-plan-execute"));
         assertTrue(capability.path("skillCount").asInt() == 1);
         assertTrue(capability.path("capabilityCount").asInt() == 2);
         assertFalse(capability.path("memory").path("longTermEnabled").asBoolean());

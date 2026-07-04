@@ -7,6 +7,8 @@ public class UserAgentMemory {
     private String userId;
     private String memoryType;
     private String content;
+    private String source;
+    private String scope;
     private Boolean enabled = true;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
@@ -33,6 +35,22 @@ public class UserAgentMemory {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    public String getScope() {
+        return scope;
+    }
+
+    public void setScope(String scope) {
+        this.scope = scope;
     }
 
     public Boolean getEnabled() {

@@ -18,6 +18,8 @@ public interface IUserQuotaDao {
 
     UserQuotaAccountPO queryAccount(@Param("userId") String userId);
 
+    UserQuotaAccountPO queryAccountForUpdate(@Param("userId") String userId);
+
     int increaseQuota(@Param("userId") String userId, @Param("amount") BigDecimal amount);
 
     int decreaseQuota(@Param("userId") String userId, @Param("amount") BigDecimal amount);

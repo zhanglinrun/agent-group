@@ -1,5 +1,6 @@
 package com.linrun.trigger.config;
 
+import com.linrun.domain.support.config.service.DynamicConfigService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -10,6 +11,7 @@ import org.redisson.api.RRateLimiter;
 import org.redisson.api.RateIntervalUnit;
 import org.redisson.api.RateType;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,15 +30,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RateLimiterAccessAspect {
 
     private final RedissonClient redissonClient;
+    private final DynamicConfigService dynamicConfigService;
     private final String keyPrefix;
     private final Map<String, TokenBucket> localBuckets = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> localRejectCounts = new ConcurrentHashMap<>();
     private final Map<String, Long> localBlacklistUntil = new ConcurrentHashMap<>();
 
     public RateLimiterAccessAspect(RedissonClient redissonClient,
-                                   @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix) {
+                                   @Value("${agent.group.redis.key-prefix:agent-group}") String keyPrefix,
+                                   @Autowired(required = false) DynamicConfigService dynamicConfigService) {
         this.redissonClient = redissonClient;
         this.keyPrefix = StringUtils.hasText(keyPrefix) ? keyPrefix : "agent-group";
+        this.dynamicConfigService = dynamicConfigService;
     }
 
     @Around("@annotation(rateLimiter)")
@@ -52,7 +57,7 @@ public class RateLimiterAccessAspect {
     private boolean tryAcquire(String limitKey, RateLimiterAccessInterceptor rateLimiter) {
         try {
             RRateLimiter limiter = redissonClient.getRateLimiter(redisKey("access:method:rate:" + limitKey));
-            limiter.trySetRate(RateType.OVERALL, Math.max(1L, Math.round(rateLimiter.permitsPerSecond())),
+            limiter.trySetRate(RateType.OVERALL, Math.max(1L, Math.round(resolvePermitsPerSecond(limitKey, rateLimiter))),
                     1, RateIntervalUnit.SECONDS);
             boolean acquired = limiter.tryAcquire();
             if (!acquired) {
@@ -61,7 +66,7 @@ public class RateLimiterAccessAspect {
             return acquired;
         } catch (Exception ignored) {
             TokenBucket bucket = localBuckets.computeIfAbsent(limitKey,
-                    key -> new TokenBucket(Math.max(1, (int) Math.ceil(rateLimiter.permitsPerSecond())), Duration.ofSeconds(1).toNanos()));
+                    key -> new TokenBucket(Math.max(1, (int) Math.ceil(resolvePermitsPerSecond(limitKey, rateLimiter))), Duration.ofSeconds(1).toNanos()));
             boolean acquired = bucket.tryAcquire();
             if (!acquired) {
                 increaseLocalRejectCount(limitKey, rateLimiter);
@@ -135,6 +140,21 @@ public class RateLimiterAccessAspect {
         return fallback.getParameterCount() == 0
                 ? fallback.invoke(joinPoint.getTarget())
                 : fallback.invoke(joinPoint.getTarget(), joinPoint.getArgs());
+    }
+
+    private double resolvePermitsPerSecond(String limitKey, RateLimiterAccessInterceptor rateLimiter) {
+        if (dynamicConfigService != null) {
+            String configKey = DynamicConfigService.ACCESS_RATE_LIMIT_PREFIX + limitKey;
+            String raw = dynamicConfigService.getValue(configKey, "");
+            if (StringUtils.hasText(raw)) {
+                try {
+                    return Math.max(0.1d, Double.parseDouble(raw));
+                } catch (NumberFormatException ignored) {
+                    // 配置非法时回退注解默认值
+                }
+            }
+        }
+        return rateLimiter.permitsPerSecond();
     }
 
     private String buildLimitKey(ProceedingJoinPoint joinPoint, RateLimiterAccessInterceptor rateLimiter) {

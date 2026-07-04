@@ -34,6 +34,11 @@ public class MyBatisUserQuotaRepository implements UserQuotaRepository {
     }
 
     @Override
+    public Optional<UserQuotaAccount> queryAccountForUpdate(String userId) {
+        return Optional.ofNullable(AccountPOConverter.toEntity(userQuotaDao.queryAccountForUpdate(userId)));
+    }
+
+    @Override
     public int increaseQuota(String userId, BigDecimal amount) {
         return userQuotaDao.increaseQuota(userId, amount);
     }

@@ -22,7 +22,7 @@ class RedisScheduledJobLockRepositoryTest {
     void shouldAcquireJobLockWithTokenAndLeaseTime() {
         RedissonClient redissonClient = mock(RedissonClient.class);
         RLock lock = mock(RLock.class);
-        when(redissonClient.getLock("test-agent:job:lock:trade-event-outbox-dispatch")).thenReturn(lock);
+        when(redissonClient.getLock("test-agent:job:lock:group-buy-notify-task")).thenReturn(lock);
         try {
             when(lock.tryLock(0L, 60000L, TimeUnit.MILLISECONDS)).thenReturn(true);
         } catch (InterruptedException e) {
@@ -31,7 +31,7 @@ class RedisScheduledJobLockRepositoryTest {
         RedisScheduledJobLockRepository repository =
                 new RedisScheduledJobLockRepository(redissonClient, "test-agent");
 
-        Optional<String> token = repository.tryLock("trade-event-outbox-dispatch", Duration.ofSeconds(60));
+        Optional<String> token = repository.tryLock("group-buy-notify-task", Duration.ofSeconds(60));
 
         assertTrue(token.isPresent());
         try {

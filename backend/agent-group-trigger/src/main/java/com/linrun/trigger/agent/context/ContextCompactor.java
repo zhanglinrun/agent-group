@@ -46,6 +46,38 @@ public class ContextCompactor {
     }
 
     /**
+     * 按需压缩：字符数或 token 估算任一超阈值即触发。
+     *
+     * @return 是否执行了压缩
+     */
+    public boolean compactIfNeeded(List<Message> messages, String currentQuestion, int charLimit) {
+        if (!shouldCompact(messages, charLimit)) {
+            return false;
+        }
+        compact(messages, currentQuestion);
+        return true;
+    }
+
+    public boolean shouldCompact(List<Message> messages, int charLimit) {
+        if (messages == null || messages.size() <= 2) {
+            return false;
+        }
+        if (charLimit > 0 && estimateChars(messages) >= charLimit) {
+            return true;
+        }
+        return TokenEstimator.estimateTokens(messages) > policy.tokenThreshold();
+    }
+
+    private int estimateChars(List<Message> messages) {
+        return messages.stream()
+                .mapToInt(message -> {
+                    String text = extractMessageText(message);
+                    return text == null ? 0 : text.length();
+                })
+                .sum();
+    }
+
+    /**
      * 核心方法：压缩消息列表。直接修改传入的 messages 列表。
      *
      * @param messages        消息列表

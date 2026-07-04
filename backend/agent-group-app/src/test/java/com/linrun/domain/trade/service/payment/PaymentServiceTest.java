@@ -35,6 +35,7 @@ import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.trade.model.valobj.RefundStatusEnumVO;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
@@ -205,7 +206,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void shouldRefundPaidOrderWithGateway() {
+    void shouldPersistWaitRefundBeforeGatewayCompletesRefund() {
         Fixture fixture = fixture(TradeOrderStatusEnumVO.PAY_SUCCESS, PayStatusEnumVO.SUCCESS);
         fixture.repository.payOrder.setPayChannel("ALIPAY");
         fixture.repository.payOrder.setOutTradeNo("GT10001");
@@ -217,9 +218,9 @@ class PaymentServiceTest {
 
         assertEquals(TradeOrderStatusEnumVO.REFUNDED, fixture.repository.tradeOrder.getOrderStatus());
         assertEquals(PayStatusEnumVO.REFUNDED, fixture.repository.payOrder.getPayStatus());
-        assertEquals("RO10001", response.getRefundId());
-        assertEquals("RO10001", fixture.gateway.refundCommand.getRefundId());
-        assertEquals("用户申请退款", fixture.repository.refundOrder.getRefundReason());
+        assertEquals(RefundStatusEnumVO.SUCCESS, fixture.repository.refundOrder.getRefundStatus());
+        assertEquals(1, fixture.gateway.refundCallCount);
+        assertEquals("退款已受理，等待网关确认", response.getMessage());
     }
 
     @Test

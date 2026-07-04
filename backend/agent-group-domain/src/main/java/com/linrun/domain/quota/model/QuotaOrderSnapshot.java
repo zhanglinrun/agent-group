@@ -30,6 +30,15 @@ public class QuotaOrderSnapshot {
                                                      String userId,
                                                      String question,
                                                      QuotaProduct product) {
+        return captureQuote(sessionId, requestId, userId, question, product, DEFAULT_QUOTE_TTL_MINUTES);
+    }
+
+    public static QuotaOrderSnapshot captureQuote(String sessionId,
+                                                     String requestId,
+                                                     String userId,
+                                                     String question,
+                                                     QuotaProduct product,
+                                                     int quoteTtlMinutes) {
         LocalDateTime now = LocalDateTime.now();
         QuotaOrderSnapshot snapshot = new QuotaOrderSnapshot();
         snapshot.setDecisionId(nextDecisionId(now));
@@ -51,7 +60,7 @@ public class QuotaOrderSnapshot {
         }
         snapshot.setReferenceIds("");
         snapshot.setToolNames("");
-        snapshot.setQuoteExpireTime(now.plusMinutes(DEFAULT_QUOTE_TTL_MINUTES));
+        snapshot.setQuoteExpireTime(now.plusMinutes(Math.max(1, quoteTtlMinutes)));
         snapshot.setCreateTime(now);
         return snapshot;
     }

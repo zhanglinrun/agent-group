@@ -74,6 +74,17 @@ public class SimpleReactAgent {
             5. 如果上下文已经包含了完成任务的全部信息，则不要再调用任何工具。
             """;
 
+    private static final String FORCE_FINAL_USER_PROMPT = """
+            你已达到最大推理轮次限制。
+            请基于当前已有的上下文信息，
+            直接给出最终答案。
+            禁止再调用任何工具。
+            如果信息不完整，请合理总结和说明。
+            """;
+
+    private record SyncReactOutcome(String answer, List<SearchResult> searchResults) {
+    }
+
     private final String name;
     private final ChatModel chatModel;
     private final List<ToolCallback> tools;
@@ -141,12 +152,18 @@ public class SimpleReactAgent {
     }
 
     public String callInternal(String conversationId, String question) {
+        return runSyncReactLoop(conversationId, question, false, null).answer();
+    }
+
+    private SyncReactOutcome runSyncReactLoop(String conversationId, String question, boolean prependCurrentTime, AgentState agentState) {
         List<Message> messages = Collections.synchronizedList(new ArrayList<>());
         boolean useMemory = conversationId != null && chatMemory != null;
 
-        messages.add(new SystemMessage(REACT_AGENT_SYSTEM_PROMPT + "\n\n" + systemPrompt));
+        String systemContent = prependCurrentTime
+                ? PlanExecutePrompts.getCurrentTime() + "\n\n" + REACT_AGENT_SYSTEM_PROMPT + "\n\n" + systemPrompt
+                : REACT_AGENT_SYSTEM_PROMPT + "\n\n" + systemPrompt;
+        messages.add(new SystemMessage(systemContent));
 
-        // ===== 加载历史记忆 =====
         if (useMemory) {
             List<Message> history = chatMemory.get(conversationId);
             if (history != null && !history.isEmpty()) {
@@ -156,29 +173,21 @@ public class SimpleReactAgent {
 
         messages.add(new UserMessage("<question>" + question + "</question>"));
 
-        // 添加记忆
         if (useMemory) {
             chatMemory.add(conversationId, new UserMessage(question));
         }
 
         int round = 0;
-
         while (true) {
             round++;
             if (maxRounds > 0 && round > maxRounds) {
                 log.warn("=== 达到 maxRounds（{}），强制生成最终答案 ===", maxRounds);
-                messages.add(new UserMessage("""
-                        你已达到最大推理轮次限制。
-                        请基于当前已有的上下文信息，
-                        直接给出最终答案。
-                        禁止再调用任何工具。
-                        如果信息不完整，请合理总结和说明。
-                        """));
-                String finalText = chatClient.prompt().messages(messages).call().content();
+                messages.add(new UserMessage(FORCE_FINAL_USER_PROMPT));
+                String forcedAnswer = chatClient.prompt().messages(messages).call().content();
                 if (useMemory) {
-                    chatMemory.add(conversationId, new AssistantMessage(finalText));
+                    chatMemory.add(conversationId, new AssistantMessage(forcedAnswer));
                 }
-                return finalText;
+                return new SyncReactOutcome(forcedAnswer, collectSearchResults(agentState));
             }
 
             ChatClientResponse chatResponse = chatClient
@@ -187,46 +196,31 @@ public class SimpleReactAgent {
                     .call()
                     .chatClientResponse();
 
-            String aiText = chatResponse.chatResponse().getResult().getOutput().getText();
-
-            String assistantText = aiText;
-
-            // ===== 没有工具调用，视为最终答案 =====
             if (!chatResponse.chatResponse().hasToolCalls()) {
+                String finalText = chatResponse.chatResponse().getResult().getOutput().getText();
                 if (useMemory) {
-                    chatMemory.add(conversationId, new AssistantMessage(aiText));
+                    chatMemory.add(conversationId, new AssistantMessage(finalText));
                 }
-                return aiText;
+                return new SyncReactOutcome(finalText, collectSearchResults(agentState));
             }
 
-            // ===== 有工具调用：执行工具 =====
-            messages.add(SpringAiMessageFactory.assistant(assistantText, chatResponse.chatResponse().getResult().getOutput().getToolCalls()));
-
-            chatResponse.chatResponse()
-                    .getResult()
-                    .getOutput()
-                    .getToolCalls()
-                    .forEach(toolCall -> {
-                        String toolName = toolCall.name();
-                        String argsJson = toolCall.arguments();
-
-                        ToolCallback callback = findTool(toolName);
-                        if (callback == null) {
-                            addErrorToolResponse(messages, toolCall, "工具未找到：" + toolName);
-                            return;
-                        }
-
-                        Object result;
-                        try {
-                            result = callback.call(argsJson);
-                            ToolResponseMessage.ToolResponse tr = new ToolResponseMessage.ToolResponse(toolCall.id(), toolName, result.toString());
-
-                            messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
-                        } catch (Exception ex) {
-                            addErrorToolResponse(messages, toolCall, "工具执行失败：" + ex.getMessage());
-                        }
-                    });
+            List<AssistantMessage.ToolCall> toolCalls = chatResponse.chatResponse().getResult().getOutput().getToolCalls();
+            String assistantText = chatResponse.chatResponse().getResult().getOutput().getText();
+            messages.add(SpringAiMessageFactory.assistant(assistantText, toolCalls));
+            executeToolCallsBlocking(toolCalls, messages, agentState);
         }
+    }
+
+    private List<SearchResult> collectSearchResults(AgentState agentState) {
+        return agentState != null ? agentState.searchResults : Collections.emptyList();
+    }
+
+    private void executeToolCallsBlocking(List<AssistantMessage.ToolCall> toolCalls, List<Message> messages, AgentState agentState) {
+        List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>(toolCalls.size());
+        for (AssistantMessage.ToolCall toolCall : toolCalls) {
+            responses.add(invokeToolCall(toolCall, agentState));
+        }
+        messages.add(SpringAiMessageFactory.toolResponse(responses));
     }
 
     /**
@@ -429,13 +423,7 @@ public class SimpleReactAgent {
 
 
     private void forceFinalStream(String conversationId, boolean useMemory, List<Message> messages, Sinks.Many<String> sink, AtomicBoolean hasSentFinalResult) {
-        messages.add(new UserMessage("""
-                你已达到最大推理轮次限制。
-                请基于当前已有的上下文信息，
-                直接给出最终答案。
-                禁止再调用任何工具。
-                如果信息不完整，请合理总结和说明。
-                """));
+        messages.add(new UserMessage(FORCE_FINAL_USER_PROMPT));
 
         StringBuilder stringBuilder = new StringBuilder();
         StreamingTextDelta textDelta = new StreamingTextDelta();
@@ -490,38 +478,33 @@ public class SimpleReactAgent {
                     return;
                 }
 
-                String toolName = tc.name();
-                String argsJson = tc.arguments();
-
-                ToolCallback callback = findTool(toolName);
-                if (callback == null) {
-                    // 工具未找到时，也放入 responseMap
-                    responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具未找到：" + toolName + "\" }"));
-                    completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
-                    return;
-                }
-
-                try {
-                    Object result = callback.call(argsJson);
-                    String resultStr = Objects.toString(result, "");
-
-                    // 解析搜索结果（如果是 tavily search）
-                    if (agentState != null) {
-                        parseSearchResult(resultStr, agentState);
-                    }
-
-                    // 将结果放入 responseMap，key 为 toolCall.id()
-                    responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, resultStr));
-                } catch (Exception ex) {
-                    // 工具执行失败时，也放入 responseMap
-                    responseMap.put(tc.id(), new ToolResponseMessage.ToolResponse(
-                            tc.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }"));
-                } finally {
-                    completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
-                }
+                ToolResponseMessage.ToolResponse response = invokeToolCall(tc, agentState);
+                responseMap.put(tc.id(), response);
+                completeToolCall(completedCount, totalToolCalls, responseMap, toolCalls, messages, onComplete);
             });
+        }
+    }
+
+    private ToolResponseMessage.ToolResponse invokeToolCall(AssistantMessage.ToolCall toolCall, AgentState agentState) {
+        String toolName = toolCall.name();
+        String argsJson = toolCall.arguments();
+
+        ToolCallback callback = findTool(toolName);
+        if (callback == null) {
+            return new ToolResponseMessage.ToolResponse(
+                    toolCall.id(), toolName, "{ \"error\": \"工具未找到：" + toolName + "\" }");
+        }
+
+        try {
+            Object result = callback.call(argsJson);
+            String resultStr = Objects.toString(result, "");
+            if (agentState != null) {
+                parseSearchResult(resultStr, agentState);
+            }
+            return new ToolResponseMessage.ToolResponse(toolCall.id(), toolName, resultStr);
+        } catch (Exception ex) {
+            return new ToolResponseMessage.ToolResponse(
+                    toolCall.id(), toolName, "{ \"error\": \"工具执行失败：" + ex.getMessage() + "\" }");
         }
     }
 
@@ -550,16 +533,6 @@ public class SimpleReactAgent {
 
             onComplete.run();
         }
-    }
-
-    private void addErrorToolResponse(List<Message> messages, AssistantMessage.ToolCall toolCall, String errMsg) {
-        ToolResponseMessage.ToolResponse tr = new ToolResponseMessage.ToolResponse(
-                toolCall.id(),
-                toolCall.name(),
-                "{ \"error\": \"" + errMsg + "\" }"
-        );
-
-        messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
     }
 
     private ToolCallback findTool(String name) {
@@ -637,106 +610,12 @@ public class SimpleReactAgent {
      * @param withReference 是否需要返回参考来源
      */
     private SimpleReactResult executeInternal(String conversationId, String question, boolean withReference) {
-        List<Message> messages = Collections.synchronizedList(new ArrayList<>());
-        boolean useMemory = conversationId != null && chatMemory != null;
-
         AgentState agentState = withReference ? new AgentState() : null;
-
-        // 合并为单个 SystemMessage（部分模型不支持多个）
-        messages.add(new SystemMessage(PlanExecutePrompts.getCurrentTime() + "\n\n"
-                + REACT_AGENT_SYSTEM_PROMPT + "\n\n" + systemPrompt));
-
-        // ===== 加载历史记忆 =====
-        if (useMemory) {
-            List<Message> history = chatMemory.get(conversationId);
-            if (history != null && !history.isEmpty()) {
-                messages.addAll(history);
-            }
-        }
-
-        messages.add(new UserMessage("<question>" + question + "</question>"));
-
-        // 添加记忆
-        if (useMemory) {
-            chatMemory.add(conversationId, new UserMessage(question));
-        }
-
-        // 迭代轮次
-        int round = 0;
-
-        while (true) {
-            round++;
-            if (maxRounds > 0 && round > maxRounds) {
-                log.warn("=== 达到 maxRounds（{}），强制生成最终答案 ===", maxRounds);
-                messages.add(new UserMessage("""
-                        你已达到最大推理轮次限制。
-                        请基于当前已有的上下文信息，
-                        直接给出最终答案。
-                        禁止再调用任何工具。
-                        如果信息不完整，请合理总结和说明。
-                        """));
-
-                String forcedAnswer = chatClient.prompt().messages(messages).call().content();
-                if (useMemory) {
-                    chatMemory.add(conversationId, new AssistantMessage(forcedAnswer));
-                }
-                return SimpleReactResult.builder()
-                        .answer(forcedAnswer)
-                        .searchResults(agentState != null ? agentState.searchResults : Collections.emptyList())
-                        .build();
-            }
-
-            ChatClientResponse chatResponse = chatClient
-                    .prompt()
-                    .messages(messages)
-                    .call()
-                    .chatClientResponse();
-
-            String assistantText = chatResponse.chatResponse().getResult().getOutput().getText();
-
-            // ===== 没有工具调用，视为最终答案 =====
-            if (!chatResponse.chatResponse().hasToolCalls()) {
-                String finalText = chatResponse.chatResponse().getResult().getOutput().getText();
-                if (useMemory) {
-                    chatMemory.add(conversationId, new AssistantMessage(finalText));
-                }
-                return SimpleReactResult.builder()
-                        .answer(finalText)
-                        .searchResults(agentState.searchResults)
-                        .build();
-            }
-
-            // ===== 有工具调用：执行工具 =====
-            List<AssistantMessage.ToolCall> toolCalls = chatResponse.chatResponse().getResult().getOutput().getToolCalls();
-            messages.add(SpringAiMessageFactory.assistant(assistantText, toolCalls));
-
-            for (AssistantMessage.ToolCall toolCall : toolCalls) {
-                String toolName = toolCall.name();
-                String argsJson = toolCall.arguments();
-
-                ToolCallback callback = findTool(toolName);
-                if (callback == null) {
-                    addErrorToolResponse(messages, toolCall, "工具未找到：" + toolName);
-                    continue;
-                }
-
-                try {
-                    Object result = callback.call(argsJson);
-                    String resultStr = Objects.toString(result, "");
-
-                    // 解析搜索结果
-                    if (agentState != null) {
-                        parseSearchResult(resultStr, agentState);
-                    }
-
-                    ToolResponseMessage.ToolResponse tr = new ToolResponseMessage.ToolResponse(
-                            toolCall.id(), toolName, resultStr);
-                    messages.add(SpringAiMessageFactory.toolResponse(List.of(tr)));
-                } catch (Exception ex) {
-                    addErrorToolResponse(messages, toolCall, "工具执行失败：" + ex.getMessage());
-                }
-            }
-        }
+        SyncReactOutcome outcome = runSyncReactLoop(conversationId, question, true, agentState);
+        return SimpleReactResult.builder()
+                .answer(outcome.answer())
+                .searchResults(outcome.searchResults())
+                .build();
     }
 
     public static Builder builder() {

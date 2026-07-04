@@ -26,7 +26,13 @@ import {
   importMcpState,
   modelConfigReady,
   queryMcpHealth,
+  grantQuotaByOrders,
+  listTradeEventDeadLetters,
+  queryOrderStatusFlow,
+  queryPaymentGatewayStatus,
   queryTradeConsistency,
+  replayTradeEventDeadLetter,
+  uploadAgentFile,
   queryAgentCapabilities,
   queryAgentAdminConfigs,
   queryAgentAdminRuntimeSnapshot,
@@ -779,6 +785,50 @@ describe("mcp admin api client", () => {
         notifyUrl: "",
         returnUrl: "http://localhost:5174/?paymentReturn=1&orderId=O10001"
       })
+    }));
+  });
+
+  it("uploads agent files through the backend file upload endpoint", async () => {
+    saveUserAuth({ token: "user-token" });
+    const file = new File(["hello"], "demo.txt", { type: "text/plain" });
+
+    await uploadAgentFile(file, "S1001");
+
+    expect(fetch).toHaveBeenCalledWith("/api/v1/agent/file/upload", expect.objectContaining({
+      method: "POST",
+      headers: expect.objectContaining({
+        Authorization: "Bearer user-token"
+      })
+    }));
+  });
+
+  it("wires trade ops admin APIs with basic auth", async () => {
+    saveAdminAuth("admin", "secret");
+
+    await queryOrderStatusFlow("O10001");
+    await listTradeEventDeadLetters(20);
+    await replayTradeEventDeadLetter("EVT1001");
+    await grantQuotaByOrders(["O10001", "O10002"]);
+    await queryPaymentGatewayStatus();
+
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/trade/order/status-flow?orderId=O10001", expect.objectContaining({
+      method: "GET",
+      headers: expect.objectContaining({
+        Authorization: expect.stringMatching(/^Basic /)
+      })
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/trade/admin/events/dead-letters?limit=20", expect.objectContaining({
+      method: "GET"
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/trade/admin/events/dead-letters/EVT1001/replay", expect.objectContaining({
+      method: "POST"
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/quota/admin/grant-by-orders", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ orderIds: ["O10001", "O10002"] })
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/trade/payment/gateway/status", expect.objectContaining({
+      method: "GET"
     }));
   });
 });

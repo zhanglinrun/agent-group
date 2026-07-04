@@ -2,11 +2,11 @@ server:
   tomcat:
     mbeanregistry:
       enabled: true
-    max-connections: ${AGENT_GROUP_TOMCAT_MAX_CONNECTIONS:20}
+    max-connections: ${AGENT_GROUP_TOMCAT_MAX_CONNECTIONS:200}
     threads:
-      max: ${AGENT_GROUP_TOMCAT_THREADS_MAX:20}
-      min-spare: ${AGENT_GROUP_TOMCAT_THREADS_MIN_SPARE:10}
-    accept-count: ${AGENT_GROUP_TOMCAT_ACCEPT_COUNT:10}
+      max: ${AGENT_GROUP_TOMCAT_THREADS_MAX:200}
+      min-spare: ${AGENT_GROUP_TOMCAT_THREADS_MIN_SPARE:20}
+    accept-count: ${AGENT_GROUP_TOMCAT_ACCEPT_COUNT:100}
 
 spring:
   autoconfigure:
@@ -43,7 +43,7 @@ spring:
     hikari:
       pool-name: AgentGroup_HikariCP
       minimum-idle: 5
-      maximum-pool-size: 20
+      maximum-pool-size: 50
       idle-timeout: 60000
       connection-timeout: 30000
       max-lifetime: 1800000
@@ -55,10 +55,6 @@ spring:
       database: ${AGENT_GROUP_REDIS_DATABASE:0}
       timeout: 5s
   redis:
-    host: ${AGENT_GROUP_REDIS_HOST:127.0.0.1}
-    port: ${AGENT_GROUP_REDIS_PORT:16379}
-    database: ${AGENT_GROUP_REDIS_DATABASE:0}
-    timeout: 5s
     redisson:
       config: |
         singleServerConfig:
@@ -104,7 +100,6 @@ agent:
   group:
     stream:
       timeout-millis: 60000
-      mock-delay-millis: 350
     rabbit:
       enabled: ${AGENT_GROUP_RABBIT_ENABLED:true}
     xxl-job:
@@ -125,13 +120,18 @@ agent:
       database: ${AGENT_GROUP_PGVECTOR_DATABASE:agent_group_vector}
       username: ${AGENT_GROUP_PGVECTOR_USERNAME:agent_group}
       password: ${AGENT_GROUP_PGVECTOR_PASSWORD:agent_group_dev}
-      keyword-fallback-enabled: ${AGENT_GROUP_VECTOR_KEYWORD_FALLBACK_ENABLED:true}
     rag:
+      keyword-hybrid:
+        enabled: ${AGENT_GROUP_RAG_KEYWORD_HYBRID_ENABLED:true}
       reranker:
         enabled: ${AGENT_GROUP_RAG_RERANKER_ENABLED:false}
         endpoint: ${AGENT_GROUP_RAG_RERANKER_ENDPOINT:}
         top-n: ${AGENT_GROUP_RAG_RERANKER_TOP_N:5}
         timeout-millis: ${AGENT_GROUP_RAG_RERANKER_TIMEOUT_MILLIS:1500}
+    market:
+      cache:
+        enabled: ${AGENT_GROUP_MARKET_CACHE_ENABLED:true}
+        ttl-seconds: ${AGENT_GROUP_MARKET_CACHE_TTL_SECONDS:300}
     hitl:
       required: ${AGENT_GROUP_HITL_REQUIRED:false}
     minio:
@@ -142,6 +142,10 @@ agent:
     llm:
       prompt-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_PROMPT_TOKEN_PRICE_YUAN_PER_1K:0}
       completion-token-price-yuan-per-1k: ${AGENT_GROUP_LLM_COMPLETION_TOKEN_PRICE_YUAN_PER_1K:0}
+      multimodal:
+        base-url: ${AGENT_GROUP_LLM_MULTIMODAL_BASE_URL:${spring.ai.openai.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}}
+        model: ${AGENT_GROUP_LLM_MULTIMODAL_MODEL:qwen3-vl-plus}
+        temperature: ${AGENT_GROUP_LLM_MULTIMODAL_TEMPERATURE:0.2}
     multimodal:
       image:
         max-file-size-bytes: ${AGENT_GROUP_MULTIMODAL_IMAGE_MAX_FILE_SIZE_BYTES:5242880}
@@ -166,8 +170,6 @@ agent:
       operator-username: ${AGENT_GROUP_OPERATOR_USERNAME:operator}
       operator-password: ${AGENT_GROUP_OPERATOR_PASSWORD:operator_dev}
       demo-user-enabled: ${AGENT_GROUP_DEMO_USER_ENABLED:true}
-    evaluate:
-      case-file: ${AGENT_GROUP_EVALUATE_CASE_FILE:}
     payment:
       webhook:
         replay-window-seconds: ${AGENT_GROUP_PAYMENT_WEBHOOK_REPLAY_WINDOW_SECONDS:300}
@@ -206,10 +208,7 @@ skills:
   directory: ${AGENT_GROUP_SKILLS_DIRECTORY:skills}
   output-directory: ${AGENT_GROUP_SKILLS_OUTPUT_DIRECTORY:outputs}
 
-mybatis:
-  mapper-locations: classpath*:/mybatis/mapper/*.xml
-  config-location: classpath:/mybatis/config/mybatis-config.xml
-
+# 业务 DAO 走 InfrastructureMybatisConfig；Agent 会话/PPT 表走 MyBatis-Plus（trigger 模块）
 mybatis-plus:
   mapper-locations: classpath*:/mybatis/mapper/*.xml
   config-location: classpath:/mybatis/config/mybatis-config.xml

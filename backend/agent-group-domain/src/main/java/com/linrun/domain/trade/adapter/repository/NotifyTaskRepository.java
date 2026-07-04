@@ -9,6 +9,19 @@ public interface NotifyTaskRepository {
 
     void save(NotifyTask notifyTask);
 
+    /**
+     * 插入通知任务；uuid 已存在时视为幂等成功并返回 false。
+     */
+    default boolean saveIfAbsent(NotifyTask notifyTask) {
+        if (notifyTask != null
+                && notifyTask.getUuid() != null
+                && queryNotifyTaskByUuid(notifyTask.getUuid()).isPresent()) {
+            return false;
+        }
+        save(notifyTask);
+        return true;
+    }
+
     List<NotifyTask> queryUnExecutedNotifyTaskList(int limit);
 
     List<NotifyTask> queryUnExecutedNotifyTaskList(String teamId);

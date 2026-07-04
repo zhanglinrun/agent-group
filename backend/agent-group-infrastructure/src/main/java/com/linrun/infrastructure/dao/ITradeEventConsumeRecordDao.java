@@ -11,6 +11,11 @@ public interface ITradeEventConsumeRecordDao {
 
     TradeEventConsumeRecordPO queryByEventId(@Param("eventId") String eventId);
 
+    java.util.List<TradeEventConsumeRecordPO> queryByStatus(@Param("consumeStatus") int consumeStatus,
+                                                            @Param("limit") int limit);
+
+    int resetStatusForReplay(@Param("eventId") String eventId);
+
     int updateStatusProcessing(TradeEventConsumeRecordPO record);
 
     int updateStatusConsumed(TradeEventConsumeRecordPO record);

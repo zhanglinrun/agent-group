@@ -25,7 +25,15 @@ const MENU_GROUPS = [
     label: "交易管理",
     items: [
       { key: "order", label: "订单与核查" },
-      { key: "refund", label: "售后退款" }
+      { key: "refund", label: "售后退款" },
+      { key: "tradeOps", label: "交易运维" }
+    ]
+  },
+  {
+    name: "ops",
+    label: "运维配置",
+    items: [
+      { key: "rules", label: "运营规则" }
     ]
   }
 ];

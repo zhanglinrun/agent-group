@@ -10991,6 +10991,148 @@ body[data-theme="light"] {
   font-size: 12px;
 }
 
+.trade-ops-manager,
+.operational-rules-manager {
+  display: grid;
+  gap: 16px;
+}
+
+.trade-ops-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.trade-ops-kv-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.trade-ops-kv-grid span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.trade-ops-kv-grid strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.trade-ops-channel-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.trade-ops-channel-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.trade-ops-channel-item em {
+  color: #64748b;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.trade-ops-grant-form {
+  display: grid;
+  gap: 10px;
+}
+
+.trade-ops-grant-form textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.trade-ops-result {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 13px;
+}
+
+.trade-ops-result code {
+  overflow-wrap: anywhere;
+}
+
+.trade-ops-error-cell {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+  color: #b45309;
+  font-size: 12px;
+}
+
+.ops-rule-input {
+  width: 100%;
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.order-status-flow {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.order-status-flow strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.admin-inline-error {
+  color: #b45309;
+  font-size: 12px;
+}
+
+.bear-doctor-app .user-memory-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bear-doctor-app .user-memory-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bear-doctor-app .user-memory-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .admin-table .action-cell {
   display: flex;
   gap: 6px;

@@ -3,10 +3,8 @@ package com.linrun.trigger.job;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linrun.api.dto.NotifyTaskExecuteResponse;
-import com.linrun.api.dto.TradeEventOutboxDispatchResponse;
 import com.linrun.domain.support.config.service.DynamicConfigService;
 import com.linrun.domain.trade.service.TradeCompensationService;
-import com.linrun.domain.trade.service.TradeEventOutboxDispatchService;
 import com.linrun.domain.trade.service.task.NotifyTaskService;
 import com.linrun.types.exception.AppException;
 import com.xxl.job.core.context.XxlJobHelper;
@@ -27,50 +25,25 @@ public class TradeCompensationXxlJobHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TradeCompensationXxlJobHandler.class);
 
     private static final Duration JOB_LOCK_LEASE_TIME = Duration.ofSeconds(60);
-    private static final int DEFAULT_BATCH_SIZE = 50;
     private static final TypeReference<Map<String, String>> PARAM_TYPE = new TypeReference<>() {
     };
 
-    private final TradeEventOutboxDispatchService tradeEventOutboxDispatchService;
     private final NotifyTaskService notifyTaskService;
     private final TradeCompensationService tradeCompensationService;
     private final DynamicConfigService dynamicConfigService;
     private final ScheduledJobLockExecutor scheduledJobLockExecutor;
     private final ObjectMapper objectMapper;
 
-    public TradeCompensationXxlJobHandler(TradeEventOutboxDispatchService tradeEventOutboxDispatchService,
-                                          NotifyTaskService notifyTaskService,
+    public TradeCompensationXxlJobHandler(NotifyTaskService notifyTaskService,
                                           TradeCompensationService tradeCompensationService,
                                           DynamicConfigService dynamicConfigService,
                                           ScheduledJobLockExecutor scheduledJobLockExecutor,
                                           ObjectMapper objectMapper) {
-        this.tradeEventOutboxDispatchService = tradeEventOutboxDispatchService;
         this.notifyTaskService = notifyTaskService;
         this.tradeCompensationService = tradeCompensationService;
         this.dynamicConfigService = dynamicConfigService;
         this.scheduledJobLockExecutor = scheduledJobLockExecutor;
         this.objectMapper = objectMapper;
-    }
-
-    @XxlJob("tradeEventOutboxDispatchJobHandler")
-    public void tradeEventOutboxDispatchJobHandler() {
-        handleTradeEventOutboxDispatch();
-    }
-
-    void handleTradeEventOutboxDispatch() {
-        executeWithLock("trade-event-outbox-dispatch", () -> {
-            TradeEventOutboxDispatchResponse response = tradeEventOutboxDispatchService.execDispatchJob();
-            jobLog("trade event outbox dispatched, wait={}, success={}, retry={}, deadLetter={}",
-                    response.getWaitCount(),
-                    response.getSuccessCount(),
-                    response.getRetryCount(),
-                    response.getDeadLetterCount());
-            LOGGER.info("trade event outbox dispatched, wait={}, success={}, retry={}, deadLetter={}",
-                    response.getWaitCount(),
-                    response.getSuccessCount(),
-                    response.getRetryCount(),
-                    response.getDeadLetterCount());
-        });
     }
 
     @XxlJob("groupBuyNotifyTaskJobHandler")
@@ -117,8 +90,9 @@ public class TradeCompensationXxlJobHandler {
     void handleTimeoutGroupRefund() {
         executeWithLock("timeout-refund:unsettled-group", () -> {
             LocalDateTime now = LocalDateTime.now();
-            int closedCount = tradeCompensationService.closeTimeoutUnsettledGroupOrders(now, DEFAULT_BATCH_SIZE);
-            int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(now, DEFAULT_BATCH_SIZE);
+            int batchSize = compensationBatchSize();
+            int closedCount = tradeCompensationService.closeTimeoutUnsettledGroupOrders(now, batchSize);
+            int refundCount = tradeCompensationService.refundTimeoutUnsettledGroupOrders(now, batchSize);
             jobLog("timeout group compensation executed, closed={}, refunded={}", closedCount, refundCount);
             LOGGER.info("timeout group compensation executed, closed={}, refunded={}", closedCount, refundCount);
         });
@@ -146,12 +120,16 @@ public class TradeCompensationXxlJobHandler {
                         queryDeadline, dynamicConfigService.paymentQueryCompensationLimit());
             }
             LocalDateTime closeDeadline = LocalDateTime.now().minusMinutes(30);
-            int closedCount = tradeCompensationService.closeTimeoutUnpaidOrders(closeDeadline, DEFAULT_BATCH_SIZE);
+            int closedCount = tradeCompensationService.closeTimeoutUnpaidOrders(closeDeadline, compensationBatchSize());
             jobLog("payment query compensation executed, completed={}, closed={}",
                     completedCount, closedCount);
             LOGGER.info("payment query compensation executed, completed={}, closed={}",
                     completedCount, closedCount);
         });
+    }
+
+    private int compensationBatchSize() {
+        return dynamicConfigService == null ? 50 : dynamicConfigService.tradeCompensationBatchSize();
     }
 
     private void executeWithLock(String lockName, Runnable task) {

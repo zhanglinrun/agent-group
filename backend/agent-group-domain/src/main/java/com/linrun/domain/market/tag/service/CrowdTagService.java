@@ -1,9 +1,11 @@
 package com.linrun.domain.market.tag.service;
 
+import com.linrun.domain.market.tag.adapter.CrowdTagBitmapPort;
 import com.linrun.domain.market.tag.adapter.CrowdTagRepository;
 import com.linrun.domain.market.tag.model.CrowdTagJob;
 import com.linrun.domain.market.tag.model.CrowdTagJobResult;
 import com.linrun.types.exception.AppException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -29,9 +31,17 @@ public class CrowdTagService {
             Pattern.CASE_INSENSITIVE);
 
     private final CrowdTagRepository crowdTagRepository;
+    private final CrowdTagBitmapPort crowdTagBitmapPort;
 
     public CrowdTagService(CrowdTagRepository crowdTagRepository) {
+        this(crowdTagRepository, null);
+    }
+
+    @Autowired
+    public CrowdTagService(CrowdTagRepository crowdTagRepository,
+                           CrowdTagBitmapPort crowdTagBitmapPort) {
         this.crowdTagRepository = crowdTagRepository;
+        this.crowdTagBitmapPort = crowdTagBitmapPort == null ? CrowdTagBitmapPort.noop() : crowdTagBitmapPort;
     }
 
     public CrowdTagJobResult execTagBatchJob(String tagId, String batchId) {
@@ -45,6 +55,7 @@ public class CrowdTagService {
         List<String> userIds = queryMatchedUsers(job);
         for (String userId : userIds) {
             crowdTagRepository.addCrowdTagUserId(tagId, userId);
+            syncBitmap(tagId, userId);
         }
         int statistics = crowdTagRepository.countCrowdTagUsers(tagId);
         crowdTagRepository.updateCrowdTagStatistics(tagId, statistics);
@@ -81,6 +92,11 @@ public class CrowdTagService {
         result.setUserIds(List.of());
         result.setMessage("statistics refreshed");
         return result;
+    }
+
+    private void syncBitmap(String tagId, String userId) {
+        crowdTagBitmapPort.queryUserNumericId(userId)
+                .ifPresent(numericId -> crowdTagBitmapPort.markUserInTag(tagId, numericId));
     }
 
     private List<String> queryMatchedUsers(CrowdTagJob job) {
@@ -170,18 +186,3 @@ public class CrowdTagService {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

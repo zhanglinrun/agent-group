@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -40,7 +41,7 @@ public class AgentCapabilityService {
     @Value("${agent.group.reactor-tool.enabled:false}")
     private boolean reactorToolEnabled;
 
-    public AgentCapabilityService(ObjectProvider<ChatModel> chatModelProvider,
+    public AgentCapabilityService(@Qualifier("openAiChatModel") ObjectProvider<ChatModel> chatModelProvider,
                                           AgentWebSearchMcpClient webSearchMcpClient,
                                           AgentToolCallbackFactory agentToolCallbackFactory,
                                           AgentAdminConfigHandler agentAdminConfigHandler,

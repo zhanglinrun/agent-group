@@ -9,13 +9,15 @@
         <result column="user_id" property="userId"/>
         <result column="memory_type" property="memoryType"/>
         <result column="content" property="content"/>
+        <result column="source" property="source"/>
+        <result column="scope" property="scope"/>
         <result column="enabled" property="enabled"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
     <select id="queryByUser" resultMap="UserAgentMemoryMap">
-        select id, user_id, memory_type, content, enabled, create_time, update_time
+        select id, user_id, memory_type, content, source, scope, enabled, create_time, update_time
         from user_agent_memory
         where user_id = #{userId}
         <if test="enabledOnly">
@@ -26,7 +28,7 @@
     </select>
 
     <select id="queryByType" resultMap="UserAgentMemoryMap">
-        select id, user_id, memory_type, content, enabled, create_time, update_time
+        select id, user_id, memory_type, content, source, scope, enabled, create_time, update_time
         from user_agent_memory
         where user_id = #{userId}
           and memory_type = #{memoryType}
@@ -35,12 +37,14 @@
 
     <insert id="upsert" parameterType="com.linrun.infrastructure.po.UserAgentMemoryPO">
         insert into user_agent_memory (
-          user_id, memory_type, content, enabled, create_time, update_time
+          user_id, memory_type, content, source, scope, enabled, create_time, update_time
         ) values (
-          #{userId}, #{memoryType}, #{content}, #{enabled}, now(), now()
+          #{userId}, #{memoryType}, #{content}, #{source}, #{scope}, #{enabled}, now(), now()
         )
         on duplicate key update
           content = values(content),
+          source = values(source),
+          scope = values(scope),
           enabled = values(enabled),
           update_time = now()
     </insert>

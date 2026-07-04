@@ -52,6 +52,12 @@ public class MyBatisUserAgentMemoryRepository implements UserAgentMemoryReposito
         UserAgentMemoryPO po = new UserAgentMemoryPO();
         BeanUtils.copyProperties(entity, po);
         po.setEnabled(entity.getEnabled() == null || entity.getEnabled());
+        if (po.getSource() == null || po.getSource().isBlank()) {
+            po.setSource("manual");
+        }
+        if (po.getScope() == null || po.getScope().isBlank()) {
+            po.setScope("global");
+        }
         return po;
     }
 
@@ -61,6 +67,12 @@ public class MyBatisUserAgentMemoryRepository implements UserAgentMemoryReposito
         }
         UserAgentMemory entity = new UserAgentMemory();
         BeanUtils.copyProperties(po, entity);
+        if (entity.getSource() == null || entity.getSource().isBlank()) {
+            entity.setSource("manual");
+        }
+        if (entity.getScope() == null || entity.getScope().isBlank()) {
+            entity.setScope("global");
+        }
         return entity;
     }
 }

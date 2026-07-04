@@ -40,6 +40,8 @@ public interface ICrowdTagDao {
     void updateJobStatus(@Param("tagId") String tagId,
                          @Param("batchId") String batchId,
                          @Param("status") int status);
+
+    Long queryUserNumericId(@Param("userId") String userId);
 }
 
 

@@ -16,6 +16,10 @@ public interface UserQuotaRepository {
 
     Optional<UserQuotaAccount> queryAccount(String userId);
 
+    default Optional<UserQuotaAccount> queryAccountForUpdate(String userId) {
+        return queryAccount(userId);
+    }
+
     int increaseQuota(String userId, BigDecimal amount);
     int decreaseQuota(String userId, BigDecimal amount);
     int decreaseQuotaAllowNegative(String userId, BigDecimal amount);

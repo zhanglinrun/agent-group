@@ -88,7 +88,10 @@ public class NotifyTaskService {
         task.setNotifyStatus(NotifyTask.STATUS_INIT);
         task.setParameterJson(groupSettlementPayload(team, orderIds));
         task.setUuid(team.getTeamId() + "_" + NotifyTask.CATEGORY_TRADE_SETTLEMENT);
-        notifyTaskRepository.save(task);
+        if (notifyTaskRepository.queryNotifyTaskByUuid(task.getUuid()).isPresent()) {
+            return task;
+        }
+        notifyTaskRepository.saveIfAbsent(task);
         return task;
     }
 
@@ -107,7 +110,10 @@ public class NotifyTaskService {
         task.setNotifyStatus(NotifyTask.STATUS_INIT);
         task.setParameterJson(groupRefundPayload(response));
         task.setUuid(response.getOrderId() + "_" + NotifyTask.CATEGORY_TRADE_REFUND);
-        notifyTaskRepository.save(task);
+        if (notifyTaskRepository.queryNotifyTaskByUuid(task.getUuid()).isPresent()) {
+            return task;
+        }
+        notifyTaskRepository.saveIfAbsent(task);
         return task;
     }
 

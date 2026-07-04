@@ -6,4 +6,10 @@ public interface AgentMemoryService {
                              String sessionId,
                              String runId,
                              String currentRequestId);
+
+    AgentMemorySnapshot load(String userId,
+                             String sessionId,
+                             String runId,
+                             String currentRequestId,
+                             String question);
 }

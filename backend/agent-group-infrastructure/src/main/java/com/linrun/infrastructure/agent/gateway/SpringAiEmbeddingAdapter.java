@@ -20,6 +20,9 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
+import com.linrun.infrastructure.dao.IAgentFileContentDao;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -43,15 +46,21 @@ public class SpringAiEmbeddingAdapter implements EmbeddingPort {
     private final EmbeddingModel embeddingModel;
     private final ChatModel chatModel;
     private final DynamicPgVectorStoreFactory pgVectorStoreFactory;
+    private final IAgentFileContentDao agentFileContentDao;
+    private final boolean keywordHybridEnabled;
 
     private PgVectorStore vectorStore;
 
     public SpringAiEmbeddingAdapter(EmbeddingModel embeddingModel,
-                                    ChatModel chatModel,
-                                    DynamicPgVectorStoreFactory pgVectorStoreFactory) {
+                                    @Qualifier("openAiChatModel") ChatModel chatModel,
+                                    DynamicPgVectorStoreFactory pgVectorStoreFactory,
+                                    IAgentFileContentDao agentFileContentDao,
+                                    @Value("${agent.group.rag.keyword-hybrid.enabled:true}") boolean keywordHybridEnabled) {
         this.embeddingModel = embeddingModel;
         this.chatModel = chatModel;
         this.pgVectorStoreFactory = pgVectorStoreFactory;
+        this.agentFileContentDao = agentFileContentDao;
+        this.keywordHybridEnabled = keywordHybridEnabled;
     }
 
     @PostConstruct
@@ -142,10 +151,25 @@ public class SpringAiEmbeddingAdapter implements EmbeddingPort {
                 }
             }
 
-            log.info("RAG 检索完成 fileId={}, 返回结果数={}", fileId, hits.size());
+            if (keywordHybridEnabled && agentFileContentDao != null) {
+                String extractedText = agentFileContentDao.queryExtractedText(fileId);
+                for (RagHit keywordHit : RagKeywordRetriever.retrieve(extractedText, question)) {
+                    String docId = keywordHit.documentId();
+                    if (seenIds.add(docId)) {
+                        hits.add(new RagHit(
+                                hits.size() + 1,
+                                docId,
+                                keywordHit.content(),
+                                keywordHit.metadata()));
+                    }
+                }
+            }
+
+            String mode = keywordHybridEnabled ? "hybrid" : "rag";
+            log.info("RAG 检索完成 fileId={}, mode={}, 返回结果数={}", fileId, mode, hits.size());
             return new RagRetrievalResult(
                     true,
-                    "rag",
+                    mode,
                     question,
                     compressed.text(),
                     expandedQueries.stream().map(Query::text).toList(),

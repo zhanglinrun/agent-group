@@ -8,7 +8,7 @@ describe("UserMemoryPanel", () => {
   it("renders enabled and disabled memories", () => {
     const html = renderToStaticMarkup(createElement(UserMemoryPanel, {
       memories: [
-        { memoryType: "output_style", content: "先结论后证据", enabled: true },
+        { memoryType: "output_style", content: "先结论后证据", enabled: true, source: "auto", scope: "global" },
         { memoryType: "business_context", content: "多模式 Agent 工作台", enabled: false }
       ],
       onRefresh: () => {},
@@ -18,6 +18,8 @@ describe("UserMemoryPanel", () => {
     expect(html).toContain("长期记忆");
     expect(html).toContain("输出风格");
     expect(html).toContain("先结论后证据");
+    expect(html).toContain("自动");
+    expect(html).toContain("全局");
     expect(html).toContain("多模式 Agent 工作台");
     expect(html).toContain("停用");
     expect(html).toContain("启用");

@@ -128,11 +128,7 @@ INSERT IGNORE INTO `xxl_job_info`(`id`, `job_group`, `job_desc`, `add_time`, `up
                                   `executor_handler`, `executor_param`, `executor_block_strategy`, `executor_timeout`,
                                   `executor_fail_retry_count`, `glue_type`, `glue_source`, `glue_remark`,
                                   `glue_updatetime`, `child_jobid`)
-VALUES (101, 1, '交易事件Outbox投递', NOW(), NOW(), 'agent-group', '',
-        'CRON', '0 */1 * * * ? *', 'DO_NOTHING', 'FIRST',
-        'tradeEventOutboxDispatchJobHandler', '', 'SERIAL_EXECUTION', 60, 1,
-        'BEAN', '', 'init', NOW(), ''),
-       (102, 1, '拼团业务通知重试', NOW(), NOW(), 'agent-group', '',
+VALUES (102, 1, '拼团业务通知重试', NOW(), NOW(), 'agent-group', '',
         'CRON', '0 */1 * * * ? *', 'DO_NOTHING', 'FIRST',
         'groupBuyNotifyTaskJobHandler', '', 'SERIAL_EXECUTION', 60, 1,
         'BEAN', '', 'init', NOW(), ''),

@@ -13,6 +13,8 @@ import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -20,6 +22,7 @@ import java.lang.reflect.Method;
 
 @Aspect
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class DistributedLockAspect {
 
     private static final String LOCK_PREFIX = "agent-group:lock:";
@@ -32,8 +35,13 @@ public class DistributedLockAspect {
         this.redissonClient = redissonClient;
     }
 
-    @Around("@annotation(distributedLock)")
-    public Object around(ProceedingJoinPoint joinPoint, DistributedLock distributedLock) throws Throwable {
+    @Around("@annotation(com.linrun.domain.support.lock.DistributedLock)")
+    public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        DistributedLock distributedLock = signature.getMethod().getAnnotation(DistributedLock.class);
+        if (distributedLock == null) {
+            return joinPoint.proceed();
+        }
         String lockKey = LOCK_PREFIX + parseKey(joinPoint, distributedLock);
         RLock lock = redissonClient.getLock(lockKey);
         boolean locked = lock.tryLock(distributedLock.waitTime(), distributedLock.leaseTime(), distributedLock.timeUnit());

@@ -74,6 +74,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/ops/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/status-flow").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/admin", "/api/v1/trade/order/admin/refunds").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/trade/admin/events/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/market/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/market/trade/close-unpaid", "/api/v1/market/trade/refund").hasRole("ADMIN")
                         .requestMatchers("/api/v1/trade/payment/refund", "/api/v1/trade/payment/reconcile",
@@ -97,6 +98,7 @@ public class SecurityConfig {
                 || path.startsWith("/api/v1/ops/")
                 || path.startsWith("/api/v1/weixin/template/")
                 || path.startsWith("/api/v1/trade/order/admin")
+                || path.startsWith("/api/v1/trade/admin/events")
                 || path.startsWith("/api/v1/trade/order/status-flow")
                 || path.startsWith("/api/v1/market/trade/close-unpaid")
                 || path.startsWith("/api/v1/market/trade/refund")

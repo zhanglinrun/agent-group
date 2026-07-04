@@ -42,6 +42,7 @@ import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.PayStatusEnumVO;
+import com.linrun.domain.trade.model.valobj.RefundStatusEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import com.linrun.domain.trade.service.TradeOrderService;
 import com.linrun.types.exception.AppException;
@@ -213,25 +214,88 @@ public class PaymentService {
         resolvePayChannel(payOrder.getPayChannel(), payOrder);
         RefundOrderEntity existed = tradeOrderRepository.queryRefundOrderByOrderId(tradeOrder.getOrderId()).orElse(null);
         if (existed != null) {
+            if (RefundStatusEnumVO.SUCCESS.equals(existed.getRefundStatus())) {
+                return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
+            }
+            if (RefundStatusEnumVO.PROCESSING.equals(existed.getRefundStatus())) {
+                invokeRefundGatewayAndComplete(tradeOrder, payOrder, existed, request, systemRequest);
+                return toRefundResponse(tradeOrder, payOrder, existed, "退款处理中，已触发网关确认");
+            }
             return toRefundResponse(tradeOrder, payOrder, existed, "退款已存在，按幂等结果返回");
         }
         validateRefundableOrder(tradeOrder, payOrder);
 
         String refundId = nextRefundId(tradeOrder.getOrderId());
-        PaymentRefundResult gatewayResult = paymentGatewayClient.refund(
-                toRefundCommand(tradeOrder, payOrder, request, systemRequest, refundId));
-        LocalDateTime refundTime = LocalDateTime.now();
-        RefundOrderEntity refundOrder = RefundOrderEntity.success(
-                StringUtils.hasText(gatewayResult.getRefundId()) ? gatewayResult.getRefundId() : refundId,
+        LocalDateTime createTime = LocalDateTime.now();
+        RefundOrderEntity refundOrder = RefundOrderEntity.processing(
+                refundId,
                 tradeOrder,
                 payOrder,
                 resolveRefundReason(request, systemRequest),
-                refundTime);
-        tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
+                createTime);
+        tradeOrderService.markWaitRefund(tradeOrder);
         tradeOrderRepository.saveRefundOrder(refundOrder);
+        tradeOrderRepository.updateWaitRefund(tradeOrder);
+
+        PaymentRefundCommand gatewayCommand = toRefundCommand(tradeOrder, payOrder, request, systemRequest, refundId);
+        String orderId = tradeOrder.getOrderId();
+        runAfterTransactionCommit(() -> invokeRefundGatewayAndComplete(orderId, gatewayCommand));
+
+        return toRefundResponse(tradeOrder, payOrder, refundOrder, "退款已受理，等待网关确认");
+    }
+
+    private void runAfterTransactionCommit(Runnable task) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    task.run();
+                }
+            });
+            return;
+        }
+        task.run();
+    }
+
+    private void invokeRefundGatewayAndComplete(TradeOrderEntity tradeOrder,
+                                                PayOrderEntity payOrder,
+                                                RefundOrderEntity refundOrder,
+                                                RefundPaymentRequest request,
+                                                boolean systemRequest) {
+        PaymentRefundCommand gatewayCommand = toRefundCommand(
+                tradeOrder, payOrder, request, systemRequest, refundOrder.getRefundId());
+        invokeRefundGatewayAndComplete(tradeOrder.getOrderId(), gatewayCommand);
+    }
+
+    private void invokeRefundGatewayAndComplete(String orderId, PaymentRefundCommand gatewayCommand) {
+        try {
+            PaymentRefundResult gatewayResult = paymentGatewayClient.refund(gatewayCommand);
+            TradeOrderEntity tradeOrder = queryTradeOrder(orderId);
+            PayOrderEntity payOrder = queryPayOrder(orderId);
+            RefundOrderEntity refundOrder = tradeOrderRepository.queryRefundOrderByOrderId(orderId)
+                    .orElseThrow(() -> new AppException("PAY_0018", "退款单不存在"));
+            completeRefundLocally(tradeOrder, payOrder, refundOrder, gatewayResult);
+        } catch (Exception ignored) {
+            // 网关失败时保持 WAIT_REFUND，由查单补偿任务对齐终态
+        }
+    }
+
+    private void completeRefundLocally(TradeOrderEntity tradeOrder,
+                                       PayOrderEntity payOrder,
+                                       RefundOrderEntity refundOrder,
+                                       PaymentRefundResult gatewayResult) {
+        if (isLocalRefunded(tradeOrder, payOrder)) {
+            return;
+        }
+        if (gatewayResult != null && StringUtils.hasText(gatewayResult.getRefundId())) {
+            refundOrder.setRefundId(gatewayResult.getRefundId());
+        }
+        LocalDateTime refundTime = LocalDateTime.now();
+        refundOrder.markSuccess(refundTime);
+        tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
+        tradeOrderRepository.updateRefundOrderSuccess(refundOrder);
         tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
         recordRefundFlow(tradeOrder, payOrder, refundOrder);
-        return toRefundResponse(tradeOrder, payOrder, refundOrder, gatewayResult.getMessage());
     }
 
     public ReconcilePaymentResponse reconcile(ReconcilePaymentRequest request) {
@@ -551,22 +615,32 @@ public class PaymentService {
         }
         if (existed == null) {
             validateRefundableOrder(tradeOrder, payOrder);
-            existed = RefundOrderEntity.success(
+            existed = RefundOrderEntity.processing(
                     StringUtils.hasText(result.refundId()) ? result.refundId() : nextRefundId(tradeOrder.getOrderId()),
                     tradeOrder,
                     payOrder,
                     "网关退款结果确认",
                     result.refundTime() == null ? LocalDateTime.now() : result.refundTime());
-            tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
+            tradeOrderService.markWaitRefund(tradeOrder);
             tradeOrderRepository.saveRefundOrder(existed);
-            tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
-            recordRefundFlow(tradeOrder, payOrder, existed);
+            tradeOrderRepository.updateWaitRefund(tradeOrder);
+        }
+        if (RefundStatusEnumVO.PROCESSING.equals(existed.getRefundStatus())) {
+            if (StringUtils.hasText(result.refundId())) {
+                existed.setRefundId(result.refundId());
+            }
+            completeRefundLocally(tradeOrder, payOrder, existed, PaymentRefundResult.success(
+                    tradeOrder.getOrderId(),
+                    payOrder.getPayOrderId(),
+                    existed.getRefundId(),
+                    "refund query confirmed"));
             return;
         }
-        validateRefundableOrder(tradeOrder, payOrder);
-        tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
-        tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
-        recordRefundFlow(tradeOrder, payOrder, existed);
+        if (!isLocalRefunded(tradeOrder, payOrder)) {
+            tradeOrderService.refundPaidOrder(tradeOrder, payOrder);
+            tradeOrderRepository.updateRefunded(tradeOrder, payOrder);
+            recordRefundFlow(tradeOrder, payOrder, existed);
+        }
     }
 
     private void validateRefundResultConsistency(PaymentRefundQueryResult result,

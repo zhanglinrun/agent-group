@@ -4,11 +4,13 @@ import com.linrun.domain.market.adapter.repository.GroupBuyMarketRepository;
 import com.linrun.domain.market.model.GroupBuyDiscount;
 import com.linrun.domain.market.model.GroupBuyMarketSku;
 import com.linrun.domain.market.model.SourceChannelSkuActivity;
+import com.linrun.domain.market.tag.adapter.CrowdTagBitmapPort;
 import com.linrun.infrastructure.market.converter.ActivityPOConverter;
 import com.linrun.infrastructure.dao.ICrowdTagDao;
 import com.linrun.infrastructure.dao.IGroupBuyDiscountDao;
 import com.linrun.infrastructure.dao.IGroupBuyMarketSkuDao;
 import com.linrun.infrastructure.dao.ISourceChannelSkuActivityDao;
+import com.linrun.infrastructure.market.cache.RedisGroupBuyMarketReadCache;
 import com.linrun.infrastructure.po.GroupBuyDiscountPO;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -23,31 +25,41 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
     private final ISourceChannelSkuActivityDao sourceChannelSkuActivityDao;
     private final IGroupBuyDiscountDao discountDao;
     private final ICrowdTagDao crowdTagDao;
+    private final CrowdTagBitmapPort crowdTagBitmapPort;
+    private final RedisGroupBuyMarketReadCache readCache;
 
     public MyBatisGroupBuyMarketRepository(IGroupBuyMarketSkuDao skuDao,
                                            ISourceChannelSkuActivityDao sourceChannelSkuActivityDao,
                                            IGroupBuyDiscountDao discountDao,
-                                           ICrowdTagDao crowdTagDao) {
+                                           ICrowdTagDao crowdTagDao,
+                                           CrowdTagBitmapPort crowdTagBitmapPort,
+                                           RedisGroupBuyMarketReadCache readCache) {
         this.skuDao = skuDao;
         this.sourceChannelSkuActivityDao = sourceChannelSkuActivityDao;
         this.discountDao = discountDao;
         this.crowdTagDao = crowdTagDao;
+        this.crowdTagBitmapPort = crowdTagBitmapPort == null ? CrowdTagBitmapPort.noop() : crowdTagBitmapPort;
+        this.readCache = readCache;
     }
 
     @Override
     public Optional<GroupBuyMarketSku> querySkuByGoodsId(String goodsId) {
-        return Optional.ofNullable(ActivityPOConverter.toEntity(skuDao.queryByGoodsId(goodsId)));
+        return readCache.getOrLoad(RedisGroupBuyMarketReadCache.skuKey(goodsId), GroupBuyMarketSku.class,
+                () -> Optional.ofNullable(ActivityPOConverter.toEntity(skuDao.queryByGoodsId(goodsId))));
     }
 
     @Override
     public Optional<SourceChannelSkuActivity> querySourceChannelSkuActivity(String source, String channel, String goodsId) {
-        return Optional.ofNullable(ActivityPOConverter.toEntity(
-                sourceChannelSkuActivityDao.queryBySourceChannelGoodsId(source, channel, goodsId)));
+        return readCache.getOrLoad(RedisGroupBuyMarketReadCache.sourceChannelKey(source, channel, goodsId),
+                SourceChannelSkuActivity.class,
+                () -> Optional.ofNullable(ActivityPOConverter.toEntity(
+                        sourceChannelSkuActivityDao.queryBySourceChannelGoodsId(source, channel, goodsId))));
     }
 
     @Override
     public Optional<GroupBuyDiscount> queryDiscountByDiscountId(String discountId) {
-        return Optional.ofNullable(ActivityPOConverter.toEntity(discountDao.queryByDiscountId(discountId)));
+        return readCache.getOrLoad(RedisGroupBuyMarketReadCache.discountKey(discountId), GroupBuyDiscount.class,
+                () -> Optional.ofNullable(ActivityPOConverter.toEntity(discountDao.queryByDiscountId(discountId))));
     }
 
     @Override
@@ -55,14 +67,20 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
         if (!StringUtils.hasText(tagId)) {
             return true;
         }
-        int crowdCount = crowdTagDao.countCrowdTagUsers(tagId);
-        if (crowdCount == 0) {
+        int dbCount = crowdTagDao.countCrowdTagUsers(tagId);
+        if (dbCount == 0) {
             return true;
         }
         if (!StringUtils.hasText(userId)) {
             return false;
         }
-        return crowdTagDao.isTagCrowdRange(tagId, userId);
+        int bitmapCount = crowdTagBitmapPort.countTaggedUsers(tagId);
+        if (bitmapCount > 0) {
+            return crowdTagBitmapPort.isUserInTag(tagId, userId).orElseGet(
+                    () -> crowdTagDao.isTagCrowdRange(tagId, userId));
+        }
+        return crowdTagBitmapPort.isUserInTag(tagId, userId)
+                .orElseGet(() -> crowdTagDao.isTagCrowdRange(tagId, userId));
     }
 
     @Override
@@ -95,6 +113,7 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
         } else {
             discountDao.updateDiscount(po);
         }
+        readCache.evict(RedisGroupBuyMarketReadCache.discountKey(discount.getDiscountId()));
         return ActivityPOConverter.toEntity(discountDao.queryByDiscountId(discount.getDiscountId()));
     }
 
@@ -103,7 +122,11 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
         if (!StringUtils.hasText(discountId)) {
             return false;
         }
-        return discountDao.updateDiscountEnabled(discountId, enabled) > 0;
+        boolean updated = discountDao.updateDiscountEnabled(discountId, enabled) > 0;
+        if (updated) {
+            readCache.evict(RedisGroupBuyMarketReadCache.discountKey(discountId));
+        }
+        return updated;
     }
 
     @Override
@@ -111,7 +134,11 @@ public class MyBatisGroupBuyMarketRepository implements GroupBuyMarketRepository
         if (!StringUtils.hasText(discountId)) {
             return false;
         }
-        return discountDao.deleteByDiscountId(discountId) > 0;
+        boolean deleted = discountDao.deleteByDiscountId(discountId) > 0;
+        if (deleted) {
+            readCache.evict(RedisGroupBuyMarketReadCache.discountKey(discountId));
+        }
+        return deleted;
     }
 }
 

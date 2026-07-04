@@ -15,9 +15,12 @@ import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -67,7 +70,7 @@ public class PaymentCompletionService {
                 .orElseThrow(() -> new AppException("TRADE_0014", "支付单不存在"));
 
         if (PayStatusEnumVO.SUCCESS.equals(payOrder.getPayStatus())) {
-            grantQuotaIfAvailable(tradeOrder);
+            scheduleGrantQuotaAfterCommit(List.of(tradeOrder.getOrderId()));
             return toResult(tradeOrder, payOrder);
         }
 
@@ -78,35 +81,39 @@ public class PaymentCompletionService {
         tradeOrderRepository.updatePaySuccess(tradeOrder, payOrder);
         recordPaySuccessFlow(tradeOrder, payOrder, fromOrderStatus, fromPayStatus);
         List<String> settledOrderIds = groupBuySettlementService.settlePaySuccess(tradeOrder);
-        grantQuotaIfAvailable(tradeOrder, settledOrderIds);
+        scheduleGrantQuotaAfterCommit(resolveGrantOrderIds(tradeOrder, settledOrderIds));
 
         return toResult(tradeOrder, payOrder);
     }
 
-    private void grantQuotaIfAvailable(TradeOrderEntity tradeOrder) {
-        if (userQuotaService != null) {
-            userQuotaService.grantQuotaForPaidOrder(tradeOrder);
-        }
-    }
-
-    private void grantQuotaIfAvailable(TradeOrderEntity tradeOrder, List<String> settledOrderIds) {
-        if (userQuotaService == null) {
-            return;
-        }
+    private List<String> resolveGrantOrderIds(TradeOrderEntity tradeOrder, List<String> settledOrderIds) {
         if (settledOrderIds != null && !settledOrderIds.isEmpty()) {
-            List<String> processedOrderIds = userQuotaService.grantQuotaForOrderIds(settledOrderIds);
-            markCurrentOrderDealDoneIfSettled(tradeOrder, processedOrderIds);
-            return;
+            return settledOrderIds;
         }
-        userQuotaService.grantQuotaForPaidOrder(tradeOrder);
+        return List.of(tradeOrder.getOrderId());
     }
 
-    private void markCurrentOrderDealDoneIfSettled(TradeOrderEntity tradeOrder, List<String> settledOrderIds) {
-        if (tradeOrder != null
-                && settledOrderIds.contains(tradeOrder.getOrderId())
-                && TradeOrderStatusEnumVO.GROUP_SETTLED.equals(tradeOrder.getOrderStatus())) {
-            tradeOrder.markDealDone();
+    private void scheduleGrantQuotaAfterCommit(List<String> orderIds) {
+        if (userQuotaService == null || orderIds == null || orderIds.isEmpty()) {
+            return;
         }
+        List<String> targets = List.copyOf(new ArrayList<>(orderIds));
+        Runnable grantTask = () -> {
+            for (String orderId : targets) {
+                tradeOrderRepository.queryTradeOrderByOrderId(orderId)
+                        .ifPresent(userQuotaService::grantQuotaForPaidOrder);
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    grantTask.run();
+                }
+            });
+            return;
+        }
+        grantTask.run();
     }
 
     private void recordPaySuccessFlow(TradeOrderEntity tradeOrder,

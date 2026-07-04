@@ -1,7 +1,6 @@
 package com.linrun.trigger.config;
 
 import com.zaxxer.hikari.HikariDataSource;
-import io.minio.MinioClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,7 +20,7 @@ import javax.sql.DataSource;
         "com.linrun.trigger.agent.tool",
         "com.linrun.trigger.agent.utils"
 })
-@MapperScan({"com.linrun.trigger.agent.mapper", "com.linrun.infrastructure.dao"})
+@MapperScan("com.linrun.trigger.agent.mapper")
 public class AgentRuntimeConfig {
 
     @Bean
@@ -62,17 +61,6 @@ public class AgentRuntimeConfig {
         return dataSource;
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public MinioClient minioClient(
-            @Value("${agent.group.minio.endpoint:http://127.0.0.1:9000}") String endpoint,
-            @Value("${agent.group.minio.access-key:agent_group}") String accessKey,
-            @Value("${agent.group.minio.secret-key:agent_group_dev}") String secretKey) {
-        return MinioClient.builder()
-                .endpoint(endpoint)
-                .credentials(accessKey, secretKey)
-                .build();
-    }
 }
 
 

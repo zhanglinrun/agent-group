@@ -32,6 +32,10 @@ public interface ITradeOrderDao {
 
     int updateTradeOrderRefunded(TradeOrderPO tradeOrder);
 
+    int updateTradeOrderWaitRefund(TradeOrderPO tradeOrder);
+
+    int updateRefundOrderSuccess(RefundOrderPO refundOrder);
+
     int updatePayOrderRefunded(PayOrderPO payOrder);
 
     int updateTradeOrderDealDone(TradeOrderPO tradeOrder);

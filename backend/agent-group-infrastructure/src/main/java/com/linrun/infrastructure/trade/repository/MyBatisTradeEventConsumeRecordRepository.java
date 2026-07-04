@@ -6,6 +6,7 @@ import com.linrun.infrastructure.trade.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.ITradeEventConsumeRecordDao;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -25,6 +26,19 @@ public class MyBatisTradeEventConsumeRecordRepository implements TradeEventConsu
     @Override
     public Optional<TradeEventConsumeRecordEntity> queryByEventId(String eventId) {
         return Optional.ofNullable(TradePOConverter.toEntity(tradeEventConsumeRecordDao.queryByEventId(eventId)));
+    }
+
+    @Override
+    public List<TradeEventConsumeRecordEntity> queryByStatus(int consumeStatus, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        return tradeEventConsumeRecordDao.queryByStatus(consumeStatus, safeLimit).stream()
+                .map(TradePOConverter::toEntity)
+                .toList();
+    }
+
+    @Override
+    public int resetStatusForReplay(String eventId) {
+        return tradeEventConsumeRecordDao.resetStatusForReplay(eventId);
     }
 
     @Override

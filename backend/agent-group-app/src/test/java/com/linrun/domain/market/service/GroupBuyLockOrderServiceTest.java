@@ -8,6 +8,7 @@ import com.linrun.api.dto.LockGroupBuyOrderResponse;
 import com.linrun.domain.market.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.market.adapter.repository.GroupBuyMarketRepository;
 import com.linrun.domain.market.adapter.repository.GroupBuyOrderLockRepository;
+import com.linrun.domain.market.adapter.GroupBuyActivityStockPort;
 import com.linrun.domain.market.adapter.repository.GroupBuyStockRepository;
 import com.linrun.domain.market.adapter.repository.GroupBuyTeamStockRepository;
 import com.linrun.domain.market.model.GroupBuyActivity;
@@ -496,7 +497,8 @@ class GroupBuyLockOrderServiceTest {
                 AgentObservabilityMetrics.noop(),
                 null,
                 new GroupBuyLockRuleChain(new FakeGroupBuyOrderLockRepository(), GroupBuyTeamStockRepository.noop(), validator),
-                new GroupBuyPriceCalculator(new FakeGroupBuyMarketRepository(), new HashMap<>()));
+                new GroupBuyPriceCalculator(new FakeGroupBuyMarketRepository(), new HashMap<>()),
+                GroupBuyActivityStockPort.noop());
 
         AppException exception = assertThrows(AppException.class,
                 () -> service.lock(request(null, "IDEM_10005")));
@@ -554,7 +556,8 @@ class GroupBuyLockOrderServiceTest {
                 AgentObservabilityMetrics.noop(),
                 null,
                 ruleChain,
-                new GroupBuyPriceCalculator(new FakeGroupBuyMarketRepository(), new HashMap<>()));
+                new GroupBuyPriceCalculator(new FakeGroupBuyMarketRepository(), new HashMap<>()),
+                GroupBuyActivityStockPort.noop());
     }
 
     private TradeRefundService refundService(TradeOrderRepository tradeOrderRepository,

@@ -1,5 +1,6 @@
 package com.linrun.domain.market.tag.service;
 
+import com.linrun.domain.market.tag.adapter.CrowdTagBitmapPort;
 import com.linrun.domain.market.tag.adapter.CrowdTagRepository;
 import com.linrun.domain.market.tag.model.CrowdTagJob;
 import com.linrun.domain.market.tag.model.CrowdTagJobResult;
@@ -8,8 +9,10 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -78,6 +81,58 @@ class CrowdTagServiceTest {
         assertTrue(result.getUserIds().contains("U10002"));
         assertTrue(result.getUserIds().contains("U10004"));
         assertEquals(2, repository.statistics);
+    }
+
+    @Test
+    void shouldSyncCrowdTagUsersToBitmapWhenNumericIdPresent() {
+        FakeCrowdTagRepository repository = new FakeCrowdTagRepository();
+        InMemoryCrowdTagBitmapPort bitmapPort = new InMemoryCrowdTagBitmapPort();
+        CrowdTagJob job = new CrowdTagJob();
+        job.setTagId("TAG_BITMAP");
+        job.setBatchId("BATCH_001");
+        job.setTagType(1);
+        job.setTagRule("1");
+        repository.job = job;
+        repository.orderCountUsers = List.of("U10001", "U10002");
+
+        new CrowdTagService(repository, bitmapPort).execTagBatchJob("TAG_BITMAP", "BATCH_001");
+
+        assertTrue(bitmapPort.isTagged("TAG_BITMAP", 1001L));
+        assertTrue(bitmapPort.isTagged("TAG_BITMAP", 1002L));
+    }
+
+    private static class InMemoryCrowdTagBitmapPort implements CrowdTagBitmapPort {
+
+        private final Map<String, Map<Long, Boolean>> bitmaps = new HashMap<>();
+        private final Map<String, Long> userNumericIds = Map.of(
+                "U10001", 1001L,
+                "U10002", 1002L);
+
+        @Override
+        public Optional<Long> queryUserNumericId(String userId) {
+            return Optional.ofNullable(userNumericIds.get(userId));
+        }
+
+        @Override
+        public Optional<Boolean> isUserInTag(String tagId, String userId) {
+            return queryUserNumericId(userId).map(id -> bitmaps
+                    .getOrDefault(tagId, Map.of())
+                    .getOrDefault(id, false));
+        }
+
+        @Override
+        public void markUserInTag(String tagId, long userNumericId) {
+            bitmaps.computeIfAbsent(tagId, key -> new HashMap<>()).put(userNumericId, true);
+        }
+
+        @Override
+        public int countTaggedUsers(String tagId) {
+            return bitmaps.getOrDefault(tagId, Map.of()).size();
+        }
+
+        boolean isTagged(String tagId, long userNumericId) {
+            return bitmaps.getOrDefault(tagId, Map.of()).getOrDefault(userNumericId, false);
+        }
     }
 
     private static class FakeCrowdTagRepository implements CrowdTagRepository {

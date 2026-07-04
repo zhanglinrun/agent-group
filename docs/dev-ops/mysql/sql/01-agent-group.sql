@@ -416,6 +416,8 @@ create table if not exists user_agent_memory (
   user_id varchar(64) not null comment '用户编号',
   memory_type varchar(32) not null comment '记忆类型',
   content varchar(2048) not null comment '记忆内容',
+  source varchar(16) not null default 'manual' comment '来源：manual/auto',
+  scope varchar(32) not null default 'global' comment '作用域：global/project_dev',
   enabled tinyint not null default 1 comment '是否启用',
   create_time datetime not null default current_timestamp comment '创建时间',
   update_time datetime not null default current_timestamp on update current_timestamp comment '更新时间',

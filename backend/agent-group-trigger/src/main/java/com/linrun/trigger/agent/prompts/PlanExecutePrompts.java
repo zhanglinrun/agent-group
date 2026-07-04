@@ -28,6 +28,7 @@ public final class PlanExecutePrompts {
             3. instruction 要说明调用哪个工具、查什么信息或处理什么材料。
             4. 可并行的步骤使用相同 order；有依赖的步骤使用更大的 order。
             5. 如果已经不需要工具，返回一个 id 为 null 的 task。
+            6. 文献/论文/综述类问题：web_search 查询应包含 site:arxiv.org 或 site:ieee.org 与年份范围；每步要求整理真实 url/title。
 
             只输出 JSON 数组，不要输出其他文字。
 
@@ -46,8 +47,9 @@ public final class PlanExecutePrompts {
             1. 只围绕 Current Task 执行，不要偏离任务。
             2. 只整理工具真实返回的信息，不引入未验证内容。
             3. 保留关键事实、数据、来源、时间和限制。
-            4. 如果工具结果冲突或不足，要如实说明。
+            4. 如果工具结果冲突或不足，要如实说明 insufficient_evidence。
             5. 输出是给后续步骤使用的工作记录，不是最终报告。
+            6. 每条可验证事实必须附带 url 和 title；禁止编造 DOI、准确率、论文篇数。
             """;
 
     public static final String CRITIQUE = """
@@ -55,8 +57,10 @@ public final class PlanExecutePrompts {
 
             判断当前材料是否已经足够回答用户问题，重点看：
             1. 用户最关心的问题是否已经覆盖。
-            2. 关键事实是否有依据。
+            2. 关键事实是否有依据（必须来自工具返回的 url/title，不得使用 task-N 作为引用）。
             3. 是否还缺少会影响结论的信息。
+            4. 是否出现无 url 支撑的 DOI、准确率、百分比、论文篇数等强断言。
+            5. 若工具结果为空或缺少 url，必须判定为未通过，并要求补充检索或删除无来源断言。
 
             只输出 JSON：
             {
@@ -106,11 +110,13 @@ public final class PlanExecutePrompts {
             请基于用户问题和工具结果生成最终回答。
 
             规则：
-            1. 只基于已提供的工具结果和上下文回答。
+            1. 只基于已提供的工具结果、引用白名单和上下文回答。
             2. 不要编造未检索到或未读取到的信息。
             3. 先给结论，再列关键依据。
-            4. 对仍需确认的信息要明确说明。
-            5. 不要提及内部轮次、评审、压缩或执行细节。
+            4. 对仍需确认的信息必须单独放在「待验证」小节。
+            5. 不要提及内部轮次、评审、压缩、task-N 或执行细节。
+            6. 每条「确定事实」必须对应引用白名单中的 url 或 title；无 url 则不得写 DOI、准确率、具体论文篇数。
+            7. 若工具结果为空或引用白名单为空，只能简短说明检索不足，不得输出长篇结构化报告。
             """;
 
     public static final String REQUIREMENT_CLARIFICATION = """

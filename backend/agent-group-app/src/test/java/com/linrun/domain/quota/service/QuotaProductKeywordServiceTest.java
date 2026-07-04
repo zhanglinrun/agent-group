@@ -29,7 +29,7 @@ class QuotaProductKeywordServiceTest {
     void shouldLimitKeywordCount() {
         QuotaProductKeywordService service = new QuotaProductKeywordService();
         List<String> keywords = service.extractKeywords(
-                "拼团 退款 额度 余额 支付成功 回调 幂等 补偿 outbox 成团 售后 价格 预算 便宜");
+                "拼团 退款 额度 余额 支付成功 回调 幂等 补偿 成团 售后 价格 预算 便宜");
         assertFalse(keywords.size() > 12);
     }
 }

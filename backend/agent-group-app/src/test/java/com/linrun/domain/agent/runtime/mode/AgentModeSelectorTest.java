@@ -94,6 +94,19 @@ class AgentModeSelectorTest {
     }
 
     @Test
+    void shouldNotRouteGenericCallQuestionToSkillMode() {
+        AgentModeSelector selector = new AgentModeSelector();
+
+        AgentModeSelector.ModeSelectionResult result = selector.selectMode(
+                "请调用数据库连接池排查这个超时问题",
+                AgentModeSelector.ModeSelectionContext.empty()
+        );
+
+        assertEquals("ReAct", result.getExecutionMode());
+        assertEquals("chat", result.getAgentType());
+    }
+
+    @Test
     void testSelectMode_NullContextUsesDefaultContext() {
         AgentModeSelector selector = new AgentModeSelector();
 

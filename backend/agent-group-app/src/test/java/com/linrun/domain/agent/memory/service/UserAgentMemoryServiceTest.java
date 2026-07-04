@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,6 +62,32 @@ class UserAgentMemoryServiceTest {
 
         assertEquals("先结论后证据", saved.getContent());
         assertTrue(service.queryEnabled("U1001", 10).isEmpty());
+    }
+
+    @Test
+    void autoSaveDoesNotOverwriteManualMemory() {
+        FakeRepository repository = new FakeRepository();
+        UserAgentMemoryService service = new UserAgentMemoryService(repository);
+
+        service.save("U1001", "preference", "手动偏好", true);
+        UserAgentMemory saved = service.saveAuto("U1001", "preference", "自动偏好");
+
+        assertEquals("手动偏好", saved.getContent());
+        assertEquals(1, service.queryEnabled("U1001", 10).size());
+    }
+
+    @Test
+    void autoSaveCreatesDisabledAutoMemory() {
+        FakeRepository repository = new FakeRepository();
+        UserAgentMemoryService service = new UserAgentMemoryService(repository);
+
+        UserAgentMemory saved = service.saveAuto("U1001", "preference", "自动偏好");
+
+        assertEquals("自动偏好", saved.getContent());
+        assertFalse(Boolean.TRUE.equals(saved.getEnabled()));
+        assertEquals("auto", saved.getSource());
+        assertTrue(service.queryEnabled("U1001", 10).isEmpty());
+        assertEquals(1, service.query("U1001", 10).size());
     }
 
     private static class FakeRepository implements UserAgentMemoryRepository {

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -93,6 +94,25 @@ class RabbitTradeEventListenerTest {
         @Override
         public Optional<TradeEventConsumeRecordEntity> queryByEventId(String eventId) {
             return Optional.ofNullable(records.get(eventId));
+        }
+
+        @Override
+        public List<TradeEventConsumeRecordEntity> queryByStatus(int consumeStatus, int limit) {
+            return records.values().stream()
+                    .filter(record -> record.getConsumeStatus() == consumeStatus)
+                    .limit(Math.max(1, limit))
+                    .toList();
+        }
+
+        @Override
+        public int resetStatusForReplay(String eventId) {
+            TradeEventConsumeRecordEntity record = records.get(eventId);
+            if (record == null || record.getConsumeStatus() != TradeEventConsumeRecordEntity.STATUS_DEAD_LETTER) {
+                return 0;
+            }
+            record.setConsumeStatus(TradeEventConsumeRecordEntity.STATUS_INIT);
+            record.setConsumeCount(0);
+            return 1;
         }
 
         @Override

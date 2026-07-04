@@ -23,17 +23,32 @@ public class RefundOrderEntity {
                                       PayOrderEntity payOrder,
                                       String refundReason,
                                       LocalDateTime refundTime) {
+        RefundOrderEntity refundOrder = processing(refundId, tradeOrder, payOrder, refundReason, refundTime);
+        refundOrder.setRefundStatus(RefundStatusEnumVO.SUCCESS);
+        refundOrder.setRefundTime(refundTime);
+        return refundOrder;
+    }
+
+    public static RefundOrderEntity processing(String refundId,
+                                               TradeOrderEntity tradeOrder,
+                                               PayOrderEntity payOrder,
+                                               String refundReason,
+                                               LocalDateTime createTime) {
         RefundOrderEntity refundOrder = new RefundOrderEntity();
         refundOrder.setRefundId(refundId);
         refundOrder.setOrderId(tradeOrder.getOrderId());
         refundOrder.setPayOrderId(payOrder.getPayOrderId());
         refundOrder.setUserId(tradeOrder.getUserId());
         refundOrder.setRefundAmount(payOrder.getPayAmount());
-        refundOrder.setRefundStatus(RefundStatusEnumVO.SUCCESS);
+        refundOrder.setRefundStatus(RefundStatusEnumVO.PROCESSING);
         refundOrder.setRefundReason(refundReason);
-        refundOrder.setCreateTime(refundTime);
-        refundOrder.setRefundTime(refundTime);
+        refundOrder.setCreateTime(createTime);
         return refundOrder;
+    }
+
+    public void markSuccess(LocalDateTime refundTime) {
+        this.refundStatus = RefundStatusEnumVO.SUCCESS;
+        this.refundTime = refundTime;
     }
 
     public Long getId() {

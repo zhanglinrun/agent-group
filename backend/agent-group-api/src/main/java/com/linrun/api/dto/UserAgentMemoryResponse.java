@@ -11,5 +11,7 @@ public class UserAgentMemoryResponse implements Serializable {
     private String memoryType;
     private String content;
     private Boolean enabled;
+    private String source;
+    private String scope;
     private LocalDateTime updateTime;
 }

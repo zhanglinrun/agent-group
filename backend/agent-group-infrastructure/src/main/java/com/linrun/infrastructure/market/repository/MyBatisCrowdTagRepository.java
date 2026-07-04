@@ -70,6 +70,15 @@ public class MyBatisCrowdTagRepository implements CrowdTagRepository {
     public void updateJobStatus(String tagId, String batchId, int status) {
         crowdTagDao.updateJobStatus(tagId, batchId, status);
     }
+
+    @Override
+    public Optional<Long> queryUserNumericId(String userId) {
+        Long numericId = crowdTagDao.queryUserNumericId(userId);
+        if (numericId == null || numericId <= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(numericId);
+    }
 }
 
 

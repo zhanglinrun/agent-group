@@ -106,6 +106,35 @@
         where event_id = #{eventId}
           and consume_status in (0, 2, 4)
     </update>
+
+    <select id="queryByStatus" resultMap="TradeEventConsumeRecordMap">
+        select id,
+               event_id,
+               order_id,
+               biz_type,
+               biz_id,
+               event_type,
+               routing_key,
+               consume_count,
+               consume_status,
+               last_error,
+               create_time,
+               update_time
+        from trade_event_consume_record
+        where consume_status = #{consumeStatus}
+        order by update_time desc
+        limit #{limit}
+    </select>
+
+    <update id="resetStatusForReplay">
+        update trade_event_consume_record
+        set consume_status = 0,
+            consume_count = 0,
+            last_error = null,
+            update_time = now()
+        where event_id = #{eventId}
+          and consume_status = 3
+    </update>
 </mapper>
 
 

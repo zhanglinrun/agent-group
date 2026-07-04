@@ -88,10 +88,24 @@ public class TradeOrderEntity {
         }
         if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
                 && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)
-                && !TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
+                && !TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.WAIT_REFUND.equals(orderStatus)) {
             throw new AppException("TRADE_0015", "当前订单状态不能退款");
         }
         this.orderStatus = TradeOrderStatusEnumVO.REFUNDED;
+    }
+
+    public void markWaitRefund() {
+        if (TradeOrderStatusEnumVO.WAIT_REFUND.equals(orderStatus)
+                || TradeOrderStatusEnumVO.REFUNDED.equals(orderStatus)) {
+            return;
+        }
+        if (!TradeOrderStatusEnumVO.PAY_SUCCESS.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.GROUP_SETTLED.equals(orderStatus)
+                && !TradeOrderStatusEnumVO.DEAL_DONE.equals(orderStatus)) {
+            throw new AppException("TRADE_0015", "当前订单状态不能退款");
+        }
+        this.orderStatus = TradeOrderStatusEnumVO.WAIT_REFUND;
     }
 
     public Long getId() {

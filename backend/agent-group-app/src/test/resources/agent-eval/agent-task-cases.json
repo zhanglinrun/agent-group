@@ -1,0 +1,94 @@
+[
+  {
+    "taskId": "deep-01",
+    "question": "请深入研究 Spring AI 与 LangChain 的差异",
+    "expectedAgentType": "deep",
+    "expectedExecutionMode": "Plan-Execute"
+  },
+  {
+    "taskId": "deep-02",
+    "question": "深度研究：收集资料、分析、输出报告三步计划",
+    "expectedAgentType": "deep",
+    "expectedExecutionMode": "Plan-Execute"
+  },
+  {
+    "taskId": "deep-03",
+    "question": "深度研究 Redis 分布式锁的实现原理",
+    "expectedAgentType": "deep",
+    "expectedExecutionMode": "Plan-Execute"
+  },
+  {
+    "taskId": "search-01",
+    "question": "搜索今天 AI 领域有什么新闻",
+    "expectedAgentType": "search",
+    "expectedExecutionMode": "ReAct"
+  },
+  {
+    "taskId": "file-01",
+    "question": "总结附件里的要点",
+    "attachmentType": "file",
+    "expectedAgentType": "file",
+    "expectedExecutionMode": "ReAct"
+  },
+  {
+    "taskId": "ppt-01",
+    "question": "根据主题生成一份 PPT 大纲",
+    "expectedAgentType": "ppt",
+    "expectedExecutionMode": "PPT Workflow"
+  },
+  {
+    "taskId": "skill-01",
+    "question": "请调用文献解析技能处理这份资料",
+    "expectedAgentType": "skill",
+    "expectedExecutionMode": "Skill Orchestration"
+  },
+  {
+    "taskId": "chat-01",
+    "question": "什么是 RESTful API",
+    "expectedAgentType": "chat",
+    "expectedExecutionMode": "ReAct"
+  },
+  {
+    "taskId": "chat-02",
+    "question": "用三句话介绍 Java 虚拟线程",
+    "expectedAgentType": "chat",
+    "expectedExecutionMode": "ReAct"
+  },
+  {
+    "taskId": "deep-04",
+    "question": "深入研究 Agent 架构：规划、执行与失败重规划机制",
+    "expectedAgentType": "deep",
+    "expectedExecutionMode": "Plan-Execute"
+  },
+  {
+    "taskId": "search-02",
+    "question": "检索 OpenAI 最新模型发布情况",
+    "expectedAgentType": "search",
+    "expectedExecutionMode": "ReAct"
+  },
+  {
+    "taskId": "file-02",
+    "question": "这份 PDF 里的表格数据是什么意思",
+    "attachmentType": "file",
+    "expectedAgentType": "file",
+    "expectedExecutionMode": "ReAct"
+  },
+  {
+    "taskId": "ppt-02",
+    "question": "做一个关于拼团营销的演示文稿",
+    "expectedAgentType": "ppt",
+    "expectedExecutionMode": "PPT Workflow"
+  },
+  {
+    "taskId": "skill-02",
+    "question": "用 skill 帮我跑一遍格式检查",
+    "expectedAgentType": "skill",
+    "expectedExecutionMode": "Skill Orchestration"
+  },
+  {
+    "taskId": "deep-05",
+    "question": "深度分析：读文件、补充资料、写结论报告",
+    "expectedAgentType": "deep",
+    "expectedExecutionMode": "Plan-Execute"
+  }
+]

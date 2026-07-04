@@ -15,3 +15,21 @@ spring:
 agent:
   user-model:
     crypto-secret: ${AGENT_USER_MODEL_CRYPTO_SECRET:}
+  deep:
+    auto-save-memory: ${AGENT_DEEP_AUTO_SAVE_MEMORY:true}
+    require-references-for-facts: ${AGENT_DEEP_REQUIRE_REFERENCES:true}
+    inject-auto-memory: ${AGENT_DEEP_INJECT_AUTO_MEMORY:false}
+    research-keywords:
+      - 论文
+      - 综述
+      - 文献
+      - arxiv
+      - ieee
+      - icassp
+      - globecom
+      - 发展历程
+      - 研究现状
+      - survey
+      - paper
+      - doi
+      - 顶会

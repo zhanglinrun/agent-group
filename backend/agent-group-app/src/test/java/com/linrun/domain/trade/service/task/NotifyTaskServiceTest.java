@@ -127,6 +127,25 @@ class NotifyTaskServiceTest {
     }
 
     @Test
+    void shouldTreatDuplicateSettlementTaskAsIdempotent() {
+        FakeNotifyTaskRepository notifyTaskRepository = new FakeNotifyTaskRepository();
+        NotifyTaskService service = new NotifyTaskService(
+                notifyTaskRepository,
+                new DynamicConfigService(new FakeDynamicConfigRepository()),
+                TradeEventPublisher.noop(),
+                new ObjectMapper());
+        GroupBuyTeam team = new GroupBuyTeam();
+        team.setTeamId("T10005");
+        team.setActivityId("A10005");
+
+        service.createGroupSettlementTask(team, List.of("O50001"));
+        service.createGroupSettlementTask(team, List.of("O50002"));
+
+        assertEquals(1, notifyTaskRepository.tasks.size());
+        assertEquals("T10005_trade_settlement", notifyTaskRepository.tasks.get(0).getUuid());
+    }
+
+    @Test
     void shouldRetrySpecifiedErrorNotifyTaskByUuid() {
         FakeNotifyTaskRepository notifyTaskRepository = new FakeNotifyTaskRepository();
         NotifyTask task = new NotifyTask();

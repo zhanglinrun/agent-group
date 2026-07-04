@@ -78,6 +78,8 @@ public class UserAgentMemoryController {
         response.setMemoryType(memory.getMemoryType());
         response.setContent(memory.getContent());
         response.setEnabled(Boolean.TRUE.equals(memory.getEnabled()));
+        response.setSource(memory.getSource());
+        response.setScope(memory.getScope());
         response.setUpdateTime(memory.getUpdateTime());
         return response;
     }

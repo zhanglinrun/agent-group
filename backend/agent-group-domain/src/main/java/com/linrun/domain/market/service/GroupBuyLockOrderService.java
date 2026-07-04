@@ -3,6 +3,7 @@ package com.linrun.domain.market.service;
 import com.linrun.api.dto.LockGroupBuyOrderRequest;
 import com.linrun.api.dto.LockGroupBuyOrderResponse;
 import com.linrun.api.dto.CreatePaymentResponse;
+import com.linrun.domain.market.adapter.GroupBuyActivityStockPort;
 import com.linrun.domain.market.adapter.repository.GroupBuyActivityRepository;
 import com.linrun.domain.market.adapter.repository.GroupBuyOrderLockRepository;
 import com.linrun.domain.market.adapter.repository.GroupBuyStockRepository;
@@ -58,6 +59,7 @@ public class GroupBuyLockOrderService extends AbstractTradeOrderService {
     private final AgentObservabilityMetrics metrics;
     private final GroupBuyLockRuleChain groupBuyLockRuleChain;
     private final GroupBuyPriceCalculator groupBuyPriceCalculator;
+    private final GroupBuyActivityStockPort activityStockPort;
 
     @Autowired
     public GroupBuyLockOrderService(QuotaProductRepository quotaProductRepository,
@@ -72,7 +74,8 @@ public class GroupBuyLockOrderService extends AbstractTradeOrderService {
                                     AgentObservabilityMetrics metrics,
                                     PaymentService paymentService,
                                     GroupBuyLockRuleChain groupBuyLockRuleChain,
-                                    GroupBuyPriceCalculator groupBuyPriceCalculator) {
+                                    GroupBuyPriceCalculator groupBuyPriceCalculator,
+                                    @Autowired(required = false) GroupBuyActivityStockPort activityStockPort) {
         super(paymentService);
         this.quotaProductRepository = quotaProductRepository;
         this.groupBuyActivityRepository = groupBuyActivityRepository;
@@ -86,11 +89,12 @@ public class GroupBuyLockOrderService extends AbstractTradeOrderService {
         this.metrics = metrics == null ? AgentObservabilityMetrics.noop() : metrics;
         this.groupBuyLockRuleChain = groupBuyLockRuleChain;
         this.groupBuyPriceCalculator = groupBuyPriceCalculator;
+        this.activityStockPort = activityStockPort == null ? GroupBuyActivityStockPort.noop() : activityStockPort;
     }
 
     @Transactional(rollbackFor = Exception.class)
     @DistributedLock(key = "'group-buy:lock:' + #p0.userId + ':' + #p0.activityId + ':' + #p0.idempotentKey",
-            waitTime = 1L, leaseTime = 30L)
+            waitTime = 3L, leaseTime = 30L)
     public LockGroupBuyOrderResponse lock(LockGroupBuyOrderRequest request) {
         long startNanos = System.nanoTime();
         try {
@@ -148,17 +152,22 @@ public class GroupBuyLockOrderService extends AbstractTradeOrderService {
         orderLock.setOrderId(tradePayOrder.getTradeOrder().getOrderId());
 
         if (!StringUtils.hasText(request.getTeamId())) {
-            groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
-                    tradePayOrder.getTradeOrder().getOrderId(), teamId);
-            GroupBuyTeam team = GroupBuyTeam.create(teamId, activity, now);
-            GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockNewTeam(team, orderLock);
-            tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
-            recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
-            CreatePaymentResponse payment = createGatewayPayment(
-                    tradePayOrder.getTradeOrder(),
-                    tradePayOrder.getPayOrder(),
-                    resolvePayChannel(request));
-            return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
+            String orderId = tradePayOrder.getTradeOrder().getOrderId();
+            try {
+                lockActivityStock(activity, orderId, teamId);
+                GroupBuyTeam team = GroupBuyTeam.create(teamId, activity, now);
+                GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockNewTeam(team, orderLock);
+                tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
+                recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
+                CreatePaymentResponse payment = createGatewayPayment(
+                        tradePayOrder.getTradeOrder(),
+                        tradePayOrder.getPayOrder(),
+                        resolvePayChannel(request));
+                return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
+            } catch (RuntimeException e) {
+                activityStockPort.release(activity.getActivityId(), orderId);
+                throw e;
+            }
         }
 
         GroupBuyTeam team = lockContext.getTeam();
@@ -166,8 +175,7 @@ public class GroupBuyLockOrderService extends AbstractTradeOrderService {
             throw new AppException("GROUP_0003", "拼团队伍不存在");
         }
         try {
-            groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(),
-                    tradePayOrder.getTradeOrder().getOrderId(), teamId);
+            lockActivityStock(activity, tradePayOrder.getTradeOrder().getOrderId(), teamId);
             GroupBuyLockResult lockResult = groupBuyOrderLockRepository.lockExistingTeam(orderLock);
             tradeOrderRepository.save(tradePayOrder.getTradeOrder(), tradePayOrder.getPayOrder());
             recordLockFlow(lockResult.getOrderLock(), tradePayOrder);
@@ -177,10 +185,26 @@ public class GroupBuyLockOrderService extends AbstractTradeOrderService {
                     resolvePayChannel(request));
             return toResponse(lockResult, tradePayOrder, request.getDecisionId(), payment);
         } catch (RuntimeException e) {
+            activityStockPort.release(activity.getActivityId(), orderLock.getOrderId());
             if (lockContext.isTeamStockOccupied()) {
                 groupBuyTeamStockRepository.recoverTeamStock(
                         activity.getActivityId(), teamId, orderLock.getOrderId(), team.getValidEndTime());
             }
+            throw e;
+        }
+    }
+
+    private void lockActivityStock(GroupBuyActivity activity, String orderId, String teamId) {
+        int available = groupBuyStockRepository.queryByActivityId(activity.getActivityId())
+                .map(stock -> stock.getAvailableStock() == null ? 0 : stock.getAvailableStock())
+                .orElse(0);
+        if (!activityStockPort.tryReserve(activity.getActivityId(), orderId, available)) {
+            throw new AppException("GROUP_0012", "拼团库存不足");
+        }
+        try {
+            groupBuyStockRepository.lockStock(activity.getActivityId(), activity.getGoodsId(), orderId, teamId);
+        } catch (RuntimeException e) {
+            activityStockPort.release(activity.getActivityId(), orderId);
             throw e;
         }
     }

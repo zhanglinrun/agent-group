@@ -18,6 +18,7 @@ import com.linrun.trigger.agent.agent.skills.manual.SkillManager;
 import com.linrun.trigger.agent.agent.skills.manual.model.SkillMetadata;
 import com.linrun.trigger.agent.agent.websearch.WebSearchReactAgent;
 import com.linrun.trigger.agent.checkpoint.AgentCheckpointStore;
+import com.linrun.trigger.config.AgentDeepRuntimeProperties;
 import com.linrun.trigger.agent.context.ContextPolicy;
 import com.linrun.trigger.agent.context.AgentTokenUsageRecorder;
 import com.linrun.trigger.agent.context.UsageRecordingChatModel;
@@ -124,14 +125,12 @@ public class AgentNativeService {
     private final ObjectProvider<FileStoragePort> fileStoragePortProvider;
     private final ObjectProvider<AgentExecutionLedgerService> agentExecutionLedgerServiceProvider;
     private final ObjectProvider<UserAgentMemoryService> userAgentMemoryServiceProvider;
+    private final AgentDeepRuntimeProperties deepRuntimeProperties;
 
     @Value("${spring.ai.openai.chat.options.model:qwen3.7-plus}")
     private String defaultChatModel;
 
-    @Value("${agent.runtime.deep.graph.enabled:true}")
-    private boolean deepGraphRuntimeEnabled;
-
-    public AgentNativeService(ObjectProvider<ChatModel> chatModelProvider,
+    public AgentNativeService(@Qualifier("openAiChatModel") ObjectProvider<ChatModel> chatModelProvider,
                                   AiSessionService sessionService,
                                   AgentTaskManager taskManager,
                                   FileContentService fileContentService,
@@ -159,7 +158,8 @@ public class AgentNativeService {
                                   ObjectProvider<ImageGenerationService> imageGenerationServiceProvider,
                                   ObjectProvider<FileStoragePort> fileStoragePortProvider,
                                   ObjectProvider<AgentExecutionLedgerService> agentExecutionLedgerServiceProvider,
-                                  ObjectProvider<UserAgentMemoryService> userAgentMemoryServiceProvider) {
+                                  ObjectProvider<UserAgentMemoryService> userAgentMemoryServiceProvider,
+                                  AgentDeepRuntimeProperties deepRuntimeProperties) {
         this.chatModelProvider = chatModelProvider;
         this.sessionService = sessionService;
         this.taskManager = taskManager;
@@ -187,6 +187,7 @@ public class AgentNativeService {
         this.fileStoragePortProvider = fileStoragePortProvider;
         this.agentExecutionLedgerServiceProvider = agentExecutionLedgerServiceProvider;
         this.userAgentMemoryServiceProvider = userAgentMemoryServiceProvider;
+        this.deepRuntimeProperties = deepRuntimeProperties;
     }
 
     public Flux<String> stream(String token,
@@ -427,9 +428,9 @@ public class AgentNativeService {
                 .sessionService(sessionService)
                 .taskManager(taskManager)
                 .maxRounds(3)
-                .graphRuntimeEnabled(deepGraphRuntimeEnabled)
                 .skillRegistry(skillManager == null ? null : new ManualSkillRegistry(skillManager))
                 .memoryService(deepMemoryService())
+                .deepRuntimeProperties(deepRuntimeProperties)
                 .build();
     }
 
@@ -442,7 +443,7 @@ public class AgentNativeService {
                 : userAgentMemoryServiceProvider.getIfAvailable();
         return ledgerService == null && userMemoryService == null
                 ? null
-                : new LedgerAgentMemoryService(ledgerService, userMemoryService);
+                : new LedgerAgentMemoryService(ledgerService, userMemoryService, deepRuntimeProperties);
     }
 
     private SkillsReactAgent initSkillsReactAgent(String userId, String conversationId, ChatModel chatModel,

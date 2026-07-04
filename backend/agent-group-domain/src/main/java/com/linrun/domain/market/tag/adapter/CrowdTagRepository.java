@@ -31,19 +31,8 @@ public interface CrowdTagRepository {
     void updateCrowdTagStatistics(String tagId, int statistics);
 
     void updateJobStatus(String tagId, String batchId, int status);
+
+    default Optional<Long> queryUserNumericId(String userId) {
+        return Optional.empty();
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -4,6 +4,7 @@ import com.linrun.domain.trade.adapter.repository.NotifyTaskRepository;
 import com.linrun.domain.trade.model.notify.NotifyTask;
 import com.linrun.infrastructure.trade.converter.TradePOConverter;
 import com.linrun.infrastructure.dao.INotifyTaskDao;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -21,6 +22,16 @@ public class MyBatisNotifyTaskRepository implements NotifyTaskRepository {
     @Override
     public void save(NotifyTask notifyTask) {
         notifyTaskDao.insert(TradePOConverter.toPO(notifyTask));
+    }
+
+    @Override
+    public boolean saveIfAbsent(NotifyTask notifyTask) {
+        try {
+            notifyTaskDao.insert(TradePOConverter.toPO(notifyTask));
+            return true;
+        } catch (DuplicateKeyException duplicateKeyException) {
+            return false;
+        }
     }
 
     @Override

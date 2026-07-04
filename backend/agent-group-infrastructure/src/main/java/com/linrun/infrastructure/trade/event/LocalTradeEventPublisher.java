@@ -17,10 +17,9 @@ public class LocalTradeEventPublisher implements TradeEventPublisher {
      * 本地回退发布器：仅记录事件日志，不做任何业务处理。
      * <p>
      * 设计说明：额度发放与退款回滚的权威链路是 {@code PaymentCompletionService.complete} 的同步
-     * webhook 事务（支付成功 → 拼团结算 → 发额度），以及 XXL-JOB 主动查单补偿。
-     * 这条链路不依赖事件消费方。{@code TradeEventOutbox} 本地消息表在这里用于持久化事件、
-     * 由 XXL-JOB Outbox 派发任务推进状态机（INIT→SUCCESS），其 SUCCESS 仅表示事件
-     * 已发布/记录，不代表下游业务已执行。如需通过事件异步触发发额度或退款回滚，应在
+     * webhook 事务（支付成功 → 拼团结算）及事务提交后的发额任务，以及 XXL-JOB 主动查单补偿。
+     * 交易事件在流水落库后通过 {@code TradeEventPublisher.publish} 事务提交后直发 MQ；
+     * 如需通过事件异步触发发额度或退款回滚，应在
      * {@code RabbitTradeEventListener}（rabbit.enabled=true 时启用）里按 eventType 补充分发逻辑。
      */
     @Override

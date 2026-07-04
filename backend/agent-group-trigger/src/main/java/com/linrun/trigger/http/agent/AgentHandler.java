@@ -1,5 +1,6 @@
 package com.linrun.trigger.http.agent;
 
+import com.linrun.domain.support.trace.TraceContext;
 import com.linrun.trigger.agent.entity.AiSession;
 import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.entity.record.pptx.AiPptInst;
@@ -22,6 +23,7 @@ import com.linrun.domain.agent.ledger.service.AgentExecutionLedgerService;
 import com.linrun.domain.agent.ledger.service.AgentLedgerContext;
 import com.linrun.domain.agent.memory.model.UserAgentMemory;
 import com.linrun.domain.agent.memory.service.UserAgentMemoryService;
+import com.linrun.trigger.config.AgentDeepRuntimeProperties;
 import com.linrun.domain.agent.workspace.service.AgentWorkspaceService;
 import com.linrun.domain.agent.runtime.agent.AgentFlowProjector;
 import com.linrun.domain.agent.runtime.agent.AgentFlowStage;
@@ -52,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -67,6 +70,7 @@ public class AgentHandler {
     private final AgentExecutionLedgerService agentExecutionLedgerService;
     private final AgentWorkspaceService agentWorkspaceService;
     private final UserAgentMemoryService userAgentMemoryService;
+    private final AgentDeepRuntimeProperties deepRuntimeProperties;
     private final ObjectMapper objectMapper;
     private final AgentJsonCodec jsonCodec;
     private final AgentDiagnosisService diagnosisService;
@@ -86,6 +90,7 @@ public class AgentHandler {
                                     AgentExecutionLedgerService agentExecutionLedgerService,
                                     AgentWorkspaceService agentWorkspaceService,
                                     UserAgentMemoryService userAgentMemoryService,
+                                    AgentDeepRuntimeProperties deepRuntimeProperties,
                                     ObjectMapper objectMapper,
                                     AgentJsonCodec jsonCodec,
                                     AgentDiagnosisService diagnosisService) {
@@ -99,6 +104,7 @@ public class AgentHandler {
         this.agentExecutionLedgerService = agentExecutionLedgerService;
         this.agentWorkspaceService = agentWorkspaceService;
         this.userAgentMemoryService = userAgentMemoryService;
+        this.deepRuntimeProperties = deepRuntimeProperties;
         this.objectMapper = objectMapper;
         this.jsonCodec = jsonCodec;
         this.diagnosisService = diagnosisService;
@@ -132,6 +138,10 @@ public class AgentHandler {
                                                      String sessionId,
                                                      String requestId) {
         return Flux.defer(() -> {
+            TraceContext.startTrace(StringUtils.hasText(requestId) ? requestId : UUID.randomUUID().toString().replace("-", ""));
+            if (StringUtils.hasText(sessionId)) {
+                TraceContext.addTag("sessionId", sessionId);
+            }
             UserAccount user = userAccountService.requireUserByToken(token);
             AgentStreamRequest safeRequest = request == null ? new AgentStreamRequest() : request;
             String requestedTaskType = normalizeTaskType(safeRequest.getTaskType());
@@ -180,7 +190,10 @@ public class AgentHandler {
                                     user, sessionId, requestId, sequence, executionAgentType, startedAt, runState)))))
                     .onErrorResume(error -> Flux.fromIterable(errorEvents(
                             sessionId, requestId, sequence, error, customModelConfigured, runState)))
-                    .doFinally(signalType -> AgentLedgerContext.clear());
+                    .doFinally(signalType -> {
+                        AgentLedgerContext.clear();
+                        TraceContext.clear();
+                    });
         });
     }
 
@@ -364,6 +377,7 @@ public class AgentHandler {
                 case "reflection" -> reflectionEvents(node, sessionId, requestId, sequence, runState);
                 case "memory_loaded", "context_loaded", "skill_loaded", "capability_loaded" ->
                         capabilityRuntimeEvents(node, sessionId, requestId, sequence, runState);
+                case "citation_validation" -> citationValidationEvents(node, sessionId, requestId, sequence);
                 case "capability_called" -> capabilityCalledEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_start" -> toolStartEvents(node, sessionId, requestId, sequence, runState);
                 case "tool_end" -> toolEndEvents(node, sessionId, requestId, sequence, runState);
@@ -436,6 +450,15 @@ public class AgentHandler {
             runState.capabilityCount = intValue(capability.get("capabilityCount"), runState.capabilityCount);
         }
         return List.of(event(type, sessionId, requestId, sequence, data));
+    }
+
+    private List<QuotaStreamEvent<?>> citationValidationEvents(JsonNode node,
+                                                              String sessionId,
+                                                              String requestId,
+                                                              AtomicInteger sequence) {
+        Map<String, Object> data = parseObject(node.toString());
+        data.put("source", "citation_evidence_validator");
+        return List.of(event("citation_validation", sessionId, requestId, sequence, data));
     }
 
     private List<QuotaStreamEvent<?>> capabilityCalledEvents(JsonNode node,
@@ -846,6 +869,9 @@ public class AgentHandler {
                                                             String requestId,
                                                             AtomicInteger sequence,
                                                             RunState runState) {
+        if (deepRuntimeProperties == null || !deepRuntimeProperties.isAutoSaveMemory()) {
+            return List.of();
+        }
         List<Map<String, Object>> saved = new ArrayList<>();
         for (MemoryCandidate candidate : memoryCandidates(runState)) {
             try {
@@ -896,11 +922,11 @@ public class AgentHandler {
     }
 
     private String inferOutputStyle(String question, String answer) {
-        String text = (question + "\n" + answer).toLowerCase();
+        String text = nullToBlank(question).toLowerCase();
         if (hasAny(text, "秋招", "面试", "简历", "项目亮点")) {
             return "偏好秋招面试表达：先讲项目价值，再讲架构、取舍、异常处理和可观测证据。";
         }
-        if (hasAny(text, "报告", "方案", "总结", "分析")) {
+        if (hasAny(text, "结构化报告", "结构化输出", "报告格式", "请用报告", "写成报告")) {
             return "偏好结构化报告输出：先结论，再分点说明依据、风险和下一步。";
         }
         if (hasAny(text, "ppt", "演示文稿", "幻灯片")) {
@@ -910,13 +936,6 @@ public class AgentHandler {
     }
 
     private String inferBusinessContext(String question, String answer) {
-        String text = question + "\n" + answer;
-        if (hasAny(text.toLowerCase(), "agent", "智能体", "多模式", "deep", "a2a")) {
-            return "业务背景：用户正在建设多模式 Agent 工作台，关注 deep 任务执行、能力调用、产物沉淀和记忆成长。";
-        }
-        if (hasAny(text.toLowerCase(), "拼团", "交易", "额度", "支付", "订单")) {
-            return "业务背景：用户项目包含拼团式额度交易平台，关注订单、支付、额度和状态一致性。";
-        }
         return "";
     }
 
@@ -1021,6 +1040,7 @@ public class AgentHandler {
     private Map<String, Object> plan(RunState runState) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("runId", runState.run.getRunId());
+        data.put("planSource", "template");
         AgentPlan executionPlan = runState.executionPlan;
         data.put("title", executionPlan.getTitle());
         data.put("steps", executionPlan.getSteps().stream()

@@ -73,6 +73,14 @@
         limit 1
     </select>
 
+    <select id="queryAccountForUpdate" resultMap="UserQuotaAccountMap">
+        select user_id, quota_balance, frozen_quota, used_quota, create_time, update_time
+        from user_quota_account
+        where user_id = #{userId}
+        limit 1
+        for update
+    </select>
+
     <update id="increaseQuota">
         update user_quota_account
         set quota_balance = quota_balance + #{amount},

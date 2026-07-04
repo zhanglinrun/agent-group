@@ -16,15 +16,20 @@ import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.valobj.TradeBuyTypeEnumVO;
 import com.linrun.domain.trade.model.valobj.TradeOrderStatusEnumVO;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -66,11 +71,14 @@ class UserQuotaServiceTest {
     @Test
     void modelConfigSeparatesTextAndImageModels() {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
+        UserModelCredentialService credentialService = new UserModelCredentialService();
+        ReflectionTestUtils.setField(credentialService, "modelConfigCryptoSecret", "test-model-config-secret");
         UserQuotaService service = new UserQuotaService(
                 quotaRepository,
                 mock(QuotaProductRepository.class),
-                mock(TradeOrderRepository.class));
-        ReflectionTestUtils.setField(service, "modelConfigCryptoSecret", "test-model-config-secret");
+                mock(TradeOrderRepository.class),
+                null,
+                credentialService);
 
         UserModelConfigRequest request = new UserModelConfigRequest();
         request.setEnabled(true);
@@ -224,6 +232,39 @@ class UserQuotaServiceTest {
     }
 
     @Test
+    void concurrentGrantForSameOrderIssuesQuotaOnce() throws InterruptedException {
+        InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
+        UserQuotaService service = serviceWithProduct(quotaRepository, quotaProduct("G1001", new BigDecimal("20.00")));
+        TradeOrderEntity order = order("O90001", TradeBuyTypeEnumVO.DIRECT, TradeOrderStatusEnumVO.PAY_SUCCESS);
+
+        int threads = 12;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch start = new CountDownLatch(1);
+
+        for (int i = 0; i < threads; i++) {
+            pool.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await(5, TimeUnit.SECONDS);
+                    service.grantQuotaForPaidOrder(order);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+
+        assertTrue(ready.await(5, TimeUnit.SECONDS));
+        start.countDown();
+        pool.shutdown();
+        assertTrue(pool.awaitTermination(10, TimeUnit.SECONDS));
+
+        assertEquals(1, quotaRepository.flows.size());
+        assertEquals(new BigDecimal("20.00"), quotaRepository.balance);
+        assertEquals(TradeOrderStatusEnumVO.DEAL_DONE, order.getOrderStatus());
+    }
+
+    @Test
     void refundedMembershipOrderRevokesMembershipAndIsIdempotent() {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.ZERO);
         UserQuotaService service = serviceWithProduct(quotaRepository,
@@ -299,7 +340,7 @@ class UserQuotaServiceTest {
         private UserModelConfig modelConfig;
         private final List<UserQuotaFlow> flows = new ArrayList<>();
         private final List<ModelUsageRecord> usages = new ArrayList<>();
-        private final Set<String> flowKeys = new HashSet<>();
+        private final Set<String> flowKeys = ConcurrentHashMap.newKeySet();
 
         private InMemoryQuotaRepository(BigDecimal balance) {
             this.balance = balance;
@@ -320,8 +361,10 @@ class UserQuotaServiceTest {
 
         @Override
         public int increaseQuota(String userId, BigDecimal amount) {
-            balance = balance.add(amount);
-            return 1;
+            synchronized (this) {
+                balance = balance.add(amount);
+                return 1;
+            }
         }
 
         @Override
@@ -344,10 +387,13 @@ class UserQuotaServiceTest {
         @Override
         public void saveFlow(UserQuotaFlow flow) {
             String key = flow.getUserId() + "-" + flow.getFlowType() + "-" + flow.getBizId();
-            if (!flowKeys.add(key)) {
-                throw new IllegalStateException("Duplicate entry '" + key + "' for key 'user_quota_flow.uk_user_biz_flow'");
+            synchronized (flowKeys) {
+                if (!flowKeys.add(key)) {
+                    throw new DuplicateKeyException(
+                            "Duplicate entry '" + key + "' for key 'user_quota_flow.uk_user_biz_flow'");
+                }
+                flows.add(flow);
             }
-            flows.add(flow);
         }
 
         @Override

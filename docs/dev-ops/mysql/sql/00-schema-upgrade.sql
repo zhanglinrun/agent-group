@@ -40,6 +40,8 @@ create table if not exists user_agent_memory (
   user_id varchar(64) not null comment 'user id',
   memory_type varchar(32) not null comment 'memory type',
   content varchar(2048) not null comment 'memory content',
+  source varchar(16) not null default 'manual' comment 'memory source',
+  scope varchar(32) not null default 'global' comment 'memory scope',
   enabled tinyint not null default 1 comment 'enabled',
   create_time datetime not null default current_timestamp comment 'create time',
   update_time datetime not null default current_timestamp on update current_timestamp comment 'update time',
@@ -1158,6 +1160,33 @@ set @sql = (
   where table_schema = database()
     and table_name = 'group_buy_discount'
     and column_name = 'enabled'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+-- user_agent_memory 增加 source/scope，区分手动与自动沉淀。
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_agent_memory add column source varchar(16) not null default ''manual'' comment ''memory source'' after content',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_agent_memory'
+    and column_name = 'source'
+);
+prepare stmt from @sql;
+execute stmt;
+deallocate prepare stmt;
+
+set @sql = (
+  select if(count(*) = 0,
+    'alter table user_agent_memory add column scope varchar(32) not null default ''global'' comment ''memory scope'' after source',
+    'select 1')
+  from information_schema.columns
+  where table_schema = database()
+    and table_name = 'user_agent_memory'
+    and column_name = 'scope'
 );
 prepare stmt from @sql;
 execute stmt;

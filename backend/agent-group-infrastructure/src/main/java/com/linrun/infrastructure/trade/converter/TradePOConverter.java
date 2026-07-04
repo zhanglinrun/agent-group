@@ -3,7 +3,6 @@ package com.linrun.infrastructure.trade.converter;
 import com.linrun.domain.trade.model.entity.PayOrderEntity;
 import com.linrun.domain.trade.model.entity.RefundOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeEventConsumeRecordEntity;
-import com.linrun.domain.trade.model.entity.TradeEventOutboxEntity;
 import com.linrun.domain.trade.model.entity.TradeOrderEntity;
 import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
 import com.linrun.domain.trade.model.notify.NotifyTask;
@@ -15,7 +14,6 @@ import com.linrun.infrastructure.po.NotifyTaskPO;
 import com.linrun.infrastructure.po.PayOrderPO;
 import com.linrun.infrastructure.po.RefundOrderPO;
 import com.linrun.infrastructure.po.TradeEventConsumeRecordPO;
-import com.linrun.infrastructure.po.TradeEventOutboxPO;
 import com.linrun.infrastructure.po.TradeOrderPO;
 import com.linrun.infrastructure.po.TradeStatusFlowPO;
 import org.springframework.beans.BeanUtils;
@@ -122,31 +120,6 @@ public final class TradePOConverter {
     }
 
     public static List<TradeStatusFlowEntity> toTradeStatusFlowEntities(List<TradeStatusFlowPO> poList) {
-        if (poList == null || poList.isEmpty()) {
-            return List.of();
-        }
-        return poList.stream().map(TradePOConverter::toEntity).toList();
-    }
-
-    public static TradeEventOutboxPO toPO(TradeEventOutboxEntity entity) {
-        if (entity == null) {
-            return null;
-        }
-        TradeEventOutboxPO po = new TradeEventOutboxPO();
-        BeanUtils.copyProperties(entity, po);
-        return po;
-    }
-
-    public static TradeEventOutboxEntity toEntity(TradeEventOutboxPO po) {
-        if (po == null) {
-            return null;
-        }
-        TradeEventOutboxEntity entity = new TradeEventOutboxEntity();
-        BeanUtils.copyProperties(po, entity);
-        return entity;
-    }
-
-    public static List<TradeEventOutboxEntity> toTradeEventOutboxEntities(List<TradeEventOutboxPO> poList) {
         if (poList == null || poList.isEmpty()) {
             return List.of();
         }

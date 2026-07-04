@@ -87,6 +87,12 @@ public class RabbitTradeEventListener {
                 .orElse(record);
         current.setLastError("dead letter");
         if (tradeEventConsumeRecordRepository.updateStatusDeadLetter(current) == 1) {
+            LOGGER.error("ALERT trade_event_dead_letter eventId={} routingKey={} eventType={} orderId={} bizId={}",
+                    current.getEventId(),
+                    current.getRoutingKey(),
+                    current.getEventType(),
+                    current.getOrderId(),
+                    current.getBizId());
             LOGGER.warn("trade event moved to dead letter queue, eventId={}, routingKey={}, eventType={}, orderId={}, bizId={}",
                     current.getEventId(),
                     current.getRoutingKey(),

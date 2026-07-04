@@ -406,7 +406,7 @@ export async function uploadAgentFile(file, sessionId = getSessionId()) {
   const formData = new FormData();
   formData.append("file", file);
   if (sessionId) formData.append("sessionId", sessionId);
-  return request("/api/v1/agent/files/upload", {
+  return request("/api/v1/agent/file/upload", {
     userAuth: true,
     method: "POST",
     body: formData
@@ -1201,6 +1201,43 @@ export async function queryQuotaPackages(keyword = "", limit = 20) {
   if (keyword) params.set("keyword", keyword);
   params.set("limit", String(limit));
   return request(`/api/v1/quota/packages?${params.toString()}`, {
+    method: "GET"
+  });
+}
+
+export async function queryOrderStatusFlow(orderId) {
+  return request(`/api/v1/trade/order/status-flow?orderId=${encodeURIComponent(orderId)}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function listTradeEventDeadLetters(limit = 50) {
+  return request(`/api/v1/trade/admin/events/dead-letters?limit=${encodeURIComponent(limit)}`, {
+    auth: true,
+    method: "GET"
+  });
+}
+
+export async function replayTradeEventDeadLetter(eventId) {
+  return request(`/api/v1/trade/admin/events/dead-letters/${encodeURIComponent(eventId)}/replay`, {
+    auth: true,
+    method: "POST"
+  });
+}
+
+export async function grantQuotaByOrders(orderIds = []) {
+  return request("/api/v1/quota/admin/grant-by-orders", {
+    auth: true,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderIds: Array.isArray(orderIds) ? orderIds : [] })
+  });
+}
+
+export async function queryPaymentGatewayStatus() {
+  return request("/api/v1/trade/payment/gateway/status", {
+    auth: true,
     method: "GET"
   });
 }

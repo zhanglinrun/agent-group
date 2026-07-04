@@ -6,8 +6,26 @@ const MEMORY_TYPE_LABELS = {
   preference: "偏好"
 };
 
+const MEMORY_SOURCE_LABELS = {
+  manual: "手动",
+  auto: "自动"
+};
+
+const MEMORY_SCOPE_LABELS = {
+  global: "全局",
+  project_dev: "项目开发"
+};
+
 function memoryTypeLabel(memoryType) {
   return MEMORY_TYPE_LABELS[memoryType] || memoryType || "记忆";
+}
+
+function memorySourceLabel(source) {
+  return MEMORY_SOURCE_LABELS[source] || source || "";
+}
+
+function memoryScopeLabel(scope) {
+  return MEMORY_SCOPE_LABELS[scope] || scope || "";
 }
 
 export function UserMemoryPanel({
@@ -62,7 +80,15 @@ export function UserMemoryPanel({
           {items.map((memory) => (
             <article className={memory.enabled === false ? "user-memory-item disabled" : "user-memory-item"} key={memory.memoryType}>
               <div>
-                <strong>{memoryTypeLabel(memory.memoryType)}</strong>
+                <div className="user-memory-title-row">
+                  <strong>{memoryTypeLabel(memory.memoryType)}</strong>
+                  {(memory.source || memory.scope) && (
+                    <div className="user-memory-meta">
+                      {memory.source && <span className="user-memory-tag">{memorySourceLabel(memory.source)}</span>}
+                      {memory.scope && <span className="user-memory-tag">{memoryScopeLabel(memory.scope)}</span>}
+                    </div>
+                  )}
+                </div>
                 <p>{memory.content}</p>
               </div>
               <div className="user-memory-actions">

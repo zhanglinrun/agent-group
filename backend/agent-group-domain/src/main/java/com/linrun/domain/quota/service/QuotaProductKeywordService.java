@@ -71,7 +71,7 @@ public class QuotaProductKeywordService {
             "幂等",
             "防重放",
             "补偿",
-            "outbox",
+            "补偿",
             "不能保证",
             "成团结算"
     );

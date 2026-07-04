@@ -26,6 +26,18 @@ public interface TradeOrderRepository {
 
     void updateRefunded(TradeOrderEntity tradeOrder, PayOrderEntity payOrder);
 
+    default void updateWaitRefund(TradeOrderEntity tradeOrder) {
+        if (tradeOrder != null) {
+            tradeOrder.markWaitRefund();
+        }
+    }
+
+    default void updateRefundOrderSuccess(RefundOrderEntity refundOrder) {
+        if (refundOrder != null) {
+            refundOrder.markSuccess(java.time.LocalDateTime.now());
+        }
+    }
+
     default void updateDealDone(TradeOrderEntity tradeOrder) {
     }
 

@@ -85,6 +85,10 @@ public class TradeOrderService {
         payOrder.refund();
     }
 
+    public void markWaitRefund(TradeOrderEntity order) {
+        order.markWaitRefund();
+    }
+
     private void validateCreateCommand(CreateTradeOrderCommandEntity command) {
         if (command == null) {
             throw new AppException("0001", "订单参数不能为空");

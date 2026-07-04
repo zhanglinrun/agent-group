@@ -68,10 +68,21 @@ public class AgentModeSelector {
     }
 
     private boolean isSkillInvocation(String question) {
+        if (question == null || question.isBlank()) {
+            return false;
+        }
         String lower = question.toLowerCase(Locale.ROOT);
-        return lower.contains("skill")
-                || question.contains("技能")
-                || question.contains("调用");
+        if (question.contains("调用") && question.contains("技能")) {
+            return true;
+        }
+        return lower.contains("调用技能")
+                || lower.contains("调用 skill")
+                || lower.contains("invoke skill")
+                || lower.contains("run skill")
+                || lower.contains("use skill")
+                || lower.contains("技能编排")
+                || lower.contains("skill orchestration")
+                || lower.matches(".*\\bskill\\b.*");
     }
 
     private ModeSelectionResult selectByExplicitMode(String mode, 

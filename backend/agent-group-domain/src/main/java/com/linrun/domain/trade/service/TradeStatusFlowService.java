@@ -1,15 +1,16 @@
 package com.linrun.domain.trade.service;
 
 import com.linrun.api.dto.TradeStatusFlowDTO;
-import com.linrun.domain.trade.adapter.repository.TradeEventOutboxRepository;
+import com.linrun.domain.trade.adapter.repository.TradeEventPublisher;
 import com.linrun.domain.trade.adapter.repository.TradeStatusFlowRepository;
 import com.linrun.domain.trade.model.entity.TradeEventMessageEntity;
-import com.linrun.domain.trade.model.entity.TradeEventOutboxEntity;
 import com.linrun.domain.trade.model.entity.TradeStatusFlowEntity;
 import com.linrun.types.exception.AppException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -44,17 +45,17 @@ public class TradeStatusFlowService {
     private static final DateTimeFormatter FLOW_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private final TradeStatusFlowRepository tradeStatusFlowRepository;
-    private final TradeEventOutboxRepository tradeEventOutboxRepository;
+    private final TradeEventPublisher tradeEventPublisher;
 
     @Autowired
     public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository,
-                                  TradeEventOutboxRepository tradeEventOutboxRepository) {
+                                  TradeEventPublisher tradeEventPublisher) {
         this.tradeStatusFlowRepository = tradeStatusFlowRepository;
-        this.tradeEventOutboxRepository = tradeEventOutboxRepository;
+        this.tradeEventPublisher = tradeEventPublisher == null ? TradeEventPublisher.noop() : tradeEventPublisher;
     }
 
     public TradeStatusFlowService(TradeStatusFlowRepository tradeStatusFlowRepository) {
-        this(tradeStatusFlowRepository, TradeEventOutboxRepository.noop());
+        this(tradeStatusFlowRepository, TradeEventPublisher.noop());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -89,8 +90,7 @@ public class TradeStatusFlowService {
                 remark == null ? "" : remark,
                 LocalDateTime.now());
         tradeStatusFlowRepository.save(flow);
-        TradeEventMessageEntity message = TradeEventMessageEntity.fromFlow(flow);
-        tradeEventOutboxRepository.save(TradeEventOutboxEntity.fromMessage(message));
+        publishEventAfterCommit(TradeEventMessageEntity.fromFlow(flow));
     }
 
     public List<TradeStatusFlowDTO> queryByOrderId(String orderId) {
@@ -100,6 +100,29 @@ public class TradeStatusFlowService {
         return tradeStatusFlowRepository.queryByOrderId(orderId).stream()
                 .map(this::toDTO)
                 .toList();
+    }
+
+    private void publishEventAfterCommit(TradeEventMessageEntity message) {
+        if (message == null) {
+            return;
+        }
+        Runnable publishTask = () -> {
+            try {
+                tradeEventPublisher.publish(message);
+            } catch (Exception ignored) {
+                // best-effort；可靠性由 XXL-JOB 补偿任务兜底
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publishTask.run();
+                }
+            });
+            return;
+        }
+        publishTask.run();
     }
 
     private TradeStatusFlowDTO toDTO(TradeStatusFlowEntity flow) {
@@ -132,18 +155,3 @@ public class TradeStatusFlowService {
         return "F" + timePart + randomPart;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

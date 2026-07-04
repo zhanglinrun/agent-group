@@ -78,6 +78,18 @@ public class MyBatisTradeOrderRepository implements TradeOrderRepository {
     }
 
     @Override
+    public void updateWaitRefund(TradeOrderEntity tradeOrder) {
+        assertUpdated(tradeOrderDao.updateTradeOrderWaitRefund(TradePOConverter.toPO(tradeOrder)),
+                "TRADE_0022", "order status changed before wait refund update");
+    }
+
+    @Override
+    public void updateRefundOrderSuccess(RefundOrderEntity refundOrder) {
+        assertUpdated(tradeOrderDao.updateRefundOrderSuccess(TradePOConverter.toPO(refundOrder)),
+                "TRADE_0022", "refund order status changed before success update");
+    }
+
+    @Override
     public void updateDealDone(TradeOrderEntity tradeOrder) {
         assertUpdated(tradeOrderDao.updateTradeOrderDealDone(TradePOConverter.toPO(tradeOrder)),
                 "TRADE_0023", "order status changed before deal done update");

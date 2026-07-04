@@ -9,19 +9,16 @@ import com.linrun.trigger.agent.entity.record.FileInfo;
 import com.linrun.trigger.agent.service.impl.FileInfoServiceImpl;
 import com.linrun.trigger.agent.splitter.OverlapParagraphTextSplitter;
 import com.linrun.types.exception.AppException;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.model.SimpleApiKey;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
@@ -60,7 +57,9 @@ public class FileManageService {
     @Autowired
     private EmbeddingPort embeddingPort;
 
-    private OpenAiChatModel multimodalChatModel;
+    @Autowired(required = false)
+    @Qualifier("multimodalChatModel")
+    private ChatModel multimodalChatModel;
 
     /**
      * 大文件阈值（字符数）
@@ -71,37 +70,11 @@ public class FileManageService {
     private static final Set<String> BLOCKED_EXTENSION_MARKERS = Set.of(
             ".jsp.", ".php.", ".asp.", ".aspx.", ".js.", ".exe.", ".sh.", ".bat.", ".cmd.");
 
-    @Value("${spring.ai.openai.api-key}")
-    private String apiKey;
-
     @Value("${agent.group.upload.allowed-extensions:md,txt,pdf,docx,png,jpg,jpeg,webp}")
     private String allowedExtensions = "md,txt,pdf,docx,png,jpg,jpeg,webp";
 
     @Value("${agent.group.upload.max-file-size-bytes:10485760}")
     private long maxFileSizeBytes = 10 * 1024 * 1024L;
-
-    /**
-     * 初始化多模态模型（用于图片识别）
-     */
-    @PostConstruct
-    public void init() {
-        try {
-            OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .temperature(0.2d)
-                    .model("qwen3-vl-plus")
-                    .build();
-            multimodalChatModel = OpenAiChatModel.builder()
-                    .openAiApi(OpenAiApi.builder()
-                            .baseUrl("https://dashscope.aliyuncs.com/compatible-mode/")
-                            .apiKey(new SimpleApiKey(apiKey))
-                            .build())
-                    .defaultOptions(options)
-                    .build();
-            log.info("多模态模型初始化成功");
-        } catch (Exception e) {
-            log.warn("多模态模型初始化失败: {}", e.getMessage());
-        }
-    }
 
     /**
      * 上传文件
@@ -218,6 +191,9 @@ public class FileManageService {
      * @return 图片内容的详细描述
      */
     private String image2Text(MultipartFile file) {
+        if (multimodalChatModel == null) {
+            throw new RuntimeException("多模态模型未配置，无法识别图片");
+        }
         try (InputStream inputStream = file.getInputStream()) {
             byte[] imageBytes = IOUtils.toByteArray(inputStream);
 

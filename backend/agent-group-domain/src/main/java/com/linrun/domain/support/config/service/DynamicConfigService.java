@@ -37,6 +37,9 @@ public class DynamicConfigService {
     public static final String AGENT_BILLING_PROMPT_COST_PER_1K = "agentBillingPromptCostPer1k";
     public static final String AGENT_BILLING_COMPLETION_COST_PER_1K = "agentBillingCompletionCostPer1k";
     public static final String AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE = "agentBillingCustomModelServiceRate";
+    public static final String ACCESS_RATE_LIMIT_PREFIX = "accessRateLimit:";
+    public static final String TRADE_COMPENSATION_BATCH_SIZE = "tradeCompensationBatchSize";
+    public static final String QUOTA_QUOTE_TTL_MINUTES = "quotaQuoteTtlMinutes";
 
     private static final Map<String, String> DEFAULTS = Map.ofEntries(
             Map.entry(DOWNGRADE_SWITCH, "0"),
@@ -57,7 +60,9 @@ public class DynamicConfigService {
             Map.entry(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1"),
             Map.entry(AGENT_BILLING_PROMPT_COST_PER_1K, "0.10"),
             Map.entry(AGENT_BILLING_COMPLETION_COST_PER_1K, "0.30"),
-            Map.entry(AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE, "0.10")
+            Map.entry(AGENT_BILLING_CUSTOM_MODEL_SERVICE_RATE, "0.10"),
+            Map.entry(TRADE_COMPENSATION_BATCH_SIZE, "50"),
+            Map.entry(QUOTA_QUOTE_TTL_MINUTES, "15")
     );
 
     private final DynamicConfigRepository dynamicConfigRepository;
@@ -181,6 +186,14 @@ public class DynamicConfigService {
 
     public boolean isKnowledgeContextExpansionOpen() {
         return "1".equals(getValue(KNOWLEDGE_CONTEXT_EXPANSION_SWITCH, "1"));
+    }
+
+    public int tradeCompensationBatchSize() {
+        return Math.max(1, parseInt(getValue(TRADE_COMPENSATION_BATCH_SIZE, "50"), 50));
+    }
+
+    public int quotaQuoteTtlMinutes() {
+        return Math.max(1, parseInt(getValue(QUOTA_QUOTE_TTL_MINUTES, "15"), 15));
     }
 
     private String defaultValue(String key) {

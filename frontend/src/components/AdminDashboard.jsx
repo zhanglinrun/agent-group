@@ -1,11 +1,15 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CreditCard, Boxes, RotateCcw, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, CreditCard, Boxes, RotateCcw, RefreshCw, Sparkles, Tags, Bell } from "lucide-react";
 import AdminSidebar from "./AdminSidebar";
 import AgentConfigManager from "./AgentConfigManager";
 import GroupBuyActivityManager from "./GroupBuyActivityManager";
+import OperationalRulesManager from "./OperationalRulesManager";
+import TradeOpsManager from "./TradeOpsManager";
 import {
+  normalizeApiMessage,
   queryAdminOrderList,
   queryOpsDashboard,
+  queryOrderStatusFlow,
   queryRefundOrderList,
   queryTradeConsistency
 } from "../services/api";
@@ -85,7 +89,22 @@ const MENU_TITLES = {
   skills: "技能 Skills",
   mcp: "MCP 服务",
   order: "交易订单与一致性核查",
-  refund: "售后退款"
+  refund: "售后退款",
+  tradeOps: "交易运维",
+  rules: "运营规则"
+};
+
+const TAG_JOB_STATUS_LABEL = {
+  0: "待执行",
+  1: "执行中",
+  2: "成功",
+  3: "失败"
+};
+
+const NOTIFY_STATUS_LABEL = {
+  0: "待通知",
+  1: "已通知",
+  2: "失败"
 };
 
 export default function AdminDashboard() {
@@ -96,6 +115,9 @@ export default function AdminDashboard() {
   const [tradeAuditItems, setTradeAuditItems] = useState([]);
   const [opsDashboard, setOpsDashboard] = useState({ channels: [], crowdTags: [], stocks: [], notifyTasks: [] });
   const [expandedOrder, setExpandedOrder] = useState(null);
+  const [statusFlowsByOrder, setStatusFlowsByOrder] = useState({});
+  const [statusFlowLoading, setStatusFlowLoading] = useState("");
+  const [statusFlowError, setStatusFlowError] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [authVersion, setAuthVersion] = useState(0);
 
@@ -154,10 +176,37 @@ export default function AdminDashboard() {
 
   const statCards = [
     { label: "渠道配置", value: (opsDashboard.channels || []).length, icon: CreditCard },
+    { label: "人群标签", value: (opsDashboard.crowdTags || []).length, icon: Tags },
     { label: "订单数", value: orders.length, icon: CreditCard },
-    { label: "退款单", value: refunds.length, icon: RotateCcw },
-    { label: "活动数", value: (opsDashboard.activities || []).length, icon: Boxes }
+    { label: "通知任务", value: (opsDashboard.notifyTasks || []).length, icon: Bell }
   ];
+
+  const loadOrderStatusFlow = async (orderId) => {
+    if (!orderId || statusFlowsByOrder[orderId]) return;
+    setStatusFlowLoading(orderId);
+    setStatusFlowError("");
+    try {
+      const res = await queryOrderStatusFlow(orderId);
+      if (res?.code === "0000") {
+        setStatusFlowsByOrder((prev) => ({ ...prev, [orderId]: res.data || [] }));
+      } else {
+        setStatusFlowError(normalizeApiMessage(res, "加载状态流水失败"));
+      }
+    } catch (err) {
+      setStatusFlowError(err?.message || "加载状态流水失败");
+    } finally {
+      setStatusFlowLoading("");
+    }
+  };
+
+  const toggleOrderExpand = async (orderId, hasAudit) => {
+    if (!hasAudit) return;
+    const next = expandedOrder === orderId ? null : orderId;
+    setExpandedOrder(next);
+    if (next) {
+      await loadOrderStatusFlow(orderId);
+    }
+  };
 
   return (
     <div className="admin-shell" data-theme={theme}>
@@ -262,6 +311,47 @@ export default function AdminDashboard() {
                       </table>
                     </div>
                   </div>
+                  <div className="ops-block">
+                    <div className="admin-title-line ops-title"><Tags size={16} /><h4>人群标签</h4></div>
+                    <div className="table-wrap compact">
+                      <table className="admin-table compact">
+                        <thead><tr><th>标签</th><th>覆盖人数</th><th>批任务</th><th>状态</th><th>更新时间</th></tr></thead>
+                        <tbody>
+                          {(opsDashboard.crowdTags || []).map((item) => (
+                            <tr key={item.tagId}>
+                              <td>{item.tagName || item.tagId}</td>
+                              <td>{item.statistics ?? 0}</td>
+                              <td className="mono">{item.latestBatchId || "-"}</td>
+                              <td>{TAG_JOB_STATUS_LABEL[item.latestJobStatus] || item.latestJobStatus || "-"}</td>
+                              <td>{item.updateTime ? String(item.updateTime).replace("T", " ") : "-"}</td>
+                            </tr>
+                          ))}
+                          {(opsDashboard.crowdTags || []).length === 0 && <tr><td colSpan="5" className="empty-cell">暂无人群标签</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="ops-block">
+                    <div className="admin-title-line ops-title"><Bell size={16} /><h4>通知任务</h4></div>
+                    <div className="table-wrap compact">
+                      <table className="admin-table compact">
+                        <thead><tr><th>活动</th><th>队伍</th><th>类别</th><th>次数</th><th>状态</th><th>更新时间</th></tr></thead>
+                        <tbody>
+                          {(opsDashboard.notifyTasks || []).map((item) => (
+                            <tr key={item.uuid || `${item.activityId}-${item.teamId}-${item.notifyCategory}`}>
+                              <td className="mono">{item.activityId || "-"}</td>
+                              <td className="mono">{item.teamId || "-"}</td>
+                              <td>{item.notifyCategory || item.notifyType || "-"}</td>
+                              <td>{item.notifyCount ?? 0}</td>
+                              <td>{NOTIFY_STATUS_LABEL[item.notifyStatus] || item.notifyStatus || "-"}</td>
+                              <td>{item.updateTime ? String(item.updateTime).replace("T", " ") : "-"}</td>
+                            </tr>
+                          ))}
+                          {(opsDashboard.notifyTasks || []).length === 0 && <tr><td colSpan="6" className="empty-cell">暂无通知任务</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -289,7 +379,7 @@ export default function AdminDashboard() {
                         const hasAudit = audits.length > 0;
                         return (
                           <Fragment key={order.id || order.orderId}>
-                            <tr className={hasAudit ? "row-expandable" : ""} onClick={hasAudit ? () => setExpandedOrder(expandedOrder === order.orderId ? null : order.orderId) : undefined}>
+                            <tr className={hasAudit ? "row-expandable" : ""} onClick={hasAudit ? () => toggleOrderExpand(order.orderId, hasAudit) : undefined}>
                               <td className="mono">{order.orderId}</td>
                               <td>{order.productName || order.goodsId || "-"}</td>
                               <td><span className={`badge ${order.marketType === 1 ? "badge-purple" : "badge-gray"}`}>{order.marketType === 1 ? "拼团" : "单独购买"}</span></td>
@@ -298,7 +388,7 @@ export default function AdminDashboard() {
                               <td>{order.orderTime ? order.orderTime.replace("T", " ") : ""}</td>
                               <td>
                                 {hasAudit ? (
-                                  <button className="admin-btn outline small" onClick={(e) => { e.stopPropagation(); setExpandedOrder(expandedOrder === order.orderId ? null : order.orderId); }}>
+                                  <button className="admin-btn outline small" onClick={(e) => { e.stopPropagation(); toggleOrderExpand(order.orderId, hasAudit); }}>
                                     {expandedOrder === order.orderId ? "收起" : `查看(${audits.length})`}
                                   </button>
                                 ) : <span className="dim">-</span>}
@@ -318,6 +408,31 @@ export default function AdminDashboard() {
                                         </span>
                                       </div>
                                     ))}
+                                    <div className="order-status-flow">
+                                      <strong>状态流水</strong>
+                                      {statusFlowLoading === order.orderId && <span className="dim">加载中…</span>}
+                                      {statusFlowError && expandedOrder === order.orderId && <span className="admin-inline-error">{statusFlowError}</span>}
+                                      {(statusFlowsByOrder[order.orderId] || []).length > 0 ? (
+                                        <div className="table-wrap compact">
+                                          <table className="admin-table compact">
+                                            <thead><tr><th>事件</th><th>从</th><th>到</th><th>备注</th><th>时间</th></tr></thead>
+                                            <tbody>
+                                              {(statusFlowsByOrder[order.orderId] || []).map((flow) => (
+                                                <tr key={flow.flowId || `${flow.eventType}-${flow.createTime}`}>
+                                                  <td>{flow.eventType || flow.bizType || "-"}</td>
+                                                  <td>{flow.fromStatus || "-"}</td>
+                                                  <td>{flow.toStatus || "-"}</td>
+                                                  <td>{flow.remark || "-"}</td>
+                                                  <td>{flow.createTime ? String(flow.createTime).replace("T", " ") : "-"}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      ) : statusFlowLoading !== order.orderId ? (
+                                        <span className="dim">暂无状态流水</span>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
@@ -360,6 +475,10 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {current === "tradeOps" && <TradeOpsManager authVersion={authVersion} />}
+
+          {current === "rules" && <OperationalRulesManager authVersion={authVersion} />}
 
         </div>
       </div>

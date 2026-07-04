@@ -1,0 +1,52 @@
+[
+  {
+    "taskId": "llm-deep-01",
+    "question": "深度分析 Java 线程池七大参数的含义，以及 IO 密集和 CPU 密集任务如何设置，输出 300 字以内结论。",
+    "successKeywords": ["线程池", "队列"]
+  },
+  {
+    "taskId": "llm-deep-02",
+    "question": "制定三步计划：第一步列出 Redis 分布式锁要点，第二步对比 Redisson 与 SET NX，第三步给出选型建议。",
+    "successKeywords": ["Redis", "锁"]
+  },
+  {
+    "taskId": "llm-deep-03",
+    "question": "深入研究 MySQL 索引最左前缀原则，结合 trade_order 用户订单列表查询说明如何建组合索引。",
+    "successKeywords": ["索引", "最左"]
+  },
+  {
+    "taskId": "llm-deep-04",
+    "question": "分析拼团锁单链路中库存扣减与支付网关调用的顺序，说明为什么 business QPS 会被行锁和外部 IO 限制。",
+    "successKeywords": ["库存", "QPS"]
+  },
+  {
+    "taskId": "llm-deep-05",
+    "question": "深度调研 RAG 混合召回：向量检索与关键词检索各适合什么 query，如何融合，输出对比表。",
+    "successKeywords": ["RAG", "向量"]
+  },
+  {
+    "taskId": "llm-deep-06",
+    "question": "分阶段执行：先解释 Plan-Execute Agent 的规划阶段，再说明步骤失败时 domain 重规划如何触发。",
+    "successKeywords": ["Plan", "重规划"]
+  },
+  {
+    "taskId": "llm-deep-07",
+    "question": "系统研究消息队列幂等消费：结合消费记录表与 DLQ，说明重复消息如何处理。",
+    "successKeywords": ["幂等", "DLQ"]
+  },
+  {
+    "taskId": "llm-deep-08",
+    "question": "分析 Agent 上下文压缩策略：何时触发 ContextCompactor，保留哪些消息，丢弃哪些内容。",
+    "successKeywords": ["上下文", "压缩"]
+  },
+  {
+    "taskId": "llm-deep-09",
+    "question": "深度分析支付回调防重放：replay window、幂等键、状态机三者如何配合。",
+    "successKeywords": ["回调", "幂等"]
+  },
+  {
+    "taskId": "llm-deep-10",
+    "question": "制定计划对比 Seata 与「状态机+定时补偿」在拼团发额场景的适用性，给出本项目选型理由。",
+    "successKeywords": ["状态机", "补偿"]
+  }
+]
