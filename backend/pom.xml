@@ -15,6 +15,16 @@
         <module>agent-group-infrastructure</module>
         <module>agent-group-trigger</module>
         <module>agent-group-types</module>
+
+        <!-- Reactor-agent：迁移自 OWWZO/ai-agent，包名改为 com.linrun.reactor，作为 Agent 主链路 -->
+        <module>Reactor-agent</module>
+        <module>Reactor-agent-types</module>
+        <module>Reactor-agent-api</module>
+        <module>Reactor-agent-case</module>
+        <module>Reactor-agent-domain</module>
+        <module>Reactor-agent-infrastructure</module>
+        <module>Reactor-agent-trigger</module>
+        <module>Reactor-agent-app</module>
     </modules>
 
     <parent>
