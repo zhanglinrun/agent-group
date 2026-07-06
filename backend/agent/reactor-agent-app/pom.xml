@@ -3,12 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.linrun</groupId>
-        <artifactId>Reactor-agent</artifactId>
+        <artifactId>reactor-agent</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../Reactor-agent/pom.xml</relativePath>
+        <relativePath>../reactor-agent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>Reactor-agent-app</artifactId>
+    <artifactId>reactor-agent-app</artifactId>
 
     <packaging>jar</packaging>
 
@@ -129,20 +129,20 @@
         <!-- 工程模块；启动依赖 trigger->domain, infrastructure-->
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-case</artifactId>
+            <artifactId>reactor-agent-case</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-trigger</artifactId>
+            <artifactId>reactor-agent-trigger</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-infrastructure</artifactId>
+            <artifactId>reactor-agent-infrastructure</artifactId>
         </dependency>
     </dependencies>
 
     <build>
-        <finalName>Reactor-agent-app</finalName>
+        <finalName>reactor-agent-app</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
@@ -195,7 +195,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <!-- Reactor-agent-app 不再作为独立启动入口，唯一启动模块是 agent-group-app -->
+                    <!-- reactor-agent-app 不再作为独立启动入口，唯一启动模块是 agent-group-app -->
                     <skip>true</skip>
                 </configuration>
             </plugin>

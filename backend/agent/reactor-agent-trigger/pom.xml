@@ -3,12 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.linrun</groupId>
-        <artifactId>Reactor-agent</artifactId>
+        <artifactId>reactor-agent</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../Reactor-agent/pom.xml</relativePath>
+        <relativePath>../reactor-agent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>Reactor-agent-trigger</artifactId>
+    <artifactId>reactor-agent-trigger</artifactId>
 
     <dependencies>
         <dependency>
@@ -36,19 +36,19 @@
         <!-- 系统模块 -->
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-api</artifactId>
+            <artifactId>reactor-agent-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-case</artifactId>
+            <artifactId>reactor-agent-case</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-types</artifactId>
+            <artifactId>reactor-agent-types</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-infrastructure</artifactId>
+            <artifactId>reactor-agent-infrastructure</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
@@ -68,7 +68,7 @@
     </dependencies>
 
     <build>
-        <finalName>Reactor-agent-trigger</finalName>
+        <finalName>reactor-agent-trigger</finalName>
     </build>
 
 </project>

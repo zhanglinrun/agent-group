@@ -3,12 +3,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.linrun</groupId>
-        <artifactId>Reactor-agent</artifactId>
+        <artifactId>reactor-agent</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../Reactor-agent/pom.xml</relativePath>
+        <relativePath>../reactor-agent/pom.xml</relativePath>
     </parent>
 
-    <artifactId>Reactor-agent-infrastructure</artifactId>
+    <artifactId>reactor-agent-infrastructure</artifactId>
 
     <dependencies>
         <dependency>
@@ -35,16 +35,16 @@
         <!-- 系统模块 -->
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-domain</artifactId>
+            <artifactId>reactor-agent-domain</artifactId>
         </dependency>
         <dependency>
             <groupId>com.linrun</groupId>
-            <artifactId>Reactor-agent-api</artifactId>
+            <artifactId>reactor-agent-api</artifactId>
         </dependency>
     </dependencies>
 
     <build>
-        <finalName>Reactor-agent-infrastructure</finalName>
+        <finalName>reactor-agent-infrastructure</finalName>
     </build>
 
 </project>

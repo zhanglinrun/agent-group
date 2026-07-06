@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Reactor-agent 中间聚合父 pom：继承本项目根 pom，隔离 Reactor 这一支特有的仓库、BOM 与第三方版本管理，
+    <!-- reactor-agent 中间聚合父 pom：继承本项目根 pom，隔离 Reactor 这一支特有的仓库、BOM 与第三方版本管理，
          避免污染 agent-group 根 pom 与原有 6 个模块。聚合由根 pom 负责，这里只做 parent，不写 <modules>。 -->
     <parent>
         <groupId>com.linrun</groupId>
@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>Reactor-agent</artifactId>
+    <artifactId>reactor-agent</artifactId>
     <packaging>pom</packaging>
 
     <repositories>
@@ -99,32 +99,32 @@
             <!-- Reactor 内部模块坐标，补齐模块间未写 version 的依赖 -->
             <dependency>
                 <groupId>com.linrun</groupId>
-                <artifactId>Reactor-agent-api</artifactId>
+                <artifactId>reactor-agent-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.linrun</groupId>
-                <artifactId>Reactor-agent-domain</artifactId>
+                <artifactId>reactor-agent-domain</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.linrun</groupId>
-                <artifactId>Reactor-agent-case</artifactId>
+                <artifactId>reactor-agent-case</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.linrun</groupId>
-                <artifactId>Reactor-agent-infrastructure</artifactId>
+                <artifactId>reactor-agent-infrastructure</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.linrun</groupId>
-                <artifactId>Reactor-agent-types</artifactId>
+                <artifactId>reactor-agent-types</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.linrun</groupId>
-                <artifactId>Reactor-agent-trigger</artifactId>
+                <artifactId>reactor-agent-trigger</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

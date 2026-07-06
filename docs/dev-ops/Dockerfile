@@ -4,7 +4,7 @@ WORKDIR /app
 
 ENV TZ=Asia/Shanghai
 
-COPY backend/agent-group-app/target/agent-group-app-1.0-SNAPSHOT.jar /app/agent-group-app.jar
+COPY backend/bootstrap/agent-group-app/target/agent-group-app-1.0-SNAPSHOT.jar /app/agent-group-app.jar
 
 EXPOSE 8080
 

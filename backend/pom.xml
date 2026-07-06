@@ -9,22 +9,25 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
-        <module>agent-group-api</module>
-        <module>agent-group-app</module>
-        <module>agent-group-domain</module>
-        <module>agent-group-infrastructure</module>
-        <module>agent-group-trigger</module>
-        <module>agent-group-types</module>
+        <!-- 拼团交易主线：账号 / 额度 / 拼团 / 支付 -->
+        <module>trade/agent-group-api</module>
+        <module>trade/agent-group-domain</module>
+        <module>trade/agent-group-infrastructure</module>
+        <module>trade/agent-group-trigger</module>
+        <module>trade/agent-group-types</module>
 
-        <!-- Reactor-agent：迁移自 OWWZO/ai-agent，包名改为 com.linrun.reactor，作为 Agent 主链路 -->
-        <module>Reactor-agent</module>
-        <module>Reactor-agent-types</module>
-        <module>Reactor-agent-api</module>
-        <module>Reactor-agent-case</module>
-        <module>Reactor-agent-domain</module>
-        <module>Reactor-agent-infrastructure</module>
-        <module>Reactor-agent-trigger</module>
-        <module>Reactor-agent-app</module>
+        <!-- Agent 主线：迁移自 OWWZO/ai-agent，包名 com.linrun.reactor，中间父 reactor-agent 隔离专属依赖 -->
+        <module>agent/reactor-agent</module>
+        <module>agent/reactor-agent-types</module>
+        <module>agent/reactor-agent-api</module>
+        <module>agent/reactor-agent-case</module>
+        <module>agent/reactor-agent-domain</module>
+        <module>agent/reactor-agent-infrastructure</module>
+        <module>agent/reactor-agent-trigger</module>
+        <module>agent/reactor-agent-app</module>
+
+        <!-- 启动组装层：唯一 Spring Boot 启动入口，组装两条主线 -->
+        <module>bootstrap/agent-group-app</module>
     </modules>
 
     <parent>
