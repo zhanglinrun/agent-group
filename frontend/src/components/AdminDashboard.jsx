@@ -5,6 +5,7 @@ import AgentConfigManager from "./AgentConfigManager";
 import GroupBuyActivityManager from "./GroupBuyActivityManager";
 import OperationalRulesManager from "./OperationalRulesManager";
 import TradeOpsManager from "./TradeOpsManager";
+import { adminMenuItem } from "../adminNavigation";
 import {
   normalizeApiMessage,
   queryAdminOrderList,
@@ -94,6 +95,11 @@ const MENU_TITLES = {
   rules: "运营规则"
 };
 
+const BACKEND_OWNER_LABEL = {
+  "reactor-agent": "Reactor Agent 后端",
+  "agent-group-trade": "本项目交易后端"
+};
+
 const TAG_JOB_STATUS_LABEL = {
   0: "待执行",
   1: "执行中",
@@ -180,6 +186,7 @@ export default function AdminDashboard() {
     { label: "订单数", value: orders.length, icon: CreditCard },
     { label: "通知任务", value: (opsDashboard.notifyTasks || []).length, icon: Bell }
   ];
+  const currentBackendOwner = adminMenuItem(current)?.backendOwner || "agent-group-trade";
 
   const loadOrderStatusFlow = async (orderId) => {
     if (!orderId || statusFlowsByOrder[orderId]) return;
@@ -220,7 +227,10 @@ export default function AdminDashboard() {
 
       <div className="admin-main">
         <header className="admin-topbar">
-          <div className="admin-topbar-title">{MENU_TITLES[current] || "管理后台"}</div>
+          <div>
+            <div className="admin-topbar-title">{MENU_TITLES[current] || "管理后台"}</div>
+            <div className="admin-topbar-subtitle">{BACKEND_OWNER_LABEL[currentBackendOwner]}</div>
+          </div>
           <div className="admin-topbar-actions">
             <button className="admin-icon-btn" type="button" onClick={loadData} title="刷新" aria-label="刷新">
               <RefreshCw size={16} />

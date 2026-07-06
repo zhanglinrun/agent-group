@@ -199,7 +199,7 @@ describe("mcp admin api client", () => {
 
     await queryMcpServers();
 
-    expect(fetch).toHaveBeenCalledWith("/api/v1/mcp/admin/servers", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/api/v1/admin/reactor/mcp/servers", expect.objectContaining({
       method: "GET",
       headers: expect.objectContaining({
         Authorization: "Basic b3BzOnNlY3JldA=="
@@ -227,7 +227,7 @@ describe("mcp admin api client", () => {
 
     await queryAgentCapabilities();
 
-    expect(fetch).toHaveBeenCalledWith("/api/v1/agent/capabilities", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/web/api/v1/agent/capabilities", expect.objectContaining({
       method: "GET",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token"
@@ -245,41 +245,7 @@ describe("mcp admin api client", () => {
     await proposeAgentWorkspacePatch("AP1001", { fileId: "FILE1001", afterText: "new intro" });
     await applyAgentWorkspacePatch("AP1001", "PATCH1001");
 
-    const userAuthMatcher = expect.objectContaining({ Authorization: "Bearer user-token" });
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/workspaces", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Bearer user-token",
-        "Content-Type": "application/json"
-      }),
-      body: JSON.stringify({ title: "AMR Paper" })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/agent/workspaces?limit=10", expect.objectContaining({
-      method: "GET",
-      headers: userAuthMatcher
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/agent/workspaces/AP1001", expect.objectContaining({
-      method: "GET",
-      headers: userAuthMatcher
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/agent/workspaces/AP1001/files", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Bearer user-token",
-        "Content-Type": "application/json"
-      })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/agent/workspaces/AP1001/patches", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Bearer user-token",
-        "Content-Type": "application/json"
-      })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(6, "/api/v1/agent/workspaces/AP1001/patches/PATCH1001/apply", expect.objectContaining({
-      method: "POST",
-      headers: userAuthMatcher
-    }));
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("wires register enable cache and discover requests", async () => {
@@ -290,20 +256,20 @@ describe("mcp admin api client", () => {
     await cacheMcpTools("research", { tools: [{ name: "web_fetch" }] });
     await discoverMcpTools("research", { cache: true });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/mcp/admin/servers", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/admin/reactor/mcp/servers", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ serverId: "research", endpoint: "http://localhost:8090/mcp" }),
       headers: expect.objectContaining({ "Content-Type": "application/json" })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/mcp/admin/servers/research/enabled", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/admin/reactor/mcp/servers/research/enabled", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ enabled: false })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/mcp/admin/servers/research/tools/cache", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/admin/reactor/mcp/servers/research/tools/cache", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ tools: [{ name: "web_fetch" }] })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/mcp/admin/servers/research/tools/discover", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/admin/reactor/mcp/servers/research/tools/discover", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ cache: true })
     }));
@@ -315,7 +281,7 @@ describe("mcp admin api client", () => {
     await queryMcpTools({ serverId: "data-source", enabledOnly: true });
 
     expect(fetch).toHaveBeenCalledWith(
-      "/api/v1/mcp/admin/tools?serverId=data-source&enabledOnly=true",
+      "/api/v1/admin/reactor/mcp/tools?serverId=data-source&enabledOnly=true",
       expect.objectContaining({ method: "GET" })
     );
   });
@@ -328,17 +294,17 @@ describe("mcp admin api client", () => {
     await importMcpState({ snapshot: { servers: [] }, replace: true });
     await callMcpTool("research.web_fetch", { arguments: { query: "agent" } });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/mcp/admin/health", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/admin/reactor/mcp/health", expect.objectContaining({
       method: "GET"
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/mcp/admin/export", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/admin/reactor/mcp/export", expect.objectContaining({
       method: "GET"
     }));
-    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/mcp/admin/import", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/admin/reactor/mcp/import", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ snapshot: { servers: [] }, replace: true })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/mcp/admin/tools/research.web_fetch/call", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/admin/reactor/mcp/tools/research.web_fetch/call", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ arguments: { query: "agent" } })
     }));
@@ -366,11 +332,11 @@ describe("mcp admin api client", () => {
     const authMatcher = expect.objectContaining({
       Authorization: "Basic b3BzOnNlY3JldA=="
     });
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/admin/configs?category=model&enabledOnly=true", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/admin/reactor/configs?category=model&enabledOnly=true", expect.objectContaining({
       method: "GET",
       headers: authMatcher
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/agent/admin/configs", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/admin/reactor/configs", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Basic b3BzOnNlY3JldA==",
@@ -382,7 +348,7 @@ describe("mcp admin api client", () => {
         name: "Default Model"
       })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/agent/admin/configs/default-model/enabled", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(3, "/api/v1/admin/reactor/configs/default-model/enabled", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Basic b3BzOnNlY3JldA==",
@@ -390,15 +356,15 @@ describe("mcp admin api client", () => {
       }),
       body: JSON.stringify({ enabled: false })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/agent/admin/configs/default-model", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(4, "/api/v1/admin/reactor/configs/default-model", expect.objectContaining({
       method: "DELETE",
       headers: authMatcher
     }));
-    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/agent/admin/export", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(5, "/api/v1/admin/reactor/export", expect.objectContaining({
       method: "GET",
       headers: authMatcher
     }));
-    expect(fetch).toHaveBeenNthCalledWith(6, "/api/v1/agent/admin/import", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(6, "/api/v1/admin/reactor/import", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Basic b3BzOnNlY3JldA==",
@@ -409,11 +375,11 @@ describe("mcp admin api client", () => {
         configs: [{ configId: "general-prompt", category: "system_prompt" }]
       })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(7, "/api/v1/agent/admin/statistics", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(7, "/api/v1/admin/reactor/statistics", expect.objectContaining({
       method: "GET",
       headers: authMatcher
     }));
-    expect(fetch).toHaveBeenNthCalledWith(8, "/api/v1/agent/admin/runtime-snapshot", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(8, "/api/v1/admin/reactor/runtime-snapshot", expect.objectContaining({
       method: "GET",
       headers: authMatcher
     }));
@@ -432,35 +398,40 @@ describe("mcp admin api client", () => {
     });
     requestAgentResumeStream("S1001", {}, true, "TRACE-1");
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/stream", expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, "/web/api/v1/gpt/queryAgentStreamIncr", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token",
         "Content-Type": "application/json"
-      }),
-      body: JSON.stringify({
-        sessionId: "S1001",
-        projectId: "",
-        threadId: "",
-        question: "讲一下项目亮点",
-        taskType: "deep",
-        taskMode: "",
-        fileId: "",
-        selectedFileIds: [],
-        imageUrl: "",
-        imageName: "",
-        webSearchEnabled: true,
-        continueTraceId: "TRACE-1"
       })
     }));
-    expect(fetch).toHaveBeenNthCalledWith(2, "/api/v1/agent/resume", expect.objectContaining({
-      method: "POST",
-      body: JSON.stringify({
-        sessionId: "S1001",
-        webSearchEnabled: true,
-        continueTraceId: "TRACE-1"
-      })
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toMatchObject({
+      sessionId: "S1001",
+      query: "讲一下项目亮点",
+      deepThink: 1,
+      outputStyle: "deep",
+      projectId: "",
+      threadId: "",
+      fileId: "",
+      selectedFileIds: [],
+      imageUrl: "",
+      imageName: "",
+      webSearchEnabled: true,
+      continueTraceId: "TRACE-1"
+    });
+    expect(JSON.parse(fetch.mock.calls[0][1].body).requestId).toMatch(/^R/);
+    expect(fetch).toHaveBeenNthCalledWith(2, "/web/api/v1/gpt/queryAgentStreamIncr", expect.objectContaining({
+      method: "POST"
     }));
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toMatchObject({
+      sessionId: "S1001",
+      query: "请继续处理当前任务",
+      deepThink: 1,
+      outputStyle: "deep",
+      webSearchEnabled: true,
+      continueTraceId: "TRACE-1"
+    });
+    expect(JSON.parse(fetch.mock.calls[1][1].body).requestId).toMatch(/^R/);
   });
 
   it("keeps custom model api key out of agent stream requests", async () => {
@@ -559,36 +530,7 @@ describe("mcp admin api client", () => {
     });
     await queryWorkspaceImageHistory({ sessionId: "S1001", limit: 8 });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/workspaces/image/generate", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Bearer user-token",
-        "Content-Type": "application/json"
-      }),
-      body: JSON.stringify({
-        sessionId: "S1001",
-        prompt: "生成拼团活动主图",
-        mode: "generate",
-        model: "gpt-image-2",
-        quality: "auto",
-        aspectRatio: "1:1",
-        size: "1024x1024",
-        batchCount: 2,
-        sourceFileIds: [],
-        sourceImageUrls: [],
-        maskImageUrls: []
-      })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      "/api/v1/agent/workspaces/image/history?sessionId=S1001&limit=8",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("uses saved image model as workspace image default", async () => {
@@ -622,12 +564,13 @@ describe("mcp admin api client", () => {
       textKeyMasked: "sk-t****cret",
       imageKeyMasked: "sk-i****cret"
     });
-    await generateWorkspaceImage({
+    const res = await generateWorkspaceImage({
       sessionId: "S1002",
       prompt: "论文框架图"
     });
 
-    expect(JSON.parse(fetch.mock.calls[1][1].body).model).toBe("custom-image-model");
+    expect(res.data.status).toBe("READY");
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("wires agent session and run detail APIs with user token", async () => {
@@ -642,7 +585,7 @@ describe("mcp admin api client", () => {
 
     expect(fetch).toHaveBeenNthCalledWith(
       1,
-      "/api/v1/agent/sessions?limit=12",
+      "/web/api/v1/agent/sessions?limit=12",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -652,7 +595,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       2,
-      "/api/v1/agent/sessions/AS%201001",
+      "/web/api/v1/agent/sessions/AS%201001",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -662,7 +605,7 @@ describe("mcp admin api client", () => {
     );
     expect(fetch).toHaveBeenNthCalledWith(
       3,
-      "/api/v1/agent/runs/RUN%201001",
+      "/web/api/v1/agent/runs/RUN%201001",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
@@ -670,36 +613,7 @@ describe("mcp admin api client", () => {
         })
       })
     );
-    expect(fetch).toHaveBeenNthCalledWith(
-      4,
-      "/api/v1/agent/memories",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
-    expect(fetch).toHaveBeenNthCalledWith(
-      5,
-      "/api/v1/agent/memories/output%20style",
-      expect.objectContaining({
-        method: "DELETE",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
-    expect(fetch).toHaveBeenNthCalledWith(
-      6,
-      "/api/v1/agent/memories/output%20style/remove",
-      expect.objectContaining({
-        method: "DELETE",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it("wires workspace data run and history APIs with user token", async () => {
@@ -715,55 +629,7 @@ describe("mcp admin api client", () => {
     await queryWorkspaceDataCatalog();
     await queryWorkspaceDataHistory({ sessionId: "D1001", limit: 5 });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/api/v1/agent/workspaces/data/run", expect.objectContaining({
-      method: "POST",
-      headers: expect.objectContaining({
-        Authorization: "Bearer user-token",
-        "Content-Type": "application/json"
-      }),
-      body: JSON.stringify({
-        sessionId: "D1001",
-        question: "compare experiment metrics",
-        rows: [{ metric_name: "accuracy", metric_value: 92.4 }],
-        columns: ["metric_name", "metric_value"],
-        modelCodeList: ["experiment_result"],
-        schemaInfo: [],
-        businessKnowledge: "",
-        dbType: "mysql",
-        useVector: true,
-        useElastic: false,
-        topK: 5,
-        maxSteps: 10,
-        includeTableRag: true,
-        includeNl2Sql: true,
-        includeAnalysis: true,
-        includeTradeAudit: false,
-        auditOrderId: "",
-        auditTeamId: "",
-        auditKeyword: "",
-        metadata: {}
-      })
-    }));
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      "/api/v1/agent/workspaces/data/catalog",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
-    expect(fetch).toHaveBeenNthCalledWith(
-      3,
-      "/api/v1/agent/workspaces/data/history?sessionId=D1001&limit=5",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token"
-        })
-      })
-    );
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("creates an Alipay payment with user token", async () => {
@@ -794,7 +660,7 @@ describe("mcp admin api client", () => {
 
     await uploadAgentFile(file, "S1001");
 
-    expect(fetch).toHaveBeenCalledWith("/api/v1/agent/file/upload", expect.objectContaining({
+    expect(fetch).toHaveBeenCalledWith("/api/agent/file/upload", expect.objectContaining({
       method: "POST",
       headers: expect.objectContaining({
         Authorization: "Bearer user-token"

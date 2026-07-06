@@ -1,48 +1,13 @@
 import { useState } from "react";
 import { ChevronRight, LogOut, Moon, Sun } from "lucide-react";
+import { ADMIN_MENU_GROUPS } from "../adminNavigation";
 import { clearAdminAuth, getAdminAuth, saveAdminAuth } from "../services/api";
-
-const MENU_GROUPS = [
-  {
-    name: "groupbuy",
-    label: "拼团运营",
-    items: [
-      { key: "activity", label: "活动管理" },
-      { key: "channel", label: "渠道与库存" }
-    ]
-  },
-  {
-    name: "agent",
-    label: "智能体配置",
-    items: [
-      { key: "llmConfig", label: "模型配置" },
-      { key: "skills", label: "技能 Skills" },
-      { key: "mcp", label: "MCP 服务" }
-    ]
-  },
-  {
-    name: "trade",
-    label: "交易管理",
-    items: [
-      { key: "order", label: "订单与核查" },
-      { key: "refund", label: "售后退款" },
-      { key: "tradeOps", label: "交易运维" }
-    ]
-  },
-  {
-    name: "ops",
-    label: "运维配置",
-    items: [
-      { key: "rules", label: "运营规则" }
-    ]
-  }
-];
 
 export default function AdminSidebar({ current, onSelect, theme, onToggleTheme, onAuthChanged }) {
   const saved = getAdminAuth();
   const [username, setUsername] = useState(saved?.username || "");
   const [password, setPassword] = useState(saved?.password || "");
-  const [openGroups, setOpenGroups] = useState(() => new Set(MENU_GROUPS.map((g) => g.name)));
+  const [openGroups, setOpenGroups] = useState(() => new Set(ADMIN_MENU_GROUPS.map((g) => g.name)));
 
   const toggleGroup = (name) => {
     setOpenGroups((prev) => {
@@ -92,7 +57,7 @@ export default function AdminSidebar({ current, onSelect, theme, onToggleTheme, 
           <span className="admin-nav-dot" />
           <span>总览</span>
         </button>
-        {MENU_GROUPS.map((group) => (
+        {ADMIN_MENU_GROUPS.map((group) => (
           <div key={group.name} className="admin-nav-group">
             <button type="button" className="admin-nav-group-title" onClick={() => toggleGroup(group.name)}>
               <ChevronRight size={14} className={`admin-caret ${openGroups.has(group.name) ? "open" : ""}`} />

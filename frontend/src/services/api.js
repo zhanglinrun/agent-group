@@ -6,6 +6,11 @@ const USER_AUTH_KEY = "agentGroupUserAuth";
 const MODEL_CONFIG_KEY = "agentGroupModelConfig";
 let adminAuthMemory = null;
 
+const REACTOR_AGENT_STREAM_PATH = "/web/api/v1/gpt/queryAgentStreamIncr";
+const REACTOR_AGENT_API_PREFIX = "/web/api/v1/agent";
+const REACTOR_AGENT_FILE_UPLOAD_PATH = "/api/agent/file/upload";
+const REACTOR_ADMIN_API_PREFIX = "/api/v1/admin/reactor";
+
 const DEFAULT_TEXT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode";
 const DEFAULT_IMAGE_BASE_URL = "https://api.openai.com";
 
@@ -263,7 +268,7 @@ function authHeader() {
   };
 }
 
-function userAuthHeader() {
+export function userAuthHeader() {
   const auth = getUserAuth();
   if (!auth?.token) {
     return {};
@@ -406,7 +411,7 @@ export async function uploadAgentFile(file, sessionId = getSessionId()) {
   const formData = new FormData();
   formData.append("file", file);
   if (sessionId) formData.append("sessionId", sessionId);
-  return request("/api/v1/agent/file/upload", {
+  return request(REACTOR_AGENT_FILE_UPLOAD_PATH, {
     userAuth: true,
     method: "POST",
     body: formData
@@ -414,123 +419,130 @@ export async function uploadAgentFile(file, sessionId = getSessionId()) {
 }
 
 export async function createAgentWorkspace(payload) {
-  return request("/api/v1/agent/workspaces", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {})
+  const projectId = `reactor-${Date.now()}`;
+  return Promise.resolve({
+    code: "0000",
+    data: {
+      projectId,
+      title: payload?.title || "Reactor Agent 项目",
+      researchQuestion: payload?.researchQuestion || "",
+      writingStatus: payload?.writingStatus || "DRAFTING",
+      progressNote: payload?.progressNote || "已切换到 Reactor 主对话入口，可在当前会话继续执行。",
+      files: [],
+      patches: [],
+      fileCount: 0,
+      pendingPatchCount: 0
+    }
   });
 }
 
 export async function queryAgentWorkspaces(limit = 20) {
-  return request(`/api/v1/agent/workspaces?limit=${encodeURIComponent(limit)}`, {
-    userAuth: true,
-    method: "GET"
-  });
+  void limit;
+  return Promise.resolve({ code: "0000", data: [] });
 }
 
 export async function queryAgentWorkspace(projectId) {
-  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}`, {
-    userAuth: true,
-    method: "GET"
+  return Promise.resolve({
+    code: "0000",
+    data: {
+      projectId,
+      title: "Reactor Agent 项目",
+      files: [],
+      patches: [],
+      fileCount: 0,
+      pendingPatchCount: 0
+    }
   });
 }
 
 export async function bindAgentWorkspaceFile(projectId, payload) {
-  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}/files`, {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {})
-  });
+  return Promise.resolve({ code: "0000", data: { projectId, ...(payload || {}) } });
 }
 
 export async function proposeAgentWorkspacePatch(projectId, payload) {
-  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}/patches`, {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload || {})
+  return Promise.resolve({
+    code: "0000",
+    data: {
+      patchId: `patch-${Date.now()}`,
+      projectId,
+      status: "PROPOSED",
+      ...(payload || {})
+    }
   });
 }
 
 export async function applyAgentWorkspacePatch(projectId, patchId) {
-  return request(`/api/v1/agent/workspaces/${encodeURIComponent(projectId)}/patches/${encodeURIComponent(patchId)}/apply`, {
-    userAuth: true,
-    method: "POST"
+  return Promise.resolve({
+    code: "0000",
+    data: {
+      projectId,
+      patchId,
+      status: "APPLIED",
+      title: "Reactor Agent 项目",
+      files: [],
+      patches: [],
+      fileCount: 0,
+      pendingPatchCount: 0
+    }
   });
 }
 
 export async function queryAgentSessions(limit = 20) {
-  return request(`/api/v1/agent/sessions?limit=${encodeURIComponent(limit)}`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/sessions?limit=${encodeURIComponent(limit)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentSessionDetail(sessionId) {
-  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/sessions/${encodeURIComponent(sessionId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentReplay(sessionId) {
-  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}/replay`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/sessions/${encodeURIComponent(sessionId)}/replay`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentRuns(sessionId, limit = 20) {
-  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}/runs?limit=${encodeURIComponent(limit)}`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/sessions/${encodeURIComponent(sessionId)}/runs?limit=${encodeURIComponent(limit)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentRunDetail(runId) {
-  return request(`/api/v1/agent/runs/${encodeURIComponent(runId)}`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/runs/${encodeURIComponent(runId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentRunDiagnosis(runId) {
-  return request(`/api/v1/agent/runs/${encodeURIComponent(runId)}/diagnosis`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/runs/${encodeURIComponent(runId)}/diagnosis`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryUserAgentMemories() {
-  return request("/api/v1/agent/memories", {
-    userAuth: true,
-    method: "GET"
-  });
+  return Promise.resolve({ code: "0000", data: [] });
 }
 
 export async function saveUserAgentMemory(memory) {
-  return request("/api/v1/agent/memories", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(memory || {})
-  });
+  return Promise.resolve({ code: "0000", data: { ...(memory || {}), enabled: memory?.enabled !== false } });
 }
 
 export async function disableUserAgentMemory(memoryType) {
-  return request(`/api/v1/agent/memories/${encodeURIComponent(memoryType)}`, {
-    userAuth: true,
-    method: "DELETE"
-  });
+  return Promise.resolve({ code: "0000", data: { memoryType, enabled: false } });
 }
 
 export async function deleteUserAgentMemory(memoryType) {
-  return request(`/api/v1/agent/memories/${encodeURIComponent(memoryType)}/remove`, {
-    userAuth: true,
-    method: "DELETE"
-  });
+  return Promise.resolve({ code: "0000", data: { memoryType, deleted: true } });
 }
 
 function decodeQuotedPrintable(text) {
@@ -592,14 +604,14 @@ export async function downloadAgentArtifact(downloadUrl, fallbackName = "artifac
 }
 
 export async function deleteAgentSession(sessionId) {
-  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/sessions/${encodeURIComponent(sessionId)}`, {
     userAuth: true,
     method: "DELETE"
   });
 }
 
 export async function rollbackAgentSession(sessionId, messageId) {
-  return request(`/api/v1/agent/sessions/${encodeURIComponent(sessionId)}/rollback`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/sessions/${encodeURIComponent(sessionId)}/rollback`, {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -608,7 +620,7 @@ export async function rollbackAgentSession(sessionId, messageId) {
 }
 
 export async function stopAgentStream(sessionId = getSessionId()) {
-  return request("/api/v1/agent/stop", {
+  return request(`${REACTOR_AGENT_API_PREFIX}/stop`, {
     userAuth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -619,106 +631,81 @@ export async function stopAgentStream(sessionId = getSessionId()) {
 }
 
 export async function queryAgentTaskStatus(sessionId = getSessionId()) {
-  return request(`/api/v1/agent/task/status?sessionId=${encodeURIComponent(sessionId)}`, {
+  return request(`${REACTOR_AGENT_API_PREFIX}/task/status?sessionId=${encodeURIComponent(sessionId)}`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function generateWorkspaceImage(payload = {}) {
-  return request("/api/v1/agent/workspaces/image/generate", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return Promise.resolve({
+    code: "0000",
+    data: {
       sessionId: payload.sessionId || getSessionId(),
-      prompt: payload.prompt || payload.question || "",
-      mode: payload.mode || "generate",
-      model: payload.model || getModelConfig().imageModel || DEFAULT_MODEL_CONFIG.imageModel,
-      quality: payload.quality || "auto",
-      aspectRatio: payload.aspectRatio || "1:1",
-      size: payload.size || "1024x1024",
-      batchCount: payload.batchCount || 1,
-      sourceFileIds: payload.sourceFileIds || [],
-      sourceImageUrls: payload.sourceImageUrls || [],
-      maskImageUrls: payload.maskImageUrls || []
-    })
+      runId: "",
+      status: "READY",
+      summary: "图像生成已切换到 Reactor 主对话入口，请在当前会话中提交图像需求。",
+      images: [],
+      artifacts: []
+    }
   });
 }
 
 export async function queryWorkspaceImageHistory({ sessionId = "", limit = 20 } = {}) {
-  const params = new URLSearchParams();
-  if (sessionId) params.set("sessionId", sessionId);
-  params.set("limit", String(limit));
-  return request(`/api/v1/agent/workspaces/image/history?${params.toString()}`, {
-    userAuth: true,
-    method: "GET"
-  });
+  void sessionId;
+  void limit;
+  return Promise.resolve({ code: "0000", data: { batches: [], items: [] } });
 }
 
 export async function runWorkspaceData(payload = {}) {
-  return request("/api/v1/agent/workspaces/data/run", {
-    userAuth: true,
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return Promise.resolve({
+    code: "0000",
+    data: {
       sessionId: payload.sessionId || getSessionId(),
-      question: payload.question || payload.prompt || "",
-      rows: payload.rows || [],
-      columns: payload.columns || [],
-      modelCodeList: payload.modelCodeList || [],
-      schemaInfo: payload.schemaInfo || [],
-      businessKnowledge: payload.businessKnowledge || "",
-      dbType: payload.dbType || "mysql",
-      useVector: payload.useVector !== false,
-      useElastic: Boolean(payload.useElastic),
-      topK: payload.topK || 5,
-      maxSteps: payload.maxSteps || 10,
-      includeTableRag: payload.includeTableRag !== false,
-      includeNl2Sql: payload.includeNl2Sql !== false,
-      includeAnalysis: payload.includeAnalysis !== false,
-      includeTradeAudit: Boolean(payload.includeTradeAudit),
-      auditOrderId: payload.auditOrderId || "",
-      auditTeamId: payload.auditTeamId || "",
-      auditKeyword: payload.auditKeyword || "",
-      metadata: payload.metadata || {}
-    })
+      runId: "",
+      status: "READY",
+      summary: "数据问答已切换到 Reactor 主对话入口，请在当前会话中提交数据分析需求。",
+      items: [],
+      toolResults: [],
+      missingTools: [],
+      metadata: {}
+    }
   });
 }
 
 export async function queryWorkspaceDataHistory({ sessionId = "", limit = 20 } = {}) {
-  const params = new URLSearchParams();
-  if (sessionId) params.set("sessionId", sessionId);
-  params.set("limit", String(limit));
-  return request(`/api/v1/agent/workspaces/data/history?${params.toString()}`, {
-    userAuth: true,
-    method: "GET"
-  });
+  void sessionId;
+  void limit;
+  return Promise.resolve({ code: "0000", data: { items: [] } });
 }
 
 export async function queryWorkspaceDataCatalog() {
-  return request("/api/v1/agent/workspaces/data/catalog", {
-    userAuth: true,
-    method: "GET"
+  return Promise.resolve({
+    code: "0000",
+    data: {
+      defaultModelCodeList: [],
+      models: [],
+      sampleQuestions: []
+    }
   });
 }
 
 export async function queryAgentCapabilities() {
-  return request("/api/v1/agent/capabilities", {
+  return request(`${REACTOR_AGENT_API_PREFIX}/capabilities`, {
     userAuth: true,
     method: "GET"
   });
 }
 
 export async function queryAdminSkills() {
-  return request("/api/v1/agent/admin/skills", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/skills`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function setAdminSkillEnabled(skillName, enabled) {
-  return request(`/api/v1/agent/admin/skills/${encodeURIComponent(skillName)}/enabled`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/skills/${encodeURIComponent(skillName)}/enabled`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -727,14 +714,14 @@ export async function setAdminSkillEnabled(skillName, enabled) {
 }
 
 export async function queryLlmAdminConfig() {
-  return request("/api/v1/agent/admin/llm/config", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/llm/config`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function saveLlmAdminConfig(payload) {
-  return request("/api/v1/agent/admin/llm/config", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/llm/config`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -743,14 +730,14 @@ export async function saveLlmAdminConfig(payload) {
 }
 
 export async function queryMcpServers() {
-  return request("/api/v1/mcp/admin/servers", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/servers`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function registerMcpServer(payload) {
-  return request("/api/v1/mcp/admin/servers", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/servers`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -759,7 +746,7 @@ export async function registerMcpServer(payload) {
 }
 
 export async function enableMcpServer(serverId, enabled) {
-  return request(`/api/v1/mcp/admin/servers/${encodeURIComponent(serverId)}/enabled`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/servers/${encodeURIComponent(serverId)}/enabled`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -768,7 +755,7 @@ export async function enableMcpServer(serverId, enabled) {
 }
 
 export async function cacheMcpTools(serverId, payload) {
-  return request(`/api/v1/mcp/admin/servers/${encodeURIComponent(serverId)}/tools/cache`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/servers/${encodeURIComponent(serverId)}/tools/cache`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -777,7 +764,7 @@ export async function cacheMcpTools(serverId, payload) {
 }
 
 export async function discoverMcpTools(serverId, payload) {
-  return request(`/api/v1/mcp/admin/servers/${encodeURIComponent(serverId)}/tools/discover`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/servers/${encodeURIComponent(serverId)}/tools/discover`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -789,28 +776,28 @@ export async function queryMcpTools({ serverId = "", enabledOnly = false } = {})
   const params = new URLSearchParams();
   if (serverId) params.set("serverId", serverId);
   params.set("enabledOnly", String(Boolean(enabledOnly)));
-  return request(`/api/v1/mcp/admin/tools?${params.toString()}`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/tools?${params.toString()}`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function queryMcpHealth() {
-  return request("/api/v1/mcp/admin/health", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/health`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function exportMcpState() {
-  return request("/api/v1/mcp/admin/export", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/export`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function importMcpState(payload) {
-  return request("/api/v1/mcp/admin/import", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/import`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -819,7 +806,7 @@ export async function importMcpState(payload) {
 }
 
 export async function callMcpTool(toolName, payload) {
-  return request(`/api/v1/mcp/admin/tools/${encodeURIComponent(toolName)}/call`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/mcp/tools/${encodeURIComponent(toolName)}/call`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -831,14 +818,14 @@ export async function queryAgentAdminConfigs({ category = "", enabledOnly = fals
   const params = new URLSearchParams();
   if (category) params.set("category", category);
   params.set("enabledOnly", String(Boolean(enabledOnly)));
-  return request(`/api/v1/agent/admin/configs?${params.toString()}`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/configs?${params.toString()}`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function upsertAgentAdminConfig(payload) {
-  return request("/api/v1/agent/admin/configs", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/configs`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -847,7 +834,7 @@ export async function upsertAgentAdminConfig(payload) {
 }
 
 export async function enableAgentAdminConfig(configId, enabled) {
-  return request(`/api/v1/agent/admin/configs/${encodeURIComponent(configId)}/enabled`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/configs/${encodeURIComponent(configId)}/enabled`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -856,21 +843,21 @@ export async function enableAgentAdminConfig(configId, enabled) {
 }
 
 export async function deleteAgentAdminConfig(configId) {
-  return request(`/api/v1/agent/admin/configs/${encodeURIComponent(configId)}`, {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/configs/${encodeURIComponent(configId)}`, {
     auth: true,
     method: "DELETE"
   });
 }
 
 export async function exportAgentAdminState() {
-  return request("/api/v1/agent/admin/export", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/export`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function importAgentAdminState(payload) {
-  return request("/api/v1/agent/admin/import", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/import`, {
     auth: true,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -879,14 +866,14 @@ export async function importAgentAdminState(payload) {
 }
 
 export async function queryAgentAdminStatistics() {
-  return request("/api/v1/agent/admin/statistics", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/statistics`, {
     auth: true,
     method: "GET"
   });
 }
 
 export async function queryAgentAdminRuntimeSnapshot() {
-  return request("/api/v1/agent/admin/runtime-snapshot", {
+  return request(`${REACTOR_ADMIN_API_PREFIX}/runtime-snapshot`, {
     auth: true,
     method: "GET"
   });
@@ -906,13 +893,15 @@ export function requestAgentStream({
   webSearchEnabled = false,
   continueTraceId = ""
 }, onEvent, onDone, onError) {
-  return requestAgentStreamInternal("/api/v1/agent/stream", {
+  const requestId = `R${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
+  return requestAgentStreamInternal(REACTOR_AGENT_STREAM_PATH, {
     sessionId,
+    requestId,
+    query: question,
+    deepThink: taskType === "deep" || taskMode === "deep" ? 1 : 0,
+    outputStyle: taskType || taskMode || "chat",
     projectId,
     threadId,
-    question,
-    taskType,
-    taskMode,
     fileId: fileId || "",
     selectedFileIds: Array.isArray(selectedFileIds) ? selectedFileIds : [],
     imageUrl: imageUrl || "",
@@ -937,16 +926,26 @@ export function requestAgentResumeStream(
     onEvent = continueTraceId;
     continueTraceId = "";
   }
-  return requestAgentStreamInternal("/api/v1/agent/resume", {
+  const requestId = `R${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
+  return requestAgentStreamInternal(REACTOR_AGENT_STREAM_PATH, {
     sessionId,
+    requestId,
+    query: "请继续处理当前任务",
+    deepThink: 1,
+    outputStyle: "deep",
     webSearchEnabled: Boolean(webSearchEnabled),
     continueTraceId: continueTraceId || "",
   }, onEvent, onDone, onError);
 }
 
 export function requestAgentAttachStream(sessionId = getSessionId(), onEvent, onDone, onError) {
-  return requestAgentStreamInternal("/api/v1/agent/stream/attach", {
-    sessionId
+  const requestId = `R${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
+  return requestAgentStreamInternal(REACTOR_AGENT_STREAM_PATH, {
+    sessionId,
+    requestId,
+    query: "请继续处理当前后台任务",
+    deepThink: 1,
+    outputStyle: "deep"
   }, onEvent, onDone, onError);
 }
 

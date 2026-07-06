@@ -214,8 +214,8 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["planning", "web_fetch", "deep_search", "code_interpreter", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["answer", "reference", "artifact"],
-    runEndpoint: "/api/v1/agent/stream",
-    historyEndpoint: "/api/v1/agent/sessions"
+    runEndpoint: "/web/api/v1/gpt/queryAgentStreamIncr",
+    historyEndpoint: "/web/api/v1/agent/sessions"
   },
   image: {
     id: "image",
@@ -225,8 +225,8 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["image_generation", "multimodal_agent", "file_tool"],
     attachmentMode: "file-or-image",
     outputKinds: ["image", "prompt", "artifact"],
-    runEndpoint: "/api/v1/agent/workspaces/image/generate",
-    historyEndpoint: "/api/v1/agent/workspaces/image/history"
+    runEndpoint: "/web/api/v1/gpt/queryAgentStreamIncr",
+    historyEndpoint: "/web/api/v1/agent/sessions"
   },
   data: {
     id: "data",
@@ -236,8 +236,8 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["data_analysis", "table_rag", "nl2sql", "report_tool"],
     attachmentMode: "file",
     outputKinds: ["table", "sql", "chart", "report"],
-    runEndpoint: "/api/v1/agent/workspaces/data/run",
-    historyEndpoint: "/api/v1/agent/workspaces/data/history"
+    runEndpoint: "/web/api/v1/gpt/queryAgentStreamIncr",
+    historyEndpoint: "/web/api/v1/agent/sessions"
   },
   trade: {
     id: "trade",
@@ -247,7 +247,7 @@ export const WORKSPACE_SERVICE_PROFILES: Record<WorkspaceId, WorkspaceServicePro
     primaryTools: ["trade_order_list", "trade_diagnosis"],
     attachmentMode: "none",
     outputKinds: ["order", "quota", "status", "report"],
-    runEndpoint: "/api/v1/agent/stream",
+    runEndpoint: "/web/api/v1/gpt/queryAgentStreamIncr",
     historyEndpoint: "/api/v1/trade/order/my"
   }
 };

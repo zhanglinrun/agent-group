@@ -11517,6 +11517,7 @@ body[data-theme="light"] {
   box-shadow: var(--shadow-soft);
 }
 .admin-topbar-title { font-size: 18px; font-weight: 600; }
+.admin-topbar-subtitle { margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
 .admin-topbar-actions { display: flex; align-items: center; gap: 12px; }
 .admin-exit {
   font-size: 13px;

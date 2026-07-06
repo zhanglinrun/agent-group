@@ -283,7 +283,7 @@ export default function AgentConfigManager({ section = "llmConfig", authVersion 
                 </tbody>
               </table>
             </div>
-            <div className="admin-hint">技能从 skills 目录加载，禁用后新会话不再暴露该技能给 Agent。</div>
+            <div className="admin-hint">技能来自 Reactor Agent 能力与流程配置，禁用后新会话不再暴露该能力给 Agent。</div>
           </div>
         </div>
       )}
@@ -303,7 +303,7 @@ export default function AgentConfigManager({ section = "llmConfig", authVersion 
                   <h5>添加 MCP 服务</h5>
                   <button className="admin-btn outline small" onClick={cancelMcpAdd}><X size={14} /></button>
                 </div>
-                <div className="admin-hint">填写 MCP 服务信息，保存后写入 data/mcp-admin-state.json，重启后端后自动加载。</div>
+                <div className="admin-hint">填写 MCP 服务信息，保存后写入 Reactor 后端配置表，重启后端后自动加载。</div>
                 <div className="admin-form-grid">
                   <label className="admin-field">
                     <span>服务编号</span>
