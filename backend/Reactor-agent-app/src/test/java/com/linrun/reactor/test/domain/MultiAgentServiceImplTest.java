@@ -52,15 +52,17 @@ public class MultiAgentServiceImplTest {
                 .deepThink(0)
                 .outputStyle("html")
                 .user("reactor")
+                .aiAgentId("agent-role-1")
                 .sessionFiles(sessionFiles)
                 .build();
 
         AgentRequest agentRequest = ReflectionTestUtils.invokeMethod(service, "buildAgentRequest", request);
 
         Assert.assertNotNull(agentRequest);
-        Assert.assertEquals("trace-session-1:req-1", agentRequest.getRequestId());
+        Assert.assertEquals("reactorsession-1:req-1", agentRequest.getRequestId());
         Assert.assertEquals(AgentType.REACT.getValue(), agentRequest.getAgentType());
         Assert.assertEquals(sessionFiles, agentRequest.getSessionFiles());
+        Assert.assertEquals("agent-role-1", agentRequest.getAiAgentId());
         Assert.assertEquals("react-base-prompt", agentRequest.getBasePrompt());
     }
 

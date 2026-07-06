@@ -1,6 +1,8 @@
 package com.linrun.reactor.test.domain;
 
 import com.alibaba.fastjson.JSONObject;
+import com.linrun.domain.account.model.UserAccount;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -26,9 +28,11 @@ import com.linrun.reactor.trigger.http.admin.AiClientRagOrderAdminController;
 import com.linrun.reactor.trigger.http.agent.AgentRoleLibraryController;
 import com.linrun.reactor.trigger.http.dataagent.DataAgentController;
 import com.linrun.reactor.trigger.http.reactor.ReactorController;
+import com.linrun.reactor.trigger.http.support.ReactorAgentUserContextResolver;
 import com.linrun.reactor.types.agent.config.AgentExecutorProperties;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -108,7 +112,10 @@ public class ReactorHttpControllerTest {
         Assert.assertFalse(dataAgentFieldTypes.contains("com.linrun.reactor.domain.agent.rag.SchemaRecallService"));
         Assert.assertFalse(dataAgentFieldTypes.contains("com.linrun.reactor.domain.agent.reactor.service.ChatModelInfoService"));
 
-        Assert.assertTrue(gptQueryApplicationFieldTypes.contains("com.linrun.reactor.domain.agent.runtime.AgentQueryService"));
+        Assert.assertTrue(gptQueryApplicationFieldTypes.contains("com.linrun.reactor.application.agent.dispatch.IAgentDispatchService"));
+        Assert.assertTrue(gptQueryApplicationFieldTypes.contains("com.linrun.reactor.domain.agent.reactor.config.ReactorConfig"));
+        Assert.assertTrue(gptQueryApplicationFieldTypes.contains("java.util.concurrent.Executor"));
+        Assert.assertFalse(gptQueryApplicationFieldTypes.contains("com.linrun.reactor.domain.agent.runtime.AgentQueryService"));
         Assert.assertFalse(gptQueryApplicationFieldTypes.contains("com.linrun.reactor.domain.agent.reactor.service.IGptProcessService"));
         Assert.assertFalse(gptQueryApplicationFieldTypes.contains("com.linrun.reactor.domain.agent.reactor.service.IMultiAgentService"));
 
@@ -129,9 +136,14 @@ public class ReactorHttpControllerTest {
     public void shouldKeepRepresentativeDelegationAndResponseShapes() throws Exception {
         ReactorController reactorController = new ReactorController();
         IGptQueryApplicationService gptQueryApplicationService = Mockito.mock(IGptQueryApplicationService.class);
+        ReactorAgentUserContextResolver userContextResolver = Mockito.mock(ReactorAgentUserContextResolver.class);
+        UserAccount userAccount = new UserAccount();
+        userAccount.setUserId("test-user");
+        Mockito.when(userContextResolver.requireUser(Mockito.any())).thenReturn(userAccount);
         ReflectionTestUtils.setField(reactorController, "gptQueryApplicationService", gptQueryApplicationService);
         ReflectionTestUtils.setField(reactorController, "conversationSessionOwnershipApplicationService",
                 Mockito.mock(ConversationSessionOwnershipApplicationService.class));
+        ReflectionTestUtils.setField(reactorController, "reactorAgentUserContextResolver", userContextResolver);
         ReflectionTestUtils.setField(reactorController, "agentExecutorProperties", new AgentExecutorProperties());
         ReflectionTestUtils.setField(reactorController, "dispatchExecutor", (Executor) Runnable::run);
         ReflectionTestUtils.setField(reactorController, "heartbeatScheduler", new ConcurrentTaskScheduler());
@@ -139,7 +151,7 @@ public class ReactorHttpControllerTest {
         GptQueryReq gptQueryReq = new GptQueryReq();
         Mockito.doNothing().when(gptQueryApplicationService).queryAgentStreamIncr(Mockito.eq(gptQueryReq), Mockito.any());
 
-        Assert.assertNotNull(reactorController.queryAgentStreamIncr(gptQueryReq));
+        Assert.assertNotNull(reactorController.queryAgentStreamIncr(mockRequest(), gptQueryReq));
         Mockito.verify(gptQueryApplicationService).queryAgentStreamIncr(
                 Mockito.eq(gptQueryReq),
                 Mockito.argThat(stream -> stream != null
@@ -202,6 +214,42 @@ public class ReactorHttpControllerTest {
         Assert.assertSame(previewRows, preview.get("data"));
     }
 
+    @Test
+    public void shouldDispatchGptQueryThroughLocalReactorStrategy() throws Exception {
+        GptQueryApplicationService service = new GptQueryApplicationService();
+        List<com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest> dispatched = new ArrayList<>();
+        ReflectionTestUtils.setField(service, "agentDispatchService", (com.linrun.reactor.application.agent.dispatch.IAgentDispatchService) (request, stream) -> {
+            dispatched.add(request);
+            stream.send("ok");
+        });
+        com.linrun.reactor.domain.agent.reactor.config.ReactorConfig reactorConfig =
+                new com.linrun.reactor.domain.agent.reactor.config.ReactorConfig();
+        ReflectionTestUtils.setField(reactorConfig, "reactorBasePrompt", "react-base-prompt");
+        ReflectionTestUtils.setField(reactorConfig, "reactorSopPrompt", "plan-sop-prompt");
+        ReflectionTestUtils.setField(service, "reactorConfig", reactorConfig);
+        ReflectionTestUtils.setField(service, "dispatchExecutor", (Executor) Runnable::run);
+
+        GptQueryReq req = GptQueryReq.builder()
+                .sessionId("session-local")
+                .requestId("req-local")
+                .query("生成一份执行总结")
+                .deepThink(0)
+                .outputStyle("html")
+                .user("user-local")
+                .build();
+        RecordingAgentSessionStream stream = new RecordingAgentSessionStream();
+
+        service.queryAgentStreamIncr(req, stream);
+
+        Assert.assertEquals(1, dispatched.size());
+        Assert.assertEquals("user-localsession-local:req-local", dispatched.get(0).getRequestId());
+        Assert.assertEquals("user-local", dispatched.get(0).getErp());
+        Assert.assertEquals(com.linrun.reactor.domain.agent.runtime.enums.AgentType.REACT.getValue(),
+                dispatched.get(0).getAgentType());
+        Assert.assertEquals(List.of("ok"), stream.payloads);
+        Assert.assertTrue(stream.completed);
+    }
+
     private Set<String> extractRoutes(Class<?> controllerClass) {
         String prefix = resolveFirstPath(controllerClass.getAnnotation(RequestMapping.class));
         Set<String> routes = new LinkedHashSet<>();
@@ -255,6 +303,10 @@ public class ReactorHttpControllerTest {
         return "/" + merged.replaceAll("/{2,}", "/");
     }
 
+    private HttpServletRequest mockRequest() {
+        return Mockito.mock(HttpServletRequest.class);
+    }
+
     private String trimSlash(String value) {
         if (value == null || value.isBlank()) {
             return "";
@@ -267,5 +319,26 @@ public class ReactorHttpControllerTest {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
+    }
+
+    private static class RecordingAgentSessionStream implements com.linrun.reactor.application.agent.stream.AgentSessionStream {
+        private final List<Object> payloads = new ArrayList<>();
+        private boolean completed;
+        private Throwable error;
+
+        @Override
+        public void send(Object payload) {
+            payloads.add(payload);
+        }
+
+        @Override
+        public void complete() {
+            completed = true;
+        }
+
+        @Override
+        public void completeWithError(Throwable throwable) {
+            error = throwable;
+        }
     }
 }

@@ -26,7 +26,6 @@ import com.linrun.domain.market.model.GroupBuyTeamDetail;
 import com.linrun.domain.market.model.GroupBuyTeamStatistic;
 import com.linrun.domain.market.model.GroupBuyTrialResult;
 import com.linrun.domain.market.service.GroupBuyMarketTrialService;
-import com.linrun.trigger.http.agent.HumanApprovalHandler;
 import com.linrun.domain.quota.adapter.QuotaProductRepository;
 import com.linrun.domain.quota.model.QuotaProduct;
 import com.linrun.domain.trade.adapter.repository.TradeOrderRepository;

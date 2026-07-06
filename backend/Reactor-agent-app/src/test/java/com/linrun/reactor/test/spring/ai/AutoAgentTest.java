@@ -54,7 +54,7 @@ public class AutoAgentTest {
         // 初始化 OpenAI API 配置
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .baseUrl("https://dashscope.aliyuncs.com/compatible-mode")
-                .apiKey("sk-ad51211fe54e482aa4bf13feee209f74")
+                .apiKey(System.getenv().getOrDefault("REACTOR_TEST_API_KEY", "test-api-key"))
                 .build();
 
         // 初始化 ChatModel
@@ -975,7 +975,7 @@ public class AutoAgentTest {
      */
     public McpSyncClient sseMcpClient() {
         HttpClientSseClientTransport sseClientTransport = HttpClientSseClientTransport.builder("http://appbuilder.baidu.com/v2/ai_search/mcp/")
-                .sseEndpoint("sse?api_key=bce-v3/ALTAK-3zODLb9qHozIftQlGwez5/2696e92781f5bf1ba1870e2958f239fd6dc822a4")
+                .sseEndpoint("sse?api_key=${REACTOR_TEST_BAIDU_MCP_API_KEY}")
                 .build();
 
         McpSyncClient mcpSyncClient = McpClient.sync(sseClientTransport).requestTimeout(Duration.ofMinutes(360)).build();

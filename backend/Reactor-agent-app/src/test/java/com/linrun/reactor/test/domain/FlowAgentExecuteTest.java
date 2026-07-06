@@ -1,10 +1,10 @@
 package com.linrun.reactor.test.domain;
 
 import com.linrun.reactor.domain.agent.model.entity.ArmoryCommandEntity;
-import com.linrun.reactor.domain.agent.model.entity.ExecuteCommandEntity;
 import com.linrun.reactor.domain.agent.model.valobj.enums.AiAgentEnumVO;
+import com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest;
 import com.linrun.reactor.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import com.linrun.reactor.domain.agent.service.execute.auto1.step.factory.DefaultFlowAgentExecuteStrategyFactory;
+import com.linrun.reactor.domain.agent.service.execute.planexecute.step.factory.DefaultPlanSolveAgentExecuteStrategyFactory;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +31,7 @@ public class FlowAgentExecuteTest {
     private DefaultArmoryStrategyFactory defaultArmoryStrategyFactory;
 
     @Resource
-    private DefaultFlowAgentExecuteStrategyFactory defaultFlowAgentExecuteStrategyFactory;
+    private DefaultPlanSolveAgentExecuteStrategyFactory defaultPlanSolveAgentExecuteStrategyFactory;
 
     @Resource
     private AiClientRuntimeRegistry aiClientRuntimeRegistry;
@@ -54,12 +54,13 @@ public class FlowAgentExecuteTest {
 
     @Test
     public void testFlowAgentExecute() throws Exception {
-        StrategyHandler<ExecuteCommandEntity, DefaultFlowAgentExecuteStrategyFactory.DynamicContext, String> executeHandler
-                = defaultFlowAgentExecuteStrategyFactory.armoryStrategyHandler();
+        StrategyHandler<AgentRequest, DefaultPlanSolveAgentExecuteStrategyFactory.DynamicContext, String> executeHandler
+                = defaultPlanSolveAgentExecuteStrategyFactory.armoryStrategyHandler();
 
-        ExecuteCommandEntity executeCommandEntity = new ExecuteCommandEntity();
-        executeCommandEntity.setAiAgentId("1");
-        executeCommandEntity.setMessage("""
+        AgentRequest request = new AgentRequest();
+        request.setRequestId("plan-solve-request-" + System.currentTimeMillis());
+        request.setVisitorId("plan-solve-user");
+        request.setQuery("""
                 我需要你帮我生成一篇文章，要求如下；
 
                     1. 场景为互联网大厂java求职者面试
@@ -96,17 +97,13 @@ public class FlowAgentExecuteTest {
 
                     之后进行，微信公众号消息通知，平台：CSDN、主题：为文章标题、描述：为文章简述、跳转地址：为发布文章到CSDN获取 http url 文章地址
                 """);
-        executeCommandEntity.setSessionId("flow-session-id-" + System.currentTimeMillis());
-        executeCommandEntity.setMaxStep(4);
+        request.setSessionId("plan-solve-session-id-" + System.currentTimeMillis());
+        request.setIsStream(false);
 
-        // 创建动态上下文
-        DefaultFlowAgentExecuteStrategyFactory.DynamicContext dynamicContext = new DefaultFlowAgentExecuteStrategyFactory.DynamicContext();
-        dynamicContext.setMaxStep(executeCommandEntity.getMaxStep());
-        dynamicContext.setExecutionHistory(new StringBuilder());
-        dynamicContext.setCurrentTask(executeCommandEntity.getMessage());
+        DefaultPlanSolveAgentExecuteStrategyFactory.DynamicContext dynamicContext = new DefaultPlanSolveAgentExecuteStrategyFactory.DynamicContext();
 
-        String apply = executeHandler.apply(executeCommandEntity, dynamicContext);
-        log.info("Flow执行结果:{}", apply);
+        String apply = executeHandler.apply(request, dynamicContext);
+        log.info("PlanSolve 执行结果:{}", apply);
     }
 
 }

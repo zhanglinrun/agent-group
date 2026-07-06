@@ -2,6 +2,7 @@ package com.linrun.reactor.domain.agent.ledger;
 
 import com.alibaba.fastjson.JSON;
 import org.apache.commons.lang3.StringUtils;
+import com.linrun.reactor.domain.agent.adapter.port.AgentQuotaPort;
 import com.linrun.reactor.domain.agent.runtime.agent.AgentContext;
 import com.linrun.reactor.domain.agent.reactor.model.dto.FileInformation;
 import com.linrun.reactor.domain.agent.ledger.model.ArtifactRecordCommand;
@@ -9,6 +10,7 @@ import com.linrun.reactor.domain.agent.ledger.model.DialogueRunFinishRecord;
 import com.linrun.reactor.domain.agent.ledger.model.DialogueRunStartRecord;
 import com.linrun.reactor.domain.agent.ledger.model.ExecutionLedgerConstants;
 import com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest;
+import com.linrun.reactor.domain.agent.runtime.quota.AgentTokenUsageAccumulator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,6 +36,9 @@ public final class ExecutionLedgerRunSupport {
         if (recorder == null || agentContext == null || request == null) {
             return;
         }
+        agentContext.setUserId(request.getVisitorId());
+        agentContext.setQuotaTaskType(entryAgent);
+        precheckQuota(agentContext, request.getVisitorId(), entryAgent);
         Long runId = recorder.createRun(DialogueRunStartRecord.builder()
                 .runUid(request.getRequestId())
                 .requestId(request.getRequestId())
@@ -66,6 +71,40 @@ public final class ExecutionLedgerRunSupport {
                 .errorCode(errorCode)
                 .errorMsg(errorMsg)
                 .build());
+        settleQuota(agentContext);
+    }
+
+    private static void precheckQuota(AgentContext agentContext, String userId, String taskType) {
+        AgentQuotaPort agentQuotaPort = resolveAgentQuotaPort(agentContext);
+        if (agentQuotaPort == null || StringUtils.isBlank(userId)) {
+            return;
+        }
+        agentQuotaPort.precheck(userId, taskType);
+    }
+
+    private static void settleQuota(AgentContext agentContext) {
+        AgentQuotaPort agentQuotaPort = resolveAgentQuotaPort(agentContext);
+        if (agentQuotaPort == null || StringUtils.isBlank(agentContext.getUserId())) {
+            return;
+        }
+        AgentTokenUsageAccumulator.UsageSnapshot usageSnapshot = agentContext.snapshotTokenUsage();
+        if (!usageSnapshot.hasTokenUsage() || !agentContext.markQuotaSettled()) {
+            return;
+        }
+        agentQuotaPort.settle(
+                agentContext.getUserId(),
+                agentContext.getSessionId(),
+                agentContext.getRequestId(),
+                StringUtils.defaultIfBlank(agentContext.getQuotaTaskType(), "agent"),
+                usageSnapshot
+        );
+    }
+
+    private static AgentQuotaPort resolveAgentQuotaPort(AgentContext agentContext) {
+        if (agentContext == null || agentContext.getRuntimeDependencies() == null) {
+            return null;
+        }
+        return agentContext.getRuntimeDependencies().getOptionalAgentQuotaPort();
     }
 
     private static void recordInputArtifacts(AgentExecutionRecorder recorder,

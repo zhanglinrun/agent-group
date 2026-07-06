@@ -55,7 +55,7 @@ public class AiAgentTest {
 
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .baseUrl("https://dashscope.aliyuncs.com/compatible-mode")
-                .apiKey("sk-95e5d430617f428181f089aef88036cc")
+                .apiKey(System.getenv().getOrDefault("REACTOR_TEST_API_KEY", "test-api-key"))
                 .embeddingsPath("v1/embeddings")
                 .build();
 

@@ -46,7 +46,7 @@ public class AiAgentMCPESTest {
 
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .baseUrl("https://apis.itedus.cn")
-                .apiKey("sk-iL1clxGn4nsegwFS8822Ba0eB5D1461eA0845360Eb9fFfFc")
+                .apiKey(System.getenv().getOrDefault("REACTOR_TEST_API_KEY", "test-api-key"))
                 .completionsPath("v1/chat/completions")
                 .embeddingsPath("v1/embeddings")
                 .build();

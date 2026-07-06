@@ -44,7 +44,7 @@ public class ReactorRuntimeBoundaryTest {
     @Test
     public void shouldMoveAgentHandlerConfigOutOfDomainModule() {
         Path configPath = DOMAIN_MODULE_ROOT.resolve(
-                "src/main/java/org/wwz/ai/domain/agent/reactor/handler/AgentHandlerConfig.java");
+                "src/main/java/com/linrun/reactor/domain/agent/reactor/handler/AgentHandlerConfig.java");
         Assert.assertFalse("AgentHandlerConfig 应迁移到 app 模块，不能继续留在 domain", Files.exists(configPath));
     }
 
@@ -54,7 +54,7 @@ public class ReactorRuntimeBoundaryTest {
         List<String> beanFiles = findAnnotationDeclarations("@Bean");
 
         Set<String> expectedConfigurationFiles = new LinkedHashSet<>();
-        expectedConfigurationFiles.add("src/main/java/org/wwz/ai/domain/agent/reactor/config/ReactorConfig.java");
+        expectedConfigurationFiles.add("src/main/java/com/linrun/reactor/domain/agent/reactor/config/ReactorConfig.java");
 
         Assert.assertEquals(
                 "domain 中只允许保留过渡态 ReactorConfig 的 @Configuration 声明",

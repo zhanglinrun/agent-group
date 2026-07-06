@@ -3,8 +3,8 @@ package com.linrun.infrastructure.quota.repository;
 import com.linrun.domain.quota.adapter.QuotaProductRepository;
 import com.linrun.domain.quota.model.QuotaProduct;
 import com.linrun.domain.quota.service.QuotaProductKeywordService;
-import com.linrun.infrastructure.agent.converter.AgentPOConverter;
 import com.linrun.infrastructure.dao.IQuotaProductDao;
+import com.linrun.infrastructure.quota.converter.QuotaPOConverter;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
@@ -26,7 +26,7 @@ public class MyBatisQuotaProductRepository implements QuotaProductRepository {
     @Override
     public List<QuotaProduct> queryCandidateProducts(String question, int limit) {
         int safeLimit = limit <= 0 ? 5 : limit;
-        return AgentPOConverter.toQuotaProducts(
+        return QuotaPOConverter.toQuotaProducts(
                         guideDataDao.queryCandidateProducts(quotaProductKeywordService.extractKeywords(question), safeLimit))
                 .stream()
                 .map(this::normalizeProduct)
@@ -36,7 +36,7 @@ public class MyBatisQuotaProductRepository implements QuotaProductRepository {
 
     @Override
     public Optional<QuotaProduct> queryProductByGoodsId(String goodsId) {
-        QuotaProduct product = AgentPOConverter.toEntity(guideDataDao.queryProductByGoodsId(goodsId));
+        QuotaProduct product = QuotaPOConverter.toEntity(guideDataDao.queryProductByGoodsId(goodsId));
         return normalizeProduct(product);
     }
 

@@ -11,10 +11,12 @@ import com.linrun.reactor.application.agent.visitor.ConversationSessionOwnership
 import com.linrun.reactor.infrastructure.gateway.ReactorFileGateway;
 import com.linrun.reactor.infrastructure.gateway.dto.ConversationUploadFileDTO;
 import com.linrun.reactor.trigger.http.agent.vo.AgentFileUploadRespVO;
+import com.linrun.reactor.trigger.http.support.ReactorAgentUserContextResolver;
 import com.linrun.reactor.types.agent.visitor.VisitorRequestContext;
 import com.linrun.reactor.types.enums.ResponseCode;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 对话附件上传 Controller。
@@ -30,8 +32,12 @@ public class AgentFileController {
     @Resource
     private ConversationSessionOwnershipApplicationService conversationSessionOwnershipApplicationService;
 
+    @Resource
+    private ReactorAgentUserContextResolver reactorAgentUserContextResolver;
+
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Response<AgentFileUploadRespVO> upload(@RequestParam("sessionId") String sessionId,
+    public Response<AgentFileUploadRespVO> upload(HttpServletRequest request,
+                                                  @RequestParam("sessionId") String sessionId,
                                                   @RequestParam("file") MultipartFile file) {
         if (!StringUtils.hasText(sessionId)) {
             return Response.<AgentFileUploadRespVO>builder()
@@ -47,8 +53,11 @@ public class AgentFileController {
         }
 
         try {
+            String visitorId = reactorAgentUserContextResolver.resolveUserIfPresent(request)
+                    .map(user -> user.getUserId())
+                    .orElseGet(VisitorRequestContext::requireVisitorId);
             conversationSessionOwnershipApplicationService.ensureSessionAccessible(
-                    VisitorRequestContext.requireVisitorId(),
+                    visitorId,
                     sessionId,
                     null
             );

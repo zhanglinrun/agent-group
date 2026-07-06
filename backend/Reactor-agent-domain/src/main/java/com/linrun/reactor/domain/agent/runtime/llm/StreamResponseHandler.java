@@ -65,9 +65,13 @@ public class StreamResponseHandler {
         int[] intervals = resolveIntervals();
         int[] tokenIndex = new int[]{1};
         int[] emittedLength = new int[]{0};
+        Integer[] promptTokens = new Integer[1];
+        Integer[] completionTokens = new Integer[1];
+        Integer[] totalTokens = new Integer[1];
 
         flux.subscribe(response -> {
             try {
+                captureUsage(response != null ? response.getMetadata() : null, promptTokens, completionTokens, totalTokens);
                 String chunkContent = extractText(response);
                 if (StringUtils.isBlank(chunkContent)) {
                     return;
@@ -103,6 +107,7 @@ public class StreamResponseHandler {
                 if (finalContent.isEmpty()) {
                     future.completeExceptionally(new IllegalArgumentException("Empty response from streaming LLM"));
                 } else {
+                    recordStringStreamUsage(context, promptTokens, completionTokens, totalTokens, finalContent);
                     future.complete(finalContent);
                 }
             } catch (Exception e) {
@@ -146,6 +151,8 @@ public class StreamResponseHandler {
 
         // 元数据
         String[] finishReason = new String[1];   // 结束原因
+        Integer[] promptTokens = new Integer[1];
+        Integer[] completionTokens = new Integer[1];
         Integer[] totalTokens = new Integer[1];  // 总token数
 
         // 订阅数据流
@@ -186,11 +193,7 @@ public class StreamResponseHandler {
                         finishReason[0] = generation.getMetadata().getFinishReason();
                     }
 
-                    // 提取token用量
-                    Integer usage = resolveTotalTokens(response != null ? response.getMetadata() : null);
-                    if (usage != null) {
-                        totalTokens[0] = usage;
-                    }
+                    captureUsage(response != null ? response.getMetadata() : null, promptTokens, completionTokens, totalTokens);
 
                 } catch (Exception e) {
                     future.completeExceptionally(e);  // 异常结束
@@ -232,6 +235,8 @@ public class StreamResponseHandler {
                         .toolCalls(toolCalls)
                         .streamMessageId(messageId)
                         .finishReason(finishReason[0])
+                        .promptTokens(promptTokens[0])
+                        .completionTokens(completionTokens[0])
                         .totalTokens(totalTokens[0])
                         .duration(System.currentTimeMillis() - startTimeMs)
                         .build());
@@ -285,12 +290,53 @@ public class StreamResponseHandler {
         return response.getResult().getOutput().getText();
     }
 
-    private Integer resolveTotalTokens(ChatResponseMetadata metadata) {
+    private void recordStringStreamUsage(AgentContext context,
+                                         Integer[] promptTokens,
+                                         Integer[] completionTokens,
+                                         Integer[] totalTokens,
+                                         String finalContent) {
+        if (context == null) {
+            return;
+        }
+        if (noUsage(promptTokens, completionTokens, totalTokens)) {
+            context.recordEstimatedLlmUsage(context.getQuery(), finalContent, null, 0L);
+            return;
+        }
+        context.recordLlmUsage(promptTokens[0], completionTokens[0], totalTokens[0], null, 0L);
+    }
+
+    private boolean noUsage(Integer[] promptTokens,
+                            Integer[] completionTokens,
+                            Integer[] totalTokens) {
+        return valueOf(promptTokens) == null
+                && valueOf(completionTokens) == null
+                && valueOf(totalTokens) == null;
+    }
+
+    private Integer valueOf(Integer[] values) {
+        return values == null || values.length == 0 ? null : values[0];
+    }
+
+    private void captureUsage(ChatResponseMetadata metadata,
+                              Integer[] promptTokens,
+                              Integer[] completionTokens,
+                              Integer[] totalTokens) {
         if (metadata == null) {
-            return null;
+            return;
         }
         Usage usage = metadata.getUsage();
-        return usage != null ? usage.getTotalTokens() : null;
+        if (usage == null) {
+            return;
+        }
+        if (usage.getPromptTokens() != null) {
+            promptTokens[0] = usage.getPromptTokens();
+        }
+        if (usage.getCompletionTokens() != null) {
+            completionTokens[0] = usage.getCompletionTokens();
+        }
+        if (usage.getTotalTokens() != null) {
+            totalTokens[0] = usage.getTotalTokens();
+        }
     }
 
     private String extractVisibleContent(String allContent, String hiddenStartMarker) {

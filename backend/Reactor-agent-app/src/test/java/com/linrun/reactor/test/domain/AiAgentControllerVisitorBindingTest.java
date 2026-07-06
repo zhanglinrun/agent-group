@@ -1,5 +1,6 @@
 package com.linrun.reactor.test.domain;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -12,9 +13,11 @@ import com.linrun.reactor.application.agent.visitor.ConversationSessionOwnership
 import com.linrun.reactor.domain.agent.ledger.entity.DialogueSession;
 import com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest;
 import com.linrun.reactor.trigger.http.AiAgentController;
+import com.linrun.reactor.trigger.http.support.ReactorAgentUserContextResolver;
 import com.linrun.reactor.types.agent.config.AgentExecutorProperties;
 import com.linrun.reactor.types.agent.visitor.VisitorRequestContext;
 
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -29,9 +32,12 @@ public class AiAgentControllerVisitorBindingTest {
         AiAgentController controller = new AiAgentController();
         IAgentDispatchService dispatchService = Mockito.mock(IAgentDispatchService.class);
         ConversationSessionOwnershipApplicationService ownershipService = Mockito.mock(ConversationSessionOwnershipApplicationService.class);
+        ReactorAgentUserContextResolver userContextResolver = Mockito.mock(ReactorAgentUserContextResolver.class);
+        Mockito.when(userContextResolver.resolveUserIfPresent(Mockito.any())).thenReturn(Optional.empty());
         ReflectionTestUtils.setField(controller, "agentDispatchService", dispatchService);
         ReflectionTestUtils.setField(controller, "gptQueryApplicationService", Mockito.mock(IGptQueryApplicationService.class));
         ReflectionTestUtils.setField(controller, "conversationSessionOwnershipApplicationService", ownershipService);
+        ReflectionTestUtils.setField(controller, "reactorAgentUserContextResolver", userContextResolver);
         ReflectionTestUtils.setField(controller, "agentExecutorProperties", new AgentExecutorProperties());
         ReflectionTestUtils.setField(controller, "dispatchExecutor", (Executor) Runnable::run);
         ReflectionTestUtils.setField(controller, "heartbeatScheduler", new ConcurrentTaskScheduler());
@@ -51,7 +57,7 @@ public class AiAgentControllerVisitorBindingTest {
 
         VisitorRequestContext.bind("visitor-001");
         try {
-            SseEmitter emitter = controller.AutoAgent(request);
+            SseEmitter emitter = controller.AutoAgent(loopbackRequest(), request);
             Assert.assertNotNull(emitter);
         } finally {
             VisitorRequestContext.clear();
@@ -67,9 +73,12 @@ public class AiAgentControllerVisitorBindingTest {
         AiAgentController controller = new AiAgentController();
         IAgentDispatchService dispatchService = Mockito.mock(IAgentDispatchService.class);
         ConversationSessionOwnershipApplicationService ownershipService = Mockito.mock(ConversationSessionOwnershipApplicationService.class);
+        ReactorAgentUserContextResolver userContextResolver = Mockito.mock(ReactorAgentUserContextResolver.class);
+        Mockito.when(userContextResolver.resolveUserIfPresent(Mockito.any())).thenReturn(Optional.empty());
         ReflectionTestUtils.setField(controller, "agentDispatchService", dispatchService);
         ReflectionTestUtils.setField(controller, "gptQueryApplicationService", Mockito.mock(IGptQueryApplicationService.class));
         ReflectionTestUtils.setField(controller, "conversationSessionOwnershipApplicationService", ownershipService);
+        ReflectionTestUtils.setField(controller, "reactorAgentUserContextResolver", userContextResolver);
         ReflectionTestUtils.setField(controller, "agentExecutorProperties", new AgentExecutorProperties());
         ReflectionTestUtils.setField(controller, "dispatchExecutor", (Executor) Runnable::run);
         ReflectionTestUtils.setField(controller, "heartbeatScheduler", new ConcurrentTaskScheduler());
@@ -85,12 +94,18 @@ public class AiAgentControllerVisitorBindingTest {
 
         VisitorRequestContext.bind("visitor-002");
         try {
-            controller.AutoAgent(request);
+            controller.AutoAgent(loopbackRequest(), request);
         } finally {
             VisitorRequestContext.clear();
         }
 
         Assert.assertEquals("visitor-002", request.getVisitorId());
         Mockito.verify(ownershipService).ensureSessionAccessible("visitor-002", "session-002", "继续这个会话");
+    }
+
+    private HttpServletRequest loopbackRequest() {
+        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
+        Mockito.when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+        return request;
     }
 }

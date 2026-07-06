@@ -9,14 +9,14 @@ class SecurityConfigTest {
     @Test
     void shouldUseUserLoginMessageForUserEndpoints() {
         assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/quota/summary"));
-        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/agent/stream"));
-        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/api/v1/agent/capabilities"));
+        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/web/api/v1/gpt/queryAgentStreamIncr"));
+        assertEquals("请先登录后再访问该接口", SecurityConfig.authenticationInfo("/web/api/v1/agent/capabilities"));
     }
 
     @Test
     void shouldUseOperatorMessageForAdminEndpoints() {
-        assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/mcp/admin/servers"));
-        assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/agent/admin/configs"));
+        assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/admin/reactor/mcp/servers"));
+        assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/admin/reactor/configs"));
         assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/quota/admin/grant-by-orders"));
         assertEquals("请使用运营账号访问该接口", SecurityConfig.authenticationInfo("/api/v1/evaluate/agent/latest"));
     }

@@ -1,10 +1,10 @@
 package com.linrun.reactor.test.domain;
 
 import com.linrun.reactor.domain.agent.model.entity.ArmoryCommandEntity;
-import com.linrun.reactor.domain.agent.model.entity.ExecuteCommandEntity;
 import com.linrun.reactor.domain.agent.model.valobj.enums.AiAgentEnumVO;
+import com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest;
 import com.linrun.reactor.domain.agent.service.armory.node.factory.DefaultArmoryStrategyFactory;
-import com.linrun.reactor.domain.agent.service.execute.auto.step.factory.DefaultAutoAgentExecuteStrategyFactory;
+import com.linrun.reactor.domain.agent.service.execute.react.step.factory.DefaultReactAgentExecuteStrategyFactory;
 import cn.bugstack.wrench.design.framework.tree.StrategyHandler;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ public class AutoAgentTest {
     private DefaultArmoryStrategyFactory defaultArmoryStrategyFactory;
 
     @Resource
-    private DefaultAutoAgentExecuteStrategyFactory defaultAutoAgentExecuteStrategyFactory;
+    private DefaultReactAgentExecuteStrategyFactory defaultReactAgentExecuteStrategyFactory;
 
     @Resource
     private AiClientRuntimeRegistry aiClientRuntimeRegistry;
@@ -52,16 +52,17 @@ public class AutoAgentTest {
 
     @Test
     public void autoAgent() throws Exception {
-        StrategyHandler<ExecuteCommandEntity, DefaultAutoAgentExecuteStrategyFactory.DynamicContext, String> executeHandler
-                = defaultAutoAgentExecuteStrategyFactory.armoryStrategyHandler();
+        StrategyHandler<AgentRequest, DefaultReactAgentExecuteStrategyFactory.DynamicContext, String> executeHandler
+                = defaultReactAgentExecuteStrategyFactory.armoryStrategyHandler();
 
-        ExecuteCommandEntity executeCommandEntity = new ExecuteCommandEntity();
-        executeCommandEntity.setAiAgentId("3");
-        executeCommandEntity.setMessage("搜索小傅哥，技术项目列表。编写成一份文档，说明不同项目的学习目标，以及不同阶段的伙伴应该学习哪个项目。");
-        executeCommandEntity.setSessionId("session-id-" + System.currentTimeMillis());
-        executeCommandEntity.setMaxStep(3);
+        AgentRequest request = new AgentRequest();
+        request.setRequestId("react-request-" + System.currentTimeMillis());
+        request.setVisitorId("react-user");
+        request.setQuery("搜索小傅哥，技术项目列表。编写成一份文档，说明不同项目的学习目标，以及不同阶段的伙伴应该学习哪个项目。");
+        request.setSessionId("session-id-" + System.currentTimeMillis());
+        request.setIsStream(false);
 
-        String apply = executeHandler.apply(executeCommandEntity, new DefaultAutoAgentExecuteStrategyFactory.DynamicContext());
+        String apply = executeHandler.apply(request, new DefaultReactAgentExecuteStrategyFactory.DynamicContext());
         log.info("测试结果:{}", apply);
     }
 

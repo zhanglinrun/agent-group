@@ -119,7 +119,7 @@ def run_task(base: str, token: str, task: dict, run_index: int) -> dict:
         "taskType": "deep",
         "webSearchEnabled": False,
     }
-    url = f"{base}/api/v1/agent/stream"
+    url = f"{base}/web/api/v1/gpt/queryAgentStreamIncr"
     started = time.perf_counter()
     try:
         raw = post_json(url, body, token=token, timeout=600)

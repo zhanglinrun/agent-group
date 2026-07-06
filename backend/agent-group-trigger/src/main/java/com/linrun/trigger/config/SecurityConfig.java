@@ -50,7 +50,7 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/health", "/actuator/health", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/api/health", "/actuator/health", "/actuator/health/**", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/payment/webhook", "/api/v1/trade/payment/webhook/**",
                                 "/api/v1/trade/payment/alipay/notify",
@@ -61,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/profile").hasRole("USER")
                         .requestMatchers("/agent/**", "/file/**", "/session/**").hasRole("USER")
+                        .requestMatchers("/web/api/v1/agent/**", "/api/agent/file/**").hasRole("USER")
                         .requestMatchers("/api/v1/quota/admin/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/quota/**", "/api/v1/agent/**").hasRole("USER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/market/trade/lock").hasRole("USER")
@@ -68,8 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/market/index/query_group_buy_market_config", "/api/v1/market/trade/lock_market_pay_order").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/trade/order/my").hasRole("USER")
                         .requestMatchers("/api/v1/weixin/template/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/mcp", "/api/v1/mcp/**").hasAnyRole("OPERATOR", "ADMIN")
-                        .requestMatchers("/api/v1/agent/admin/**").hasAnyRole("OPERATOR", "ADMIN")
+                        .requestMatchers("/api/v1/admin/reactor/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/evaluate/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/ops/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/trade/order/status-flow").hasAnyRole("OPERATOR", "ADMIN")
@@ -91,8 +91,7 @@ public class SecurityConfig {
 
     private static boolean requiresOperatorAuth(String requestUri) {
         String path = StringUtils.hasText(requestUri) ? requestUri : "";
-        return path.startsWith("/api/v1/mcp")
-                || path.startsWith("/api/v1/agent/admin/")
+        return path.startsWith("/api/v1/admin/reactor/")
                 || path.startsWith("/api/v1/quota/admin")
                 || path.startsWith("/api/v1/evaluate/")
                 || path.startsWith("/api/v1/ops/")

@@ -174,21 +174,20 @@
                     </includes>
                     <excludes>
                         <!-- 默认回归仅执行可离线复现的测试，以下用例依赖外部模型、MCP 或独立服务环境 -->
-                        <exclude>**/org/wwz/ai/test/ElkBlacklistDataTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/domain/AgentTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/domain/AutoAgentTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/domain/FlowAgentExecuteTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/prompt/DynamicAutoAgentTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/prompt/TraePromptTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/AiAgentMCPESTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/AiAgentStepTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/AiAgentTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/AiSearchMCPTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/AutoAgentTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/DynamicRateLimitQueryTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/FlowAgentMCPTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/FlowAgentTest.java</exclude>
-                        <exclude>**/org/wwz/ai/test/spring/ai/OpenAiTest.java</exclude>
+                        <exclude>**/ElkBlacklistDataTest.java</exclude>
+                        <exclude>**/AgentTest.java</exclude>
+                        <exclude>**/AutoAgentTest.java</exclude>
+                        <exclude>**/FlowAgentExecuteTest.java</exclude>
+                        <exclude>**/DynamicAutoAgentTest.java</exclude>
+                        <exclude>**/TraePromptTest.java</exclude>
+                        <exclude>**/AiAgentMCPESTest.java</exclude>
+                        <exclude>**/AiAgentStepTest.java</exclude>
+                        <exclude>**/AiAgentTest.java</exclude>
+                        <exclude>**/AiSearchMCPTest.java</exclude>
+                        <exclude>**/DynamicRateLimitQueryTest.java</exclude>
+                        <exclude>**/FlowAgentMCPTest.java</exclude>
+                        <exclude>**/FlowAgentTest.java</exclude>
+                        <exclude>**/OpenAiTest.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>
@@ -196,8 +195,8 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.linrun.reactor.Application</mainClass>
-                    <layout>JAR</layout>
+                    <!-- Reactor-agent-app 不再作为独立启动入口，唯一启动模块是 agent-group-app -->
+                    <skip>true</skip>
                 </configuration>
             </plugin>
         </plugins>

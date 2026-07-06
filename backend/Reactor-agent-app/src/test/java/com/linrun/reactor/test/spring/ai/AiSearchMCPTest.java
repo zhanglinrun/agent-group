@@ -36,7 +36,7 @@ public class AiSearchMCPTest {
         OpenAiChatModel chatModel = OpenAiChatModel.builder()
                 .openAiApi(OpenAiApi.builder()
                         .baseUrl("https://dashscope.aliyuncs.com/compatible-mode")
-                        .apiKey("sk-ad51211fe54e482aa4bf13feee209f74")
+                        .apiKey(System.getenv().getOrDefault("REACTOR_TEST_API_KEY", "test-api-key"))
                         .build())
                 .defaultOptions(OpenAiChatOptions.builder()
                         .model("deepseek-v3.2")
@@ -50,7 +50,7 @@ public class AiSearchMCPTest {
 
     public McpSyncClient sseMcpClient() {
         HttpClientSseClientTransport sseClientTransport = HttpClientSseClientTransport.builder("http://appbuilder.baidu.com/v2/ai_search/mcp/")
-                .sseEndpoint("sse?api_key=Bearer+bce-v3/ALTAK-fOwjgpn1PqQvEWx3YjCmu/41ed4aa8e23c858f2a568024e86ab8769abbd87e")
+                .sseEndpoint("sse?api_key=${REACTOR_TEST_BAIDU_MCP_API_KEY}")
                 .build();
 
         McpSyncClient mcpSyncClient = McpClient.sync(sseClientTransport).requestTimeout(Duration.ofMinutes(360)).build();

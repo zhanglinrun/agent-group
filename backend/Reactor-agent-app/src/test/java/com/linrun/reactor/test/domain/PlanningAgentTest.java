@@ -141,6 +141,20 @@ public class PlanningAgentTest {
     }
 
     @Test
+    public void shouldFailClearlyWhenPlannerReturnsNoToolCall() {
+        PlanningAgent agent = newPlanningAgent("0");
+        agent.setToolCalls(null);
+
+        try {
+            agent.act();
+            Assert.fail("Planner 未返回工具调用时不应继续执行");
+        } catch (IllegalStateException e) {
+            Assert.assertTrue(e.getMessage().contains("planning did not return any tool call"));
+        }
+        Assert.assertEquals(AgentState.ERROR, agent.getState());
+    }
+
+    @Test
     public void shouldEmitStablePlannerRoundIdOnThoughtAndPlan() {
         RecordingPrinter printer = new RecordingPrinter();
         PlanningAgent agent = newPlanningAgent("0", printer);

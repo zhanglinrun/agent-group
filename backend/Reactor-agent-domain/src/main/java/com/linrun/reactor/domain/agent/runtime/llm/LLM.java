@@ -336,8 +336,10 @@ public class LLM {
                     callKind,
                     stream
             );
+            List<Message> mergedMessages = mergeMessages(systemMsgs, messages);
+            String estimatedPromptText = estimatePromptText(mergedMessages);
             Prompt prompt = buildPrompt(
-                    mergeMessages(systemMsgs, messages),
+                    mergedMessages,
                     chatOptionsFactory.buildTextOptions(llmSettings, temperature)
             );
             OpenAiChatModel chatModel = resolveChatModel();
@@ -350,17 +352,21 @@ public class LLM {
                     try {
                         ChatResponse response = chatModel.call(prompt);
                         String content = responseMapper.toText(response);
+                        Integer promptTokens = resolvePromptTokens(response.getMetadata());
+                        Integer completionTokens = resolveCompletionTokens(response.getMetadata());
+                        Integer totalTokens = resolveTotalTokens(response.getMetadata());
                         finishLlmInvocation(
                                 context,
                                 invocationHandle,
                                 ExecutionLedgerConstants.STATUS_SUCCESS,
                                 content,
                                 0,
-                                resolvePromptTokens(response.getMetadata()),
-                                resolveCompletionTokens(response.getMetadata()),
-                                resolveTotalTokens(response.getMetadata()),
+                                promptTokens,
+                                completionTokens,
+                                totalTokens,
                                 resolveFinishReason(response),
-                                null
+                                null,
+                                estimatedPromptText
                         );
                         return content;
                     } catch (Exception e) {
@@ -374,7 +380,8 @@ public class LLM {
                                 null,
                                 null,
                                 null,
-                                e.getMessage()
+                                e.getMessage(),
+                                estimatedPromptText
                         );
                         throw new CompletionException(e);
                     }
@@ -394,6 +401,7 @@ public class LLM {
                                     null,
                                     null,
                                     null,
+                                    null,
                                     null
                             );
                             return;
@@ -409,7 +417,8 @@ public class LLM {
                                 null,
                                 null,
                                 null,
-                                cause.getMessage()
+                                cause.getMessage(),
+                                estimatedPromptText
                         );
                     });
         } catch (Exception e) {
@@ -465,8 +474,10 @@ public class LLM {
                         context, messages, systemMsgs, tools, temperature, stream, timeout, startTime, invocationHandle);
             }
 
+            List<Message> mergedMessages = mergeMessages(systemMsgs, messages);
+            String estimatedPromptText = estimatePromptText(mergedMessages);
             Prompt prompt = buildPrompt(
-                    mergeMessages(systemMsgs, messages),
+                    mergedMessages,
                     chatOptionsFactory.buildToolOptions(llmSettings, temperature, tools, toolChoice)
             );
             OpenAiChatModel chatModel = resolveChatModel();
@@ -494,20 +505,20 @@ public class LLM {
                         "askTool(function_call, stream=false)"
                 ).whenComplete((response, throwable) -> {
                     if (throwable == null) {
-                        finishLlmInvocation(context, invocationHandle, response, null);
+                        finishLlmInvocation(context, invocationHandle, response, null, estimatedPromptText);
                         return;
                     }
-                    finishLlmInvocation(context, invocationHandle, null, unwrapCompletionThrowable(throwable));
+                    finishLlmInvocation(context, invocationHandle, null, unwrapCompletionThrowable(throwable), estimatedPromptText);
                 });
             }
 
             return streamResponseHandler.handleToolCallStream(context, chatModel.stream(prompt), startTime, pushToClient)
                     .whenComplete((response, throwable) -> {
                         if (throwable == null) {
-                            finishLlmInvocation(context, invocationHandle, response, null);
+                            finishLlmInvocation(context, invocationHandle, response, null, estimatedPromptText);
                             return;
                         }
-                        finishLlmInvocation(context, invocationHandle, null, unwrapCompletionThrowable(throwable));
+                        finishLlmInvocation(context, invocationHandle, null, unwrapCompletionThrowable(throwable), estimatedPromptText);
                     })
                     .orTimeout(timeout, TimeUnit.SECONDS);
         } catch (Exception e) {
@@ -532,8 +543,10 @@ public class LLM {
             LlmInvocationHandle invocationHandle
     ) {
         Message mergedSystemMessage = buildStructParseSystemMessage(systemMsg, tools);
+        List<Message> mergedMessages = mergeMessages(mergedSystemMessage, messages);
+        String estimatedPromptText = estimatePromptText(mergedMessages);
         Prompt prompt = buildPrompt(
-                mergeMessages(mergedSystemMessage, messages),
+                mergedMessages,
                 chatOptionsFactory.buildTextOptions(llmSettings, temperature)
         );
         OpenAiChatModel chatModel = resolveChatModel();
@@ -554,10 +567,10 @@ public class LLM {
                     );
                     toolCallResponse.setPromptTokens(resolvePromptTokens(response.getMetadata()));
                     toolCallResponse.setCompletionTokens(resolveCompletionTokens(response.getMetadata()));
-                    finishLlmInvocation(context, invocationHandle, toolCallResponse, null);
+                    finishLlmInvocation(context, invocationHandle, toolCallResponse, null, estimatedPromptText);
                     return toolCallResponse;
                 } catch (Exception e) {
-                    finishLlmInvocation(context, invocationHandle, null, e);
+                    finishLlmInvocation(context, invocationHandle, null, e, estimatedPromptText);
                     throw new CompletionException(e);
                 }
             }).orTimeout(timeout, TimeUnit.SECONDS);
@@ -572,10 +585,10 @@ public class LLM {
                 .thenApply(content -> buildStructParseToolCallResponse(context, content, null, null, startTime))
                 .whenComplete((response, throwable) -> {
                     if (throwable == null) {
-                        finishLlmInvocation(context, invocationHandle, response, null);
+                        finishLlmInvocation(context, invocationHandle, response, null, null);
                         return;
                     }
-                    finishLlmInvocation(context, invocationHandle, null, unwrapCompletionThrowable(throwable));
+                    finishLlmInvocation(context, invocationHandle, null, unwrapCompletionThrowable(throwable), estimatedPromptText);
                 })
                 .orTimeout(timeout, TimeUnit.SECONDS);
     }
@@ -769,6 +782,14 @@ public class LLM {
         return stopPos >= 0 ? fullContent.substring(0, stopPos) : fullContent;
     }
 
+    private String estimatePromptText(List<Message> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return null;
+        }
+        List<Map<String, Object>> formattedMessages = formatMessages(messages, isClaudeModel());
+        return JSON.toJSONString(formattedMessages);
+    }
+
     private Message buildStructParseSystemMessage(Message systemMsg, ToolCollection tools) {
         String toolPrompt = buildStructParseToolPrompt(tools);
         String originalSystemPrompt = systemMsg != null ? StringUtils.defaultString(systemMsg.getContent()) : "";
@@ -900,11 +921,20 @@ public class LLM {
         return usage != null ? usage.getCompletionTokens() : null;
     }
 
+    private boolean hasUsage(Integer promptTokens, Integer completionTokens, Integer totalTokens) {
+        return positiveUsage(promptTokens) || positiveUsage(completionTokens) || positiveUsage(totalTokens);
+    }
+
+    private boolean positiveUsage(Integer tokens) {
+        return tokens != null && tokens > 0;
+    }
+
     private LlmInvocationHandle startLlmInvocation(AgentContext context, String callKind, boolean stream) {
         if (context == null || !context.hasActiveLedgerRun() || context.getAgentRunState() == null) {
             return LlmInvocationHandle.disabled();
         }
         LocalDateTime startedAt = LocalDateTime.now();
+        long startedAtMillis = System.currentTimeMillis();
         int invocationSeq = context.getAgentRunState().nextInvocationSeq();
         Long invocationId = context.getExecutionRecorder().createLlmInvocation(LlmInvocationStartRecord.builder()
                 .runId(context.getAgentRunState().getRunId())
@@ -918,13 +948,21 @@ public class LLM {
                 .startedAt(startedAt)
                 .build());
         context.getAgentRunState().bindCurrentLlmInvocationId(invocationId);
-        return new LlmInvocationHandle(invocationId);
+        return new LlmInvocationHandle(invocationId, startedAtMillis);
     }
 
     private void finishLlmInvocation(AgentContext context,
                                      LlmInvocationHandle handle,
                                      ToolCallResponse response,
                                      Throwable throwable) {
+        finishLlmInvocation(context, handle, response, throwable, null);
+    }
+
+    private void finishLlmInvocation(AgentContext context,
+                                     LlmInvocationHandle handle,
+                                     ToolCallResponse response,
+                                     Throwable throwable,
+                                     String estimatedPromptText) {
         if (throwable != null) {
             finishLlmInvocation(
                     context,
@@ -936,7 +974,8 @@ public class LLM {
                     null,
                     null,
                     null,
-                    throwable.getMessage()
+                    throwable.getMessage(),
+                    estimatedPromptText
             );
             return;
         }
@@ -950,7 +989,8 @@ public class LLM {
                 response == null ? null : response.getCompletionTokens(),
                 response == null ? null : response.getTotalTokens(),
                 response == null ? null : response.getFinishReason(),
-                null
+                null,
+                estimatedPromptText
         );
     }
 
@@ -964,6 +1004,21 @@ public class LLM {
                                      Integer totalTokens,
                                      String finishReason,
                                      String errorMsg) {
+        finishLlmInvocation(context, handle, status, responseText, toolCallCount, promptTokens,
+                completionTokens, totalTokens, finishReason, errorMsg, null);
+    }
+
+    private void finishLlmInvocation(AgentContext context,
+                                     LlmInvocationHandle handle,
+                                     Integer status,
+                                     String responseText,
+                                     Integer toolCallCount,
+                                     Integer promptTokens,
+                                     Integer completionTokens,
+                                     Integer totalTokens,
+                                     String finishReason,
+                                     String errorMsg,
+                                     String estimatedPromptText) {
         if (context == null || handle == null || !handle.enabled() || handle.invocationId() == null) {
             return;
         }
@@ -980,6 +1035,13 @@ public class LLM {
                 .errorMsg(errorMsg)
                 .finishedAt(LocalDateTime.now())
                 .build());
+        if (hasUsage(promptTokens, completionTokens, totalTokens)) {
+            context.recordLlmUsage(promptTokens, completionTokens, totalTokens, model, handle.elapsedMillis());
+            return;
+        }
+        if (StringUtils.isNotBlank(estimatedPromptText) || StringUtils.isNotBlank(responseText)) {
+            context.recordEstimatedLlmUsage(estimatedPromptText, responseText, model, handle.elapsedMillis());
+        }
     }
 
     private <T> CompletableFuture<T> withFallback(CompletableFuture<T> primaryFuture,
@@ -1226,13 +1288,17 @@ public class LLM {
         private long duration;
     }
 
-    private record LlmInvocationHandle(Long invocationId) {
+    private record LlmInvocationHandle(Long invocationId, long startedAtMillis) {
         private static LlmInvocationHandle disabled() {
-            return new LlmInvocationHandle(null);
+            return new LlmInvocationHandle(null, 0L);
         }
 
         private boolean enabled() {
             return invocationId != null;
+        }
+
+        private long elapsedMillis() {
+            return startedAtMillis <= 0L ? 0L : System.currentTimeMillis() - startedAtMillis;
         }
     }
 

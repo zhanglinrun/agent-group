@@ -13,6 +13,7 @@ import com.linrun.reactor.domain.agent.runtime.printer.Printer;
 import com.linrun.reactor.domain.agent.runtime.tool.ToolCollection;
 import com.linrun.reactor.domain.agent.runtime.ReactorRuntimeDependencies;
 import com.linrun.reactor.domain.agent.ledger.AgentExecutionRecorder;
+import com.linrun.reactor.domain.agent.runtime.quota.AgentTokenUsageAccumulator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +55,11 @@ public class AgentContext {
      * 格式示例：用户ID+时间戳（如"user_123456_1710000000000"）
      */
     String sessionId;
+
+    /**
+     * 当前请求对应的业务用户 ID。
+     */
+    String userId;
 
     /**
      * 用户原始查询语句
@@ -170,6 +176,11 @@ public class AgentContext {
     Integer agentType;
 
     /**
+     * 额度计费侧使用的任务类型。
+     */
+    String quotaTaskType;
+
+    /**
      * 当前请求运行期的工具产物登记簿。
      * 这是工具文件来源的唯一事实来源。
      */
@@ -203,6 +214,14 @@ public class AgentContext {
     @ToString.Exclude
     @JSONField(serialize = false)
     AgentRunState agentRunState = AgentRunState.builder().build();
+
+    /**
+     * 当前 run 的 LLM token 用量累计器。
+     */
+    @Builder.Default
+    @ToString.Exclude
+    @JSONField(serialize = false)
+    AgentTokenUsageAccumulator tokenUsageAccumulator = new AgentTokenUsageAccumulator();
 
     /**
      * 当前任务专属的产品文件列表（任务级）
@@ -307,6 +326,29 @@ public class AgentContext {
                 && agentRunState.getRunId() != null;
     }
 
+    public void recordLlmUsage(Integer promptTokens,
+                               Integer completionTokens,
+                               Integer totalTokens,
+                               String modelName,
+                               long durationMillis) {
+        ensureTokenUsageAccumulator().record(promptTokens, completionTokens, totalTokens, modelName, durationMillis);
+    }
+
+    public void recordEstimatedLlmUsage(String promptText,
+                                        String completionText,
+                                        String modelName,
+                                        long durationMillis) {
+        ensureTokenUsageAccumulator().recordEstimated(promptText, completionText, modelName, durationMillis);
+    }
+
+    public AgentTokenUsageAccumulator.UsageSnapshot snapshotTokenUsage() {
+        return ensureTokenUsageAccumulator().snapshot();
+    }
+
+    public boolean markQuotaSettled() {
+        return ensureTokenUsageAccumulator().markSettled();
+    }
+
     /**
      * 为并发子任务创建轻量上下文分叉。
      * child context 共享 run 级依赖与账本事实，但复制任务态兼容视图，避免并发写回父上下文。
@@ -315,6 +357,7 @@ public class AgentContext {
         return AgentContext.builder()
                 .requestId(requestId)
                 .sessionId(sessionId)
+                .userId(userId)
                 .query(query)
                 .task(parallelTask)
                 .printer(printer)
@@ -327,10 +370,12 @@ public class AgentContext {
                 .basePrompt(basePrompt)
                 .historyDialogue(historyDialogue)
                 .agentType(agentType)
+                .quotaTaskType(quotaTaskType)
                 .toolArtifactRegistry(toolArtifactRegistry)
                 .currentToolArtifactSourceHolder(new ThreadLocal<>())
                 .executionRecorder(executionRecorder)
                 .agentRunState(agentRunState)
+                .tokenUsageAccumulator(tokenUsageAccumulator)
                 .taskProductFiles(copyFiles(taskProductFiles))
                 .templateType(templateType)
                 .build();
@@ -355,6 +400,13 @@ public class AgentContext {
             agentRunState = AgentRunState.builder().build();
         }
         return agentRunState;
+    }
+
+    private synchronized AgentTokenUsageAccumulator ensureTokenUsageAccumulator() {
+        if (tokenUsageAccumulator == null) {
+            tokenUsageAccumulator = new AgentTokenUsageAccumulator();
+        }
+        return tokenUsageAccumulator;
     }
 
     private List<File> copyFiles(List<File> sourceFiles) {

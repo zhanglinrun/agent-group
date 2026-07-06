@@ -1,6 +1,7 @@
 package com.linrun.reactor.trigger.http;
 
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
+import com.linrun.domain.account.model.UserAccount;
 import com.linrun.reactor.api.IAiAgentService;
 import com.linrun.reactor.api.dto.AiAgentResponseDTO;
 import com.linrun.reactor.api.dto.ArmoryAgentRequestDTO;
@@ -30,6 +32,7 @@ import com.linrun.reactor.types.enums.ResponseCode;
 import com.alibaba.fastjson.JSON;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.linrun.reactor.trigger.http.support.ReactorAgentUserContextResolver;
 import com.linrun.reactor.trigger.http.reactor.support.SseLifecycleSupport;
 import com.linrun.reactor.trigger.http.reactor.support.SseEmitterAgentSessionStream;
 
@@ -66,6 +69,9 @@ public class AiAgentController implements IAiAgentService {
     private ConversationSessionOwnershipApplicationService conversationSessionOwnershipApplicationService;
 
     @Resource
+    private ReactorAgentUserContextResolver reactorAgentUserContextResolver;
+
+    @Resource
     private AgentExecutorProperties agentExecutorProperties;
 
     @Resource
@@ -83,7 +89,8 @@ public class AiAgentController implements IAiAgentService {
      * @throws UnsupportedEncodingException
      */
     @PostMapping("/AutoAgent")
-    public SseEmitter AutoAgent(@RequestBody AgentRequest request) throws UnsupportedEncodingException {
+    public SseEmitter AutoAgent(HttpServletRequest servletRequest,
+                                @RequestBody AgentRequest request) throws UnsupportedEncodingException {
 
         log.info("{} auto agent request: {}", request.getRequestId(), JSON.toJSONString(request));
 
@@ -91,8 +98,9 @@ public class AiAgentController implements IAiAgentService {
 
         SseEmitter emitter = SseLifecycleSupport.createEmitter(AUTO_AGENT_SSE_TIMEOUT);
         try {
-            String visitorId = resolveVisitorId(request);
+            String visitorId = resolveAgentUserId(servletRequest, request);
             request.setVisitorId(visitorId);
+            request.setErp(visitorId);
             conversationSessionOwnershipApplicationService.ensureSessionAccessible(
                     visitorId,
                     request.getSessionId(),
@@ -151,6 +159,27 @@ public class AiAgentController implements IAiAgentService {
         return visitorId;
     }
 
+    private String resolveAgentUserId(HttpServletRequest servletRequest, AgentRequest request) {
+        return reactorAgentUserContextResolver.resolveUserIfPresent(servletRequest)
+                .map(UserAccount::getUserId)
+                .orElseGet(() -> {
+                    if (isLoopbackRequest(servletRequest)) {
+                        return resolveVisitorId(request);
+                    }
+                    return reactorAgentUserContextResolver.requireUser(servletRequest).getUserId();
+                });
+    }
+
+    private boolean isLoopbackRequest(HttpServletRequest request) {
+        if (request == null || StringUtils.isBlank(request.getRemoteAddr())) {
+            return false;
+        }
+        String remoteAddress = request.getRemoteAddr();
+        return StringUtils.equals(remoteAddress, "127.0.0.1")
+                || StringUtils.equals(remoteAddress, "0:0:0:0:0:0:0:1")
+                || StringUtils.equals(remoteAddress, "::1");
+    }
+
 
     /**
      * 探活接口
@@ -169,13 +198,24 @@ public class AiAgentController implements IAiAgentService {
      * @return 返回SSE事件发射器，用于流式传输增量响应结果
      */
     @RequestMapping(value = "/web/api/v1/gpt/queryAgentStreamIncr", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter queryAgentStreamIncr(@RequestBody GptQueryReq params) {
+    public SseEmitter queryAgentStreamIncr(HttpServletRequest servletRequest,
+                                           @RequestBody GptQueryReq params) {
         SseEmitter emitter = SseLifecycleSupport.createEmitter(TimeUnit.HOURS.toMillis(1));
         SseLifecycleSupport.registerLifecycle(emitter,
                 Objects.toString(params.getRequestId(), "legacy-gpt-query"),
                 null,
                 log);
-        gptQueryApplicationService.queryAgentStreamIncr(params, new SseEmitterAgentSessionStream(emitter));
+        try {
+            UserAccount user = reactorAgentUserContextResolver.requireUser(servletRequest);
+            params.setUser(user.getUserId());
+            VisitorRequestContext.bind(user.getUserId());
+            gptQueryApplicationService.queryAgentStreamIncr(params, new SseEmitterAgentSessionStream(emitter));
+        } catch (Exception e) {
+            log.warn("{} reject agent query before dispatch", params.getRequestId(), e);
+            emitter.completeWithError(e);
+        } finally {
+            VisitorRequestContext.clear();
+        }
         return emitter;
     }
 

@@ -2,13 +2,14 @@ package com.linrun.reactor.trigger.http.reactor;
 
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
+import com.linrun.domain.account.model.UserAccount;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +22,7 @@ import com.linrun.reactor.domain.agent.runtime.executor.AgentExecutorSupport;
 import com.linrun.reactor.domain.agent.reactor.config.ReactorConfig;
 import com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest;
 import com.linrun.reactor.domain.agent.reactor.model.req.GptQueryReq;
+import com.linrun.reactor.trigger.http.support.ReactorAgentUserContextResolver;
 import com.linrun.reactor.trigger.http.reactor.support.SseEmitterAgentSessionStream;
 import com.linrun.reactor.trigger.http.reactor.support.SseLifecycleSupport;
 import com.linrun.reactor.types.agent.config.AgentExecutorNames;
@@ -51,6 +53,9 @@ public class ReactorController {
     private ConversationSessionOwnershipApplicationService conversationSessionOwnershipApplicationService;
 
     @Resource
+    private ReactorAgentUserContextResolver reactorAgentUserContextResolver;
+
+    @Resource
     private AgentExecutorProperties agentExecutorProperties;
 
     @Resource
@@ -68,7 +73,8 @@ public class ReactorController {
      * @throws UnsupportedEncodingException
      */
     @PostMapping("/AutoAgent")
-    public SseEmitter AutoAgent(@RequestBody AgentRequest request) throws UnsupportedEncodingException {
+    public SseEmitter AutoAgent(HttpServletRequest servletRequest,
+                                @RequestBody AgentRequest request) throws UnsupportedEncodingException {
 
         log.info("{} auto agent request: {}", request.getRequestId(), JSON.toJSONString(request));
 
@@ -76,8 +82,9 @@ public class ReactorController {
 
         SseEmitter emitter = SseLifecycleSupport.createEmitter(AUTO_AGENT_SSE_TIMEOUT);
         try {
-            String visitorId = resolveVisitorId(request);
+            String visitorId = reactorAgentUserContextResolver.resolveAgentUserId(servletRequest, request);
             request.setVisitorId(visitorId);
+            request.setErp(visitorId);
             conversationSessionOwnershipApplicationService.ensureSessionAccessible(
                     visitorId,
                     request.getSessionId(),
@@ -120,15 +127,6 @@ public class ReactorController {
         return emitter;
     }
 
-    private String resolveVisitorId(AgentRequest request) {
-        String contextVisitorId = VisitorRequestContext.currentVisitorId();
-        String visitorId = StringUtils.defaultIfBlank(contextVisitorId, request == null ? null : request.getVisitorId());
-        if (StringUtils.isBlank(visitorId)) {
-            throw new IllegalArgumentException("visitorId不能为空");
-        }
-        return visitorId;
-    }
-
     /**
      * 探活接口
      *
@@ -146,13 +144,24 @@ public class ReactorController {
      * @return 返回SSE事件发射器，用于流式传输增量响应结果
      */
     @RequestMapping(value = "/web/api/v1/gpt/queryAgentStreamIncr", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter queryAgentStreamIncr(@RequestBody GptQueryReq params) {
+    public SseEmitter queryAgentStreamIncr(HttpServletRequest servletRequest,
+                                           @RequestBody GptQueryReq params) {
         SseEmitter emitter = SseLifecycleSupport.createEmitter(TimeUnit.HOURS.toMillis(1));
         SseLifecycleSupport.registerLifecycle(emitter,
                 Objects.toString(params.getRequestId(), "legacy-gpt-query"),
                 null,
                 log);
-        gptQueryApplicationService.queryAgentStreamIncr(params, new SseEmitterAgentSessionStream(emitter));
+        try {
+            UserAccount user = reactorAgentUserContextResolver.requireUser(servletRequest);
+            params.setUser(user.getUserId());
+            VisitorRequestContext.bind(user.getUserId());
+            gptQueryApplicationService.queryAgentStreamIncr(params, new SseEmitterAgentSessionStream(emitter));
+        } catch (Exception e) {
+            log.warn("{} reject agent query before dispatch", params.getRequestId(), e);
+            emitter.completeWithError(e);
+        } finally {
+            VisitorRequestContext.clear();
+        }
         return emitter;
     }
 

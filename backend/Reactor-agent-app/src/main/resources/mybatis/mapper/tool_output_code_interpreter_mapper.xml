@@ -5,7 +5,7 @@
     <insert id="insert" parameterType="map">
         INSERT INTO tool_output_code_interpreter (
             tool_invocation_id, run_id, request_id, request_source, session_id, tool_call_id, status, error_msg,
-            code_output, content, code, explain
+            code_output, content, code, `explain`
         ) VALUES (
             #{row.toolInvocationId}, #{row.runId}, #{row.requestId}, #{row.requestSource}, #{row.sessionId}, #{row.toolCallId}, #{row.status}, #{row.errorMsg},
             #{row.codeOutput}, #{row.content}, #{row.code}, #{row.explain}

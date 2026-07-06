@@ -1,10 +1,12 @@
 package com.linrun.reactor.config.reactor;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.TaskScheduler;
+import com.linrun.reactor.domain.agent.adapter.port.AgentQuotaPort;
 import com.linrun.reactor.domain.agent.adapter.port.FileArtifactPort;
 import com.linrun.reactor.domain.agent.adapter.port.RemoteHttpPort;
 import com.linrun.reactor.domain.agent.adapter.port.RemoteStreamPort;
@@ -54,6 +56,7 @@ public class ReactorRuntimeAutoConfiguration {
                                                                  RemoteHttpPort remoteHttpPort,
                                                                  RemoteStreamPort remoteStreamPort,
                                                                  FileArtifactPort fileArtifactPort,
+                                                                 ObjectProvider<AgentQuotaPort> agentQuotaPortProvider,
                                                                  @Qualifier(AgentExecutorNames.LLM_EXECUTOR) Executor llmExecutor,
                                                                  @Qualifier(AgentExecutorNames.TASK_EXECUTOR) Executor taskExecutor,
                                                                  @Qualifier(AgentExecutorNames.TOOL_EXECUTOR) Executor toolExecutor,
@@ -67,6 +70,7 @@ public class ReactorRuntimeAutoConfiguration {
                 .remoteHttpPort(remoteHttpPort)
                 .remoteStreamPort(remoteStreamPort)
                 .fileArtifactPort(fileArtifactPort)
+                .agentQuotaPort(agentQuotaPortProvider.getIfAvailable())
                 .llmExecutor(llmExecutor)
                 .taskExecutor(taskExecutor)
                 .toolExecutor(toolExecutor)

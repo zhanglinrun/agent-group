@@ -18,7 +18,9 @@ from starlette.middleware.cors import CORSMiddleware
 
 from reactor_tool.util.middleware_util import UnknownException, HTTPProcessTimeMiddleware
 
-load_dotenv()
+env_file = Path(__file__).resolve().parent / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
 
 # 压掉已知的第三方库噪音告警，避免排查真实异常时被无关 warning 干扰。
 warnings.filterwarnings(
@@ -50,11 +52,19 @@ def create_app() -> FastAPI:
     _app = FastAPI(
         on_startup=[log_setting, init_file_database, print_logo]
     )
+    register_health(_app)
 
     register_middleware(_app)
     register_router(_app)
 
     return _app
+
+
+def register_health(app: FastAPI):
+    @app.get("/health")
+    @app.get("/v1/health")
+    def health():
+        return {"status": "UP", "service": "reactor-tool"}
 
 def register_middleware(app: FastAPI):
     app.add_middleware(UnknownException)

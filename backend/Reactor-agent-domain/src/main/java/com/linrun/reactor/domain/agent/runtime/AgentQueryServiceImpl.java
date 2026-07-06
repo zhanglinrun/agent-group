@@ -17,11 +17,9 @@ import com.linrun.reactor.domain.agent.reactor.model.req.AgentRequest;
 import com.linrun.reactor.domain.agent.reactor.model.req.GptQueryReq;
 import com.linrun.reactor.domain.agent.reactor.model.response.AgentResponse;
 import com.linrun.reactor.domain.agent.reactor.model.response.GptProcessResult;
-import com.linrun.reactor.domain.agent.reactor.util.ChateiUtils;
 import com.linrun.reactor.domain.agent.runtime.enums.AgentType;
 import com.linrun.reactor.domain.agent.runtime.enums.ResponseTypeEnum;
 import com.linrun.reactor.domain.agent.runtime.handler.AgentResponseHandler;
-import com.linrun.reactor.types.agent.visitor.VisitorRequestContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,10 +43,6 @@ public class AgentQueryServiceImpl implements AgentQueryService {
 
     @Override
     public void queryAgentStreamIncr(GptQueryReq req, AgentMessageStream stream) {
-        req.setUser("reactor");
-        req.setDeepThink(req.getDeepThink() == null ? 0 : req.getDeepThink());
-        req.setTraceId(ChateiUtils.getRequestId(req));
-
         AgentRequest agentRequest = buildAgentRequest(req);
         log.info("{} start handle Agent request: {}", req.getRequestId(), JSON.toJSONString(agentRequest));
         try {
@@ -198,33 +192,7 @@ public class AgentQueryServiceImpl implements AgentQueryService {
     }
 
     private AgentRequest buildAgentRequest(GptQueryReq req) {
-        AgentRequest request = new AgentRequest();
-        request.setRequestId(req.getTraceId());
-        request.setSessionId(req.getSessionId());
-        request.setVisitorId(VisitorRequestContext.currentVisitorId());
-        request.setErp(req.getUser());
-        request.setQuery(req.getQuery());
-        request.setSessionFiles(req.getSessionFiles());
-
-        if ("chat".equalsIgnoreCase(req.getOutputStyle())) {
-            request.setAgentType(AgentType.WORKFLOW.getValue());
-            request.setSopPrompt("");
-        } else {
-            Integer agentType = (req.getDeepThink() == null || req.getDeepThink() == 0)
-                    ? AgentType.REACT.getValue()
-                    : AgentType.PLAN_SOLVE.getValue();
-            request.setAgentType(agentType);
-            request.setSopPrompt(agentType.equals(AgentType.PLAN_SOLVE.getValue())
-                    ? reactorConfig.getReactorSopPrompt()
-                    : "");
-            request.setBasePrompt(agentType.equals(AgentType.REACT.getValue())
-                    ? reactorConfig.getReactorBasePrompt()
-                    : "");
-        }
-
-        request.setIsStream(true);
-        request.setOutputStyle(req.getOutputStyle());
-        return request;
+        return AgentRequestFactory.from(req, reactorConfig);
     }
 
     private GptProcessResult buildDefaultAutobotsResult(AgentRequest request, String errMsg) {

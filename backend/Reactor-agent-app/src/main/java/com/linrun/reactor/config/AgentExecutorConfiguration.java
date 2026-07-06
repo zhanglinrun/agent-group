@@ -1,6 +1,7 @@
 package com.linrun.reactor.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -57,6 +58,7 @@ public class AgentExecutorConfiguration {
      * 向 legacy armory 装配链暴露统一的受控工具执行器，避免继续回退到匿名线程池。
      */
     @Bean
+    @ConditionalOnMissingBean(name = "threadPoolExecutor")
     public ThreadPoolExecutor threadPoolExecutor(@Qualifier(AgentExecutorNames.TOOL_EXECUTOR) ThreadPoolTaskExecutor executor) {
         return executor.getThreadPoolExecutor();
     }

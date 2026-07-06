@@ -30,6 +30,7 @@ import com.linrun.reactor.domain.agent.runtime.ReactorRuntimeDependencies;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -201,8 +202,11 @@ public class PlanningAgent extends ReActAgent {
 
             // 6. 同步获取异步结果（阻塞等待大模型响应）
             LLM.ToolCallResponse response = future.get();
-            setToolCalls(response.getToolCalls()); // 保存大模型返回的工具调用列表
-            bindCurrentPlannerRoundId(response.getToolCalls());
+            List<ToolCall> selectedToolCalls = response == null || response.getToolCalls() == null
+                    ? Collections.emptyList()
+                    : response.getToolCalls();
+            setToolCalls(selectedToolCalls); // 保存大模型返回的工具调用列表
+            bindCurrentPlannerRoundId(selectedToolCalls);
 
             if (context.getIsStream()
                     && response.getContent() != null
@@ -224,13 +228,13 @@ public class PlanningAgent extends ReActAgent {
             // 8. 日志记录：思考内容、选择的工具数量（用于监控/排查）
             log.info("{} {}'s thoughts: {}", context.getRequestId(), getName(), response.getContent());
             log.info("{} {} selected {} tools to use", context.getRequestId(), getName(),
-                    response.getToolCalls() != null ? response.getToolCalls().size() : 0);
+                    selectedToolCalls.size());
 
             // 9. 构建助手消息并添加到记忆：
             // - 分支1：有工具调用且不是结构化解析模式 → 构建包含工具调用的助手消息
             // - 分支2：无工具调用/结构化解析模式 → 构建普通助手消息
-            Message assistantMsg = response.getToolCalls() != null && !response.getToolCalls().isEmpty() && !"struct_parse".equals(llm.getFunctionCallType()) ?
-                    Message.fromToolCalls(response.getContent(), response.getToolCalls()) :
+            Message assistantMsg = !selectedToolCalls.isEmpty() && !"struct_parse".equals(llm.getFunctionCallType()) ?
+                    Message.fromToolCalls(response.getContent(), selectedToolCalls) :
                     Message.assistantMessage(response.getContent(), null);
 
             getMemory().addMessage(assistantMsg); // 助手消息加入记忆，用于后续多轮对话
@@ -266,6 +270,10 @@ public class PlanningAgent extends ReActAgent {
 //            setState(AgentState.FINISHED);
 //            return getMemory().getLastMessage().toString();
 //        }
+        if ((toolCalls == null || toolCalls.isEmpty()) && Objects.isNull(planningTool.getPlan())) {
+            setState(AgentState.ERROR);
+            throw new IllegalStateException("planning did not return any tool call");
+        }
 
         // 2. 初始化工具执行结果列表
         List<String> results = new ArrayList<>();

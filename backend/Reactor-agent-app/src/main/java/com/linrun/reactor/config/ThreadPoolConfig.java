@@ -2,6 +2,7 @@ package com.linrun.reactor.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ import java.util.concurrent.*;
 @Slf4j
 @EnableAsync
 @Configuration
+@ConditionalOnProperty(prefix = "reactor.thread-pool", name = "enabled", havingValue = "true")
 @EnableConfigurationProperties(ThreadPoolConfigProperties.class)
 public class ThreadPoolConfig {
 

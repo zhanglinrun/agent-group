@@ -11,11 +11,17 @@ server:
 spring:
   autoconfigure:
     exclude:
-      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.springframework.ai.mcp.client.httpclient.autoconfigure.SseHttpClientTransportAutoConfiguration
+      - org.springframework.ai.mcp.client.httpclient.autoconfigure.StreamableHttpHttpClientTransportAutoConfiguration
+      - org.springframework.ai.mcp.client.webflux.autoconfigure.SseWebFluxTransportAutoConfiguration
+      - org.springframework.ai.mcp.client.webflux.autoconfigure.StreamableHttpWebFluxTransportAutoConfiguration
   mvc:
     async:
       request-timeout: 60000
   ai:
+    agent:
+      auto-config:
+        enabled: ${REACTOR_AGENT_AUTO_CONFIG_ENABLED:false}
     openai:
       base-url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
       api-key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:${AI_BAILIAN_API_KEY:not-configured}}}
@@ -32,8 +38,6 @@ spring:
           model: ${AGENT_GROUP_LLM_EMBEDDING_MODEL:text-embedding-v3}
           dimensions: ${AGENT_GROUP_VECTOR_DIMENSION:1024}
           encoding-format: float
-    vectorstore:
-      type: pgvector
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${AGENT_GROUP_MYSQL_URL:jdbc:mysql://127.0.0.1:13306/agent_group?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
@@ -96,6 +100,53 @@ thread:
         block-queue-size: ${AGENT_GROUP_THREAD_BLOCK_QUEUE_SIZE:5000}
         policy: ${AGENT_GROUP_THREAD_REJECT_POLICY:CallerRunsPolicy}
 
+reactor:
+  thread-pool:
+    enabled: ${REACTOR_THREAD_POOL_ENABLED:false}
+
+es:
+  enabled: ${REACTOR_ES_ENABLED:false}
+
+xfg:
+  wrench:
+    task:
+      job:
+        enabled: ${REACTOR_TASK_JOB_ENABLED:false}
+
+llm:
+  default:
+    base_url: ${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api_key: ${AGENT_GROUP_LLM_API_KEY:${DASHSCOPE_API_KEY:${AI_BAILIAN_API_KEY:not-configured}}}
+    model: ${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.7-plus}
+  settings: ${REACTOR_LLM_SETTINGS:{}}
+
+autobots:
+  execution:
+    heartbeat:
+      enabled: ${REACTOR_EXECUTION_HEARTBEAT_ENABLED:true}
+    visitor-cookie:
+      name: ${REACTOR_VISITOR_COOKIE_NAME:reactor_visitor_id}
+      max-age-days: ${REACTOR_VISITOR_COOKIE_MAX_AGE_DAYS:30}
+      secure: ${REACTOR_VISITOR_COOKIE_SECURE:false}
+      same-site: ${REACTOR_VISITOR_COOKIE_SAME_SITE:Lax}
+  autoagent:
+    planner:
+      model_name: ${REACTOR_PLANNER_MODEL_NAME:${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.7-plus}}
+      system_prompt: ${REACTOR_PLANNER_SYSTEM_PROMPT:{}}
+    executor:
+      model_name: ${REACTOR_EXECUTOR_MODEL_NAME:${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.7-plus}}
+      system_prompt: ${REACTOR_EXECUTOR_SYSTEM_PROMPT:{}}
+    react:
+      model_name: ${REACTOR_REACT_MODEL_NAME:${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.7-plus}}
+      system_prompt: ${REACTOR_REACT_SYSTEM_PROMPT:{}}
+    code_interpreter_url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+    deep_search_url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+    web_fetch_url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+    image_generation_url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+    data_analysis_url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+    mcp_client_url: ${REACTOR_MCP_CLIENT_URL:http://127.0.0.1:1601}
+    mcp_server_url: ${REACTOR_MCP_SERVER_URL:http://127.0.0.1:1601}
+
 agent:
   group:
     stream:
@@ -114,20 +165,6 @@ agent:
       log-retention-days: ${AGENT_GROUP_XXL_JOB_LOG_RETENTION_DAYS:30}
     redis:
       key-prefix: ${AGENT_GROUP_REDIS_KEY_PREFIX:agent-group}
-    vector:
-      host: ${AGENT_GROUP_PGVECTOR_HOST:127.0.0.1}
-      port: ${AGENT_GROUP_PGVECTOR_PORT:15432}
-      database: ${AGENT_GROUP_PGVECTOR_DATABASE:agent_group_vector}
-      username: ${AGENT_GROUP_PGVECTOR_USERNAME:agent_group}
-      password: ${AGENT_GROUP_PGVECTOR_PASSWORD:agent_group_dev}
-    rag:
-      keyword-hybrid:
-        enabled: ${AGENT_GROUP_RAG_KEYWORD_HYBRID_ENABLED:true}
-      reranker:
-        enabled: ${AGENT_GROUP_RAG_RERANKER_ENABLED:false}
-        endpoint: ${AGENT_GROUP_RAG_RERANKER_ENDPOINT:}
-        top-n: ${AGENT_GROUP_RAG_RERANKER_TOP_N:5}
-        timeout-millis: ${AGENT_GROUP_RAG_RERANKER_TIMEOUT_MILLIS:1500}
     market:
       cache:
         enabled: ${AGENT_GROUP_MARKET_CACHE_ENABLED:true}
@@ -214,6 +251,9 @@ mybatis-plus:
   config-location: classpath:/mybatis/config/mybatis-config.xml
 
 management:
+  health:
+    elasticsearch:
+      enabled: ${REACTOR_ES_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:

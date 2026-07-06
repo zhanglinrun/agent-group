@@ -46,7 +46,7 @@ public class DynamicAutoAgentTest {
         this.chatModel = OpenAiChatModel.builder()
                 .openAiApi(OpenAiApi.builder()
                         .baseUrl("https://apis.itedus.cn")
-                        .apiKey("sk-4lYo6Hsm1LvLeaaN339f9d9fD3074542A7Cc3dAc75F2Aa69")
+                        .apiKey(System.getenv().getOrDefault("REACTOR_TEST_API_KEY", "test-api-key"))
                         .completionsPath("v1/chat/completions")
                         .embeddingsPath("v1/embeddings")
                         .build())
@@ -94,7 +94,7 @@ public class DynamicAutoAgentTest {
 
     public McpSyncClient sseMcpClient_BaiduSearch() {
         HttpClientSseClientTransport sseClientTransport = HttpClientSseClientTransport.builder("http://appbuilder.baidu.com/v2/ai_search/mcp/")
-                .sseEndpoint("sse?api_key=bce-v3/ALTAK-3zODLb9qHozIftQlGwez5/2696e92781f5bf1ba1870e2958f239fd6dc822a4")
+                .sseEndpoint("sse?api_key=${REACTOR_TEST_BAIDU_MCP_API_KEY}")
                 .build();
 
         McpSyncClient mcpSyncClient = McpClient.sync(sseClientTransport).requestTimeout(Duration.ofMinutes(360)).build();

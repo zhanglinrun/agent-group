@@ -23,8 +23,8 @@ public class BaseFilterConfig {
 	public BaseFilterConfig() {
 	}
 
-	@Bean
-	public FilterRegistrationBean<CorsFilter> corsFilter(AgentExecutorProperties properties) {
+	@Bean(name = "reactorCorsFilterRegistration")
+	public FilterRegistrationBean<CorsFilter> reactorCorsFilterRegistration(AgentExecutorProperties properties) {
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		CorsConfiguration config = new CorsConfiguration();
 		if (CollectionUtils.isNotEmpty(properties.getVisitorCookie().getAllowedOrigins())) {

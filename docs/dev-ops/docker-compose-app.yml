@@ -1,4 +1,51 @@
 services:
+  reactor-tool:
+    build:
+      context: ../../tools/reactor-tool
+      dockerfile: Dockerfile
+    image: agent-group-reactor-tool:1.0-SNAPSHOT
+    container_name: agent-group-reactor-tool
+    restart: always
+    ports:
+      - "${REACTOR_TOOL_PORT:-1601}:1601"
+    environment:
+      TZ: Asia/Shanghai
+      ENV: prod
+      PYTHONIOENCODING: utf-8
+      OPENAI_BASE_URL: ${AGENT_GROUP_LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      OPENAI_API_KEY: ${AGENT_GROUP_LLM_API_KEY:-${DASHSCOPE_API_KEY:-not-configured}}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-not-configured}
+      DASHSCOPE_API_BASE: ${DASHSCOPE_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      DEFAULT_MODEL: ${AGENT_GROUP_LLM_CHAT_MODEL:-qwen-plus}
+      FILE_SAVE_PATH: /app/data/files
+      SQLITE_DB_PATH: /app/data/autobots.db
+      SQLITE_PATH: /app/data/mrag_sqlite.db
+      FILE_SERVER_URL: ${REACTOR_TOOL_PUBLIC_FILE_SERVER_URL:-http://localhost:1601/v1/file_tool}
+      VECTOR_STORE_TYPE: qdrant
+      QDRANT_HOST: ${AGENT_GROUP_QDRANT_HOST:-qdrant}
+      QDRANT_PORT: ${AGENT_GROUP_QDRANT_GRPC_PORT:-6334}
+      QDRANT_API_KEY: ${AGENT_GROUP_QDRANT_API_KEY:-}
+      QDRANT_PREFER_GRPC: ${AGENT_GROUP_QDRANT_PREFER_GRPC:-true}
+      QDRANT_TIMEOUT: ${AGENT_GROUP_QDRANT_TIMEOUT:-30}
+      DATA_AGENT_QDRANT_ENABLE: ${DATA_AGENT_QDRANT_ENABLE:-false}
+      DATA_AGENT_QDRANT_HOST: ${DATA_AGENT_QDRANT_HOST:-qdrant}
+      DATA_AGENT_QDRANT_PORT: ${DATA_AGENT_QDRANT_PORT:-6334}
+      DATA_AGENT_QDRANT_PREFER_GRPC: ${DATA_AGENT_QDRANT_PREFER_GRPC:-true}
+      TR_QDRANT_ENABLE: ${TR_QDRANT_ENABLE:-false}
+      TR_QDRANT_HOST: ${TR_QDRANT_HOST:-qdrant}
+      TR_QDRANT_PORT: ${TR_QDRANT_PORT:-6334}
+      TR_QDRANT_API_KEY: ${TR_QDRANT_API_KEY:-}
+      TR_QDRANT_PREFER_GRPC: ${TR_QDRANT_PREFER_GRPC:-true}
+      TR_QDRANT_COLLECTION_NAME: ${TR_QDRANT_COLLECTION_NAME:-t_reactor_table_vectors}
+      TR_QD_RECALL_TOP_K: ${TR_QD_RECALL_TOP_K:-30}
+      TR_QD_THRESHHOLD: ${TR_QD_THRESHHOLD:-0.4}
+      TR_QD_TIMEOUT: ${TR_QD_TIMEOUT:-300}
+    volumes:
+      - ../../data/reactor-tool:/app/data
+      - ../../logs/reactor-tool:/app/logs
+    networks:
+      - agent-group-network
+
   agent-group-app:
     build:
       context: ../..
@@ -22,6 +69,9 @@ services:
       AGENT_GROUP_PGVECTOR_HOST: ${AGENT_GROUP_PGVECTOR_HOST:-pgvector}
       AGENT_GROUP_PGVECTOR_PORT: ${AGENT_GROUP_PGVECTOR_PORT:-5432}
       AGENT_GROUP_MINIO_ENDPOINT: ${AGENT_GROUP_MINIO_ENDPOINT:-http://minio:9000}
+      REACTOR_TOOL_BASE_URL: ${REACTOR_TOOL_BASE_URL:-http://reactor-tool:1601}
+      REACTOR_MCP_CLIENT_URL: ${REACTOR_MCP_CLIENT_URL:-http://reactor-tool:1601}
+      REACTOR_MCP_SERVER_URL: ${REACTOR_MCP_SERVER_URL:-http://reactor-tool:1601}
       AGENT_GROUP_LLM_API_KEY: ${AGENT_GROUP_LLM_API_KEY:-not-configured}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-not-configured}
       AGENT_USER_MODEL_CRYPTO_SECRET: ${AGENT_USER_MODEL_CRYPTO_SECRET:?AGENT_USER_MODEL_CRYPTO_SECRET must be configured before enabling custom user models}
@@ -36,6 +86,8 @@ services:
       - ../../logs:/app/logs
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - reactor-tool
     networks:
       - agent-group-network
 
