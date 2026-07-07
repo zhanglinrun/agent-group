@@ -298,7 +298,7 @@ function App() {
   );
 }
 
-function AgentWorkspaceApp() {
+export function AgentWorkspaceApp() {
   const location = useLocation();
   const navigate = useNavigate();
   const routeWorkspace = workspaceFromPath(location.pathname);

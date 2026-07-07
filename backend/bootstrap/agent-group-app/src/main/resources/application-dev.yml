@@ -129,7 +129,12 @@ autobots:
       max-age-days: ${REACTOR_VISITOR_COOKIE_MAX_AGE_DAYS:30}
       secure: ${REACTOR_VISITOR_COOKIE_SECURE:false}
       same-site: ${REACTOR_VISITOR_COOKIE_SAME_SITE:Lax}
+      allowed-origins:
+        - http://localhost:5173
+        - http://127.0.0.1:5173
   autoagent:
+    upstream:
+      url: ${AGENT_GROUP_AUTOAGENT_UPSTREAM_URL:http://127.0.0.1:8080/AutoAgent}
     planner:
       model_name: ${REACTOR_PLANNER_MODEL_NAME:${AGENT_GROUP_LLM_CHAT_MODEL:qwen3.7-plus}}
       system_prompt: ${REACTOR_PLANNER_SYSTEM_PROMPT:{}}
@@ -146,6 +151,30 @@ autobots:
     data_analysis_url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
     mcp_client_url: ${REACTOR_MCP_CLIENT_URL:http://127.0.0.1:1601}
     mcp_server_url: ${REACTOR_MCP_SERVER_URL:http://127.0.0.1:1601}
+    skill:
+      enabled: ${REACTOR_SKILL_ENABLED:true}
+      directories:
+        - ${AGENT_GROUP_SKILLS_DIRECTORY:runtime/skills}
+      react-enabled: ${REACTOR_SKILL_REACT_ENABLED:true}
+      plan-solve-enabled: ${REACTOR_SKILL_PLAN_SOLVE_ENABLED:true}
+  data-agent:
+    agent-url: ${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}
+    force-refresh: ${DATA_AGENT_FORCE_REFRESH:false}
+    qdrant-config:
+      enable: ${DATA_AGENT_QDRANT_ENABLE:false}
+      url: ${DATA_AGENT_QDRANT_URL:}
+      host: ${DATA_AGENT_QDRANT_HOST:${AGENT_GROUP_QDRANT_HOST:127.0.0.1}}
+      port: ${DATA_AGENT_QDRANT_PORT:${AGENT_GROUP_QDRANT_GRPC_PORT:6334}}
+      api-key: ${AGENT_GROUP_QDRANT_API_KEY:}
+      embedding-url: ${DATA_AGENT_QDRANT_EMBEDDING_URL:${AGENT_GROUP_LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}}
+      prefer-grpc: ${DATA_AGENT_QDRANT_PREFER_GRPC:true}
+    es-config:
+      enable: ${DATA_AGENT_ES_ENABLE:false}
+      host: ${DATA_AGENT_ES_HOST:127.0.0.1:9200}
+      user: ${DATA_AGENT_ES_USER:}
+      password: ${DATA_AGENT_ES_PASSWORD:}
+      api-key: ${DATA_AGENT_ES_API_KEY:}
+      scheme: ${DATA_AGENT_ES_SCHEME:http}
 
 agent:
   group:
@@ -188,8 +217,8 @@ agent:
         max-file-size-bytes: ${AGENT_GROUP_MULTIMODAL_IMAGE_MAX_FILE_SIZE_BYTES:5242880}
         allowed-content-types: ${AGENT_GROUP_MULTIMODAL_IMAGE_ALLOWED_CONTENT_TYPES:image/jpeg,image/png,image/webp,image/gif}
     reactor-tool:
-      enabled: ${AGENT_GROUP_REACTOR_TOOL_ENABLED:false}
-      base-url: ${AGENT_GROUP_REACTOR_TOOL_BASE_URL:http://127.0.0.1:1801}
+      enabled: ${AGENT_GROUP_REACTOR_TOOL_ENABLED:true}
+      base-url: ${AGENT_GROUP_REACTOR_TOOL_BASE_URL:${REACTOR_TOOL_BASE_URL:http://127.0.0.1:1601}}
       api-key: ${AGENT_GROUP_REACTOR_TOOL_API_KEY:}
     mcp:
       admin-state-file: ${AGENT_GROUP_MCP_ADMIN_STATE_FILE:data/mcp-admin-state.json}
@@ -242,7 +271,7 @@ grsai:
     api-key: ${GRSAI_NANOBANANA_API_KEY:}
 
 skills:
-  directory: ${AGENT_GROUP_SKILLS_DIRECTORY:skills}
+  directory: ${AGENT_GROUP_SKILLS_DIRECTORY:runtime/skills}
   output-directory: ${AGENT_GROUP_SKILLS_OUTPUT_DIRECTORY:outputs}
 
 # 业务 DAO 走 InfrastructureMybatisConfig；Agent 会话/PPT 表走 MyBatis-Plus（trigger 模块）

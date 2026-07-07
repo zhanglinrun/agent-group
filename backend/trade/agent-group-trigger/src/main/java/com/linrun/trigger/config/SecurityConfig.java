@@ -60,8 +60,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/weixin/portal", "/api/v1/weixin/login/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasRole("USER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/profile").hasRole("USER")
+                        // Reactor 匿名访客链路：依赖 visitor cookie，不要求本项目登录态
+                        .requestMatchers(
+                                "/api/agent/visitor/**",
+                                "/api/agent/conversation/**",
+                                "/api/agent/role-library/**",
+                                "/api/agent/file/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/web/api/v1/gpt/queryAgentStreamIncr").permitAll()
                         .requestMatchers("/agent/**", "/file/**", "/session/**").hasRole("USER")
-                        .requestMatchers("/web/api/v1/agent/**", "/api/agent/file/**").hasRole("USER")
+                        .requestMatchers("/web/api/v1/agent/**").hasRole("USER")
                         .requestMatchers("/api/v1/quota/admin/**").hasAnyRole("OPERATOR", "ADMIN")
                         .requestMatchers("/api/v1/quota/**", "/api/v1/agent/**").hasRole("USER")
                         .requestMatchers(HttpMethod.POST, "/api/v1/trade/order/direct", "/api/v1/market/trade/lock").hasRole("USER")

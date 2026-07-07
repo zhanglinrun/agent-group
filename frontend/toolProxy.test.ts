@@ -6,7 +6,7 @@ describe("createToolProxyConfig", () => {
   it("proxies tool requests to the default local runtime", () => {
     const proxy = createToolProxyConfig();
 
-    expect(proxy.target).toBe("http://127.0.0.1:1801");
+    expect(proxy.target).toBe("http://127.0.0.1:1601");
     expect(proxy.changeOrigin).toBe(true);
     expect(proxy.rewrite("/tool/v1/file_tool/preview/req/demo.html")).toBe(
       "/v1/file_tool/preview/req/demo.html"

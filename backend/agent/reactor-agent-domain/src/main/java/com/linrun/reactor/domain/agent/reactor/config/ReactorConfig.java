@@ -346,6 +346,12 @@ public class ReactorConfig {
     @Value("${spring.ai.agent.chat.default-role-id:}")
     private String chatDefaultRoleId;
 
+    /**
+     * 远端 AutoAgent SSE 上游地址；单进程部署时默认回环到本机 /AutoAgent。
+     */
+    @Value("${autobots.autoagent.upstream.url:http://127.0.0.1:8080/AutoAgent}")
+    private String autoAgentUpstreamUrl;
+
     private static Map<String, String> parseStringMap(String json) {
         if (!StringUtils.hasText(json) || "{}".equals(json.trim())) {
             return new HashMap<>();

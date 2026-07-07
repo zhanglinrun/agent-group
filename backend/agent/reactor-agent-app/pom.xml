@@ -13,7 +13,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <skipTests>true</skipTests>
+        <skipTests>false</skipTests>
     </properties>
 
     <dependencies>
@@ -168,6 +168,7 @@
                 <version>2.6</version>
                 <configuration>
                     <skipTests>${skipTests}</skipTests>
+                    <failIfNoTests>false</failIfNoTests>
                     <testFailureIgnore>false</testFailureIgnore>
                     <includes>
                         <include>**/*Test.java</include>

@@ -1,10 +1,15 @@
+import '@ant-design/v5-patch-for-react-19'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import './index.css'
-import App from './App.jsx'
+import './reactor-ui/global.css'
+import './workspace-chrome.css'
+import App from './reactor-ui/App.tsx'
 
-createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
+const root = document.getElementById('root')
+
+if (root) {
+  createRoot(root).render(
     <App />
-  </BrowserRouter>,
-)
+  )
+} else {
+  console.error('Root element not found')
+}

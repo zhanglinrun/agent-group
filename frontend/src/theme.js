@@ -14,6 +14,8 @@ export function applyTheme(theme) {
   const normalized = THEMES.has(theme) ? theme : "dark";
   document.documentElement.dataset.theme = normalized;
   document.body.dataset.theme = normalized;
+  document.documentElement.classList.toggle("dark", normalized === "dark");
+  document.body.classList.toggle("dark", normalized === "dark");
   try {
     localStorage.setItem(THEME_KEY, normalized);
   } catch {

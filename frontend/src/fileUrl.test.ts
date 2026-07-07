@@ -20,7 +20,7 @@ describe("file url normalization", () => {
     });
 
     expect(
-      normalizeFileUrlForBrowser("http://127.0.0.1:1801/v1/file_tool/preview/req/demo.html")
+      normalizeFileUrlForBrowser("http://127.0.0.1:1601/v1/file_tool/preview/req/demo.html")
     ).toBe("http://localhost:5173/tool/v1/file_tool/preview/req/demo.html");
   });
 
@@ -34,7 +34,7 @@ describe("file url normalization", () => {
     });
 
     expect(
-      normalizeFileUrlForBrowser("http://127.0.0.1:1601/v1/file_tool/preview/req/demo.html")
+      normalizeFileUrlForBrowser("http://127.0.0.1:1801/v1/file_tool/preview/req/demo.html")
     ).toBe("http://localhost:5173/tool/v1/file_tool/preview/req/demo.html");
   });
 
