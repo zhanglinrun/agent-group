@@ -73,16 +73,16 @@ class ImageGenerationToolTest(unittest.TestCase):
             "os.environ",
             {
                 "IMAGE_GENERATION_BASE_URL": "https://image.example.com",
-                "IMAGE_GENERATION_API_KEY": "image-key",
+                "IMAGE_GENERATION_API_KEY": "image-credential",
                 "IMAGE_GENERATION_MODEL": "image-model",
                 "OPENAI_BASE_URL": "https://openai.example.com",
                 "OPENAI_API_BASE": "https://openai-api-base.example.com",
-                "OPENAI_API_KEY": "openai-key",
+                "OPENAI_API_KEY": "openai-credential",
             },
             clear=True,
         ):
             self.assertEqual("https://image.example.com", _resolve_base_url())
-            self.assertEqual("image-key", _resolve_api_key())
+            self.assertEqual("image-credential", _resolve_api_key())
             self.assertEqual("image-model", _resolve_model_name())
 
     def test_should_not_fallback_to_openai_env(self):
@@ -91,7 +91,7 @@ class ImageGenerationToolTest(unittest.TestCase):
             {
                 "OPENAI_BASE_URL": "https://openai.example.com",
                 "OPENAI_API_BASE": "https://openai-api-base.example.com",
-                "OPENAI_API_KEY": "openai-key",
+                "OPENAI_API_KEY": "openai-credential",
             },
             clear=True,
         ):
@@ -199,7 +199,7 @@ class ImageGenerationToolTest(unittest.TestCase):
             client = FakeClient()
             payload, used_fallback = await _execute_generation_request(
                 client=client,
-                api_key="test-key",
+                api_key="test-credential",
                 primary_request={
                     "url": "https://example.com/v1/images/edits",
                     "body": [("model", "gpt-image-2"), ("prompt", "edit")],
@@ -261,7 +261,7 @@ class ImageGenerationToolTest(unittest.TestCase):
                 "requestId": "req-config-001",
                 "prompt": "draw a paper framework diagram",
                 "baseUrl": "https://request-image.example.com",
-                "apiKey": "request-image-key",
+                "apiKey": "request-image-credential",
                 "model": "request-image-model",
             }
         )
@@ -272,7 +272,7 @@ class ImageGenerationToolTest(unittest.TestCase):
                 "os.environ",
                 {
                     "IMAGE_GENERATION_BASE_URL": "https://env-image.example.com",
-                    "IMAGE_GENERATION_API_KEY": "env-image-key",
+                    "IMAGE_GENERATION_API_KEY": "env-image-credential",
                     "IMAGE_GENERATION_MODEL": "env-image-model",
                 },
                 clear=True,
@@ -286,7 +286,7 @@ class ImageGenerationToolTest(unittest.TestCase):
                 result = await generate_images(request)
 
             self.assertEqual("https://request-image.example.com/v1/responses", FakeClient.calls[0]["url"])
-            self.assertEqual("Bearer request-image-key", FakeClient.calls[0]["headers"]["Authorization"])
+            self.assertEqual("Bearer request-image-credential", FakeClient.calls[0]["headers"]["Authorization"])
             self.assertEqual("request-image-model", FakeClient.calls[0]["json"]["model"])
             self.assertEqual("result.png", result["fileInfo"][0]["fileName"])
 

@@ -72,7 +72,7 @@ class UserQuotaServiceTest {
     void modelConfigSeparatesTextAndImageModels() {
         InMemoryQuotaRepository quotaRepository = new InMemoryQuotaRepository(BigDecimal.TEN);
         UserModelCredentialService credentialService = new UserModelCredentialService();
-        ReflectionTestUtils.setField(credentialService, "modelConfigCryptoSecret", "test-model-config-secret");
+        ReflectionTestUtils.setField(credentialService, "modelConfigCryptoSecret", "test-model-config-credential");
         UserQuotaService service = new UserQuotaService(
                 quotaRepository,
                 mock(QuotaProductRepository.class),
@@ -83,10 +83,10 @@ class UserQuotaServiceTest {
         UserModelConfigRequest request = new UserModelConfigRequest();
         request.setEnabled(true);
         request.setTextBaseUrl("https://text.example.com/v1");
-        request.setTextApiKey("sk-text-secret-1234");
+        request.setTextApiKey("text-credential-1234");
         request.setTextModel("custom-text-model");
         request.setImageBaseUrl("https://image.example.com/v1");
-        request.setImageApiKey("sk-image-secret-5678");
+        request.setImageApiKey("image-credential-5678");
         request.setImageModel("custom-image-model");
 
         UserModelConfigResponse response = service.saveModelConfig("U10001", request);
@@ -98,8 +98,8 @@ class UserQuotaServiceTest {
         assertEquals("custom-text-model", response.getTextModel());
         assertEquals("https://image.example.com/v1", response.getImageBaseUrl());
         assertEquals("custom-image-model", response.getImageModel());
-        assertEquals("sk-t****1234", response.getTextKeyMasked());
-        assertEquals("sk-i****5678", response.getImageKeyMasked());
+        assertEquals("text****1234", response.getTextKeyMasked());
+        assertEquals("imag****5678", response.getImageKeyMasked());
         assertTrue(runtimeConfig.isPresent());
         assertEquals("https://text.example.com/v1", runtimeConfig.get().getBaseUrl());
         assertEquals("https://text.example.com/v1", runtimeConfig.get().getTextBaseUrl());
@@ -107,9 +107,9 @@ class UserQuotaServiceTest {
         assertEquals("custom-text-model", runtimeConfig.get().getModel());
         assertEquals("custom-text-model", runtimeConfig.get().getTextModel());
         assertEquals("custom-image-model", runtimeConfig.get().getImageModel());
-        assertEquals("sk-text-secret-1234", runtimeConfig.get().getApiKey());
-        assertEquals("sk-text-secret-1234", runtimeConfig.get().getTextApiKey());
-        assertEquals("sk-image-secret-5678", runtimeConfig.get().getImageApiKey());
+        assertEquals("text-credential-1234", runtimeConfig.get().getApiKey());
+        assertEquals("text-credential-1234", runtimeConfig.get().getTextApiKey());
+        assertEquals("image-credential-5678", runtimeConfig.get().getImageApiKey());
         assertNotEquals(runtimeConfig.get().getTextApiKey(), runtimeConfig.get().getImageApiKey());
     }
 
@@ -445,7 +445,6 @@ class UserQuotaServiceTest {
         }
     }
 }
-
 
 
 

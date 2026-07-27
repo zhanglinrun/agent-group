@@ -445,9 +445,9 @@ describe("mcp admin api client", () => {
       modelConfig: {
         enabled: true,
         baseUrl: "https://example.com",
-        apiKey: "sk-secret",
+        apiKey: "test-credential-value",
         model: "custom-model",
-        keyMasked: "sk****cret"
+        keyMasked: "test****alue"
       }
     });
 
@@ -464,10 +464,10 @@ describe("mcp admin api client", () => {
     await saveModelConfig({
       enabled: true,
       textBaseUrl: "https://text.example.com",
-      textApiKey: "sk-text-secret",
+      textApiKey: "text-credential-value",
       textModel: "custom-text-model",
       imageBaseUrl: "https://image.example.com",
-      imageApiKey: "sk-image-secret",
+      imageApiKey: "image-credential-value",
       imageModel: "custom-image-model"
     });
 
@@ -486,13 +486,13 @@ describe("mcp admin api client", () => {
       body: JSON.stringify({
         enabled: true,
         baseUrl: "https://text.example.com",
-        apiKey: "sk-text-secret",
+        apiKey: "text-credential-value",
         model: "custom-text-model",
         textBaseUrl: "https://text.example.com",
-        textApiKey: "sk-text-secret",
+        textApiKey: "text-credential-value",
         textModel: "custom-text-model",
         imageBaseUrl: "https://image.example.com",
-        imageApiKey: "sk-image-secret",
+        imageApiKey: "image-credential-value",
         imageModel: "custom-image-model"
       })
     }));

@@ -20,7 +20,6 @@ from qdrant_client.models import (Filter,
                                   VectorParams,
                                   Distance)
 
-openai.api_key = "your-openai-key"
 
 load_dotenv()
 

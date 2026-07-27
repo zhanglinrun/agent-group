@@ -31,13 +31,13 @@ class UserModelCredentialServiceTest {
     @Test
     void shouldEncryptAndDecryptApiKey() {
         UserModelCredentialService service = new UserModelCredentialService();
-        ReflectionTestUtils.setField(service, "modelConfigCryptoSecret", "unit-test-secret");
+        ReflectionTestUtils.setField(service, "modelConfigCryptoSecret", "unit-test-credential");
 
-        String encrypted = service.encryptApiKey("sk-test-key-001");
+        String encrypted = service.encryptApiKey("credential-test-value");
         String decrypted = service.decryptApiKey(encrypted);
 
         assertTrue(encrypted.startsWith("v1:"));
-        assertEquals("sk-test-key-001", decrypted);
-        assertEquals("sk-t****-001", service.maskApiKey("sk-test-key-001"));
+        assertEquals("credential-test-value", decrypted);
+        assertEquals("cred****alue", service.maskApiKey("credential-test-value"));
     }
 }
